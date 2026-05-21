@@ -103,7 +103,7 @@ export default function ClaseDetailPage({ params }: { params: Promise<{ id: stri
               <div className="mt-3 flex items-center gap-2 text-sm">
                 <Users className="w-4 h-4 text-gray-400" />
                 <span className="text-gray-600">
-                  {cls.availableSpots > 0
+                  {(cls.availableSpots ?? 0) > 0
                     ? <><strong className="text-gray-900">{cls.availableSpots}</strong> cupos disponibles de {cls.maxSpots}</>
                     : <span className="text-red-600 font-semibold">Sin cupos disponibles</span>
                   }
@@ -280,7 +280,7 @@ export default function ClaseDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Users className="w-4 h-4 text-purple-500" />
                   <span>
-                    {cls.availableSpots > 0 ? `${cls.availableSpots} cupos disponibles` : 'Sin cupos'}
+                    {(cls.availableSpots ?? 0) > 0 ? `${cls.availableSpots} cupos disponibles` : 'Sin cupos'}
                   </span>
                 </div>
               </div>

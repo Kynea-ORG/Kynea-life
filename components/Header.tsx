@@ -31,7 +31,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">
             {[
-              { label: 'Explorar clases', href: '/buscar' },
+              { label: 'Explorar clases', href: '/clases' },
               { label: 'Ver en mapa', href: '/mapa' },
             ].map(item => (
               <Link
@@ -61,7 +61,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
               Mi panel
             </Link>
             <Link
-              href="/auth"
+              href="/login"
               className={`text-sm font-medium px-4 py-2 rounded-full border transition-colors ${
                 transparent
                   ? 'border-white/40 text-white hover:bg-white/10'
@@ -71,7 +71,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
               Iniciar sesión
             </Link>
             <Link
-              href="/auth?tab=register"
+              href="/registro"
               className="text-sm font-semibold px-5 py-2.5 bg-purple-700 hover:bg-purple-800 text-white rounded-full transition-colors shadow-sm"
             >
               Publicar clase
@@ -94,10 +94,10 @@ export default function Header({ transparent = false }: { transparent?: boolean 
       {mobileOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 px-5 py-4 flex flex-col gap-1">
           {[
-            { label: 'Explorar clases', href: '/buscar' },
+            { label: 'Explorar clases', href: '/clases' },
             { label: 'Ver en mapa', href: '/mapa' },
             { label: 'Mi panel (demo)', href: '/dashboard' },
-            { label: 'Iniciar sesión', href: '/auth' },
+            { label: 'Iniciar sesión', href: '/login' },
           ].map(item => (
             <Link
               key={item.href}
@@ -109,7 +109,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
             </Link>
           ))}
           <Link
-            href="/auth?tab=register"
+            href="/registro"
             onClick={() => setMobileOpen(false)}
             className="mt-2 text-sm font-bold px-5 py-3 bg-purple-700 text-white rounded-full text-center"
           >
