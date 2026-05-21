@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, SlidersHorizontal, Map, List, X } from 'lucide-react';
@@ -7,7 +7,6 @@ import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import FilterPanel, { Filters } from '@/components/FilterPanel';
 import { mockClasses } from '@/lib/mockData';
-import { DanceClass } from '@/lib/types';
 
 const defaultFilters: Filters = {
   city: '', district: '', styles: [], level: '', days: [],
@@ -41,14 +40,18 @@ function SearchResults() {
     return true;
   });
 
+  const activeFilterCount = filters.styles.length + filters.days.length +
+    [filters.level, filters.modality, filters.priceRange, filters.type, filters.timeOfDay].filter(Boolean).length +
+    (filters.withSpots ? 1 : 0);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <Header />
 
       {/* Search bar */}
-      <div className="bg-white border-b border-gray-100 sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-xl px-4 py-2.5">
+      <div className="bg-white border-b border-gray-100 sticky top-[68px] z-40">
+        <div className="max-w-7xl mx-auto px-5 lg:px-8 py-3 flex items-center gap-3">
+          <div className="flex-1 flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-full px-4 py-2.5 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               type="text"
@@ -58,34 +61,35 @@ function SearchResults() {
               className="flex-1 text-sm text-gray-800 placeholder-gray-400 bg-transparent outline-none"
             />
             {query && (
-              <button onClick={() => setQuery('')}>
-                <X className="w-4 h-4 text-gray-400" />
+              <button onClick={() => setQuery('')} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl border transition-colors md:hidden ${
-              showFilters ? 'bg-purple-600 text-white border-purple-600' : 'bg-white border-gray-200 text-gray-700'
+            className={`flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-full border transition-colors md:hidden ${
+              activeFilterCount > 0
+                ? 'bg-purple-700 text-white border-purple-700'
+                : 'bg-white border-gray-200 text-gray-700'
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" />
-            Filtros
+            Filtros {activeFilterCount > 0 && `(${activeFilterCount})`}
           </button>
 
           <Link
             href="/mapa"
-            className="hidden md:flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:border-purple-300 transition-colors"
+            className="hidden md:flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-full border border-gray-200 text-gray-600 hover:border-gray-300 transition-colors"
           >
-            <Map className="w-4 h-4" />
-            Ver mapa
+            <Map className="w-4 h-4" /> Mapa
           </Link>
 
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
-            className="hidden md:block text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 outline-none bg-white"
+            className="hidden md:block text-sm text-gray-600 border border-gray-200 rounded-full px-4 py-2.5 outline-none bg-white cursor-pointer"
           >
             {['Recomendados', 'Menor precio', 'Próximamente', 'Mejor disponibilidad'].map(o => (
               <option key={o}>{o}</option>
@@ -95,9 +99,9 @@ function SearchResults() {
 
         {/* Active filter chips */}
         {(filters.styles.length > 0 || filters.level || filters.modality) && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3 flex gap-2 overflow-x-auto">
+          <div className="max-w-7xl mx-auto px-5 lg:px-8 pb-3 flex gap-2 overflow-x-auto">
             {filters.styles.map(s => (
-              <span key={s} className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full whitespace-nowrap">
+              <span key={s} className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 font-medium px-3 py-1 rounded-full whitespace-nowrap">
                 {s}
                 <button onClick={() => setFilters(f => ({ ...f, styles: f.styles.filter(x => x !== s) }))}>
                   <X className="w-3 h-3" />
@@ -105,30 +109,26 @@ function SearchResults() {
               </span>
             ))}
             {filters.level && (
-              <span className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+              <span className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 font-medium px-3 py-1 rounded-full">
                 {filters.level}
-                <button onClick={() => setFilters(f => ({ ...f, level: '' }))}>
-                  <X className="w-3 h-3" />
-                </button>
+                <button onClick={() => setFilters(f => ({ ...f, level: '' }))}><X className="w-3 h-3" /></button>
               </span>
             )}
             {filters.modality && (
-              <span className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+              <span className="flex items-center gap-1 text-xs bg-purple-100 text-purple-700 font-medium px-3 py-1 rounded-full">
                 {filters.modality}
-                <button onClick={() => setFilters(f => ({ ...f, modality: '' }))}>
-                  <X className="w-3 h-3" />
-                </button>
+                <button onClick={() => setFilters(f => ({ ...f, modality: '' }))}><X className="w-3 h-3" /></button>
               </span>
             )}
           </div>
         )}
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
-        {/* Sidebar filters */}
-        <aside className="hidden md:block w-64 shrink-0">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 sticky top-36">
-            <h3 className="font-bold text-gray-900 mb-4">Filtros</h3>
+      <div className="max-w-7xl mx-auto px-5 lg:px-8 py-8 flex gap-8">
+        {/* Sidebar */}
+        <aside className="hidden md:block w-60 shrink-0">
+          <div className="sticky top-36">
+            <h3 className="font-bold text-gray-900 text-sm mb-4">Filtros</h3>
             <FilterPanel filters={filters} onChange={setFilters} />
           </div>
         </aside>
@@ -136,18 +136,18 @@ function SearchResults() {
         {/* Mobile filter modal */}
         {showFilters && (
           <div className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
             <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold text-gray-900">Filtros</h3>
-                <button onClick={() => setShowFilters(false)}>
+                <button onClick={() => setShowFilters(false)} className="p-2 hover:bg-gray-100 rounded-full">
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
               <FilterPanel filters={filters} onChange={setFilters} />
               <button
                 onClick={() => setShowFilters(false)}
-                className="w-full mt-4 bg-purple-600 text-white font-semibold py-3 rounded-xl"
+                className="w-full mt-5 bg-purple-700 text-white font-bold py-3.5 rounded-full"
               >
                 Ver {results.length} resultado{results.length !== 1 ? 's' : ''}
               </button>
@@ -157,39 +157,37 @@ function SearchResults() {
 
         {/* Results */}
         <main className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-5">
-            <p className="text-sm text-gray-600">
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-sm text-gray-500">
               <span className="font-bold text-gray-900">{results.length}</span> clase{results.length !== 1 ? 's' : ''} encontrada{results.length !== 1 ? 's' : ''}
             </p>
             <div className="flex gap-2">
-              <button className="p-2 rounded-lg bg-purple-100 text-purple-600">
+              <button className="p-2 rounded-full bg-purple-100 text-purple-700">
                 <List className="w-4 h-4" />
               </button>
-              <Link href="/mapa" className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+              <Link href="/mapa" className="p-2 rounded-full hover:bg-gray-100 text-gray-400 transition-colors">
                 <Map className="w-4 h-4" />
               </Link>
             </div>
           </div>
 
           {results.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="text-5xl mb-4">🕺</div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Sin resultados</h3>
+            <div className="text-center py-24">
+              <p className="text-5xl mb-5">🕺</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Sin resultados</h3>
               <p className="text-gray-500 text-sm max-w-sm mx-auto">
-                No encontramos clases con esos filtros. Prueba cambiando la fecha, ciudad o estilo.
+                No encontramos clases con esos filtros. Prueba cambiando el estilo, ciudad o nivel.
               </p>
               <button
                 onClick={() => { setFilters(defaultFilters); setQuery(''); }}
-                className="mt-6 text-purple-600 font-medium text-sm border border-purple-200 px-6 py-2 rounded-xl hover:bg-purple-50 transition-colors"
+                className="mt-6 text-sm font-semibold text-purple-700 border border-purple-200 px-6 py-2.5 rounded-full hover:bg-purple-50 transition-colors"
               >
                 Limpiar filtros
               </button>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {results.map(cls => (
-                <ClassCard key={cls.id} cls={cls} />
-              ))}
+              {results.map(cls => <ClassCard key={cls.id} cls={cls} />)}
             </div>
           )}
         </main>
@@ -200,7 +198,7 @@ function SearchResults() {
 
 export default function BuscarPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-gray-500">Cargando...</div></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-400 text-sm">Cargando…</div>}>
       <SearchResults />
     </Suspense>
   );
