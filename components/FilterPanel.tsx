@@ -30,13 +30,13 @@ const MODALITIES = ['Presencial', 'Online', 'Híbrida'];
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="border-b border-gray-100 pb-4 mb-4">
+    <div className="border-b border-neutral-100 pb-4 mb-4">
       <button
-        className="flex items-center justify-between w-full text-sm font-semibold text-gray-800 mb-3"
+        className="flex items-center justify-between w-full text-[13px] font-semibold text-neutral-800 mb-3"
         onClick={() => setOpen(!open)}
       >
         {title}
-        <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && children}
     </div>
@@ -69,9 +69,9 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
     <div className={`bg-white ${className}`}>
       {activeCount > 0 && (
         <div className="flex items-center justify-between mb-4">
-          <span className="text-xs text-gray-500">{activeCount} filtro{activeCount !== 1 ? 's' : ''} activo{activeCount !== 1 ? 's' : ''}</span>
+          <span className="text-[13px] text-neutral-500">{activeCount} filtro{activeCount !== 1 ? 's' : ''} activo{activeCount !== 1 ? 's' : ''}</span>
           <button
-            className="text-xs text-purple-600 font-medium flex items-center gap-1"
+            className="text-[13px] text-neutral-900 font-semibold flex items-center gap-1 hover:underline"
             onClick={() => onChange({ city: '', district: '', styles: [], level: '', days: [], timeOfDay: '', modality: '', priceRange: '', type: '', withSpots: false })}
           >
             <X className="w-3 h-3" /> Limpiar todo
@@ -85,11 +85,7 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
             <button
               key={s}
               onClick={() => toggleStyle(s)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                filters.styles.includes(s)
-                  ? 'bg-purple-600 text-white border-purple-600'
-                  : 'border-gray-200 text-gray-600 hover:border-purple-300'
-              }`}
+              className={filters.styles.includes(s) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
             >
               {s}
             </button>
@@ -106,9 +102,9 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
                 name="level"
                 checked={filters.level === l}
                 onChange={() => set('level', filters.level === l ? '' : l)}
-                className="accent-purple-600"
+                className="accent-neutral-900"
               />
-              <span className="text-sm text-gray-700">{l}</span>
+              <span className="text-[13px] text-neutral-700">{l}</span>
             </label>
           ))}
         </div>
@@ -120,11 +116,7 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
             <button
               key={d}
               onClick={() => toggleDay(d)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                filters.days.includes(d)
-                  ? 'bg-purple-600 text-white border-purple-600'
-                  : 'border-gray-200 text-gray-600 hover:border-purple-300'
-              }`}
+              className={filters.days.includes(d) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
             >
               {d.slice(0, 3)}
             </button>
@@ -140,9 +132,9 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
               name="timeOfDay"
               checked={filters.timeOfDay === t}
               onChange={() => set('timeOfDay', filters.timeOfDay === t ? '' : t)}
-              className="accent-purple-600"
+              className="accent-neutral-900"
             />
-            <span className="text-sm text-gray-700">{t}</span>
+            <span className="text-[13px] text-neutral-700">{t}</span>
           </label>
         ))}
       </Section>
@@ -155,9 +147,9 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
               name="modality"
               checked={filters.modality === m}
               onChange={() => set('modality', filters.modality === m ? '' : m)}
-              className="accent-purple-600"
+              className="accent-neutral-900"
             />
-            <span className="text-sm text-gray-700">{m}</span>
+            <span className="text-[13px] text-neutral-700">{m}</span>
           </label>
         ))}
       </Section>
@@ -170,9 +162,9 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
               name="price"
               checked={filters.priceRange === p}
               onChange={() => set('priceRange', filters.priceRange === p ? '' : p)}
-              className="accent-purple-600"
+              className="accent-neutral-900"
             />
-            <span className="text-sm text-gray-700">{p}</span>
+            <span className="text-[13px] text-neutral-700">{p}</span>
           </label>
         ))}
       </Section>
@@ -185,9 +177,9 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
               name="type"
               checked={filters.type === t}
               onChange={() => set('type', filters.type === t ? '' : t)}
-              className="accent-purple-600"
+              className="accent-neutral-900"
             />
-            <span className="text-sm text-gray-700">{t}</span>
+            <span className="text-[13px] text-neutral-700">{t}</span>
           </label>
         ))}
       </Section>
@@ -197,9 +189,9 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
           type="checkbox"
           checked={filters.withSpots}
           onChange={e => set('withSpots', e.target.checked)}
-          className="accent-purple-600 w-4 h-4"
+          className="accent-neutral-900 w-4 h-4"
         />
-        <span className="text-sm font-medium text-gray-700">Solo con cupos disponibles</span>
+        <span className="text-[13px] font-medium text-neutral-700">Solo con cupos disponibles</span>
       </label>
     </div>
   );
