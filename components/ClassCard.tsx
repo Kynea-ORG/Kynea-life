@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { MapPin, Clock, Users, MessageCircle, ChevronRight } from 'lucide-react';
+import { MapPin, Clock, MessageCircle, ArrowRight, Users } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getStatusLabel, getStatusColor, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/mockData';
 
@@ -20,81 +20,90 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
 
   const statusColor =
     spotsLeft === 0 && cls.status === 'active'
-      ? 'bg-red-100 text-red-600'
+      ? 'bg-red-50 text-red-600'
       : spotsLeft <= 3 && spotsLeft > 0
-      ? 'bg-orange-100 text-orange-600'
+      ? 'bg-orange-50 text-orange-600'
+      : cls.status === 'active'
+      ? 'bg-emerald-50 text-emerald-700'
       : getStatusColor(cls.status);
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex flex-col">
+    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-md hover:border-purple-100 transition-all duration-200 flex flex-col">
       {/* Image */}
-      <div className="relative">
+      <div className="relative overflow-hidden">
         <img
           src={cls.coverImage}
           alt={cls.title}
-          className={`w-full object-cover ${compact ? 'h-40' : 'h-52'}`}
+          className={`w-full object-cover ${compact ? 'h-36' : 'h-48'}`}
         />
         <div className="absolute top-3 left-3 flex gap-2">
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor}`}>
             {statusLabel}
           </span>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
+        </div>
+        <div className="absolute top-3 right-3">
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 text-gray-700 backdrop-blur-sm">
             {getTypeLabel(cls.type)}
           </span>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 flex flex-col flex-1 gap-2">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-xs text-purple-600 font-semibold uppercase tracking-wide">{cls.style}</p>
-            <h3 className="font-bold text-gray-900 leading-snug text-sm mt-0.5">{cls.title}</h3>
-          </div>
-          <span className="text-sm font-bold text-purple-700 whitespace-nowrap">
+      <div className="p-5 flex flex-col flex-1 gap-3">
+        {/* Style tag + price */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full">
+            {cls.style}
+          </span>
+          <span className="text-sm font-bold text-gray-900">
             {formatPrice(cls.priceType, cls.price, cls.currency)}
           </span>
         </div>
 
-        <p className="text-xs text-gray-500">{cls.teacher.name} · {cls.level}</p>
-
-        <div className="flex items-center gap-1 text-xs text-gray-500">
-          <MapPin className="w-3.5 h-3.5 shrink-0" />
-          <span>{cls.district}, {cls.city}</span>
+        {/* Title */}
+        <div>
+          <h3 className="font-bold text-gray-900 text-base leading-snug">{cls.title}</h3>
+          <p className="text-sm text-gray-500 mt-0.5">{cls.teacher.name} · <span className="text-gray-400">{cls.level}</span></p>
         </div>
 
         {!compact && (
-          <p className="text-xs text-gray-600 line-clamp-2 mt-1">{cls.shortDescription}</p>
+          <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{cls.shortDescription}</p>
         )}
 
-        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-          <Clock className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">{formatTimeSlots(cls.timeSlots)}</span>
+        {/* Meta */}
+        <div className="flex flex-col gap-1.5 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-gray-400" />
+            {cls.district}, {cls.city}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            {formatTimeSlots(cls.timeSlots).split(' | ')[0]}
+          </span>
+          {!compact && cls.availableSpots > 0 && (
+            <span className="flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-gray-400" />
+              {cls.availableSpots} cupos disponibles
+            </span>
+          )}
         </div>
 
-        {!compact && cls.availableSpots > 0 && (
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <Users className="w-3.5 h-3.5" />
-            <span>{cls.availableSpots} cupos disponibles</span>
-          </div>
-        )}
-
         {/* Actions */}
-        <div className="flex gap-2 mt-auto pt-3">
+        <div className="flex gap-2 mt-auto pt-1">
           <Link
             href={`/clase/${cls.id}`}
-            className="flex-1 text-center text-xs font-semibold py-2 px-3 rounded-xl border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors flex items-center justify-center gap-1"
+            className="flex-1 text-center text-sm font-semibold py-2.5 rounded-full border border-gray-200 text-gray-700 hover:border-purple-300 hover:text-purple-700 transition-colors flex items-center justify-center gap-1"
           >
-            Ver más <ChevronRight className="w-3.5 h-3.5" />
+            Ver clase
           </Link>
           <a
-            href={`https://wa.me/${cls.teacher.whatsapp}?text=Hola, me interesa la clase "${cls.title}"`}
+            href={`https://wa.me/${cls.teacher.whatsapp}?text=${encodeURIComponent(`Hola, me interesa la clase "${cls.title}"`)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 text-center text-xs font-semibold py-2 px-3 rounded-xl bg-green-500 hover:bg-green-600 text-white transition-colors flex items-center justify-center gap-1"
+            className="flex-1 text-center text-sm font-semibold py-2.5 rounded-full bg-[#25D366] hover:bg-[#20BC5A] text-white transition-colors flex items-center justify-center gap-1.5"
           >
-            <MessageCircle className="w-3.5 h-3.5" />
-            Contactar
+            <MessageCircle className="w-4 h-4" />
+            WhatsApp
           </a>
         </div>
       </div>
