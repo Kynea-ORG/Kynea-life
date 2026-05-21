@@ -7,13 +7,14 @@ import { Menu, X } from 'lucide-react';
 export default function Header({ transparent = false }: { transparent?: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const base = transparent
-    ? 'absolute top-0 left-0 right-0 z-50 bg-transparent'
-    : 'navbar';
-
   return (
-    <header className={base}>
-      <div className={transparent ? 'max-w-[1200px] mx-auto px-6 h-[64px] flex items-center justify-between' : 'navbar-inner'}>
+    <header className={
+      transparent
+        ? 'absolute top-0 left-0 right-0 z-50 bg-transparent'
+        : 'bg-white border-b border-neutral-200 sticky top-0 z-50'
+    }>
+      {/* Main nav row — 64px de alto solo aquí, no en el <header> */}
+      <div className="max-w-[1200px] mx-auto px-6 h-[64px] flex items-center justify-between">
 
         {/* Logo */}
         <Link href="/" className="flex items-center shrink-0">
