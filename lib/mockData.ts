@@ -12,7 +12,7 @@ export const CITIES = ['Lima', 'Arequipa', 'Cusco', 'Trujillo', 'Piura'];
 export const LIMA_DISTRICTS = [
   'Miraflores', 'San Isidro', 'Barranco', 'Surco', 'San Borja',
   'La Molina', 'Jesús María', 'Lince', 'Magdalena', 'San Miguel',
-  'Pueblo Libre', 'Chorrillos', 'Villa María del Triunfo',
+  'Pueblo Libre', 'Chorrillos',
 ];
 
 export const mockTeachers: Teacher[] = [
@@ -23,7 +23,7 @@ export const mockTeachers: Teacher[] = [
     photo: 'https://images.unsplash.com/photo-1535525153412-5a42439a210d?w=400&q=80',
     city: 'Lima',
     district: 'Miraflores',
-    bio: 'Academia especializada en bailes latinos con más de 10 años formando bailarines en Lima.',
+    bio: 'Academia especializada en bailes latinos con más de 10 años formando bailarines en Lima. Contamos con profesores certificados y un ambiente acogedor para todos los niveles.',
     experience: 10,
     styles: ['Salsa', 'Bachata', 'Cha-cha-chá'],
     whatsapp: '+51987654321',
@@ -37,10 +37,10 @@ export const mockTeachers: Teacher[] = [
     id: 't2',
     name: 'Sofía Vega',
     type: 'profesor',
-    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80',
+    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&q=80',
     city: 'Lima',
     district: 'Barranco',
-    bio: 'Coreógrafa y profesora de Heels y Jazz Funk. He bailado en escenarios internacionales.',
+    bio: 'Coreógrafa y profesora de Heels y Jazz Funk. He bailado en escenarios internacionales y formado a más de 500 alumnas.',
     experience: 7,
     styles: ['Heels', 'Jazz Funk', 'Jazz'],
     whatsapp: '+51912345678',
@@ -57,7 +57,7 @@ export const mockTeachers: Teacher[] = [
     photo: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80',
     city: 'Lima',
     district: 'Surco',
-    bio: 'Estudio dedicado a los estilos urbanos: Hip Hop, Breakdance y Reggaetón.',
+    bio: 'Estudio dedicado a los estilos urbanos: Hip Hop, Breakdance y Reggaetón. Clases para niños, jóvenes y adultos.',
     experience: 5,
     styles: ['Hip Hop', 'Breakdance', 'Reggaetón', 'Urbano'],
     whatsapp: '+51998765432',
@@ -70,10 +70,10 @@ export const mockTeachers: Teacher[] = [
     id: 't4',
     name: 'María Elena Quispe',
     type: 'profesor',
-    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&q=80',
+    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80',
     city: 'Lima',
     district: 'Jesús María',
-    bio: 'Maestra de Ballet Clásico y Contemporáneo graduada del Instituto Nacional Superior de Folklore.',
+    bio: 'Maestra de Ballet Clásico y Contemporáneo graduada del Instituto Nacional Superior de Folklore. 15 años de experiencia.',
     experience: 15,
     styles: ['Ballet', 'Contemporáneo'],
     whatsapp: '+51975432198',
@@ -92,37 +92,34 @@ export const mockClasses: DanceClass[] = [
     level: 'Básico',
     shortDescription: 'Aprende los pasos básicos de salsa en un ambiente divertido y profesional.',
     fullDescription: 'En esta clase aprenderás los fundamentos de la salsa cubana: paso básico, giros, tempo y conexión con tu pareja. El ambiente es amigable y el ritmo es tuyo.',
-    whatYouLearn: ['Paso básico on1 y on2', 'Giros básicos', 'Conexión con pareja', 'Musicality'],
+    whatYouLearn: ['Paso básico on1 y on2', 'Giros básicos', 'Conexión con pareja', 'Musicalidad'],
     forWhom: 'Personas sin experiencia previa que quieren aprender a bailar salsa desde cero.',
-    requirements: 'Sin experiencia previa necesaria.',
     startDate: '2026-06-02',
-    timeSlots: [
-      { days: ['Lunes', 'Miércoles'], startTime: '19:00', endTime: '20:30' },
-    ],
+    timeSlots: [{ days: ['Lunes', 'Miércoles'], startTime: '19:00', endTime: '20:30' }],
     priceType: 'Mensual',
     price: 180,
     currency: 'PEN',
     maxSpots: 20,
     availableSpots: 8,
-    reservationMode: 'whatsapp',
     modality: 'Presencial',
     city: 'Lima',
     district: 'Miraflores',
+    venueName: 'Estudio Ritmo Latino',
     address: 'Av. Benavides 1234, piso 3',
     reference: 'Frente al parque Kennedy',
     mapsUrl: 'https://maps.google.com',
     lat: -12.1219,
     lng: -77.0300,
     coverImage: 'https://images.unsplash.com/photo-1545959570-a94084071b5d?w=800&q=80',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     footwear: 'Zapatos de salsa o zapatillas',
     clothing: 'Ropa cómoda y transpirable',
     toBring: ['Agua', 'Toalla'],
     ageGroup: 'Adultos',
-    status: 'active',
+    status: 'published',
     teacher: mockTeachers[0],
-    contacts: 34,
+    metrics: { views: 342, contacts: 34, saved: 28 },
     createdAt: '2026-05-01',
+    publishedAt: '2026-05-02',
   },
   {
     id: 'c2',
@@ -131,21 +128,17 @@ export const mockClasses: DanceClass[] = [
     style: 'Heels',
     level: 'Intermedio',
     shortDescription: 'Taller intensivo de heels para quienes ya tienen base. Potencia tu fuerza y sensualidad.',
-    fullDescription: 'Este taller está diseñado para bailarinas que ya tienen una base en heels y quieren llevar su técnica al siguiente nivel. Trabajaremos floorwork, giros y performance.',
+    fullDescription: 'Este taller está diseñado para bailarinas que ya tienen una base en heels. Trabajaremos floorwork, giros y performance.',
     whatYouLearn: ['Floorwork avanzado', 'Giros en tacones', 'Construcción de performance', 'Expresión corporal'],
     forWhom: 'Bailarinas con experiencia previa en heels o al menos 6 meses bailando.',
-    requirements: 'Experiencia previa en baile.',
     startDate: '2026-06-14',
     endDate: '2026-06-14',
-    timeSlots: [
-      { days: ['Sábado'], startTime: '10:00', endTime: '13:00' },
-    ],
+    timeSlots: [{ days: ['Sábado'], startTime: '10:00', endTime: '13:00' }],
     priceType: 'Precio único',
     price: 120,
     currency: 'PEN',
     maxSpots: 15,
     availableSpots: 3,
-    reservationMode: 'direct',
     modality: 'Presencial',
     city: 'Lima',
     district: 'Barranco',
@@ -157,10 +150,11 @@ export const mockClasses: DanceClass[] = [
     clothing: 'Outfit de baile',
     toBring: ['Agua', 'Rodilleras'],
     ageGroup: 'Adultos',
-    status: 'active',
+    status: 'published',
     teacher: mockTeachers[1],
-    contacts: 21,
+    metrics: { views: 198, contacts: 21, saved: 17 },
     createdAt: '2026-05-05',
+    publishedAt: '2026-05-06',
   },
   {
     id: 'c3',
@@ -169,7 +163,7 @@ export const mockClasses: DanceClass[] = [
     style: 'Hip Hop',
     level: 'Básico',
     shortDescription: 'Curso mensual de Hip Hop donde aprenderás grooves, footwork y freestyle básico.',
-    fullDescription: 'Este curso te da las herramientas para expresarte con el Hip Hop. Desde los grooves fundamentales hasta tu primer freestyle, semana a semana construirás confianza y estilo.',
+    fullDescription: 'Este curso te da las herramientas para expresarte con el Hip Hop. Semana a semana construirás confianza y estilo.',
     whatYouLearn: ['Groove y bounce', 'Footwork básico', 'Cypher etiquette', 'Freestyle básico'],
     startDate: '2026-06-01',
     timeSlots: [
@@ -181,7 +175,6 @@ export const mockClasses: DanceClass[] = [
     currency: 'PEN',
     maxSpots: 25,
     availableSpots: 15,
-    reservationMode: 'whatsapp',
     modality: 'Presencial',
     city: 'Lima',
     district: 'Surco',
@@ -193,10 +186,11 @@ export const mockClasses: DanceClass[] = [
     clothing: 'Ropa cómoda y holgada',
     toBring: ['Agua', 'Toalla'],
     ageGroup: 'Todas las edades',
-    status: 'active',
+    status: 'published',
     teacher: mockTeachers[2],
-    contacts: 18,
+    metrics: { views: 156, contacts: 18, saved: 22 },
     createdAt: '2026-05-10',
+    publishedAt: '2026-05-11',
   },
   {
     id: 'c4',
@@ -205,19 +199,15 @@ export const mockClasses: DanceClass[] = [
     style: 'Ballet',
     level: 'Intermedio',
     shortDescription: 'Una clase magistral con la maestra María Elena Quispe. Técnica pura y elegancia.',
-    fullDescription: 'Sesión intensiva de técnica de ballet clásico: trabajo de barra, centre y variación. Para bailarines con base que quieren profundizar su técnica.',
-    whatYouLearn: ['Trabajo de barra avanzado', 'Combinaciones al centro', 'Variación de repertorio clásico'],
+    fullDescription: 'Sesión intensiva de técnica de ballet clásico: barra, centre y variación. Para bailarines con base.',
     startDate: '2026-06-07',
     endDate: '2026-06-07',
-    timeSlots: [
-      { days: ['Domingo'], startTime: '09:00', endTime: '12:00' },
-    ],
+    timeSlots: [{ days: ['Domingo'], startTime: '09:00', endTime: '12:00' }],
     priceType: 'Precio único',
     price: 150,
     currency: 'PEN',
     maxSpots: 12,
     availableSpots: 0,
-    reservationMode: 'direct',
     modality: 'Presencial',
     city: 'Lima',
     district: 'Jesús María',
@@ -225,15 +215,15 @@ export const mockClasses: DanceClass[] = [
     lat: -12.0863,
     lng: -77.0509,
     coverImage: 'https://images.unsplash.com/photo-1516737490857-848138f11e06?w=800&q=80',
-    footwear: 'Zapatillas de ballet o medias de ballet',
+    footwear: 'Zapatillas de ballet o medias',
     clothing: 'Maillot y medias',
     toBring: ['Agua', 'Mat'],
-    ageGroup: 'Adolescentes',
     prerequisites: 'Conocimiento básico de ballet',
-    status: 'full',
+    status: 'published',
     teacher: mockTeachers[3],
-    contacts: 12,
+    metrics: { views: 89, contacts: 12, saved: 9 },
     createdAt: '2026-05-08',
+    publishedAt: '2026-05-09',
   },
   {
     id: 'c5',
@@ -242,17 +232,14 @@ export const mockClasses: DanceClass[] = [
     style: 'Bachata',
     level: 'Inicial',
     shortDescription: 'Inicia tu camino en la bachata sensual. Ritmo, conexión y sensualidad desde cero.',
-    fullDescription: 'Clases diseñadas para quienes nunca han bailado bachata. Aprenderás el ritmo, los pasos básicos y la conexión con pareja en un ambiente relajado y divertido.',
+    fullDescription: 'Clases diseñadas para quienes nunca han bailado bachata. Aprenderás el ritmo, pasos básicos y conexión con pareja.',
     startDate: '2026-06-03',
-    timeSlots: [
-      { days: ['Martes', 'Viernes'], startTime: '20:00', endTime: '21:30' },
-    ],
+    timeSlots: [{ days: ['Martes', 'Viernes'], startTime: '20:00', endTime: '21:30' }],
     priceType: 'Mensual',
     price: 170,
     currency: 'PEN',
     maxSpots: 20,
     availableSpots: 12,
-    reservationMode: 'whatsapp',
     modality: 'Presencial',
     city: 'Lima',
     district: 'San Borja',
@@ -260,11 +247,12 @@ export const mockClasses: DanceClass[] = [
     lat: -12.1003,
     lng: -77.0000,
     coverImage: 'https://images.unsplash.com/photo-1504609813442-a8924e83f76e?w=800&q=80',
-    footwear: 'Zapatos de salsa o sandalias con taco bajo',
-    status: 'active',
+    footwear: 'Zapatos de salsa o taco bajo',
+    status: 'published',
     teacher: mockTeachers[0],
-    contacts: 27,
+    metrics: { views: 274, contacts: 27, saved: 31 },
     createdAt: '2026-05-12',
+    publishedAt: '2026-05-13',
   },
   {
     id: 'c6',
@@ -273,17 +261,14 @@ export const mockClasses: DanceClass[] = [
     style: 'Jazz Funk',
     level: 'Intermedio',
     shortDescription: 'Combina el jazz técnico con el groove funk. Clase dinámica y muy energética.',
-    fullDescription: 'Jazz Funk para quienes ya tienen base en danza. Trabajaremos combinaciones de jazz con groove, ritmo y actitud funk. Cada clase aprenderás una nueva secuencia.',
+    fullDescription: 'Jazz Funk para quienes ya tienen base en danza. Cada clase aprenderás una nueva secuencia con groove, ritmo y actitud.',
     startDate: '2026-06-02',
-    timeSlots: [
-      { days: ['Lunes', 'Miércoles', 'Viernes'], startTime: '19:30', endTime: '21:00' },
-    ],
+    timeSlots: [{ days: ['Lunes', 'Miércoles', 'Viernes'], startTime: '19:30', endTime: '21:00' }],
     priceType: 'Mensual',
     price: 200,
     currency: 'PEN',
     maxSpots: 18,
     availableSpots: 6,
-    reservationMode: 'whatsapp',
     modality: 'Presencial',
     city: 'Lima',
     district: 'Barranco',
@@ -291,10 +276,11 @@ export const mockClasses: DanceClass[] = [
     lat: -12.1494,
     lng: -77.0211,
     coverImage: 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=800&q=80',
-    status: 'active',
+    status: 'published',
     teacher: mockTeachers[1],
-    contacts: 15,
+    metrics: { views: 143, contacts: 15, saved: 19 },
     createdAt: '2026-05-15',
+    publishedAt: '2026-05-16',
   },
   {
     id: 'c7',
@@ -302,19 +288,16 @@ export const mockClasses: DanceClass[] = [
     title: 'Intensivo de Contemporáneo',
     style: 'Contemporáneo',
     level: 'Avanzado',
-    shortDescription: 'Semana intensiva de danza contemporánea con enfoque en improvisación y composición.',
-    fullDescription: 'Una semana intensa donde exploraremos los lenguajes del contemporáneo: improvisación contact, composición coreográfica y técnicas somáticas.',
+    shortDescription: 'Semana intensiva de danza contemporánea: improvisación y composición.',
+    fullDescription: 'Una semana donde exploraremos los lenguajes del contemporáneo: contact improv, composición coreográfica y técnicas somáticas.',
     startDate: '2026-07-07',
     endDate: '2026-07-11',
-    timeSlots: [
-      { days: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'], startTime: '10:00', endTime: '14:00' },
-    ],
+    timeSlots: [{ days: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'], startTime: '10:00', endTime: '14:00' }],
     priceType: 'Precio único',
     price: 350,
     currency: 'PEN',
     maxSpots: 10,
     availableSpots: 4,
-    reservationMode: 'request',
     modality: 'Presencial',
     city: 'Lima',
     district: 'Barranco',
@@ -326,10 +309,11 @@ export const mockClasses: DanceClass[] = [
     clothing: 'Ropa cómoda que permita movimiento amplio',
     toBring: ['Agua', 'Mat'],
     prerequisites: 'Experiencia previa en danza',
-    status: 'active',
+    status: 'published',
     teacher: mockTeachers[3],
-    contacts: 8,
+    metrics: { views: 76, contacts: 8, saved: 11 },
     createdAt: '2026-05-20',
+    publishedAt: '2026-05-21',
   },
   {
     id: 'c8',
@@ -337,8 +321,8 @@ export const mockClasses: DanceClass[] = [
     title: 'K-pop Dance – Básico',
     style: 'K-pop',
     level: 'Básico',
-    shortDescription: 'Aprende las coreografías más populares del K-pop en un ambiente divertido y dinámico.',
-    fullDescription: 'Clases semanales donde aprenderás covers de grupos como BTS, BLACKPINK, TWICE y más. No necesitas experiencia, solo ganas de bailar.',
+    shortDescription: 'Aprende las coreografías más populares del K-pop en un ambiente divertido.',
+    fullDescription: 'Clases semanales donde aprenderás covers de BTS, BLACKPINK, TWICE y más. No necesitas experiencia, solo ganas de bailar.',
     startDate: '2026-06-05',
     timeSlots: [
       { days: ['Viernes'], startTime: '18:00', endTime: '19:30' },
@@ -349,7 +333,6 @@ export const mockClasses: DanceClass[] = [
     currency: 'PEN',
     maxSpots: 30,
     availableSpots: 20,
-    reservationMode: 'whatsapp',
     modality: 'Presencial',
     city: 'Lima',
     district: 'Surco',
@@ -359,42 +342,65 @@ export const mockClasses: DanceClass[] = [
     coverImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=80',
     footwear: 'Zapatillas cómodas',
     ageGroup: 'Adolescentes',
-    status: 'active',
+    status: 'published',
     teacher: mockTeachers[2],
-    contacts: 45,
+    metrics: { views: 421, contacts: 45, saved: 58 },
     createdAt: '2026-05-18',
+    publishedAt: '2026-05-19',
+  },
+  {
+    id: 'c9',
+    type: 'clase',
+    title: 'Salsa On2 – Avanzado',
+    style: 'Salsa',
+    level: 'Avanzado',
+    shortDescription: 'Perfecciona tu salsa on2 con técnica avanzada de giros y musicalidad.',
+    fullDescription: 'Clase avanzada para bailarines con experiencia. Trabajaremos timing, styling y coreografía.',
+    startDate: '2026-06-04',
+    timeSlots: [{ days: ['Jueves'], startTime: '20:00', endTime: '21:30' }],
+    priceType: 'Mensual',
+    price: 200,
+    currency: 'PEN',
+    modality: 'Presencial',
+    city: 'Lima',
+    district: 'Miraflores',
+    address: 'Av. Benavides 1234, piso 3',
+    lat: -12.1219,
+    lng: -77.0300,
+    coverImage: 'https://images.unsplash.com/photo-1504609813442-a8924e83f76e?w=800&q=80',
+    status: 'draft',
+    teacher: mockTeachers[0],
+    metrics: { views: 0, contacts: 0, saved: 0 },
+    createdAt: '2026-05-21',
   },
 ];
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 export function getStatusLabel(status: string): string {
   const map: Record<string, string> = {
-    active: 'Disponible',
+    published: 'Publicada',
     draft: 'Borrador',
-    paused: 'Pausada',
     finished: 'Finalizada',
-    full: 'Sin cupos',
+    archived: 'Archivada',
   };
   return map[status] || status;
 }
 
 export function getStatusColor(status: string): string {
   const map: Record<string, string> = {
-    active: 'bg-green-100 text-green-700',
-    draft: 'bg-gray-100 text-gray-600',
-    paused: 'bg-yellow-100 text-yellow-700',
-    finished: 'bg-gray-100 text-gray-500',
-    full: 'bg-red-100 text-red-600',
+    published: 'bg-emerald-50 text-emerald-700',
+    draft: 'bg-gray-100 text-gray-500',
+    finished: 'bg-blue-50 text-blue-600',
+    archived: 'bg-yellow-50 text-yellow-700',
   };
-  return map[status] || 'bg-gray-100 text-gray-600';
+  return map[status] || 'bg-gray-100 text-gray-500';
 }
 
 export function getTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    clase: 'Clase',
-    taller: 'Taller',
-    curso: 'Curso',
-    masterclass: 'Masterclass',
-    intensivo: 'Intensivo',
+    clase: 'Clase', taller: 'Taller', curso: 'Curso',
+    masterclass: 'Masterclass', intensivo: 'Intensivo',
   };
   return map[type] || type;
 }
@@ -402,10 +408,21 @@ export function getTypeLabel(type: string): string {
 export function formatPrice(priceType: string, price: number, currency: string): string {
   if (priceType === 'Gratis') return 'Gratis';
   const symbol = currency === 'PEN' ? 'S/' : '$';
-  const label = priceType === 'Mensual' ? '/mes' : priceType === 'Por clase' ? '/clase' : '';
-  return `${symbol}${price}${label}`;
+  const suffix = priceType === 'Mensual' ? '/mes' : priceType === 'Por clase' ? '/clase' : '';
+  return `${symbol}${price}${suffix}`;
 }
 
 export function formatTimeSlots(slots: { days: string[]; startTime: string; endTime: string }[]): string {
   return slots.map(s => `${s.days.join(', ')} · ${s.startTime} – ${s.endTime}`).join(' | ');
+}
+
+export function buildWhatsAppMessage(style: string, startDate: string, teacherPhone: string, classTitle: string): string {
+  const date = new Date(startDate).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
+  const text = encodeURIComponent(`Hola, vi tu clase de ${style} en Kynea el ${date} y me gustaría asistir. ¿Está disponible?`);
+  return `https://wa.me/${teacherPhone.replace(/\s+/g, '')}?text=${text}`;
+}
+
+export function getConversionRate(views: number, contacts: number): string {
+  if (views === 0) return '0%';
+  return `${Math.round((contacts / views) * 100)}%`;
 }

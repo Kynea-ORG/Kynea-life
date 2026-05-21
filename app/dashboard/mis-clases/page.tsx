@@ -7,11 +7,10 @@ import { ClassStatus } from '@/lib/types';
 
 const STATUS_TABS: { key: ClassStatus | 'all'; label: string }[] = [
   { key: 'all', label: 'Todas' },
-  { key: 'active', label: 'Activas' },
+  { key: 'published', label: 'Publicadas' },
   { key: 'draft', label: 'Borradores' },
-  { key: 'paused', label: 'Pausadas' },
   { key: 'finished', label: 'Finalizadas' },
-  { key: 'full', label: 'Sin cupos' },
+  { key: 'archived', label: 'Archivadas' },
 ];
 
 export default function MisClasesPage() {
@@ -29,7 +28,7 @@ export default function MisClasesPage() {
         </div>
         <Link
           href="/dashboard/crear-clase"
-          className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors"
+          className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 bg-purple-700 hover:bg-purple-800 text-white rounded-full transition-colors"
         >
           <PlusCircle className="w-4 h-4" /> Nueva clase
         </Link>
@@ -125,10 +124,10 @@ export default function MisClasesPage() {
                     <button title="Duplicar" className="p-1.5 hover:bg-blue-50 rounded-lg text-gray-400 hover:text-blue-600 transition-colors">
                       <Copy className="w-4 h-4" />
                     </button>
-                    <button title={cls.status === 'active' ? 'Desactivar' : 'Activar'} className="p-1.5 hover:bg-yellow-50 rounded-lg text-gray-400 hover:text-yellow-600 transition-colors">
-                      {cls.status === 'active' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <button title={cls.status === 'published' ? 'Archivar' : 'Publicar'} className="p-1.5 hover:bg-yellow-50 rounded-lg text-gray-400 hover:text-yellow-600 transition-colors">
+                      {cls.status === 'published' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
-                    <Link href={`/clase/${cls.id}`} title="Ver publicación" target="_blank" className="p-1.5 hover:bg-green-50 rounded-lg text-gray-400 hover:text-green-600 transition-colors">
+                    <Link href={`/clases/${cls.id}`} title="Ver publicación" target="_blank" className="p-1.5 hover:bg-green-50 rounded-lg text-gray-400 hover:text-green-600 transition-colors">
                       <ExternalLink className="w-4 h-4" />
                     </Link>
                     <button title="Eliminar" className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors">

@@ -43,10 +43,10 @@ export default function HomePage() {
     const params = new URLSearchParams();
     if (query) params.set('q', query);
     if (city) params.set('city', city);
-    router.push(`/buscar?${params.toString()}`);
+    router.push(`/clases?${params.toString()}`);
   };
 
-  const featured = mockClasses.filter(c => c.status === 'active').slice(0, 3);
+  const featured = mockClasses.filter(c => c.status === 'published').slice(0, 3);
 
   return (
     <div className="min-h-screen bg-white">
@@ -141,7 +141,7 @@ export default function HomePage() {
             <h2 className="text-2xl font-extrabold text-gray-900">Explora por estilo</h2>
             <p className="text-gray-500 text-sm mt-1">¿Qué quieres bailar hoy?</p>
           </div>
-          <Link href="/buscar" className="hidden sm:flex items-center gap-1 text-sm text-purple-700 font-semibold hover:underline">
+          <Link href="/clases" className="hidden sm:flex items-center gap-1 text-sm text-purple-700 font-semibold hover:underline">
             Ver todos <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -149,7 +149,7 @@ export default function HomePage() {
           {CATEGORIES.map(cat => (
             <Link
               key={cat.name}
-              href={`/buscar?style=${encodeURIComponent(cat.name)}`}
+              href={`/clases?style=${encodeURIComponent(cat.name)}`}
               className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 hover:border-purple-400 hover:bg-purple-50 rounded-full text-sm font-medium text-gray-700 hover:text-purple-700 transition-all"
             >
               <span>{cat.emoji}</span>
@@ -171,7 +171,7 @@ export default function HomePage() {
               <Link href="/mapa" className="text-sm text-gray-500 font-medium hover:text-gray-800 border border-gray-200 px-4 py-2 rounded-full hover:border-gray-300 transition-colors">
                 Ver en mapa
               </Link>
-              <Link href="/buscar" className="flex items-center gap-1 text-sm text-purple-700 font-semibold hover:underline">
+              <Link href="/clases" className="flex items-center gap-1 text-sm text-purple-700 font-semibold hover:underline">
                 Ver todas <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -180,7 +180,7 @@ export default function HomePage() {
             {featured.map(cls => <ClassCard key={cls.id} cls={cls} />)}
           </div>
           <div className="mt-8 text-center sm:hidden">
-            <Link href="/buscar" className="text-sm text-purple-700 font-semibold border border-purple-200 px-6 py-2.5 rounded-full hover:bg-purple-50 transition-colors">
+            <Link href="/clases" className="text-sm text-purple-700 font-semibold border border-purple-200 px-6 py-2.5 rounded-full hover:bg-purple-50 transition-colors">
               Ver todas las clases
             </Link>
           </div>

@@ -1,4 +1,4 @@
-export type ClassStatus = 'active' | 'draft' | 'paused' | 'finished' | 'full';
+export type ClassStatus = 'published' | 'draft' | 'finished' | 'archived';
 export type ClassType = 'clase' | 'taller' | 'curso' | 'masterclass' | 'intensivo';
 export type DanceStyle =
   | 'Salsa' | 'Bachata' | 'Ballet' | 'Breakdance' | 'Cha-cha-chá'
@@ -35,6 +35,12 @@ export interface TimeSlot {
   endTime: string;
 }
 
+export interface ClassMetrics {
+  views: number;
+  contacts: number;
+  saved: number;
+}
+
 export interface DanceClass {
   id: string;
   type: ClassType;
@@ -55,13 +61,14 @@ export interface DanceClass {
   priceType: PriceType;
   price: number;
   currency: string;
-  maxSpots: number;
-  availableSpots: number;
-  reservationMode: 'whatsapp' | 'direct' | 'request';
+  maxSpots?: number;
+  availableSpots?: number;
+  isTrialFree?: boolean;
 
   modality: Modality;
   city: string;
   district: string;
+  venueName?: string;
   address?: string;
   reference?: string;
   mapsUrl?: string;
@@ -84,6 +91,7 @@ export interface DanceClass {
 
   status: ClassStatus;
   teacher: Teacher;
-  contacts?: number;
+  metrics: ClassMetrics;
   createdAt: string;
+  publishedAt?: string;
 }
