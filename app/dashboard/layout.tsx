@@ -1,9 +1,10 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
-  MessageCircle, Settings, Music2, LogOut,
+  MessageCircle, Settings, LogOut,
 } from 'lucide-react';
 
 const NAV = [
@@ -20,21 +21,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-neutral-50 flex">
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 shrink-0">
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-neutral-200 shrink-0">
         {/* Logo */}
-        <div className="p-6 border-b border-gray-100">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-              <Music2 className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-black text-gray-900">kynea</span>
+        <div className="p-6 border-b border-neutral-200">
+          <Link href="/" className="flex items-center">
+            <Image src="/logo.svg" alt="Kynea" width={100} height={32} priority />
           </Link>
         </div>
 
         {/* Profile mini */}
-        <div className="px-4 py-4 border-b border-gray-100">
+        <div className="px-4 py-4 border-b border-neutral-200">
           <div className="flex items-center gap-3">
             <img
               src="https://images.unsplash.com/photo-1535525153412-5a42439a210d?w=80&q=80"
@@ -42,8 +40,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="w-10 h-10 rounded-xl object-cover"
             />
             <div>
-              <p className="text-sm font-bold text-gray-900">Academia Ritmo Latino</p>
-              <p className="text-xs text-gray-500">academia</p>
+              <p className="text-sm font-bold text-neutral-900">Academia Ritmo Latino</p>
+              <p className="text-xs text-neutral-500">academia</p>
             </div>
           </div>
         </div>
@@ -59,14 +57,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition-colors ${
                   active
-                    ? 'bg-purple-50 text-purple-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${active ? 'text-purple-600' : ''}`} />
+                <Icon className="w-4 h-4" />
                 {item.label}
                 {item.label === 'Crear clase' && (
-                  <span className="ml-auto text-xs bg-purple-600 text-white px-1.5 py-0.5 rounded-full">+</span>
+                  <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold ${active ? 'bg-white/20 text-white' : 'bg-neutral-900 text-white'}`}>+</span>
                 )}
               </Link>
             );
@@ -74,10 +72,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-neutral-200">
           <Link
             href="/"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-neutral-500 hover:text-red-500 hover:bg-red-50 transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Cerrar sesión
@@ -86,7 +84,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Mobile nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 px-2 py-2">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50 px-2 py-2">
         <div className="flex justify-around">
           {NAV.slice(0, 5).map(item => {
             const Icon = item.icon;
@@ -96,7 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 key={item.href}
                 href={item.href}
                 className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-colors ${
-                  active ? 'text-purple-600' : 'text-gray-400'
+                  active ? 'text-neutral-900' : 'text-neutral-400'
                 }`}
               >
                 <Icon className="w-5 h-5" />

@@ -22,14 +22,14 @@ type Slot = { days: string[]; startTime: string; endTime: string };
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="block text-xs font-semibold text-gray-700 mb-1.5">{children}</label>;
+  return <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{children}</label>;
 }
 
 function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition-all ${props.className ?? ''}`}
+      className={`w-full border border-neutral-300 rounded-lg px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/8 transition-all ${props.className ?? ''}`}
     />
   );
 }
@@ -38,7 +38,7 @@ function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectEle
   return (
     <select
       {...props}
-      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-purple-400 bg-white"
+      className="w-full border border-neutral-300 rounded-lg px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 bg-white"
     >
       {children}
     </select>
@@ -110,12 +110,12 @@ export default function CrearClasePage() {
     <div className="p-6 lg:p-8 max-w-3xl">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/dashboard/mis-clases" className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+        <Link href="/dashboard/mis-clases" className="p-2 hover:bg-neutral-100 rounded-xl transition-colors text-neutral-500">
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-xl font-black text-gray-900">Crear nueva clase</h1>
-          <p className="text-xs text-gray-500">Paso {step + 1} de {STEPS.length}: {STEPS[step].label}</p>
+          <h1 className="text-xl font-black text-neutral-900">Crear nueva clase</h1>
+          <p className="text-xs text-neutral-500">Paso {step + 1} de {STEPS.length}: {STEPS[step].label}</p>
         </div>
       </div>
 
@@ -128,10 +128,10 @@ export default function CrearClasePage() {
               onClick={() => i < step && setStep(i)}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
                 i === step
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-neutral-900 text-white'
                   : i < step
-                  ? 'bg-purple-100 text-purple-700 cursor-pointer hover:bg-purple-200'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  ? 'bg-neutral-200 text-neutral-700 cursor-pointer hover:bg-neutral-300'
+                  : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
               }`}
             >
               {i < step ? <Check className="w-3 h-3" /> : <span>{s.emoji}</span>}
@@ -139,19 +139,19 @@ export default function CrearClasePage() {
             </button>
           ))}
         </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-neutral-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-purple-600 rounded-full transition-all"
+            className="h-full bg-neutral-900 rounded-full transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 mb-6">
         {/* Step 0: Basic info */}
         {step === 0 && (
           <div className="space-y-5">
-            <h2 className="font-bold text-gray-900 text-lg">Información básica</h2>
+            <h2 className="font-bold text-neutral-900 text-lg">Información básica</h2>
 
             <div>
               <FieldLabel>Tipo de publicación</FieldLabel>
@@ -168,8 +168,8 @@ export default function CrearClasePage() {
                     onClick={() => set('type', opt.value)}
                     className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-xs font-semibold transition-all ${
                       form.type === opt.value
-                        ? 'border-purple-600 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600 hover:border-purple-200'
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                     }`}
                   >
                     <span>{opt.emoji}</span>
@@ -186,7 +186,7 @@ export default function CrearClasePage() {
                 onChange={e => set('title', e.target.value)}
                 placeholder="Ej: Salsa Básico desde cero"
               />
-              <p className="text-xs text-gray-400 mt-1">{form.title.length}/80 caracteres</p>
+              <p className="text-xs text-neutral-400 mt-1">{form.title.length}/80 caracteres</p>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
@@ -207,14 +207,14 @@ export default function CrearClasePage() {
             </div>
 
             <div>
-              <FieldLabel>Descripción corta <span className="font-normal text-gray-400">(para la tarjeta, máx. 120 caracteres)</span></FieldLabel>
+              <FieldLabel>Descripción corta <span className="font-normal text-neutral-400">(para la tarjeta, máx. 120 caracteres)</span></FieldLabel>
               <Input
                 value={form.shortDesc}
                 onChange={e => set('shortDesc', e.target.value)}
                 placeholder="Aprende los fundamentos en un ambiente divertido…"
                 maxLength={120}
               />
-              <p className="text-xs text-gray-400 mt-1">{form.shortDesc.length}/120 caracteres</p>
+              <p className="text-xs text-neutral-400 mt-1">{form.shortDesc.length}/120 caracteres</p>
             </div>
 
             <div>
@@ -224,7 +224,7 @@ export default function CrearClasePage() {
                 value={form.fullDesc}
                 onChange={e => set('fullDesc', e.target.value)}
                 placeholder="Cuéntanos todo sobre la clase: qué aprenderán, para quién es, dinámica, requisitos…"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-purple-400 resize-none"
+                className="w-full border border-neutral-300 rounded-lg px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/8 resize-none transition-all"
               />
             </div>
           </div>
@@ -233,7 +233,7 @@ export default function CrearClasePage() {
         {/* Step 1: Schedule */}
         {step === 1 && (
           <div className="space-y-5">
-            <h2 className="font-bold text-gray-900 text-lg">Fechas y horarios</h2>
+            <h2 className="font-bold text-neutral-900 text-lg">Fechas y horarios</h2>
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
@@ -241,7 +241,7 @@ export default function CrearClasePage() {
                 <Input type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} />
               </div>
               <div>
-                <FieldLabel>Fecha de fin <span className="font-normal text-gray-400">(opcional)</span></FieldLabel>
+                <FieldLabel>Fecha de fin <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
                 <Input type="date" value={form.endDate} onChange={e => set('endDate', e.target.value)} />
               </div>
             </div>
@@ -260,8 +260,8 @@ export default function CrearClasePage() {
                     onClick={() => set('recurrence', opt.value)}
                     className={`text-xs font-semibold py-2 px-3 rounded-xl border-2 transition-all ${
                       form.recurrence === opt.value
-                        ? 'border-purple-600 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600 hover:border-purple-200'
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                     }`}
                   >
                     {opt.label}
@@ -273,16 +273,16 @@ export default function CrearClasePage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <FieldLabel>Horarios</FieldLabel>
-                <button onClick={addSlot} className="flex items-center gap-1 text-xs text-purple-600 font-medium hover:bg-purple-50 px-2 py-1 rounded-lg">
+                <button onClick={addSlot} className="flex items-center gap-1 text-xs text-neutral-900 font-medium hover:bg-neutral-100 px-2 py-1 rounded-lg">
                   <Plus className="w-3.5 h-3.5" /> Agregar horario
                 </button>
               </div>
 
               <div className="space-y-4">
                 {slots.map((slot, i) => (
-                  <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-3">
+                  <div key={i} className="border border-neutral-200 rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-gray-600">Horario {i + 1}</p>
+                      <p className="text-xs font-semibold text-neutral-600">Horario {i + 1}</p>
                       {slots.length > 1 && (
                         <button onClick={() => removeSlot(i)} className="text-red-400 hover:text-red-600">
                           <Trash2 className="w-4 h-4" />
@@ -291,7 +291,7 @@ export default function CrearClasePage() {
                     </div>
 
                     <div>
-                      <p className="text-xs text-gray-500 mb-2">Días</p>
+                      <p className="text-xs text-neutral-500 mb-2">Días</p>
                       <div className="flex flex-wrap gap-1.5">
                         {DAYS.map(d => (
                           <button
@@ -299,8 +299,8 @@ export default function CrearClasePage() {
                             onClick={() => toggleSlotDay(i, d)}
                             className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                               slot.days.includes(d)
-                                ? 'bg-purple-600 text-white border-purple-600'
-                                : 'border-gray-200 text-gray-600 hover:border-purple-300'
+                                ? 'bg-neutral-900 text-white border-neutral-900'
+                                : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                             }`}
                           >
                             {d.slice(0, 3)}
@@ -311,7 +311,7 @@ export default function CrearClasePage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Hora inicio</p>
+                        <p className="text-xs text-neutral-500 mb-1">Hora inicio</p>
                         <Input
                           type="time"
                           value={slot.startTime}
@@ -319,7 +319,7 @@ export default function CrearClasePage() {
                         />
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Hora fin</p>
+                        <p className="text-xs text-neutral-500 mb-1">Hora fin</p>
                         <Input
                           type="time"
                           value={slot.endTime}
@@ -329,7 +329,7 @@ export default function CrearClasePage() {
                     </div>
 
                     {slot.days.length > 0 && (
-                      <p className="text-xs text-purple-600 bg-purple-50 px-3 py-2 rounded-lg">
+                      <p className="text-xs text-neutral-600 bg-neutral-50 px-3 py-2 rounded-lg border border-neutral-200">
                         Esta clase se dicta los {slot.days.join(', ')} de {slot.startTime} a {slot.endTime}
                       </p>
                     )}
@@ -343,7 +343,7 @@ export default function CrearClasePage() {
         {/* Step 2: Price & spots */}
         {step === 2 && (
           <div className="space-y-5">
-            <h2 className="font-bold text-gray-900 text-lg">Precio y cupos</h2>
+            <h2 className="font-bold text-neutral-900 text-lg">Precio y cupos</h2>
 
             <div>
               <FieldLabel>Tipo de precio</FieldLabel>
@@ -354,8 +354,8 @@ export default function CrearClasePage() {
                     onClick={() => set('priceType', pt)}
                     className={`text-xs font-semibold py-2.5 px-3 rounded-xl border-2 transition-all ${
                       form.priceType === pt
-                        ? 'border-purple-600 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600 hover:border-purple-200'
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                     }`}
                   >
                     {pt}
@@ -369,7 +369,7 @@ export default function CrearClasePage() {
                 <div>
                   <FieldLabel>Monto</FieldLabel>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-semibold">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500 font-semibold">
                       {form.currency === 'PEN' ? 'S/' : '$'}
                     </span>
                     <Input
@@ -410,7 +410,7 @@ export default function CrearClasePage() {
                   { value: 'request', label: 'Solicitud de cupo', desc: 'Tú apruebas cada inscripción' },
                 ].map(opt => (
                   <label key={opt.value} className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    form.reservationMode === opt.value ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-purple-200'
+                    form.reservationMode === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-900'
                   }`}>
                     <input
                       type="radio"
@@ -418,11 +418,11 @@ export default function CrearClasePage() {
                       value={opt.value}
                       checked={form.reservationMode === opt.value}
                       onChange={() => set('reservationMode', opt.value)}
-                      className="mt-0.5 accent-purple-600"
+                      className="mt-0.5 accent-neutral-900"
                     />
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{opt.label}</p>
-                      <p className="text-xs text-gray-500">{opt.desc}</p>
+                      <p className="text-sm font-semibold text-neutral-900">{opt.label}</p>
+                      <p className="text-xs text-neutral-500">{opt.desc}</p>
                     </div>
                   </label>
                 ))}
@@ -434,7 +434,7 @@ export default function CrearClasePage() {
         {/* Step 3: Location */}
         {step === 3 && (
           <div className="space-y-5">
-            <h2 className="font-bold text-gray-900 text-lg">Ubicación y modalidad</h2>
+            <h2 className="font-bold text-neutral-900 text-lg">Ubicación y modalidad</h2>
 
             <div>
               <FieldLabel>Modalidad</FieldLabel>
@@ -445,8 +445,8 @@ export default function CrearClasePage() {
                     onClick={() => set('modality', m)}
                     className={`text-xs font-semibold py-2.5 px-3 rounded-xl border-2 transition-all ${
                       form.modality === m
-                        ? 'border-purple-600 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 text-gray-600 hover:border-purple-200'
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                     }`}
                   >
                     {m === 'Presencial' ? '🏢' : m === 'Online' ? '💻' : '🌐'} {m}
@@ -483,7 +483,7 @@ export default function CrearClasePage() {
                 </div>
 
                 {/* Map preview placeholder */}
-                <div className="rounded-xl bg-slate-100 h-32 flex items-center justify-center text-sm text-gray-400">
+                <div className="rounded-xl bg-neutral-100 h-32 flex items-center justify-center text-sm text-neutral-400">
                   Vista previa del mapa aparecerá aquí
                 </div>
               </>
@@ -503,7 +503,7 @@ export default function CrearClasePage() {
                 <div>
                   <FieldLabel>Enlace de acceso</FieldLabel>
                   <Input value={form.accessLink} onChange={e => set('accessLink', e.target.value)} placeholder="https://zoom.us/j/..." />
-                  <p className="text-xs text-gray-400 mt-1">Puedes ocultarlo hasta confirmar la inscripción</p>
+                  <p className="text-xs text-neutral-400 mt-1">Puedes ocultarlo hasta confirmar la inscripción</p>
                 </div>
               </>
             )}
@@ -513,29 +513,29 @@ export default function CrearClasePage() {
         {/* Step 4: Media */}
         {step === 4 && (
           <div className="space-y-5">
-            <h2 className="font-bold text-gray-900 text-lg">Multimedia y redes</h2>
+            <h2 className="font-bold text-neutral-900 text-lg">Multimedia y redes</h2>
 
             <div>
               <FieldLabel>Imagen de portada *</FieldLabel>
-              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center hover:border-purple-300 transition-colors cursor-pointer">
-                <Upload className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-gray-600">Arrastra tu imagen aquí</p>
-                <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP · Máx. 5MB · Ratio recomendado 16:9</p>
-                <button className="mt-4 text-xs font-semibold text-purple-600 border border-purple-200 px-4 py-2 rounded-lg hover:bg-purple-50">
+              <div className="border-2 border-dashed border-neutral-200 rounded-xl p-8 text-center hover:border-neutral-900 transition-colors cursor-pointer">
+                <Upload className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-neutral-600">Arrastra tu imagen aquí</p>
+                <p className="text-xs text-neutral-400 mt-1">PNG, JPG, WebP · Máx. 5MB · Ratio recomendado 16:9</p>
+                <button className="mt-4 text-xs font-semibold text-neutral-900 border border-neutral-300 px-4 py-2 rounded-lg hover:bg-neutral-50">
                   Seleccionar archivo
                 </button>
               </div>
             </div>
 
             <div>
-              <FieldLabel>Galería de imágenes <span className="font-normal text-gray-400">(opcional)</span></FieldLabel>
-              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-purple-300 transition-colors cursor-pointer">
-                <p className="text-xs text-gray-400">Arrastra o selecciona más imágenes (máx. 6)</p>
+              <FieldLabel>Galería de imágenes <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+              <div className="border-2 border-dashed border-neutral-200 rounded-xl p-6 text-center hover:border-neutral-900 transition-colors cursor-pointer">
+                <p className="text-xs text-neutral-400">Arrastra o selecciona más imágenes (máx. 6)</p>
               </div>
             </div>
 
             <div>
-              <FieldLabel>Video de la clase <span className="font-normal text-gray-400">(URL)</span></FieldLabel>
+              <FieldLabel>Video de la clase <span className="font-normal text-neutral-400">(URL)</span></FieldLabel>
               <Input
                 value={form.videoUrl}
                 onChange={e => set('videoUrl', e.target.value)}
@@ -559,7 +559,7 @@ export default function CrearClasePage() {
         {/* Step 5: Requirements */}
         {step === 5 && (
           <div className="space-y-5">
-            <h2 className="font-bold text-gray-900 text-lg">Recomendaciones y requisitos</h2>
+            <h2 className="font-bold text-neutral-900 text-lg">Recomendaciones y requisitos</h2>
 
             <div>
               <FieldLabel>Calzado recomendado</FieldLabel>
@@ -570,8 +570,8 @@ export default function CrearClasePage() {
                     onClick={() => set('footwear', form.footwear === opt ? '' : opt)}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                       form.footwear === opt
-                        ? 'bg-purple-600 text-white border-purple-600'
-                        : 'border-gray-200 text-gray-600 hover:border-purple-300'
+                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                     }`}
                   >
                     {opt}
@@ -594,8 +594,8 @@ export default function CrearClasePage() {
                     onClick={() => set('prerequisites', form.prerequisites === opt ? '' : opt)}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                       form.prerequisites === opt
-                        ? 'bg-purple-600 text-white border-purple-600'
-                        : 'border-gray-200 text-gray-600 hover:border-purple-300'
+                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                     }`}
                   >
                     {opt}
@@ -613,8 +613,8 @@ export default function CrearClasePage() {
                     onClick={() => set('ageGroup', form.ageGroup === opt ? '' : opt)}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                       form.ageGroup === opt
-                        ? 'bg-purple-600 text-white border-purple-600'
-                        : 'border-gray-200 text-gray-600 hover:border-purple-300'
+                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                     }`}
                   >
                     {opt}
@@ -637,8 +637,8 @@ export default function CrearClasePage() {
                     }}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                       form.toBring.includes(opt)
-                        ? 'bg-purple-600 text-white border-purple-600'
-                        : 'border-gray-200 text-gray-600 hover:border-purple-300'
+                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
                     }`}
                   >
                     {opt}
@@ -652,7 +652,7 @@ export default function CrearClasePage() {
         {/* Step 6: Review & publish */}
         {step === 6 && (
           <div className="space-y-5">
-            <h2 className="font-bold text-gray-900 text-lg">Revisión y publicación</h2>
+            <h2 className="font-bold text-neutral-900 text-lg">Revisión y publicación</h2>
 
             {/* Summary */}
             <div className="space-y-3">
@@ -677,9 +677,9 @@ export default function CrearClasePage() {
                   ).join(' | ') || '—',
                 },
               ].map(row => (
-                <div key={row.label} className="flex gap-3 py-2 border-b border-gray-100 last:border-0">
-                  <span className="text-xs font-semibold text-gray-500 w-24 shrink-0">{row.label}</span>
-                  <span className="text-sm text-gray-800">{row.value}</span>
+                <div key={row.label} className="flex gap-3 py-2 border-b border-neutral-100 last:border-0">
+                  <span className="text-xs font-semibold text-neutral-500 w-24 shrink-0">{row.label}</span>
+                  <span className="text-sm text-neutral-800">{row.value}</span>
                 </div>
               ))}
             </div>
@@ -695,19 +695,19 @@ export default function CrearClasePage() {
             <div className="grid sm:grid-cols-3 gap-3">
               <button
                 onClick={() => handlePublish('draft')}
-                className="flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-600 font-semibold py-3 rounded-xl hover:border-gray-300 text-sm transition-colors"
+                className="flex items-center justify-center gap-2 border-2 border-neutral-200 text-neutral-600 font-semibold py-3 rounded-btn hover:border-neutral-900 text-sm transition-colors"
               >
                 <Save className="w-4 h-4" /> Guardar borrador
               </button>
               <button
                 onClick={() => handlePublish('active')}
-                className="flex items-center justify-center gap-2 border-2 border-dashed border-purple-300 text-purple-600 font-semibold py-3 rounded-xl hover:bg-purple-50 text-sm transition-colors"
+                className="flex items-center justify-center gap-2 border-2 border-dashed border-neutral-300 text-neutral-700 font-semibold py-3 rounded-btn hover:bg-neutral-50 text-sm transition-colors"
               >
                 <Eye className="w-4 h-4" /> Previsualizar
               </button>
               <button
                 onClick={() => handlePublish('active')}
-                className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl text-sm transition-colors"
+                className="flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-3 rounded-btn text-sm transition-colors"
               >
                 Publicar clase 🚀
               </button>
@@ -721,7 +721,7 @@ export default function CrearClasePage() {
         {step > 0 && (
           <button
             onClick={() => setStep(s => s - 1)}
-            className="flex items-center gap-2 px-5 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors"
+            className="flex items-center gap-2 px-5 py-3 border-2 border-neutral-200 rounded-btn text-sm font-semibold text-neutral-600 hover:border-neutral-900 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" /> Atrás
           </button>
@@ -729,7 +729,7 @@ export default function CrearClasePage() {
         {step < STEPS.length - 1 && (
           <button
             onClick={() => setStep(s => s + 1)}
-            className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-3 rounded-btn transition-colors"
           >
             Continuar <ChevronRight className="w-4 h-4" />
           </button>
