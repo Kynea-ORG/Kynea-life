@@ -156,6 +156,10 @@
            hover:bg-neutral-800 hover:border-neutral-800;
   }
 
+  .btn-sm {
+    @apply px-4 py-2 text-[13px];
+  }
+
   /* ══ CARDS ══ */
   .card {
     @apply bg-white border border-neutral-200 rounded-xl p-6 transition-all duration-200;

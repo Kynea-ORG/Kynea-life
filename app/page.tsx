@@ -230,7 +230,7 @@ export default function HomePage() {
               </p>
 
               {/* Search bar */}
-              <form onSubmit={handleSearch} className="bg-white rounded-xl shadow-md border border-neutral-200 p-2 flex flex-col sm:flex-row gap-2 max-w-xl mb-8">
+              <form onSubmit={handleSearch} className="bg-white rounded-xl shadow-md border border-neutral-200 p-2 flex gap-2 max-w-xl mb-8">
                 <div className="flex-1 flex items-center gap-2.5 px-3 py-1">
                   <Search className="w-4 h-4 text-neutral-400 shrink-0" />
                   <input

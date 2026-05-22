@@ -1,4 +1,6 @@
 'use client';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PlusCircle, Upload, BookOpen, TrendingUp, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
 import { mockClasses, getStatusColor, getStatusLabel, formatPrice, formatTimeSlots, getConversionRate } from '@/lib/mockData';
@@ -17,7 +19,20 @@ const METRICS = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [checked, setChecked] = useState(false);
   const recentClasses = publishedClasses.slice(0, 3);
+
+  useEffect(() => {
+    const role = localStorage.getItem('demo_role');
+    if (role === 'alumno') {
+      router.replace('/dashboard/alumno');
+    } else {
+      setChecked(true);
+    }
+  }, [router]);
+
+  if (!checked) return null;
 
   return (
     <div className="p-6 lg:p-8 w-full max-w-6xl">
@@ -38,7 +53,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
@@ -85,14 +100,17 @@ export default function DashboardPage() {
                     {getStatusLabel(cls.status)}
                   </span>
                 </div>
-                <p className="text-[13px] text-neutral-500 mt-0.5">{formatTimeSlots(cls.timeSlots)}</p>
-                <div className="flex items-center gap-4 mt-1.5">
+                <p className="text-[13px] text-neutral-500 mt-0.5 truncate">{formatTimeSlots(cls.timeSlots)}</p>
+                <div className="hidden sm:flex items-center gap-4 mt-1.5">
                   <span className="text-[13px] text-neutral-500 flex items-center gap-1">
                     <Eye className="w-3 h-3" /> {cls.metrics.views} vistas
                   </span>
                   <span className="text-[13px] text-neutral-500 flex items-center gap-1">
                     <MessageCircle className="w-3 h-3" /> {cls.metrics.contacts} contactos
                   </span>
+                  <span className="text-[13px] font-semibold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
+                </div>
+                <div className="sm:hidden mt-1.5">
                   <span className="text-[13px] font-semibold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
                 </div>
               </div>

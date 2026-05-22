@@ -157,7 +157,7 @@ export default function ProfesoresPage() {
 
   /* ── render ── */
   return (
-    <div className="p-6 lg:p-8 max-w-6xl">
+    <div className="p-6 lg:p-8 w-full max-w-6xl">
 
       {/* Toast */}
       {toast && (
@@ -172,21 +172,21 @@ export default function ProfesoresPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-black text-neutral-900 tracking-snug">Profesores</h1>
           <p className="text-neutral-500 text-sm mt-1">{teachers.length} profesores en tu academia</p>
         </div>
-        <div className="flex gap-3 shrink-0">
+        <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
           <button
             onClick={() => setShowCSV(true)}
-            className="btn-outline btn-sm flex items-center gap-2"
+            className="btn-outline btn-sm flex items-center gap-2 flex-1 sm:flex-none justify-center"
           >
             <Upload className="w-4 h-4" /> Importar CSV
           </button>
           <button
             onClick={() => setShowModal(true)}
-            className="btn-dark btn-sm flex items-center gap-2"
+            className="btn-dark btn-sm flex items-center gap-2 flex-1 sm:flex-none justify-center"
           >
             <Plus className="w-4 h-4" /> Agregar profesor
           </button>
@@ -194,7 +194,7 @@ export default function ProfesoresPage() {
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
         {[
           { label: 'Total profesores', value: teachers.length, icon: Users,    bg: 'bg-neutral-50',  text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
           { label: 'Activos',          value: totalActivos,    icon: Activity,  bg: 'bg-green-bg',    text: 'text-green-text',  iconBg: 'bg-green-bg' },
@@ -351,7 +351,7 @@ export default function ProfesoresPage() {
       {/* ── Add professor modal ─────────────────────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
-          <div className="max-w-lg mx-auto mt-20 mb-10 bg-white rounded-xl p-6 shadow-xl">
+          <div className="max-w-lg mx-4 sm:mx-auto mt-10 sm:mt-20 mb-10 bg-white rounded-xl p-6 shadow-xl">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-black text-neutral-900">Agregar profesor</h2>
               <button
@@ -469,7 +469,7 @@ export default function ProfesoresPage() {
       {/* ── CSV import modal ─────────────────────────────────────────────────── */}
       {showCSV && (
         <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
-          <div className="max-w-lg mx-auto mt-20 mb-10 bg-white rounded-xl p-6 shadow-xl">
+          <div className="max-w-lg mx-4 sm:mx-auto mt-10 sm:mt-20 mb-10 bg-white rounded-xl p-6 shadow-xl">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-black text-neutral-900">Importar profesores desde CSV</h2>
               <button

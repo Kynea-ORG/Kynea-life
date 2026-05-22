@@ -51,7 +51,7 @@ function ClasesContent() {
 
       {/* Search bar */}
       <div className="bg-white border-b border-neutral-200 sticky top-[64px] z-40">
-        <div className="max-w-[1200px] mx-auto px-6 py-3 flex items-center gap-3">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/8 transition-all">
             <Search className="w-4 h-4 text-neutral-400 shrink-0" />
             <input
