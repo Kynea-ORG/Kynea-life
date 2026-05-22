@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ChevronLeft, ChevronRight, Check, Plus, Trash2, Save,
+  ChevronLeft, ChevronRight, Plus, Trash2, Save,
   Upload, MapPin, Monitor, Layers,
 } from 'lucide-react';
 import { DANCE_STYLES, LEVELS } from '@/lib/mockData';
@@ -11,15 +11,37 @@ import { DANCE_STYLES, LEVELS } from '@/lib/mockData';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { label: 'Información básica', emoji: '📝' },
-  { label: 'Horario y ubicación', emoji: '📅' },
-  { label: 'Precio y detalles', emoji: '💰' },
-  { label: 'Revisión y publicación', emoji: '🚀' },
+  { label: 'Información básica' },
+  { label: 'Horario y ubicación' },
+  { label: 'Precio y detalles' },
+  { label: 'Revisión y publicación' },
 ];
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 type Slot = { days: string[]; startTime: string; endTime: string };
+
+// ─── Segmented progress bar ───────────────────────────────────────────────────
+
+function SegmentedProgress({ step, total }: { step: number; total: number }) {
+  return (
+    <div className="mb-8">
+      <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-3">
+        CREAR CLASE · PASO {step + 1} DE {total}
+      </p>
+      <div className="flex gap-1.5">
+        {Array.from({ length: total }).map((_, i) => (
+          <div
+            key={i}
+            className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
+              i <= step ? 'bg-neutral-900' : 'bg-neutral-100'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ─── Pill button helper ────────────────────────────────────────────────────────
 
@@ -76,66 +98,6 @@ function NativeSelect({
     >
       {children}
     </select>
-  );
-}
-
-// ─── Stepper ──────────────────────────────────────────────────────────────────
-
-function Stepper({ step }: { step: number }) {
-  const progress = ((step + 1) / STEPS.length) * 100;
-  return (
-    <div className="mb-8">
-      {/* Step circles + connecting lines */}
-      <div className="flex items-center mb-4">
-        {STEPS.map((s, i) => {
-          const completed = i < step;
-          const active = i === step;
-          return (
-            <div key={i} className="flex items-center flex-1 last:flex-none">
-              {/* Circle */}
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                    completed
-                      ? 'bg-neutral-900 text-white'
-                      : active
-                      ? 'bg-neutral-900 text-white'
-                      : 'border-2 border-neutral-200 text-neutral-400 bg-white'
-                  }`}
-                >
-                  {completed ? <Check className="w-4 h-4" /> : i + 1}
-                </div>
-                {/* Label — hidden on mobile */}
-                <span
-                  className={`hidden sm:block text-xs mt-1.5 font-semibold whitespace-nowrap ${
-                    active ? 'text-neutral-900' : completed ? 'text-neutral-500' : 'text-neutral-400'
-                  }`}
-                >
-                  {s.label}
-                </span>
-              </div>
-              {/* Connector line */}
-              {i < STEPS.length - 1 && (
-                <div className="flex-1 h-0.5 mx-2 mb-5 sm:mb-3.5 rounded-full overflow-hidden bg-neutral-200">
-                  <div
-                    className="h-full bg-neutral-900 rounded-full transition-all duration-300"
-                    style={{ width: i < step ? '100%' : '0%' }}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Progress bar */}
-      <div className="h-1 bg-neutral-100 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-neutral-900 rounded-full transition-all duration-500"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-    </div>
   );
 }
 
@@ -220,33 +182,33 @@ export default function CrearClasePage() {
   // ── Step 1: Información básica ─────────────────────────────────────────────
   const renderStep0 = () => (
     <div className="space-y-6">
-      <div>
-        <h2 className="font-black text-neutral-900 text-xl mb-0.5">
-          📝 Información básica
-        </h2>
-        <p className="text-sm text-neutral-500">
-          Cuéntanos sobre tu clase para que los alumnos te encuentren.
-        </p>
-      </div>
+      <h2 className="text-lg font-bold text-neutral-900 mb-5">Información básica</h2>
 
-      {/* Type selector */}
+      {/* Type selector — card style */}
       <div>
         <FieldLabel>Tipo de publicación</FieldLabel>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
-            { value: 'clase', label: 'Clase' },
-            { value: 'taller', label: 'Taller' },
-            { value: 'curso', label: 'Curso' },
-            { value: 'masterclass', label: 'Masterclass' },
-            { value: 'intensivo', label: 'Intensivo' },
+            { value: 'clase', label: 'Clase regular', desc: 'Horario recurrente', emoji: '🎵' },
+            { value: 'taller', label: 'Taller', desc: 'Sesión puntual', emoji: '🎯' },
+            { value: 'curso', label: 'Curso', desc: 'Programa completo', emoji: '📚' },
+            { value: 'masterclass', label: 'Masterclass', desc: 'Clase magistral', emoji: '⭐' },
+            { value: 'intensivo', label: 'Intensivo', desc: 'Varios días seguidos', emoji: '🔥' },
           ].map(opt => (
-            <Pill
+            <button
               key={opt.value}
-              active={form.type === opt.value}
+              type="button"
               onClick={() => set('type', opt.value)}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                form.type === opt.value
+                  ? 'border-neutral-900 bg-neutral-50'
+                  : 'border-neutral-200 hover:border-neutral-400'
+              }`}
             >
-              {opt.label}
-            </Pill>
+              <p className="text-xl mb-1">{opt.emoji}</p>
+              <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
+              <p className="text-xs text-neutral-500">{opt.desc}</p>
+            </button>
           ))}
         </div>
       </div>
@@ -350,14 +312,7 @@ export default function CrearClasePage() {
   // ── Step 2: Horario y ubicación ───────────────────────────────────────────
   const renderStep1 = () => (
     <div className="space-y-6">
-      <div>
-        <h2 className="font-black text-neutral-900 text-xl mb-0.5">
-          📅 Horario y ubicación
-        </h2>
-        <p className="text-sm text-neutral-500">
-          Indica cuándo y dónde se dicta tu clase.
-        </p>
-      </div>
+      <h2 className="text-lg font-bold text-neutral-900 mb-5">Horario y ubicación</h2>
 
       {/* Dates */}
       <div className="grid sm:grid-cols-2 gap-4">
@@ -500,26 +455,34 @@ export default function CrearClasePage() {
         </div>
       </div>
 
-      {/* Modality */}
+      {/* Modality — card style */}
       <div>
         <FieldLabel>Modalidad</FieldLabel>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { value: 'Presencial', label: 'Presencial', icon: <MapPin className="w-3.5 h-3.5" /> },
-            { value: 'Online', label: 'Online', icon: <Monitor className="w-3.5 h-3.5" /> },
-            { value: 'Híbrida', label: 'Híbrida', icon: <Layers className="w-3.5 h-3.5" /> },
+            { value: 'Presencial', label: 'Presencial', desc: 'En un estudio o academia', icon: MapPin },
+            { value: 'Online', label: 'Online', desc: 'Por videollamada', icon: Monitor },
+            { value: 'Híbrida', label: 'Híbrida', desc: 'Ambas opciones', icon: Layers },
           ].map(opt => (
             <button
               key={opt.value}
               type="button"
               onClick={() => set('modality', opt.value)}
-              className={`flex items-center gap-2 rounded-full px-4 py-2 border-2 text-sm font-semibold transition-all ${
+              className={`text-left p-4 rounded-xl border-2 transition-all flex items-start gap-3 ${
                 form.modality === opt.value
-                  ? 'bg-neutral-900 text-white border-neutral-900'
-                  : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                  ? 'border-neutral-900 bg-neutral-50'
+                  : 'border-neutral-200 hover:border-neutral-400'
               }`}
             >
-              {opt.icon} {opt.label}
+              <opt.icon
+                className={`w-5 h-5 mt-0.5 shrink-0 ${
+                  form.modality === opt.value ? 'text-neutral-900' : 'text-neutral-400'
+                }`}
+              />
+              <div>
+                <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
+                <p className="text-xs text-neutral-500">{opt.desc}</p>
+              </div>
             </button>
           ))}
         </div>
@@ -606,14 +569,7 @@ export default function CrearClasePage() {
   // ── Step 3: Precio y detalles ──────────────────────────────────────────────
   const renderStep2 = () => (
     <div className="space-y-6">
-      <div>
-        <h2 className="font-black text-neutral-900 text-xl mb-0.5">
-          💰 Precio y detalles
-        </h2>
-        <p className="text-sm text-neutral-500">
-          Define el costo y los requisitos para participar.
-        </p>
-      </div>
+      <h2 className="text-lg font-bold text-neutral-900 mb-5">Precio y detalles</h2>
 
       {/* Price type */}
       <div>
@@ -858,14 +814,7 @@ export default function CrearClasePage() {
 
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="font-black text-neutral-900 text-xl mb-0.5">
-            🚀 Revisión y publicación
-          </h2>
-          <p className="text-sm text-neutral-500">
-            Revisa los datos antes de publicar tu clase.
-          </p>
-        </div>
+        <h2 className="text-lg font-bold text-neutral-900 mb-5">Revisión y publicación</h2>
 
         {/* Summary table */}
         <div className="border border-neutral-200 rounded-xl overflow-hidden">
@@ -935,24 +884,6 @@ export default function CrearClasePage() {
             tu clase aparecerá en el buscador de Kynea.
           </p>
         </div>
-
-        {/* Publish actions */}
-        <div className="grid sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => handlePublish('draft')}
-            className="btn-outline flex items-center justify-center gap-2"
-          >
-            <Save className="w-4 h-4" /> Guardar borrador
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePublish('active')}
-            className="btn-dark flex items-center justify-center gap-2"
-          >
-            Publicar clase <span>🚀</span>
-          </button>
-        </div>
       </div>
     );
   };
@@ -961,60 +892,30 @@ export default function CrearClasePage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Link
-          href="/dashboard/mis-clases"
-          className="p-2 hover:bg-neutral-100 rounded-xl transition-colors text-neutral-500 shrink-0"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-black text-neutral-900 leading-none">
-            Crear nueva clase
-          </h1>
-          <p className="text-xs text-neutral-500 mt-0.5">
-            Paso {step + 1} de {STEPS.length} — {STEPS[step].label}
-          </p>
-        </div>
+      {/* Segmented progress */}
+      <SegmentedProgress step={step} total={STEPS.length} />
+
+      {/* Page heading */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-black text-neutral-900">Crea tu clase de baile</h1>
+        <p className="text-sm text-neutral-500 mt-1">Completa cada paso para publicar tu clase.</p>
       </div>
 
-      {/* Stepper */}
-      <Stepper step={step} />
-
-      {/* Form card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-5 sm:p-7 mb-6">
+      {/* Step content — light background, subtle border */}
+      <div className="bg-white rounded-xl border border-neutral-100 p-6 mb-6 shadow-sm">
         {step === 0 && renderStep0()}
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
       </div>
 
-      {/* Navigation — sticky on mobile */}
-      {step < STEPS.length - 1 && (
-        <div className="sticky bottom-0 sm:static bg-white sm:bg-transparent border-t sm:border-0 border-neutral-200 -mx-4 sm:mx-0 px-4 sm:px-0 py-3 sm:py-0 flex gap-3">
-          {step > 0 && (
-            <button
-              type="button"
-              onClick={goBack}
-              className="btn-outline flex items-center gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" /> Atrás
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={goNext}
-            className="btn-dark flex-1 flex items-center justify-center gap-2"
-          >
-            Continuar <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Back button on last step (publish actions are inside the card) */}
-      {step === STEPS.length - 1 && (
-        <div className="sticky bottom-0 sm:static bg-white sm:bg-transparent border-t sm:border-0 border-neutral-200 -mx-4 sm:mx-0 px-4 sm:px-0 py-3 sm:py-0">
+      {/* Navigation */}
+      <div className="flex justify-between items-center pt-2">
+        {step === 0 ? (
+          <Link href="/dashboard/mis-clases" className="btn-outline">
+            Cancelar
+          </Link>
+        ) : (
           <button
             type="button"
             onClick={goBack}
@@ -1022,8 +923,35 @@ export default function CrearClasePage() {
           >
             <ChevronLeft className="w-4 h-4" /> Atrás
           </button>
-        </div>
-      )}
+        )}
+
+        {step < STEPS.length - 1 ? (
+          <button
+            type="button"
+            onClick={goNext}
+            className="btn-dark flex items-center gap-2"
+          >
+            Continuar <ChevronRight className="w-4 h-4" />
+          </button>
+        ) : (
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => handlePublish('draft')}
+              className="btn-outline flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" /> Guardar borrador
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePublish('published')}
+              className="btn-dark flex items-center gap-2"
+            >
+              Publicar clase <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
