@@ -104,7 +104,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
               className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-all flex items-center justify-center gap-1.5 border-2 ${
                 isFullyBooked
                   ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                  : 'bg-[#25D366] border-[#25D366] hover:bg-[#20BC5A] hover:border-[#20BC5A] text-white'
+                  : 'bg-neutral-900 border-neutral-900 hover:bg-neutral-800 hover:border-neutral-800 text-white'
               }`}
             >
               <MessageCircle className="w-3.5 h-3.5" />

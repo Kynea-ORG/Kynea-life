@@ -4,12 +4,13 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
-  MessageCircle, Settings, LogOut,
+  MessageCircle, Settings, LogOut, Users,
 } from 'lucide-react';
 
 const NAV = [
   { href: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
   { href: '/dashboard/mis-clases', label: 'Mis clases', icon: BookOpen },
+  { href: '/dashboard/profesores', label: 'Profesores', icon: Users },
   { href: '/dashboard/crear-clase', label: 'Crear clase', icon: PlusCircle },
   { href: '/dashboard/importar-csv', label: 'Importar CSV', icon: Upload },
   { href: '/dashboard/perfil', label: 'Perfil', icon: User },
@@ -42,6 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div>
               <p className="text-sm font-bold text-neutral-900">Academia Ritmo Latino</p>
               <p className="text-xs text-neutral-500">academia</p>
+              <span className="text-[10px] font-bold bg-pink-50 text-pink-600 border border-pink-100 px-2 py-0.5 rounded-full">Academia</span>
             </div>
           </div>
         </div>

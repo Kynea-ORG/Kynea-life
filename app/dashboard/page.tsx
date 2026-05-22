@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { PlusCircle, Upload, BookOpen, TrendingUp, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight } from 'lucide-react';
+import { PlusCircle, Upload, BookOpen, TrendingUp, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
 import { mockClasses, getStatusColor, getStatusLabel, formatPrice, formatTimeSlots, getConversionRate } from '@/lib/mockData';
 
 const publishedClasses = mockClasses.filter(c => c.status === 'published');
@@ -13,6 +13,7 @@ const METRICS = [
   { label: 'Inscripciones',   value: totalContacts,                      icon: MessageCircle, bg: 'bg-pink-50',        text: 'text-pink-600', iconBg: 'bg-pink-100' },
   { label: 'Tasa conv.',      value: getConversionRate(totalViews, totalContacts), icon: TrendingUp,    bg: 'bg-green-bg',       text: 'text-green-text', iconBg: 'bg-green-bg' },
   { label: 'Publicadas',      value: publishedClasses.length,            icon: BookOpen,      bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
+  { label: 'Profesores',      value: 3,                                  icon: Users,         bg: 'bg-pink-50',        text: 'text-pink-600',   iconBg: 'bg-pink-100' },
 ];
 
 export default function DashboardPage() {
@@ -37,7 +38,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
@@ -107,7 +108,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-3 gap-4">
         <Link
           href="/dashboard/crear-clase"
           className="flex items-center gap-4 p-5 bg-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors"
@@ -131,6 +132,19 @@ export default function DashboardPage() {
           <div>
             <p className="font-bold text-[15px]">Importar CSV</p>
             <p className="text-[13px] text-neutral-500">Sube varias clases a la vez</p>
+          </div>
+          <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
+        </Link>
+        <Link
+          href="/dashboard/profesores"
+          className="flex items-center gap-4 p-5 bg-pink-50 border-2 border-pink-100 rounded-xl text-neutral-900 hover:border-pink-400 transition-colors"
+        >
+          <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+            <Users className="w-6 h-6 text-pink-600" />
+          </div>
+          <div>
+            <p className="font-bold text-[15px]">Gestionar profesores</p>
+            <p className="text-[13px] text-neutral-500">3 profesores en tu academia</p>
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>
