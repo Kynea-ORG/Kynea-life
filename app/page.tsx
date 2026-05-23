@@ -207,9 +207,9 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
 
-      {/* ── HERO (fondo rosa) ── */}
+      {/* ── HERO (fondo morado) ── */}
       <div className="hero-section">
-        <Header transparent={false} />
+        <Header transparent={true} />
 
         <div className="max-w-[1200px] mx-auto px-6 pt-16 pb-24">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -279,7 +279,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── CATEGORÍAS — colorful cards, horizontal scroll ── */}
+      {/* ── CATEGORÍAS — hover animation cards, horizontal scroll ── */}
       <section className="bg-white py-8">
         <div className="max-w-[1200px] mx-auto px-6">
           <div
@@ -290,10 +290,35 @@ export default function HomePage() {
               <Link
                 key={cat.name}
                 href={`/clases?style=${encodeURIComponent(cat.name)}`}
-                className={`shrink-0 min-w-[120px] rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-all border ${cat.bg} ${cat.border}`}
+                className={`relative shrink-0 w-[150px] h-[170px] rounded-xl overflow-hidden border ${cat.border} group cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}
               >
-                <span className="text-2xl">{cat.emoji}</span>
-                <span className="text-sm font-bold text-center leading-tight">{cat.name}</span>
+                {/* Layer 1: fondo color estático */}
+                <div className={`absolute inset-0 ${cat.bg} transition-opacity duration-300 group-hover:opacity-0`} />
+
+                {/* Layer 2: video/gif bailarín */}
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-40 transition-opacity duration-500"
+                >
+                  <source src="/dancers.webm" type="video/webm" />
+                  <source src="/dancers.mp4" type="video/mp4" />
+                </video>
+
+                {/* Layer 3: glow radial morado */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ background: 'radial-gradient(circle at 50% 60%, rgba(138,17,188,0.55) 0%, rgba(138,17,188,0.20) 50%, transparent 75%)' }}
+                />
+
+                {/* Layer 4: contenido */}
+                <div className="relative z-10 flex flex-col items-center justify-center gap-3 h-full px-3">
+                  <span className="text-3xl transition-transform duration-300 group-hover:scale-110">{cat.emoji}</span>
+                  <span className="text-sm font-bold text-center leading-tight text-neutral-800 group-hover:text-white transition-colors duration-300">{cat.name}</span>
+                </div>
               </Link>
             ))}
           </div>
