@@ -47,7 +47,10 @@ export async function createClass(formData: FormData) {
     published_at:     status === 'published' ? new Date().toISOString() : null,
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error('[createClass]', error.code, error.message);
+    throw new Error(error.message);
+  }
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath('/clases');
@@ -177,7 +180,10 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
     .eq('id', classId)
     .eq('teacher_id', user.id);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error('[updateClassFromForm]', error.code, error.message);
+    throw new Error(error.message);
+  }
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);
