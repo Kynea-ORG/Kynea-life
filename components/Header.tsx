@@ -115,12 +115,11 @@ export default function Header({ transparent = false }: { transparent?: boolean 
         {/* Logo */}
         <Link href="/" className="flex items-center shrink-0">
           <Image
-            src="/logo.svg"
+            src={transparent ? '/logo-white.svg' : '/logo.svg'}
             alt="Kynea"
             width={110}
             height={36}
             priority
-            className={transparent ? 'brightness-0 invert' : ''}
           />
         </Link>
 
