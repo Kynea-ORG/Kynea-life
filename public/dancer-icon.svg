@@ -1,0 +1,23 @@
+<svg width="60" height="76" viewBox="0 0 60 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Head -->
+  <circle cx="36" cy="12" r="10" fill="#d4849a"/>
+  <!-- Body -->
+  <path d="M28 22 C24 32 26 44 28 52 C30 56 33 56 35 52 C37 44 39 32 42 24 C38 20 32 18 28 22Z" fill="#d4849a"/>
+  <!-- Left arm up-left -->
+  <path d="M28 28 Q18 20 11 11" stroke="#1a1a19" stroke-width="3" stroke-linecap="round"/>
+  <!-- Left hand motion lines -->
+  <path d="M9 10 Q7 8 9 6" stroke="#1a1a19" stroke-width="2" stroke-linecap="round"/>
+  <path d="M13 8 Q11 6 13 4" stroke="#1a1a19" stroke-width="2" stroke-linecap="round"/>
+  <!-- Right arm up-right -->
+  <path d="M40 26 Q50 18 56 13" stroke="#1a1a19" stroke-width="3" stroke-linecap="round"/>
+  <!-- Right hand motion -->
+  <path d="M57 12 Q59 10 57 8" stroke="#1a1a19" stroke-width="2" stroke-linecap="round"/>
+  <!-- Left leg down -->
+  <path d="M29 52 Q25 62 21 71" stroke="#1a1a19" stroke-width="3" stroke-linecap="round"/>
+  <!-- Left foot flick -->
+  <path d="M19 72 Q17 74 15 72" stroke="#1a1a19" stroke-width="2" stroke-linecap="round"/>
+  <!-- Right leg raised/bent out -->
+  <path d="M34 50 Q44 47 51 45" stroke="#1a1a19" stroke-width="3" stroke-linecap="round"/>
+  <!-- Right foot flick -->
+  <path d="M52 44 Q54 42 56 44" stroke="#1a1a19" stroke-width="2" stroke-linecap="round"/>
+</svg>
