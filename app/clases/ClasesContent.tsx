@@ -5,19 +5,37 @@ import Link from 'next/link';
 import { Search, SlidersHorizontal, Map, List, X } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
-import FilterPanel, { Filters } from '@/components/FilterPanel';
+import FilterPanel, { Filters, EMPTY_FILTERS } from '@/components/FilterPanel';
 import type { DanceClass } from '@/lib/types';
 
-const defaultFilters: Filters = {
-  city: '', district: '', styles: [], level: '', days: [],
-  timeOfDay: '', modality: '', priceRange: '', type: '', withSpots: false,
-};
+function matchesPriceRange(cls: DanceClass, range: string): boolean {
+  const free = cls.priceType === 'Gratis' || cls.price === 0;
+  const p = cls.offerPrice ?? cls.price;
+  switch (range) {
+    case 'Gratis':      return free;
+    case 'Hasta S/50':  return !free && p <= 50;
+    case 'S/50–S/150':  return !free && p > 50 && p <= 150;
+    case 'S/150+':      return !free && p > 150;
+    default:            return false;
+  }
+}
+
+function matchesTimeOfDay(cls: DanceClass, bucket: string): boolean {
+  return cls.timeSlots.some(s => {
+    const hour = parseInt(s.startTime.split(':')[0], 10);
+    if (Number.isNaN(hour)) return false;
+    if (bucket.startsWith('Mañana')) return hour >= 6 && hour < 12;
+    if (bucket.startsWith('Tarde'))  return hour >= 12 && hour < 18;
+    if (bucket.startsWith('Noche'))  return hour >= 18 && hour <= 23;
+    return false;
+  });
+}
 
 export default function ClasesContent({ initialClasses }: { initialClasses: DanceClass[] }) {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [filters, setFilters] = useState<Filters>({
-    ...defaultFilters,
+    ...EMPTY_FILTERS,
     styles: searchParams.get('style') ? [searchParams.get('style')!] : [],
     city: searchParams.get('city') || '',
   });
@@ -30,10 +48,12 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
         !cls.style.toLowerCase().includes(query.toLowerCase()) &&
         !cls.teacher.name.toLowerCase().includes(query.toLowerCase())) return false;
     if (filters.styles.length && !filters.styles.includes(cls.style)) return false;
-    if (filters.level && cls.level !== filters.level) return false;
-    if (filters.modality && cls.modality !== filters.modality) return false;
+    if (filters.levels.length && !filters.levels.includes(cls.level)) return false;
+    if (filters.modalities.length && !filters.modalities.includes(cls.modality)) return false;
+    if (filters.types.length && !filters.types.includes(cls.type)) return false;
     if (filters.withSpots && ((cls.availableSpots ?? 0) === 0)) return false;
-    if (filters.type && cls.type !== filters.type.toLowerCase()) return false;
+    if (filters.priceRanges.length && !filters.priceRanges.some(r => matchesPriceRange(cls, r))) return false;
+    if (filters.timesOfDay.length && !filters.timesOfDay.some(t => matchesTimeOfDay(cls, t))) return false;
     if (filters.days.length) {
       const classdays = cls.timeSlots.flatMap(s => s.days);
       if (!filters.days.some(d => classdays.includes(d))) return false;
@@ -41,9 +61,10 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
     return true;
   });
 
-  const activeCount = filters.styles.length + filters.days.length +
-    [filters.level, filters.modality, filters.priceRange, filters.type, filters.timeOfDay].filter(Boolean).length +
-    (filters.withSpots ? 1 : 0);
+  const activeCount =
+    filters.styles.length + filters.levels.length + filters.days.length +
+    filters.timesOfDay.length + filters.modalities.length + filters.priceRanges.length +
+    filters.types.length + (filters.withSpots ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-white">
@@ -95,7 +116,7 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
           </select>
         </div>
 
-        {(filters.styles.length > 0 || filters.level || filters.modality) && (
+        {(filters.styles.length > 0 || filters.levels.length > 0) && (
           <div className="max-w-[1200px] mx-auto px-6 pb-3 flex gap-2 overflow-x-auto">
             {filters.styles.map(s => (
               <span key={s} className="flex items-center gap-1 text-[13px] bg-neutral-900 text-white font-medium px-3 py-1 rounded-full whitespace-nowrap">
@@ -105,12 +126,14 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
                 </button>
               </span>
             ))}
-            {filters.level && (
-              <span className="flex items-center gap-1 text-[13px] bg-neutral-900 text-white font-medium px-3 py-1 rounded-full">
-                {filters.level}
-                <button onClick={() => setFilters(f => ({ ...f, level: '' }))}><X className="w-3 h-3" /></button>
+            {filters.levels.map(l => (
+              <span key={l} className="flex items-center gap-1 text-[13px] bg-neutral-900 text-white font-medium px-3 py-1 rounded-full whitespace-nowrap">
+                {l === 'Todos los niveles' ? 'All levels' : l}
+                <button onClick={() => setFilters(f => ({ ...f, levels: f.levels.filter(x => x !== l) }))}>
+                  <X className="w-3 h-3" />
+                </button>
               </span>
-            )}
+            ))}
           </div>
         )}
       </div>
@@ -161,7 +184,7 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
               <h3 className="text-[24px] font-bold text-neutral-900 mb-2">Sin resultados</h3>
               <p className="text-neutral-500 text-[15px] max-w-sm mx-auto">No encontramos clases con esos filtros. Prueba cambiando el estilo, ciudad o nivel.</p>
               <button
-                onClick={() => { setFilters(defaultFilters); setQuery(''); }}
+                onClick={() => { setFilters(EMPTY_FILTERS); setQuery(''); }}
                 className="btn-outline mt-6"
               >
                 Limpiar filtros

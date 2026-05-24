@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Globe, User, BookOpen, Building2, Loader2 } from 'lucide-react';
+import { Globe, User, BookOpen, Building2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
@@ -19,6 +19,7 @@ export default function RegistroPage() {
   const [role, setRole] = useState<Role>('alumno');
   const [step, setStep] = useState<'role' | 'form'>('role');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -150,15 +151,24 @@ export default function RegistroPage() {
                   </div>
                   <div>
                     <label className="block text-[13px] font-semibold text-neutral-700 mb-1.5">Contraseña</label>
-                    <input
-                      type="password"
-                      value={form.password}
-                      onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                      placeholder="Mínimo 8 caracteres"
-                      minLength={8}
-                      required
-                      className="input"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPass ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                        placeholder="Mínimo 8 caracteres"
+                        minLength={8}
+                        required
+                        className="input pr-11"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPass(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                      >
+                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <button type="submit" disabled={loading} className="btn-dark w-full mt-1 flex items-center justify-center gap-2">

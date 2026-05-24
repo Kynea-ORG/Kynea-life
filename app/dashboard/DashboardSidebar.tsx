@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
-  MessageCircle, Settings, LogOut, Users,
+  Settings, LogOut, Users,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -35,7 +35,6 @@ const NAV_BY_ROLE = {
     { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
     { href: '/dashboard/importar-csv', label: 'Importar CSV',   icon: Upload },
     { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
-    { href: '/dashboard/contactos',    label: 'Contactos',      icon: MessageCircle },
     { href: '/dashboard/configuracion',label: 'Configuración',  icon: Settings },
   ],
   academia: [
@@ -45,7 +44,6 @@ const NAV_BY_ROLE = {
     { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
     { href: '/dashboard/importar-csv', label: 'Importar CSV',   icon: Upload },
     { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
-    { href: '/dashboard/contactos',    label: 'Contactos',      icon: MessageCircle },
     { href: '/dashboard/configuracion',label: 'Configuración',  icon: Settings },
   ],
 };
@@ -94,6 +92,20 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
 
   return (
     <>
+      {/* Mobile top bar — logo links back to public home */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-neutral-200 px-4 h-14 flex items-center justify-between">
+        <Link href="/" className="flex items-center">
+          <Image src="/logo.png" alt="Kynea" width={90} height={28} priority />
+        </Link>
+        {profile.photo_url ? (
+          <img src={profile.photo_url} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-neutral-200" />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
+            {profile.name.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
+
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-neutral-200 shrink-0">
         <div className="p-6 border-b border-neutral-200">

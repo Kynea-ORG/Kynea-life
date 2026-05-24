@@ -26,17 +26,38 @@ type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: s
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SegmentedProgress({ step, total }: { step: number; total: number }) {
+function SegmentedProgress({ step }: { step: number }) {
   return (
     <div className="mb-8">
-      <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-3">
-        PASO {step + 1} DE {total}
-      </p>
-      <div className="flex gap-1.5">
-        {Array.from({ length: total }).map((_, i) => (
+      {/* Step labels with numbered circles */}
+      <div className="flex items-center gap-x-3 mb-3 flex-wrap gap-y-2">
+        {STEPS.map((s, i) => (
           <div
             key={i}
-            className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
+            className={`flex items-center gap-2 text-[13px] font-semibold transition-colors ${
+              i === step ? 'text-neutral-900' : i < step ? 'text-neutral-400' : 'text-neutral-300'
+            }`}
+          >
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 transition-all ${
+              i < step  ? 'bg-neutral-900 text-white' :
+              i === step ? 'bg-neutral-900 text-white' :
+              'bg-neutral-200 text-neutral-400'
+            }`}>
+              {i < step ? '✓' : i + 1}
+            </span>
+            <span className="hidden sm:block">{s.label}</span>
+            {i < STEPS.length - 1 && (
+              <span className="text-neutral-300 hidden sm:block select-none">›</span>
+            )}
+          </div>
+        ))}
+      </div>
+      {/* Segmented progress bar */}
+      <div className="flex gap-1.5">
+        {STEPS.map((_, i) => (
+          <div
+            key={i}
+            className={`flex-1 h-2 rounded-full transition-all duration-300 ${
               i <= step ? 'bg-neutral-900' : 'bg-neutral-100'
             }`}
           />
@@ -853,8 +874,8 @@ export default function CrearClaseForm({ classId, editClass }: Props) {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
-      <SegmentedProgress step={step} total={STEPS.length} />
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
+      <SegmentedProgress step={step} />
 
       <div className="mb-6">
         <h1 className="text-3xl font-black text-neutral-900">

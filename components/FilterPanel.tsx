@@ -7,12 +7,12 @@ export interface Filters {
   city: string;
   district: string;
   styles: string[];
-  level: string;
+  levels: string[];
   days: string[];
-  timeOfDay: string;
-  modality: string;
-  priceRange: string;
-  type: string;
+  timesOfDay: string[];
+  modalities: string[];
+  priceRanges: string[];
+  types: string[];
   withSpots: boolean;
 }
 
@@ -22,10 +22,28 @@ interface FilterPanelProps {
   className?: string;
 }
 
+export const EMPTY_FILTERS: Filters = {
+  city: '', district: '', styles: [], levels: [], days: [],
+  timesOfDay: [], modalities: [], priceRanges: [], types: [], withSpots: false,
+};
+
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const TIMES_OF_DAY = ['Mañana (6–12)', 'Tarde (12–18)', 'Noche (18–23)'];
 const PRICE_RANGES = ['Gratis', 'Hasta S/50', 'S/50–S/150', 'S/150+'];
-const TYPES = ['Clase', 'Taller', 'Curso', 'Masterclass', 'Intensivo'];
-const MODALITIES = ['Presencial', 'Online', 'Híbrida'];
+const MODALITIES = ['Presencial', 'Online'];
+// value matches ClassType from crear-clase; label matches the form options
+const TYPES: { value: string; label: string }[] = [
+  { value: 'clase',        label: 'Clase regular' },
+  { value: 'clase-suelta', label: 'Clase suelta' },
+  { value: 'taller',       label: 'Taller' },
+  { value: 'curso',        label: 'Curso' },
+  { value: 'masterclass',  label: 'Masterclass' },
+  { value: 'evento',       label: 'Evento' },
+];
+
+function levelLabel(l: string) {
+  return l === 'Todos los niveles' ? 'All levels' : l;
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
@@ -46,24 +64,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function FilterPanel({ filters, onChange, className = '' }: FilterPanelProps) {
   const set = (key: keyof Filters, value: unknown) => onChange({ ...filters, [key]: value });
 
-  const toggleStyle = (s: string) => {
-    const arr = filters.styles.includes(s)
-      ? filters.styles.filter(x => x !== s)
-      : [...filters.styles, s];
-    set('styles', arr);
+  const toggleIn = (key: 'styles' | 'levels' | 'days' | 'timesOfDay' | 'modalities' | 'priceRanges' | 'types', v: string) => {
+    const arr = filters[key].includes(v)
+      ? filters[key].filter(x => x !== v)
+      : [...filters[key], v];
+    set(key, arr);
   };
 
-  const toggleDay = (d: string) => {
-    const arr = filters.days.includes(d)
-      ? filters.days.filter(x => x !== d)
-      : [...filters.days, d];
-    set('days', arr);
-  };
-
-  const activeCount = [
-    filters.city, filters.district, filters.level, filters.timeOfDay,
-    filters.modality, filters.priceRange, filters.type,
-  ].filter(Boolean).length + filters.styles.length + filters.days.length + (filters.withSpots ? 1 : 0);
+  const activeCount =
+    filters.styles.length + filters.levels.length + filters.days.length +
+    filters.timesOfDay.length + filters.modalities.length + filters.priceRanges.length +
+    filters.types.length + (filters.withSpots ? 1 : 0) +
+    [filters.city, filters.district].filter(Boolean).length;
 
   return (
     <div className={`bg-white ${className}`}>
@@ -72,7 +84,7 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
           <span className="text-[13px] text-neutral-500">{activeCount} filtro{activeCount !== 1 ? 's' : ''} activo{activeCount !== 1 ? 's' : ''}</span>
           <button
             className="text-[13px] text-neutral-900 font-semibold flex items-center gap-1 hover:underline"
-            onClick={() => onChange({ city: '', district: '', styles: [], level: '', days: [], timeOfDay: '', modality: '', priceRange: '', type: '', withSpots: false })}
+            onClick={() => onChange(EMPTY_FILTERS)}
           >
             <X className="w-3 h-3" /> Limpiar todo
           </button>
@@ -84,7 +96,7 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
           {DANCE_STYLES.map(s => (
             <button
               key={s}
-              onClick={() => toggleStyle(s)}
+              onClick={() => toggleIn('styles', s)}
               className={filters.styles.includes(s) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
             >
               {s}
@@ -94,18 +106,15 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
       </Section>
 
       <Section title="Nivel">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-2">
           {LEVELS.map(l => (
-            <label key={l} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="level"
-                checked={filters.level === l}
-                onChange={() => set('level', filters.level === l ? '' : l)}
-                className="accent-neutral-900"
-              />
-              <span className="text-[13px] text-neutral-700">{l}</span>
-            </label>
+            <button
+              key={l}
+              onClick={() => toggleIn('levels', l)}
+              className={filters.levels.includes(l) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
+            >
+              {levelLabel(l)}
+            </button>
           ))}
         </div>
       </Section>
@@ -115,7 +124,7 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
           {DAYS.map(d => (
             <button
               key={d}
-              onClick={() => toggleDay(d)}
+              onClick={() => toggleIn('days', d)}
               className={filters.days.includes(d) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
             >
               {d.slice(0, 3)}
@@ -125,14 +134,13 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
       </Section>
 
       <Section title="Horario">
-        {['Mañana (6–12)', 'Tarde (12–18)', 'Noche (18–23)'].map(t => (
+        {TIMES_OF_DAY.map(t => (
           <label key={t} className="flex items-center gap-2 cursor-pointer mb-2">
             <input
-              type="radio"
-              name="timeOfDay"
-              checked={filters.timeOfDay === t}
-              onChange={() => set('timeOfDay', filters.timeOfDay === t ? '' : t)}
-              className="accent-neutral-900"
+              type="checkbox"
+              checked={filters.timesOfDay.includes(t)}
+              onChange={() => toggleIn('timesOfDay', t)}
+              className="accent-neutral-900 w-4 h-4"
             />
             <span className="text-[13px] text-neutral-700">{t}</span>
           </label>
@@ -143,11 +151,10 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
         {MODALITIES.map(m => (
           <label key={m} className="flex items-center gap-2 cursor-pointer mb-2">
             <input
-              type="radio"
-              name="modality"
-              checked={filters.modality === m}
-              onChange={() => set('modality', filters.modality === m ? '' : m)}
-              className="accent-neutral-900"
+              type="checkbox"
+              checked={filters.modalities.includes(m)}
+              onChange={() => toggleIn('modalities', m)}
+              className="accent-neutral-900 w-4 h-4"
             />
             <span className="text-[13px] text-neutral-700">{m}</span>
           </label>
@@ -158,28 +165,26 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
         {PRICE_RANGES.map(p => (
           <label key={p} className="flex items-center gap-2 cursor-pointer mb-2">
             <input
-              type="radio"
-              name="price"
-              checked={filters.priceRange === p}
-              onChange={() => set('priceRange', filters.priceRange === p ? '' : p)}
-              className="accent-neutral-900"
+              type="checkbox"
+              checked={filters.priceRanges.includes(p)}
+              onChange={() => toggleIn('priceRanges', p)}
+              className="accent-neutral-900 w-4 h-4"
             />
             <span className="text-[13px] text-neutral-700">{p}</span>
           </label>
         ))}
       </Section>
 
-      <Section title="Tipo">
+      <Section title="Tipo de clase">
         {TYPES.map(t => (
-          <label key={t} className="flex items-center gap-2 cursor-pointer mb-2">
+          <label key={t.value} className="flex items-center gap-2 cursor-pointer mb-2">
             <input
-              type="radio"
-              name="type"
-              checked={filters.type === t}
-              onChange={() => set('type', filters.type === t ? '' : t)}
-              className="accent-neutral-900"
+              type="checkbox"
+              checked={filters.types.includes(t.value)}
+              onChange={() => toggleIn('types', t.value)}
+              className="accent-neutral-900 w-4 h-4"
             />
-            <span className="text-[13px] text-neutral-700">{t}</span>
+            <span className="text-[13px] text-neutral-700">{t.label}</span>
           </label>
         ))}
       </Section>

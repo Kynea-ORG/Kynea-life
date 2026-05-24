@@ -1,16 +1,7 @@
 'use client';
-import { Bell, Shield, CreditCard, Globe } from 'lucide-react';
+import { Shield, Globe } from 'lucide-react';
 
 const SECTIONS = [
-  {
-    icon: Bell, title: 'Notificaciones', desc: 'Configura cuándo y cómo recibes alertas',
-    settings: [
-      { label: 'Nuevo contacto por WhatsApp', default: true },
-      { label: 'Recordatorio de clase próxima', default: true },
-      { label: 'Resumen semanal de estadísticas', default: false },
-      { label: 'Novedades de la plataforma', default: true },
-    ],
-  },
   {
     icon: Globe, title: 'Visibilidad', desc: 'Controla cómo apareces en el buscador',
     settings: [
