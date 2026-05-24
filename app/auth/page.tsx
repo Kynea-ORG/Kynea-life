@@ -49,7 +49,7 @@ function AuthContent() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
-            <Image src="/logo.svg" alt="Kynea" width={100} height={32} />
+            <Image src="/logo.png" alt="Kynea" width={100} height={32} />
           </Link>
           <p className="text-neutral-500 mt-2 text-sm">Donde la pasión por la danza cobra vida</p>
         </div>

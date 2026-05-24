@@ -50,7 +50,7 @@ export default function OnboardingPage() {
       <div className="w-full max-w-xl">
         {/* Logo */}
         <div className="flex items-center gap-2 justify-center mb-8">
-          <Image src="/logo.svg" alt="Kynea" width={100} height={32} />
+          <Image src="/logo.png" alt="Kynea" width={100} height={32} />
         </div>
 
         {/* Progress */}

@@ -46,7 +46,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <header className="bg-white border-b border-neutral-200 px-6 py-4">
         <Link href="/">
-          <Image src="/logo.svg" alt="Kynea" width={90} height={30} priority />
+          <Image src="/logo.png" alt="Kynea" width={90} height={30} priority />
         </Link>
       </header>
 

@@ -6,7 +6,7 @@ export default function NotFound() {
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4">
       <div className="text-center max-w-md">
         <div className="mb-6">
-          <Image src="/logo.svg" alt="Kynea" width={120} height={40} className="mx-auto" />
+          <Image src="/logo.png" alt="Kynea" width={120} height={40} className="mx-auto" />
         </div>
         <h1 className="text-6xl font-black text-neutral-900 mb-4">404</h1>
         <h2 className="text-xl font-bold text-neutral-900 mb-2">Esta página no existe</h2>

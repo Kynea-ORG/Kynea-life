@@ -656,7 +656,7 @@ export default function HomePage() {
       <footer className="border-t border-neutral-200 py-10">
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <Image src="/logo.svg" alt="Kynea" width={90} height={30} />
+            <Image src="/logo.png" alt="Kynea" width={90} height={30} />
             <p className="text-[13px] text-neutral-400">© 2026 Kynea. La primera plataforma integral de danza en el Perú.</p>
             <div className="flex gap-6 text-[13px] text-neutral-400">
               {['Términos', 'Privacidad', 'Contacto'].map(l => (
