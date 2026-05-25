@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# demo seed (contiene credenciales demo, no versionar)
+supabase/seed-demo-users.sh
