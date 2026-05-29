@@ -65,6 +65,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.whatsapp) {
+      supabase.rpc('increment_class_contacts', { class_id: cls.id });
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp, cls.title);
       window.open(url, '_blank', 'noopener,noreferrer');
       return;
@@ -79,6 +80,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.instagram) {
+      supabase.rpc('increment_class_contacts', { class_id: cls.id });
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
       return;

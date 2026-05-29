@@ -66,6 +66,8 @@ create table public.classes (
   to_bring         text[] default '{}',
   age_group        text,
   prerequisites    text,
+  offer_price      numeric(10,2),
+  contact_mode     text not null default 'whatsapp',
   status           text not null default 'draft',
   views            integer not null default 0,
   contacts         integer not null default 0,
@@ -125,6 +127,13 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Incrementa contactos sin race condition
+create or replace function increment_class_contacts(class_id uuid)
+returns void language sql security definer as $$
+  update public.classes set contacts = contacts + 1
+  where id = class_id and status = 'published';
+$$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- STORAGE: bucket para imágenes de clases

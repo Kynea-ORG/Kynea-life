@@ -29,10 +29,16 @@ export default function RegistroPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
+    const origin = window.location.origin;
+    const nextPath = role === 'alumno' ? '/clases' : '/onboarding';
+
+    const { data, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { name: form.name, role } },
+      options: {
+        data: { name: form.name, role },
+        emailRedirectTo: `${origin}/auth/callback?next=${nextPath}`,
+      },
     });
 
     if (authError) {
@@ -41,8 +47,12 @@ export default function RegistroPage() {
       return;
     }
 
-    router.refresh();
-    router.push(role === 'alumno' ? '/clases' : '/onboarding');
+    if (data.session) {
+      router.refresh();
+      router.push(nextPath);
+    } else {
+      router.push(`/confirmar-email?email=${encodeURIComponent(form.email)}`);
+    }
   }
 
   async function handleGoogle() {

@@ -192,6 +192,17 @@ export async function fetchFeaturedProfiles(role: 'profesor' | 'academia', limit
   return (data ?? []).map(mapTeacher);
 }
 
+export async function fetchTeacherById(id: string): Promise<Teacher | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, role, photo_url, city, district, bio, years_experience, whatsapp, instagram, tiktok, youtube, website, dance_styles, rating, total_classes')
+    .eq('id', id)
+    .single();
+  if (error || !data) return null;
+  return mapTeacher(data);
+}
+
 export async function fetchTeacherClasses(teacherId: string): Promise<DanceClass[]> {
   const supabase = await createClient();
   const { data, error } = await supabase

@@ -1,63 +1,94 @@
-'use client';
-import { MessageCircle, Phone, Clock } from 'lucide-react';
-import { mockClasses } from '@/lib/mockData';
+import { createClient } from '@/lib/supabase/server';
+import { fetchTeacherClasses } from '@/lib/queries/classes';
+import { MessageCircle, Eye, Bookmark, TrendingUp } from 'lucide-react';
 
-const CONTACTS = [
-  { name: 'María Gonzáles', phone: '+51987123456', class: mockClasses[0], time: 'Hace 2 horas', read: false },
-  { name: 'Carlos Mamani', phone: '+51956789012', class: mockClasses[1], time: 'Hace 5 horas', read: false },
-  { name: 'Lucía Torres', phone: '+51934567890', class: mockClasses[0], time: 'Ayer', read: true },
-  { name: 'Diego Ruiz', phone: '+51912345678', class: mockClasses[2], time: 'Ayer', read: true },
-  { name: 'Ana Villanueva', phone: '+51998765432', class: mockClasses[4], time: 'Hace 3 días', read: true },
-];
+export default async function ContactosPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
 
-export default function ContactosPage() {
+  const allClasses = await fetchTeacherClasses(user.id);
+  const published = allClasses.filter(c => c.status === 'published');
+
+  const totalContacts = published.reduce((s, c) => s + (c.metrics?.contacts ?? 0), 0);
+  const totalViews    = published.reduce((s, c) => s + (c.metrics?.views    ?? 0), 0);
+  const totalSaved    = published.reduce((s, c) => s + (c.metrics?.saved    ?? 0), 0);
+
   return (
-    <div className="p-6 lg:p-8 max-w-3xl">
+    <div className="p-6 lg:p-8 max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-neutral-900">Contactos</h1>
-        <p className="text-neutral-500 text-sm mt-1">{CONTACTS.filter(c => !c.read).length} contactos nuevos sin leer</p>
+        <h1 className="text-2xl font-black text-neutral-900">Contactos e interacciones</h1>
+        <p className="text-neutral-500 text-sm mt-1">
+          Métricas reales de tus {published.length} clase{published.length !== 1 ? 's' : ''} publicadas
+        </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-neutral-100 shadow-sm overflow-hidden">
-        <div className="divide-y divide-neutral-50">
-          {CONTACTS.map((contact, i) => (
-            <div key={i} className={`flex items-start gap-4 p-5 hover:bg-neutral-50 transition-colors ${!contact.read ? 'bg-neutral-50/30' : ''}`}>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                !contact.read ? 'bg-neutral-900' : 'bg-neutral-100'
-              }`}>
-                <span className={`font-bold text-sm ${!contact.read ? 'text-white' : 'text-neutral-700'}`}>{contact.name[0]}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold text-neutral-900 text-sm">{contact.name}</p>
-                  {!contact.read && (
-                    <span className="w-2 h-2 bg-neutral-900 rounded-full" />
-                  )}
-                </div>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  Interesado en: <span className="text-neutral-900 font-medium">{contact.class.title}</span>
-                </p>
-                <div className="flex items-center gap-3 mt-2">
-                  <span className="text-xs text-neutral-400 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> {contact.time}
-                  </span>
-                  <span className="text-xs text-neutral-400 flex items-center gap-1">
-                    <Phone className="w-3 h-3" /> {contact.phone}
-                  </span>
-                </div>
-              </div>
-              <a
-                href={`https://wa.me/${contact.phone.replace(/\s+/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs font-semibold text-white bg-green-500 hover:bg-green-600 px-3 py-2 rounded-xl transition-colors shrink-0"
-              >
-                <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-              </a>
+      {/* Summary stats */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {[
+          { label: 'Contactos totales', value: totalContacts, icon: MessageCircle, color: 'text-green-text', bg: 'bg-green-bg' },
+          { label: 'Vistas totales',    value: totalViews,    icon: Eye,           color: 'text-blue-700',  bg: 'bg-blue-pastel-bg' },
+          { label: 'Guardados',         value: totalSaved,    icon: Bookmark,      color: 'text-neutral-700', bg: 'bg-neutral-50' },
+        ].map(stat => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.label} className={`${stat.bg} rounded-xl p-5 border border-neutral-200`}>
+              <Icon className={`w-5 h-5 ${stat.color} mb-3`} />
+              <p className={`text-[28px] font-black ${stat.color}`}>{stat.value}</p>
+              <p className="text-[13px] font-medium text-neutral-500 mt-0.5">{stat.label}</p>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
+
+      {/* Classes table */}
+      {published.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-xl border border-neutral-200">
+          <TrendingUp className="w-10 h-10 mx-auto mb-3 text-neutral-300" />
+          <p className="font-semibold text-neutral-500">Aún no tienes clases publicadas</p>
+          <p className="text-sm text-neutral-400 mt-1">Publica tu primera clase para ver las métricas aquí</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
+          <div className="divide-y divide-neutral-100">
+            {/* Header */}
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-neutral-50 text-[12px] font-semibold text-neutral-500 uppercase tracking-wide">
+              <span>Clase</span>
+              <span className="w-20 text-center">Contactos</span>
+              <span className="w-16 text-center">Vistas</span>
+              <span className="w-20 text-center">Guardados</span>
+            </div>
+
+            {published.map(cls => (
+              <div key={cls.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-4 items-center hover:bg-neutral-50 transition-colors">
+                <div className="min-w-0">
+                  <p className="font-semibold text-neutral-900 text-sm truncate">{cls.title}</p>
+                  <p className="text-xs text-neutral-400 mt-0.5">{cls.style} · {cls.level}</p>
+                </div>
+                <div className="w-20 text-center">
+                  <span className={`text-[15px] font-bold ${(cls.metrics?.contacts ?? 0) > 0 ? 'text-green-text' : 'text-neutral-400'}`}>
+                    {cls.metrics?.contacts ?? 0}
+                  </span>
+                </div>
+                <div className="w-16 text-center">
+                  <span className="text-[15px] font-bold text-neutral-700">
+                    {cls.metrics?.views ?? 0}
+                  </span>
+                </div>
+                <div className="w-20 text-center">
+                  <span className="text-[15px] font-bold text-neutral-700">
+                    {cls.metrics?.saved ?? 0}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="text-[12px] text-neutral-400 mt-4">
+        Los contactos se registran cuando un alumno hace clic en WhatsApp o Instagram desde el detalle de tu clase.
+      </p>
     </div>
   );
 }
