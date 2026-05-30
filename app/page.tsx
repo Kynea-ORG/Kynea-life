@@ -1,5 +1,6 @@
 import { fetchPublishedClasses, fetchFeaturedProfiles } from '@/lib/queries/classes';
 import HomeClient from './HomeClient';
+import AuthErrorBanner from '@/components/AuthErrorBanner';
 
 export default async function Page() {
   const [classes, teachers, academias] = await Promise.all([
@@ -9,10 +10,13 @@ export default async function Page() {
   ]);
 
   return (
-    <HomeClient
-      initialClasses={classes}
-      initialTeachers={teachers}
-      initialAcademias={academias}
-    />
+    <>
+      <AuthErrorBanner />
+      <HomeClient
+        initialClasses={classes}
+        initialTeachers={teachers}
+        initialAcademias={academias}
+      />
+    </>
   );
 }
