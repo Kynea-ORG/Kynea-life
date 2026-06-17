@@ -202,6 +202,57 @@ recientes / más baratas / más populares por contactos o guardados).
 Añadir `generateMetadata` en `app/clases/[id]/page.tsx` y `app/profesores/[id]/page.tsx`
 (título, descripción, imagen) para indexación y previews al compartir.
 
+### 5.4 🟡 Directorio de profesores y academias (home + páginas de listado)
+**Contexto — los 3 perfiles:** la plataforma tiene 3 tipos de usuario: alumno (toma
+clases), profesor (independiente) y academia (estudio). El home debe ayudar a descubrir
+profesores y academias, no solo clases.
+
+**Lo que YA existe (verificado en código):**
+- `app/page.tsx` ya consulta `fetchFeaturedProfiles('profesor')` y
+  `fetchFeaturedProfiles('academia')` y se los pasa al home.
+- `app/HomeClient.tsx` ya renderiza **dos secciones**: "Profesores destacados"
+  (grid, ~línea 512) y "Academias" (lista, ~línea 567), ambas debajo de las categorías
+  y de "Clases esta semana", en ese orden.
+
+**Problemas a resolver:**
+1. **Las secciones se ocultan si no hay datos.** Están envueltas en
+   `{initialTeachers.length > 0 && …}` y `{initialAcademias.length > 0 && …}`. Hoy no se
+   ven porque **no hay perfiles de profesor/academia en la BD**. Solución elegida:
+   **sembrar datos reales en Supabase** (ver 5.5). Ojo: `mapTeacher` hace
+   `photo: t.photo_url ?? ''`; un perfil sin foto deja `<img src="">` roto, así que la
+   semilla debe incluir `photo_url`, `dance_styles`, `city` y `district`.
+2. **Los enlaces "Ver todos / Ver todas" están rotos** → hoy apuntan a `/profesores` y
+   `/profesores?type=academia`, pero **solo existe `app/profesores/[id]/page.tsx`** (el
+   detalle). No hay página de listado. Ambos dan 404.
+3. **`fetchFeaturedProfiles` no filtra "destacados" reales**: trae los primeros N por
+   rol, sin importar si el perfil está completo. **Tarea:** filtrar a perfiles con foto y
+   estilos (o añadir una columna `featured boolean` en `profiles` y ordenar por ella /
+   por `total_classes`).
+
+**Páginas de listado a crear:**
+- **`app/profesores/page.tsx`** — listado de todos los profesores (`role = 'profesor'`),
+  con buscador/filtro por estilo y ciudad. Reutilizar el patrón server→client de
+  `app/clases/page.tsx`. El enlace "Ver todos" del home apunta aquí.
+- **`app/academias/page.tsx`** — **página propia** (ruta dedicada) con el listado de
+  academias (`role = 'academia'`). Cambiar el enlace "Ver todas" del home de
+  `/profesores?type=academia` a **`/academias`**.
+- Ambas reutilizan `ClassCard`/tarjetas existentes y enlazan a `/profesores/[id]`
+  (el detalle ya funciona para profesor y academia).
+- Añadir una nueva query `fetchProfilesByRole(role, filters?)` en `lib/queries/classes.ts`
+  (similar a `fetchFeaturedProfiles` pero sin `limit` y con filtros), o generalizar la
+  existente.
+
+### 5.5 Datos semilla de profesores y academias (Supabase)
+Para que el home y los listados se vean poblados, **insertar perfiles reales en la BD**
+(no hardcodear en el componente). Crear `supabase/seed.sql` con varios perfiles
+`profesor` y `academia` completos (con `photo_url`, `dance_styles`, `city`, `district`,
+`whatsapp`, `instagram`). Se pueden basar en los 4 ejemplos que ya están en
+`lib/mockData.ts` (Academia Ritmo Latino, Studio Urbano, Sofía Vega, María Elena Quispe).
+> Nota: los perfiles cuelgan de `auth.users` (FK). Para semilla, crear primero los
+> usuarios de auth (o usar el panel de Supabase) y luego sus filas en `profiles`.
+Una vez sembrado, las secciones del home aparecen solas (las queries ya existen) y se
+puede quitar cualquier dependencia de `mockData` en producción (ver 11.6).
+
 ---
 
 ## 6. MAPA Y VISTAS
@@ -372,18 +423,20 @@ Instalar **Sentry**. Hoy los `catch` de los server actions solo hacen `console.e
 | # | Tarea | Esfuerzo | Impacto |
 |---|-------|----------|---------|
 | 🔴 1 | **1.1 Arreglar confirmación de email (OTP)** | Pequeño | Bloquea el registro |
-| 🔴 2 | **1.4 Validaciones del formulario de clase (Zod)** | Pequeño | Evita datos corruptos |
-| 🔴 3 | **1.3 Protección de rutas por rol** | Pequeño | Seguridad |
-| 🟡 4 | **6.1 Mapa con Google Maps + datos reales** | Medio | UX de descubrimiento |
-| 🟡 5 | **6.2 Incremento de vistas** | Pequeño | Métricas reales |
-| 🟡 6 | **4.2 Google Maps autocomplete (lat/lng)** | Medio | Habilita el mapa |
-| 🟡 7 | **2.1 / 3.1 Onboarding y perfil del alumno** | Medio | Experiencia del alumno |
-| 🟡 8 | **5.2 Paginación del catálogo** | Pequeño | Escalabilidad |
-| 🟢 9 | **1.2 Google OAuth (config)** | Pequeño | Conversión de registro |
-| 🟢 10 | **8.1 Roster de profesores de academia** | Grande | Feature de academia |
-| 🟢 11 | **9 Cambio de contraseña / eliminar cuenta** | Pequeño | Completitud |
-| 🟢 12 | **5.1 / 5.3 Filtros y SEO** | Pequeño | Tráfico y UX |
-| 🟢 13 | **4.4 Importación CSV** | Grande | Eficiencia academia |
+| 🔴 2 | **5.5 Sembrar BD con profesores y academias** | Pequeño | Home vacío sin esto |
+| 🔴 3 | **5.4 Páginas listado /profesores y /academias** | Medio | Links del home dan 404 |
+| 🔴 4 | **1.4 Validaciones del formulario de clase (Zod)** | Pequeño | Evita datos corruptos |
+| 🔴 5 | **1.3 Protección de rutas por rol** | Pequeño | Seguridad |
+| 🟡 6 | **6.1 Mapa con Google Maps + datos reales** | Medio | UX de descubrimiento |
+| 🟡 7 | **6.2 Incremento de vistas** | Pequeño | Métricas reales |
+| 🟡 8 | **4.2 Google Maps autocomplete (lat/lng)** | Medio | Habilita el mapa |
+| 🟡 9 | **2.1 / 3.1 Onboarding y perfil del alumno** | Medio | Experiencia del alumno |
+| 🟡 10 | **5.2 Paginación del catálogo** | Pequeño | Escalabilidad |
+| 🟢 11 | **1.2 Google OAuth (config)** | Pequeño | Conversión de registro |
+| 🟢 12 | **8.1 Roster de profesores de academia** | Grande | Feature de academia |
+| 🟢 13 | **9 Cambio de contraseña / eliminar cuenta** | Pequeño | Completitud |
+| 🟢 14 | **5.1 / 5.3 Filtros y SEO** | Pequeño | Tráfico y UX |
+| 🟢 15 | **4.4 Importación CSV** | Grande | Eficiencia academia |
 
 ---
 
