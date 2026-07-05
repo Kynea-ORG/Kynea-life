@@ -47,7 +47,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
 `proxy.ts` intercepts all requests and redirects unauthenticated users away from `/dashboard` and `/onboarding` to `/login`. The dashboard layout (`app/dashboard/layout.tsx`) also double-checks auth server-side. Session refresh is handled by `proxy.ts` because Server Components cannot set cookies.
 
-OAuth/email confirm redirect: `app/auth/callback/route.ts`. After registration, a trigger (`handle_new_user` in `supabase/schema.sql`) auto-creates a row in `public.profiles`.
+OAuth/email confirm redirect: `app/auth/callback/route.ts`. After registration, a trigger (`handle_new_user`, defined in `supabase/migrations/`) auto-creates a row in `public.profiles`.
 
 ### Page structure
 
@@ -60,7 +60,7 @@ OAuth/email confirm redirect: `app/auth/callback/route.ts`. After registration, 
 
 Three tables: `profiles` (extends `auth.users`), `classes`, `saved_classes` (bookmarks). RLS is enabled on all tables: published classes are publicly readable; teachers can only manage their own classes. Storage bucket `class-images` is public-read; upload path must be `<user-id>/...`.
 
-SQL schema: `supabase/schema.sql`. Only outstanding migration: `supabase/migrations/002_add_class_columns.sql` (adds `offer_price` and `contact_mode`).
+SQL schema: versioned migration files under `supabase/migrations/`, applied via `supabase db push` (Supabase CLI, linked to the project via `supabase link --project-ref <ref>`).
 
 ### Component conventions
 

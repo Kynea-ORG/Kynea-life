@@ -448,8 +448,8 @@ Ver 5.1. El `<select>` de ordenamiento no aplica ningún `.sort()`.
 ### Monitoring
 Instalar **Sentry**. Los `catch` de los server actions solo hacen `console.error`.
 
-### Script de deploy del schema
-`scripts/deploy-schema.mjs` — aplica `supabase/schema.sql` directamente vía `pg` (devDep).
+### Deploy del schema
+Migraciones versionadas en `supabase/migrations/`, aplicadas con `supabase db push` (Supabase CLI).
 
 ---
 
