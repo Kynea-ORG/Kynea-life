@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { fetchSavedClasses } from '@/lib/queries/classes';
+import { fetchSavedClasses } from '@/lib/classes/queries';
 import AlumnoClient from './AlumnoClient';
 
 export default async function AlumnoDashboardPage() {

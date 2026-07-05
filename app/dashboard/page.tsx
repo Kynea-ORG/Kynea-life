@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { PlusCircle, Upload, BookOpen, TrendingUp, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { fetchTeacherClasses } from '@/lib/queries/classes';
-import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots, getConversionRate } from '@/lib/mockData';
+import { fetchTeacherClasses } from '@/lib/classes/queries';
+import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots, getConversionRate } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const supabase = await createClient();

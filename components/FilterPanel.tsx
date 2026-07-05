@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
-import { DANCE_STYLES, LEVELS } from '@/lib/mockData';
 
 export interface Filters {
   city: string;
@@ -20,6 +19,8 @@ interface FilterPanelProps {
   filters: Filters;
   onChange: (f: Filters) => void;
   className?: string;
+  danceStyles?: string[];
+  levels?: string[];
 }
 
 export const EMPTY_FILTERS: Filters = {
@@ -61,7 +62,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function FilterPanel({ filters, onChange, className = '' }: FilterPanelProps) {
+export default function FilterPanel({ filters, onChange, className = '', danceStyles = [], levels = [] }: FilterPanelProps) {
   const set = (key: keyof Filters, value: unknown) => onChange({ ...filters, [key]: value });
 
   const toggleIn = (key: 'styles' | 'levels' | 'days' | 'timesOfDay' | 'modalities' | 'priceRanges' | 'types', v: string) => {
@@ -93,7 +94,7 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
 
       <Section title="Estilo de baile">
         <div className="flex flex-wrap gap-2">
-          {DANCE_STYLES.map(s => (
+          {danceStyles.map(s => (
             <button
               key={s}
               onClick={() => toggleIn('styles', s)}
@@ -107,7 +108,7 @@ export default function FilterPanel({ filters, onChange, className = '' }: Filte
 
       <Section title="Nivel">
         <div className="flex flex-wrap gap-2">
-          {LEVELS.map(l => (
+          {levels.map(l => (
             <button
               key={l}
               onClick={() => toggleIn('levels', l)}

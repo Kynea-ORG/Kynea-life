@@ -9,28 +9,16 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
-import { getTypeLabel } from '@/lib/mockData';
+import { getTypeLabel } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import type { DanceClass, Teacher } from '@/lib/types';
+import type { HomeStats } from '@/lib/stats/queries';
 
 // ── Types ─────────────────────────────────────────────────────────────────
-interface SearchClass  { id: string; title: string; style: string; type: string }
-interface SearchProfile { id: string; name: string; role: string; city: string; photo_url: string | null }
-
-// ── Category definitions ───────────────────────────────────────────────────
-const CATEGORIES = [
-  { name: 'Salsa' },
-  { name: 'Bachata' },
-  { name: 'Heels' },
-  { name: 'Hip Hop' },
-  { name: 'Jazz Funk' },
-  { name: 'K-pop' },
-  { name: 'Contemporáneo' },
-  { name: 'Ballet' },
-  { name: 'Breakdance' },
-];
-
-const CLASS_TABS = ['Todas', 'Salsa', 'Heels', 'Hip Hop'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SearchClass   = { id: string; title: string; type: string; class_styles: any[] | null };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SearchProfile = { id: string; name: string; role: string; districts: any; photo_url: string | null };
 
 const HOW_IT_WORKS = [
   { step: '1', Icon: Search,       title: 'Busca tu estilo',   desc: 'Filtra por ciudad, día, nivel y estilo de baile.' },
@@ -56,14 +44,7 @@ function useCountUp(target: number, duration = 1500, start = false) {
   return count;
 }
 
-const STATS = [
-  { target: 240, suffix: '+', label: 'Clases disponibles',     dark: false },
-  { target: 80,  suffix: '+', label: 'Profesores verificados', dark: true  },
-  { target: 19,  suffix: '',  label: 'Estilos de baile',       dark: false },
-  { target: 5,   suffix: '',  label: 'Ciudades en Perú',       dark: false },
-];
-
-function StatCard({ stat, visible }: { stat: typeof STATS[number]; visible: boolean }) {
+function StatCard({ stat, visible }: { stat: { target: number; suffix: string; label: string; dark: boolean }; visible: boolean }) {
   const count = useCountUp(stat.target, 1500, visible);
   return (
     <div className={`rounded-xl p-6 shadow-sm border ${stat.dark ? 'bg-neutral-900 border-neutral-900 text-white' : 'bg-white border-white/70'}`}>
@@ -77,17 +58,28 @@ function StatCard({ stat, visible }: { stat: typeof STATS[number]; visible: bool
 
 // ── Props ─────────────────────────────────────────────────────────────────
 interface Props {
-  initialClasses:  DanceClass[];
-  initialTeachers: Teacher[];
+  initialClasses:   DanceClass[];
+  initialTeachers:  Teacher[];
   initialAcademias: Teacher[];
+  danceStyles:      string[];
+  stats:            HomeStats;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ initialClasses, initialTeachers, initialAcademias }: Props) {
+export default function HomeClient({ initialClasses, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
   const [city, setCity]           = useState('Lima');
   const [activeTab, setActiveTab] = useState('Todas');
+
+  const STATS = [
+    { target: stats.classes,  suffix: '+', label: 'Clases disponibles',     dark: false },
+    { target: stats.teachers, suffix: '+', label: 'Profesores verificados', dark: true  },
+    { target: stats.styles,   suffix: '',  label: 'Estilos de baile',       dark: false },
+    { target: stats.cities,   suffix: '',  label: 'Ciudades en Perú',       dark: false },
+  ];
+
+  const CLASS_TABS = ['Todas', ...Array.from(new Set(initialClasses.map(c => c.style))).slice(0, 3)];
 
   // ── Search autocomplete ──
   const [suggestions, setSuggestions]       = useState<{ classes: SearchClass[]; profiles: SearchProfile[] }>({ classes: [], profiles: [] });
@@ -109,13 +101,13 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
         const [{ data: classes }, { data: profiles }] = await Promise.all([
           supabase
             .from('classes')
-            .select('id, title, style, type')
+            .select('id, title, type, class_styles(dance_styles(name))')
             .eq('status', 'published')
-            .or(`title.ilike.%${q}%,style.ilike.%${q}%`)
+            .ilike('title', `%${q}%`)
             .limit(4),
           supabase
             .from('profiles')
-            .select('id, name, role, city, photo_url')
+            .select('id, name, role, districts(city), photo_url')
             .in('role', ['profesor', 'academia'])
             .ilike('name', `%${q}%`)
             .limit(3),
@@ -238,7 +230,7 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                       onChange={e => setCity(e.target.value)}
                       className="text-[15px] text-neutral-600 outline-none bg-transparent py-1 cursor-pointer"
                     >
-                      {['Lima', 'Arequipa', 'Cusco', 'Trujillo', 'Piura'].map(c => (
+                      {stats.cityNames.map(c => (
                         <option key={c}>{c}</option>
                       ))}
                     </select>
@@ -282,7 +274,7 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-[14px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                              <p className="text-[11px] text-neutral-400">{cls.style} · {getTypeLabel(cls.type)}</p>
+                              <p className="text-[11px] text-neutral-400">{cls.class_styles?.[0]?.dance_styles?.name ?? ''} · {getTypeLabel(cls.type)}</p>
                             </div>
                           </button>
                         ))}
@@ -311,7 +303,7 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                             )}
                             <div className="min-w-0 flex-1">
                               <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                              <p className="text-[11px] text-neutral-400 capitalize">{p.role} · {p.city}</p>
+                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}{p.districts?.city ? ` · ${p.districts.city}` : ''}</p>
                             </div>
                           </button>
                         ))}
@@ -361,10 +353,10 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
             className="flex gap-3 overflow-x-auto pb-2"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
           >
-            {CATEGORIES.map(cat => (
+            {danceStyles.map(name => (
               <Link
-                key={cat.name}
-                href={`/clases?style=${encodeURIComponent(cat.name)}`}
+                key={name}
+                href={`/clases?style=${encodeURIComponent(name)}`}
                 className="relative shrink-0 w-[168px] h-[152px] rounded-2xl cursor-pointer group select-none block"
               >
                 {/* Base: lavender solid */}
@@ -390,7 +382,7 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                     className="w-12 h-12 object-contain self-start"
                   />
                   <p className="text-[17px] font-black text-neutral-900 tracking-tight leading-none">
-                    {cat.name}
+                    {name}
                   </p>
                 </div>
               </Link>
@@ -530,12 +522,20 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                   href={`/profesores/${t.id}`}
                   className="card-hover overflow-hidden p-0 block group rounded-xl border border-neutral-100"
                 >
-                  <div className="w-full h-56 overflow-hidden rounded-t-xl">
-                    <img
-                      src={t.photo}
-                      alt={t.name}
-                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
-                    />
+                  <div className="w-full h-56 overflow-hidden rounded-t-xl bg-neutral-100">
+                    {t.photo ? (
+                      <img
+                        src={t.photo}
+                        alt={t.name}
+                        className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-neutral-200">
+                        <span className="text-5xl font-black text-neutral-400 select-none">
+                          {t.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold text-neutral-900 text-[15px] leading-tight mb-1">{t.name}</h3>
@@ -585,12 +585,20 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                   href={`/profesores/${t.id}`}
                   className="card-hover flex items-start gap-4 group"
                 >
-                  <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden">
-                    <img
-                      src={t.photo}
-                      alt={t.name}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
+                  <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200">
+                    {t.photo ? (
+                      <img
+                        src={t.photo}
+                        alt={t.name}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-3xl font-black text-neutral-400 select-none">
+                          {t.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-1">

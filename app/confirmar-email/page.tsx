@@ -1,10 +1,11 @@
 'use client';
-import { useState, useRef, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Mail, Loader2, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { redirectByRole } from '@/lib/auth/redirectByRole';
 
 const CODE_LENGTH = 6;
 
@@ -22,6 +23,13 @@ function ConfirmarEmailContent() {
   const [error, setError] = useState('');
 
   const code = digits.join('');
+
+  useEffect(() => {
+    if (code.length === CODE_LENGTH && !verifying) {
+      handleVerify();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
 
   function setDigit(i: number, val: string) {
     const clean = val.replace(/\D/g, '');
@@ -51,7 +59,7 @@ function ConfirmarEmailContent() {
   async function handleVerify(e?: React.FormEvent) {
     e?.preventDefault();
     if (code.length !== CODE_LENGTH) {
-      setError('Ingresa el código completo de 6 dígitos.');
+      setError(`Ingresa el código completo de ${CODE_LENGTH} dígitos.`);
       return;
     }
     setVerifying(true);
@@ -71,15 +79,15 @@ function ConfirmarEmailContent() {
     }
 
     // Sesión activa — redirigir según rol
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user!.id)
-      .single();
-
-    router.refresh();
-    router.push(profile?.role === 'alumno' ? '/clases' : '/onboarding');
+    await redirectByRole(supabase, {
+      refresh: () => router.refresh(),
+      onSuccess: (path) => {
+        // Alumnos van a /clases, profesores/academias pasan por onboarding
+        const dest = path === '/dashboard' ? '/onboarding?new=1' : path;
+        router.push(dest);
+      },
+      onError: (msg) => { setError(msg); setVerifying(false); },
+    });
   }
 
   async function handleResend() {
@@ -94,6 +102,26 @@ function ConfirmarEmailContent() {
       setResent(true);
     }
     setResending(false);
+  }
+
+  if (!email) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex flex-col">
+        <header className="bg-white border-b border-neutral-200 px-6 py-4">
+          <Link href="/"><Image src="/logo.png" alt="Kynea" width={90} height={30} priority /></Link>
+        </header>
+        <div className="flex-1 flex items-center justify-center px-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8 max-w-md w-full text-center">
+            <div className="w-14 h-14 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <Mail className="w-7 h-7 text-neutral-400" />
+            </div>
+            <p className="text-[16px] font-semibold text-neutral-900 mb-2">Enlace no válido</p>
+            <p className="text-[14px] text-neutral-500 mb-6">El enlace de confirmación no es válido o ya expiró.</p>
+            <Link href="/registro" className="btn-dark inline-block">Volver al registro</Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -112,7 +140,7 @@ function ConfirmarEmailContent() {
             </div>
             <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-2">Confirma tu correo</h1>
             <p className="text-[15px] text-neutral-500 mb-1">
-              Enviamos un código de 6 dígitos a
+              Enviamos un código de {CODE_LENGTH} dígitos a
             </p>
             {email && (
               <p className="text-[15px] font-semibold text-neutral-900 mb-6">{email}</p>

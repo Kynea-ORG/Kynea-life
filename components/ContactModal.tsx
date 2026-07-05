@@ -10,7 +10,7 @@ function IgIcon({ className }: { className?: string }) {
   );
 }
 import { DanceClass } from '@/lib/types';
-import { buildWhatsAppMessage } from '@/lib/mockData';
+import { buildWhatsAppMessage } from '@/lib/utils';
 
 interface ContactModalProps {
   cls: DanceClass;

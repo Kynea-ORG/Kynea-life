@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { fetchClassById } from '@/lib/queries/classes';
+import { fetchClassById } from '@/lib/classes/queries';
 import ClaseDetailClient from './ClaseDetailClient';
 
 export default async function ClaseDetailPage({ params }: { params: Promise<{ id: string }> }) {

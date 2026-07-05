@@ -1,0 +1,53 @@
+export function getStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    published: 'Publicada',
+    draft: 'Borrador',
+    finished: 'Finalizada',
+    archived: 'Archivada',
+  };
+  return map[status] ?? status;
+}
+
+export function getStatusColor(status: string): string {
+  const map: Record<string, string> = {
+    published: 'bg-emerald-50 text-emerald-700',
+    draft: 'bg-gray-100 text-gray-500',
+    finished: 'bg-blue-50 text-blue-600',
+    archived: 'bg-yellow-50 text-yellow-700',
+  };
+  return map[status] ?? 'bg-gray-100 text-gray-500';
+}
+
+export function getTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    clase: 'Clase', taller: 'Taller', curso: 'Curso',
+    masterclass: 'Masterclass', evento: 'Evento', 'clase-suelta': 'Clase suelta',
+  };
+  return map[type] ?? type;
+}
+
+export function formatPrice(priceType: string, price: number, currency: string): string {
+  if (priceType === 'Gratis') return 'Gratis';
+  const symbol = currency === 'PEN' ? 'S/' : '$';
+  const suffix = priceType === 'Mensual' ? '/mes' : priceType === 'Por clase' ? '/clase' : '';
+  return `${symbol}${price}${suffix}`;
+}
+
+export function formatTimeSlots(slots: { days: string[]; startTime: string; endTime: string }[]): string {
+  return slots.map(s => `${s.days.join(', ')} · ${s.startTime} – ${s.endTime}`).join(' | ');
+}
+
+export function buildWhatsAppMessage(style: string, startDate: string, teacherPhone: string, classTitle: string): string {
+  const date = startDate
+    ? new Date(startDate).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
+    : '';
+  const text = encodeURIComponent(
+    `Hola, vi tu clase de ${style}${date ? ` en Kynea el ${date}` : ' en Kynea'} y me gustaría asistir. ¿Está disponible?`
+  );
+  return `https://wa.me/${teacherPhone.replace(/\s+/g, '')}?text=${text}`;
+}
+
+export function getConversionRate(views: number, contacts: number): string {
+  if (views === 0) return '0%';
+  return `${Math.round((contacts / views) * 100)}%`;
+}

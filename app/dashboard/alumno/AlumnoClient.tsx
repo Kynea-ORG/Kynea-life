@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { Bookmark, BookOpen, MapPin, Clock, ArrowRight } from 'lucide-react';
-import { formatPrice, formatTimeSlots } from '@/lib/mockData';
+import { formatPrice, formatTimeSlots } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 
 export default function AlumnoClient({

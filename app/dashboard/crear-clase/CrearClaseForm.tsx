@@ -6,10 +6,9 @@ import {
   ChevronLeft, ChevronRight, Plus, Trash2, Save,
   Upload, MapPin, Monitor, Loader2, X,
 } from 'lucide-react';
-import { DANCE_STYLES, LEVELS } from '@/lib/mockData';
-import { createClass, updateClassFromForm } from '@/lib/actions/classes';
+import { createClass, updateClassFromForm } from '@/lib/classes/actions';
 import { createClient } from '@/lib/supabase/client';
-import type { DanceClass } from '@/lib/types';
+import type { DanceClass, DbDistrict } from '@/lib/types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -102,9 +101,12 @@ function NativeSelect({ children, ...props }: React.SelectHTMLAttributes<HTMLSel
 interface Props {
   classId: string | null;
   editClass: DanceClass | null;
+  danceStyles: string[];
+  levels: string[];
+  allDistricts: DbDistrict[];
 }
 
-export default function CrearClaseForm({ classId, editClass }: Props) {
+export default function CrearClaseForm({ classId, editClass, danceStyles, levels, allDistricts }: Props) {
   useRouter();
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -183,7 +185,7 @@ export default function CrearClaseForm({ classId, editClass }: Props) {
       videoUrl: editClass.videoUrl ?? '',
       footwear: editClass.footwear ?? '',
       clothing: editClass.clothing ?? '',
-      prerequisites: editClass.prerequisites ?? '',
+      prerequisites: editClass.requirements ?? '',
       ageGroup: editClass.ageGroup ?? '',
       toBring: editClass.toBring ?? [],
       status: editClass.status ?? 'draft',
@@ -193,6 +195,9 @@ export default function CrearClaseForm({ classId, editClass }: Props) {
   }, [editClass]);
 
   const set = (k: keyof typeof form, v: unknown) => setForm(f => ({ ...f, [k]: v }));
+
+  const CITIES = [...new Set(allDistricts.map(d => d.city))].sort();
+  const districtsByCity = allDistricts.filter(d => d.city === form.city);
 
   const handleFileSelect = async (file: File) => {
     if (!file) return;
@@ -256,6 +261,8 @@ export default function CrearClaseForm({ classId, editClass }: Props) {
         fd.set('district', form.district);
         fd.set('address', form.address);
         fd.set('reference', form.reference);
+        fd.set('platform', form.platform);
+        fd.set('accessLink', form.accessLink);
         fd.set('footwear', form.footwear);
         fd.set('clothing', form.clothing);
         fd.set('prerequisites', form.prerequisites);
@@ -320,14 +327,14 @@ export default function CrearClaseForm({ classId, editClass }: Props) {
           <FieldLabel>Estilo de baile *</FieldLabel>
           <NativeSelect value={form.style} onChange={e => set('style', e.target.value)}>
             <option value="">Seleccionar estilo…</option>
-            {DANCE_STYLES.map(s => <option key={s}>{s}</option>)}
+            {danceStyles.map(s => <option key={s}>{s}</option>)}
           </NativeSelect>
         </div>
         <div>
           <FieldLabel>Nivel *</FieldLabel>
           <NativeSelect value={form.level} onChange={e => set('level', e.target.value)}>
             <option value="">Seleccionar nivel…</option>
-            {LEVELS.map(l => <option key={l}>{l}</option>)}
+            {levels.map(l => <option key={l}>{l}</option>)}
           </NativeSelect>
         </div>
       </div>
@@ -627,14 +634,16 @@ export default function CrearClaseForm({ classId, editClass }: Props) {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel>Ciudad</FieldLabel>
-              <NativeSelect value={form.city} onChange={e => set('city', e.target.value)}>
-                {['Lima', 'Arequipa', 'Cusco', 'Trujillo', 'Piura'].map(c => <option key={c}>{c}</option>)}
+              <NativeSelect value={form.city} onChange={e => { set('city', e.target.value); set('district', ''); }}>
+                {CITIES.map(c => <option key={c}>{c}</option>)}
               </NativeSelect>
             </div>
             <div>
               <FieldLabel>Distrito</FieldLabel>
-              <input className="input" value={form.district} onChange={e => set('district', e.target.value)}
-                placeholder="Ej: Miraflores" />
+              <NativeSelect value={form.district} onChange={e => set('district', e.target.value)}>
+                <option value="">Seleccionar distrito…</option>
+                {districtsByCity.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+              </NativeSelect>
             </div>
           </div>
           <div>
@@ -731,7 +740,7 @@ export default function CrearClaseForm({ classId, editClass }: Props) {
             {[
               { value: 'whatsapp', label: 'WhatsApp', desc: 'Los alumnos te contactan por WhatsApp' },
               { value: 'instagram', label: 'Instagram', desc: 'Los alumnos te escriben por Instagram' },
-              { value: 'ambos', label: 'WhatsApp + Instagram', desc: 'Mostramos ambos botones de contacto' },
+              { value: 'web', label: 'Sitio web', desc: 'Los alumnos visitan tu sitio web' },
             ].map(opt => (
               <label key={opt.value}
                 className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -845,7 +854,7 @@ export default function CrearClaseForm({ classId, editClass }: Props) {
             { label: 'Ubicación', value: locationLabel },
             { label: 'Horarios', value: slotsLabel },
             { label: 'Precio', value: priceLabel },
-            { label: 'Contacto', value: form.contactMode === 'ambos' ? 'WhatsApp + Instagram' : form.contactMode === 'instagram' ? 'Instagram' : 'WhatsApp' },
+            { label: 'Contacto', value: form.contactMode === 'web' ? 'Sitio web' : form.contactMode === 'instagram' ? 'Instagram' : 'WhatsApp' },
             { label: 'Cupos', value: form.maxSpots ? `${form.maxSpots} cupos` : '—' },
           ].map((row, i) => (
             <div key={row.label} className={`flex gap-4 px-4 py-3 ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}>
