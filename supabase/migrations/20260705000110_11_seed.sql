@@ -1,0 +1,88 @@
+-- ── 11. SEED ────────────────────────────────────────────────────────────────
+
+INSERT INTO public.dance_styles (name, slug, emoji, ord) VALUES
+  ('Salsa',          'salsa',          '💃',  1),
+  ('Bachata',        'bachata',        '🎶',  2),
+  ('Reggaetón',      'reggaeton',      '🔥',  3),
+  ('Hip Hop',        'hip-hop',        '🎤',  4),
+  ('Urbano',         'urbano',         '🏙️',  5),
+  ('Contemporáneo',  'contemporaneo',  '🎭',  6),
+  ('Ballet',         'ballet',         '🩰',  7),
+  ('Jazz',           'jazz',           '🎷',  8),
+  ('Jazz Funk',      'jazz-funk',      '✨',  9),
+  ('Heels',          'heels',          '👠', 10),
+  ('K-pop',          'k-pop',          '⭐', 11),
+  ('Tango',          'tango',          '🥀', 12),
+  ('Cumbia',         'cumbia',         '🪘', 13),
+  ('Marinera',       'marinera',       '🇵🇪', 14),
+  ('Folklore',       'folklore',       '🌽', 15),
+  ('Breakdance',     'breakdance',     '🌀', 16),
+  ('Cha-cha-chá',    'cha-cha-cha',    '🎺', 17),
+  ('Dancehall',      'dancehall',      '🎵', 18),
+  ('House',          'house',          '🎧', 19),
+  ('Zumba',          'zumba',          '⚡', 20),
+  ('Acroverticales', 'acroverticales', '🤸', 21),
+  ('Pole Dance',     'pole-dance',     '🎪', 22),
+  ('Afro',           'afro',           '🥁', 23),
+  ('Twerk',          'twerk',          '🔮', 24);
+
+INSERT INTO public.class_levels (name, ord) VALUES
+  ('Principiante',    1),
+  ('Básico',          2),
+  ('Intermedio',      3),
+  ('Avanzado',        4),
+  ('Todos los niveles', 5);
+
+-- Lima
+INSERT INTO public.districts (name, city) VALUES
+  ('Miraflores',             'Lima'),
+  ('San Isidro',             'Lima'),
+  ('Barranco',               'Lima'),
+  ('Surco',                  'Lima'),
+  ('San Borja',              'Lima'),
+  ('La Molina',              'Lima'),
+  ('Jesús María',            'Lima'),
+  ('Lince',                  'Lima'),
+  ('Magdalena del Mar',      'Lima'),
+  ('San Miguel',             'Lima'),
+  ('Pueblo Libre',           'Lima'),
+  ('Chorrillos',             'Lima'),
+  ('Los Olivos',             'Lima'),
+  ('Independencia',          'Lima'),
+  ('Comas',                  'Lima'),
+  ('San Juan de Miraflores', 'Lima'),
+  ('Villa El Salvador',      'Lima'),
+  ('Ate',                    'Lima'),
+  ('Santa Anita',            'Lima'),
+  ('La Victoria',            'Lima'),
+  ('Breña',                  'Lima'),
+  ('Cercado de Lima',        'Lima'),
+  ('Rímac',                  'Lima'),
+  ('Carabayllo',             'Lima'),
+  ('San Juan de Lurigancho', 'Lima'),
+  ('Lurín',                  'Lima'),
+  ('Pachacámac',             'Lima'),
+  -- Arequipa
+  ('Arequipa',               'Arequipa'),
+  ('Cayma',                  'Arequipa'),
+  ('Yanahuara',              'Arequipa'),
+  ('Cerro Colorado',         'Arequipa'),
+  ('Paucarpata',             'Arequipa'),
+  -- Cusco
+  ('Cusco',                  'Cusco'),
+  ('San Sebastián',          'Cusco'),
+  ('San Jerónimo',           'Cusco'),
+  ('Wanchaq',                'Cusco'),
+  -- Trujillo
+  ('Trujillo',               'Trujillo'),
+  ('Víctor Larco',           'Trujillo'),
+  ('El Porvenir',            'Trujillo'),
+  ('Florencia de Mora',      'Trujillo'),
+  -- Piura
+  ('Piura',                  'Piura'),
+  ('Castilla',               'Piura'),
+  ('Veintiséis de Octubre',  'Piura'),
+  -- Chiclayo
+  ('Chiclayo',               'Chiclayo'),
+  ('José Leonardo Ortiz',    'Chiclayo'),
+  ('La Victoria',            'Chiclayo');
