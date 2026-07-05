@@ -85,6 +85,7 @@ if (migrationFiles.length === 0) {
 // Supabase connection: try direct first, fall back to pooler regions
 const HOSTS = [
   { host: `db.${REF}.supabase.co`,                user: 'postgres',           port: 5432 },
+  { host: `aws-1-us-west-2.pooler.supabase.com`,  user: `postgres.${REF}`,    port: 5432 },
   { host: `aws-0-us-east-1.pooler.supabase.com`,  user: `postgres.${REF}`,    port: 5432 },
   { host: `aws-0-us-east-2.pooler.supabase.com`,  user: `postgres.${REF}`,    port: 5432 },
   { host: `aws-0-us-west-1.pooler.supabase.com`,  user: `postgres.${REF}`,    port: 5432 },
