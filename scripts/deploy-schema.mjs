@@ -9,7 +9,7 @@
  *   Supabase Dashboard → Settings → Database → Database password
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { createInterface } from 'readline';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
@@ -66,7 +66,21 @@ if (!password) { console.error('No password provided.'); process.exit(1); }
 
 section('DEPLOYING SCHEMA');
 
-const sql = readFileSync(join(__dir, '../supabase/schema.sql'), 'utf8');
+const MIGRATIONS_DIR = join(__dir, '../supabase/migrations');
+
+let migrationFiles;
+try {
+  migrationFiles = readdirSync(MIGRATIONS_DIR)
+    .filter(name => name.endsWith('.sql'))
+    .sort();
+} catch (err) {
+  console.error(`  ❌  Could not read migrations directory (${MIGRATIONS_DIR}): ${err.message}`);
+  process.exit(1);
+}
+if (migrationFiles.length === 0) {
+  console.error(`  ❌  No migration files found in ${MIGRATIONS_DIR}.`);
+  process.exit(1);
+}
 
 // Supabase connection: try direct first, fall back to pooler regions
 const HOSTS = [
@@ -96,14 +110,23 @@ for (const { host, user, port } of HOSTS) {
 }
 if (!db) { console.error('  ❌  Could not connect to any Supabase host. Check your password.'); process.exit(1); }
 
+console.log(`  📦  Applying ${migrationFiles.length} migrations in order…`);
+
+let currentFile = null;
 try {
-  console.log('  🔌  Connecting…');
-  await db.connect();
-  console.log('  📦  Executing schema.sql…');
-  await db.query(sql);
-  console.log('  ✅  Schema deployed.');
+  await db.query('BEGIN');
+  for (const file of migrationFiles) {
+    currentFile = file;
+    console.log(`  ▶️   ${file}`);
+    const migrationSql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8');
+    await db.query(migrationSql);
+  }
+  await db.query('COMMIT');
+  console.log('  ✅  Schema deployed (all migrations applied).');
 } catch (err) {
-  console.error(`  ❌  Deploy failed: ${err.message}`);
+  console.error(`  ❌  Migration failed on ${currentFile}: ${err.message}`);
+  console.error('  ⏪  Rolling back — no partial changes were committed.');
+  await db.query('ROLLBACK').catch(() => {});
   await db.end().catch(() => {});
   process.exit(1);
 }
