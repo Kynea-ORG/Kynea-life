@@ -9,8 +9,7 @@
     "lint": "eslint",
     "db:link:dev": "supabase link --project-ref uibigobubqrolozvrkzd",
     "db:link:prod": "supabase link --project-ref hmvonvxgmvwfnhlmrgpg",
-    "db:push": "supabase db push",
-    "db:push:prod": "node scripts/db-push-prod.mjs"
+    "db:push": "supabase db push"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
