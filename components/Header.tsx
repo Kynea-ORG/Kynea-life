@@ -125,7 +125,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
       <div className="max-w-[1200px] mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center shrink-0">
+        <Link href="/" className="flex items-center gap-2 shrink-0">
           <Image
             src={transparent ? '/logo-white.png' : '/logo.png'}
             alt="Kynea"
@@ -134,6 +134,11 @@ export default function Header({ transparent = false }: { transparent?: boolean 
             priority
             style={{ height: 'auto' }}
           />
+          {process.env.NEXT_PUBLIC_APP_ENV === 'development' && (
+            <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-400 text-amber-950 rounded px-1.5 py-0.5">
+              dev
+            </span>
+          )}
         </Link>
 
         {/* Desktop nav */}
