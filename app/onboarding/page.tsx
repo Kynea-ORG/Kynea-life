@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ChevronRight, ChevronLeft, Check, Upload, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Upload, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/profiles/actions';
 
@@ -15,8 +15,6 @@ const STEPS = [
 
 function OnboardingContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const isNewUser = searchParams.get('new') === '1';
   const [step, setStep] = useState(0);
   const [role, setRole] = useState('');
   const [form, setForm] = useState({
@@ -222,7 +220,7 @@ function OnboardingContent() {
                     className="w-20 h-20 rounded-xl overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors relative"
                   >
                     {photoUrl ? (
-                      <img src={photoUrl} alt="Foto de perfil" className="w-full h-full object-cover" />
+                      <Image src={photoUrl} alt="Foto de perfil" fill sizes="80px" className="object-cover" />
                     ) : uploadingPhoto ? (
                       <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
                         <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />

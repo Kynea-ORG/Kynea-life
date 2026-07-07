@@ -90,8 +90,6 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
-      setSuggestions({ classes: [], profiles: [] });
-      setShowSuggestions(false);
       return;
     }
     const timer = setTimeout(async () => {
@@ -175,7 +173,7 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
     ? initialClasses
     : initialClasses.filter(c => c.style === activeTab);
 
-  const hasSuggestions = suggestions.classes.length > 0 || suggestions.profiles.length > 0;
+  const hasSuggestions = query.trim().length >= 2 && (suggestions.classes.length > 0 || suggestions.profiles.length > 0);
 
   return (
     <div className="min-h-screen bg-white">
@@ -295,7 +293,9 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
                           >
                             {p.photo_url ? (
-                              <img src={p.photo_url} alt={p.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                              <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
+                                <Image src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
+                              </div>
                             ) : (
                               <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-500 shrink-0">
                                 {p.name.charAt(0)}
@@ -375,10 +375,12 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
 
                 {/* Content: icon top-left, name bottom-left */}
                 <div className="relative z-10 p-4 h-full flex flex-col justify-between">
-                  <img
+                  <Image
                     src="/Icon-categorias.png"
                     alt=""
                     aria-hidden="true"
+                    width={48}
+                    height={48}
                     className="w-12 h-12 object-contain self-start"
                   />
                   <p className="text-[17px] font-black text-neutral-900 tracking-tight leading-none">
@@ -522,12 +524,14 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                   href={`/profesores/${t.id}`}
                   className="card-hover overflow-hidden p-0 block group rounded-xl border border-neutral-100"
                 >
-                  <div className="w-full h-56 overflow-hidden rounded-t-xl bg-neutral-100">
+                  <div className="relative w-full h-56 overflow-hidden rounded-t-xl bg-neutral-100">
                     {t.photo ? (
-                      <img
+                      <Image
                         src={t.photo}
                         alt={t.name}
-                        className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                        fill
+                        sizes="(max-width: 640px) 50vw, 25vw"
+                        className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-neutral-200">
@@ -585,12 +589,14 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
                   href={`/profesores/${t.id}`}
                   className="card-hover flex items-start gap-4 group"
                 >
-                  <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200">
+                  <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200">
                     {t.photo ? (
-                      <img
+                      <Image
                         src={t.photo}
                         alt={t.name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        fill
+                        sizes="80px"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

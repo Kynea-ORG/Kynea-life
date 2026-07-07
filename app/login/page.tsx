@@ -1,19 +1,29 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Globe, Loader2, Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 
+function errorMessageFromParam(errorParam: string | null): string {
+  if (errorParam === 'cuenta_incompleta') {
+    return 'Tu cuenta no pudo completarse correctamente. Vuelve a registrarte o contacta soporte.';
+  }
+  if (errorParam === 'link_invalido') {
+    return 'El enlace de confirmación no es válido o ya expiró. Solicita uno nuevo.';
+  }
+  return '';
+}
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => errorMessageFromParam(searchParams.get('error')));
   const [loading, setLoading] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -28,15 +38,6 @@ export default function LoginPage() {
       if (session) router.replace('/dashboard');
     });
   }, [router]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('error') === 'cuenta_incompleta') {
-      setError('Tu cuenta no pudo completarse correctamente. Vuelve a registrarte o contacta soporte.');
-    } else if (params.get('error') === 'link_invalido') {
-      setError('El enlace de confirmación no es válido o ya expiró. Solicita uno nuevo.');
-    }
-  }, []);
 
   async function handleGoogle() {
     setGoogleLoading(true);
@@ -249,5 +250,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

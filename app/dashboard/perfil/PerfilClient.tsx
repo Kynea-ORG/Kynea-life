@@ -1,5 +1,6 @@
 'use client';
 import { useState, useTransition, useRef } from 'react';
+import Image from 'next/image';
 import { Save, Upload, Loader2, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { updateProfile } from '@/lib/profiles/actions';
@@ -155,7 +156,9 @@ export default function PerfilClient({
               onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }}
             />
             {photoUrl ? (
-              <img src={photoUrl} alt="Profile" className="w-24 h-24 rounded-xl object-cover" />
+              <div className="relative w-24 h-24 rounded-xl overflow-hidden">
+                <Image src={photoUrl} alt="Profile" fill sizes="96px" className="object-cover" />
+              </div>
             ) : (
               <div className="w-24 h-24 rounded-xl bg-neutral-200 flex items-center justify-center text-3xl font-bold text-neutral-500">
                 {name.charAt(0).toUpperCase()}

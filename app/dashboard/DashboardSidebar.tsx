@@ -48,6 +48,44 @@ const NAV_BY_ROLE = {
   ],
 };
 
+type NavItem = (typeof NAV_BY_ROLE)[Role][number];
+
+function NavLinks({
+  items,
+  pathname,
+  role,
+}: {
+  items: NavItem[];
+  pathname: string;
+  role: Role;
+}) {
+  return (
+    <>
+      {items.map(item => {
+        const Icon = item.icon;
+        const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition-colors ${
+              active
+                ? 'bg-neutral-900 text-white'
+                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            {item.label}
+            {item.label === 'Crear clase' && (role === 'profesor' || role === 'academia') && (
+              <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold ${active ? 'bg-white/20 text-white' : 'bg-neutral-900 text-white'}`}>+</span>
+            )}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
 export default function DashboardSidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -62,34 +100,6 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
     router.refresh();
   }
 
-  function NavLinks({ items }: { items: typeof NAV }) {
-    return (
-      <>
-        {items.map(item => {
-          const Icon = item.icon;
-          const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition-colors ${
-                active
-                  ? 'bg-neutral-900 text-white'
-                  : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {item.label}
-              {item.label === 'Crear clase' && (profile.role === 'profesor' || profile.role === 'academia') && (
-                <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold ${active ? 'bg-white/20 text-white' : 'bg-neutral-900 text-white'}`}>+</span>
-              )}
-            </Link>
-          );
-        })}
-      </>
-    );
-  }
-
   return (
     <>
       {/* Mobile top bar — logo links back to public home */}
@@ -98,7 +108,9 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
           <Image src="/logo.png" alt="Kynea" width={90} height={28} priority />
         </Link>
         {profile.photo_url ? (
-          <img src={profile.photo_url} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-neutral-200" />
+          <div className="relative w-8 h-8 rounded-full overflow-hidden border border-neutral-200 shrink-0">
+            <Image src={profile.photo_url} alt="Profile" fill sizes="32px" className="object-cover" />
+          </div>
         ) : (
           <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
             {profile.name.charAt(0).toUpperCase()}
@@ -117,7 +129,9 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
         <div className="px-4 py-4 border-b border-neutral-200">
           <div className="flex items-center gap-3">
             {profile.photo_url ? (
-              <img src={profile.photo_url} alt="Profile" className="w-10 h-10 rounded-xl object-cover" />
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0">
+                <Image src={profile.photo_url} alt="Profile" fill sizes="40px" className="object-cover" />
+              </div>
             ) : (
               <div className="w-10 h-10 rounded-xl bg-neutral-900 text-white flex items-center justify-center text-sm font-bold shrink-0">
                 {profile.name.charAt(0).toUpperCase()}
@@ -133,7 +147,7 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
         </div>
 
         <nav className="flex-1 py-4 px-3">
-          <NavLinks items={NAV} />
+          <NavLinks items={NAV} pathname={pathname} role={profile.role} />
         </nav>
 
         <div className="p-4 border-t border-neutral-200">

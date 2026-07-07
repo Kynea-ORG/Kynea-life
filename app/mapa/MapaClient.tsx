@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { List, MapPin, X, MessageCircle, Clock, ChevronRight } from 'lucide-react';
 import Header from '@/components/Header';
 import { formatPrice, formatTimeSlots, getTypeLabel } from '@/lib/utils';
@@ -8,7 +9,6 @@ import type { DanceClass } from '@/lib/types';
 
 export default function MapaClient({ classes }: { classes: DanceClass[] }) {
   const [selected, setSelected] = useState<DanceClass | null>(null);
-  const [hoveredPin, setHoveredPin] = useState<string | null>(null);
 
   const mapBounds = {
     minLat: -12.20, maxLat: -12.05,
@@ -54,7 +54,9 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                   selected?.id === cls.id ? 'bg-neutral-100 border-l-2 border-neutral-900' : ''
                 }`}
               >
-                <img src={cls.coverImage ?? undefined} alt={cls.title} className="w-20 h-16 rounded-xl object-cover shrink-0" />
+                <div className="relative w-20 h-16 rounded-xl overflow-hidden shrink-0">
+                  <Image src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="80px" className="object-cover" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-neutral-900 font-semibold">{cls.style} · {getTypeLabel(cls.type)}</p>
                   <h3 className="font-bold text-neutral-900 text-sm leading-snug truncate">{cls.title}</h3>
@@ -106,8 +108,6 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                   style={{ top: `${pos.top}%`, left: `${pos.left}%` }}
                   className="absolute transform -translate-x-1/2 -translate-y-full group z-20"
                   onClick={() => setSelected(selected?.id === cls.id ? null : cls)}
-                  onMouseEnter={() => setHoveredPin(cls.id)}
-                  onMouseLeave={() => setHoveredPin(null)}
                 >
                   <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full shadow-lg text-xs font-bold whitespace-nowrap transition-all ${
                     isSelected
@@ -125,8 +125,8 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
           {selected && (
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 z-30">
               <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
-                <div className="relative">
-                  <img src={selected.coverImage ?? undefined} alt={selected.title} className="w-full h-36 object-cover" />
+                <div className="relative h-36">
+                  <Image src={selected.coverImage || '/logo.png'} alt={selected.title} fill sizes="384px" className="object-cover" />
                   <button
                     onClick={() => setSelected(null)}
                     className="absolute top-3 right-3 w-7 h-7 bg-black/40 rounded-full flex items-center justify-center text-white hover:bg-black/60"
@@ -183,7 +183,9 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                   onClick={() => setSelected(cls)}
                   className="shrink-0 w-48 text-left bg-neutral-50 rounded-xl overflow-hidden"
                 >
-                  <img src={cls.coverImage ?? undefined} alt={cls.title} className="w-full h-24 object-cover" />
+                  <div className="relative w-full h-24">
+                    <Image src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="192px" className="object-cover" />
+                  </div>
                   <div className="p-2">
                     <p className="text-xs font-bold text-neutral-900 truncate">{cls.title}</p>
                     <p className="text-xs text-neutral-900 font-semibold">{formatPrice(cls.priceType, cls.price, cls.currency)}</p>

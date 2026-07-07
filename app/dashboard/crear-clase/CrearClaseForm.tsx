@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect, useRef, useTransition } from 'react';
+import { useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Save,
   Upload, MapPin, Monitor, Loader2, X,
@@ -22,6 +23,75 @@ const STEPS = [
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: string; endTime: string };
+
+function buildInitialForm(editClass: DanceClass | null) {
+  if (!editClass) {
+    return {
+      type: 'clase',
+      title: '',
+      style: '',
+      level: '',
+      shortDesc: '',
+      fullDesc: '',
+      startDate: '',
+      endDate: '',
+      recurrence: 'mensual',
+      priceType: 'Mensual',
+      price: '',
+      offerPrice: '',
+      currency: 'PEN',
+      maxSpots: '',
+      contactMode: 'whatsapp',
+      modality: 'Presencial',
+      city: 'Lima',
+      district: '',
+      address: '',
+      reference: '',
+      mapsUrl: '',
+      platform: '',
+      accessLink: '',
+      videoUrl: '',
+      footwear: '',
+      clothing: '',
+      prerequisites: '',
+      ageGroup: '',
+      toBring: [] as string[],
+      status: 'draft',
+    };
+  }
+  return {
+    type: editClass.type ?? 'clase',
+    title: editClass.title ?? '',
+    style: editClass.style ?? '',
+    level: editClass.level ?? '',
+    shortDesc: editClass.shortDescription ?? '',
+    fullDesc: editClass.fullDescription ?? '',
+    startDate: editClass.startDate ?? '',
+    endDate: editClass.endDate ?? '',
+    recurrence: 'mensual',
+    priceType: editClass.priceType ?? 'Mensual',
+    price: editClass.price ? String(editClass.price) : '',
+    offerPrice: editClass.offerPrice ? String(editClass.offerPrice) : '',
+    currency: editClass.currency ?? 'PEN',
+    maxSpots: editClass.maxSpots ? String(editClass.maxSpots) : '',
+    contactMode: editClass.contactMode ?? 'whatsapp',
+    modality: editClass.modality ?? 'Presencial',
+    city: editClass.city ?? 'Lima',
+    district: editClass.district ?? '',
+    address: editClass.address ?? '',
+    reference: editClass.reference ?? '',
+    mapsUrl: editClass.mapsUrl ?? '',
+    platform: editClass.platform ?? '',
+    accessLink: editClass.accessLink ?? '',
+    videoUrl: editClass.videoUrl ?? '',
+    footwear: editClass.footwear ?? '',
+    clothing: editClass.clothing ?? '',
+    prerequisites: editClass.requirements ?? '',
+    ageGroup: editClass.ageGroup ?? '',
+    toBring: editClass.toBring ?? [],
+    status: editClass.status ?? 'draft',
+  };
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -113,86 +183,19 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const [submitError, setSubmitError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [coverImageUrl, setCoverImageUrl] = useState(() => editClass?.coverImage ?? '');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
   const [customToBring, setCustomToBring] = useState('');
 
-  const [slots, setSlots] = useState<Slot[]>([
-    { days: [], startTime: '19:00', endTime: '20:30' },
-  ]);
+  const [slots, setSlots] = useState<Slot[]>(() =>
+    editClass?.timeSlots?.length
+      ? (editClass.timeSlots as Slot[])
+      : [{ days: [], startTime: '19:00', endTime: '20:30' }]
+  );
 
-  const [form, setForm] = useState({
-    type: 'clase',
-    title: '',
-    style: '',
-    level: '',
-    shortDesc: '',
-    fullDesc: '',
-    startDate: '',
-    endDate: '',
-    recurrence: 'mensual',
-    priceType: 'Mensual',
-    price: '',
-    offerPrice: '',
-    currency: 'PEN',
-    maxSpots: '',
-    contactMode: 'whatsapp',
-    modality: 'Presencial',
-    city: 'Lima',
-    district: '',
-    address: '',
-    reference: '',
-    mapsUrl: '',
-    platform: '',
-    accessLink: '',
-    videoUrl: '',
-    footwear: '',
-    clothing: '',
-    prerequisites: '',
-    ageGroup: '',
-    toBring: [] as string[],
-    status: 'draft',
-  });
-
-  useEffect(() => {
-    if (!editClass) return;
-    setForm({
-      type: editClass.type ?? 'clase',
-      title: editClass.title ?? '',
-      style: editClass.style ?? '',
-      level: editClass.level ?? '',
-      shortDesc: editClass.shortDescription ?? '',
-      fullDesc: editClass.fullDescription ?? '',
-      startDate: editClass.startDate ?? '',
-      endDate: editClass.endDate ?? '',
-      recurrence: 'mensual',
-      priceType: editClass.priceType ?? 'Mensual',
-      price: editClass.price ? String(editClass.price) : '',
-      offerPrice: editClass.offerPrice ? String(editClass.offerPrice) : '',
-      currency: editClass.currency ?? 'PEN',
-      maxSpots: editClass.maxSpots ? String(editClass.maxSpots) : '',
-      contactMode: editClass.contactMode ?? 'whatsapp',
-      modality: editClass.modality ?? 'Presencial',
-      city: editClass.city ?? 'Lima',
-      district: editClass.district ?? '',
-      address: editClass.address ?? '',
-      reference: editClass.reference ?? '',
-      mapsUrl: editClass.mapsUrl ?? '',
-      platform: editClass.platform ?? '',
-      accessLink: editClass.accessLink ?? '',
-      videoUrl: editClass.videoUrl ?? '',
-      footwear: editClass.footwear ?? '',
-      clothing: editClass.clothing ?? '',
-      prerequisites: editClass.requirements ?? '',
-      ageGroup: editClass.ageGroup ?? '',
-      toBring: editClass.toBring ?? [],
-      status: editClass.status ?? 'draft',
-    });
-    if (editClass.coverImage) setCoverImageUrl(editClass.coverImage);
-    if (editClass.timeSlots?.length) setSlots(editClass.timeSlots as Slot[]);
-  }, [editClass]);
+  const [form, setForm] = useState(() => buildInitialForm(editClass));
 
   const set = (k: keyof typeof form, v: unknown) => setForm(f => ({ ...f, [k]: v }));
 
@@ -365,8 +368,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         />
 
         {coverImageUrl ? (
-          <div className="relative rounded-xl overflow-hidden border border-neutral-200">
-            <img src={coverImageUrl} alt="Portada" className="w-full h-48 object-cover" />
+          <div className="relative rounded-xl overflow-hidden border border-neutral-200 h-48">
+            <Image src={coverImageUrl} alt="Portada" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
             <button
               type="button"
               onClick={() => { setCoverImageUrl(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
@@ -867,7 +870,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         {coverImageUrl && (
           <div>
             <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Imagen de portada</p>
-            <img src={coverImageUrl} alt="Portada" className="w-full h-40 object-cover rounded-xl border border-neutral-200" />
+            <div className="relative w-full h-40 rounded-xl border border-neutral-200 overflow-hidden">
+              <Image src={coverImageUrl} alt="Portada" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
+            </div>
           </div>
         )}
 

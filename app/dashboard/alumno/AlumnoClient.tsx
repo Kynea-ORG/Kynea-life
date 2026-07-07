@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Bookmark, BookOpen, MapPin, Clock, ArrowRight } from 'lucide-react';
 import { formatPrice, formatTimeSlots } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
@@ -62,11 +63,9 @@ export default function AlumnoClient({
                 className="bg-white border border-neutral-200 rounded-xl p-4 flex items-start gap-4 hover:border-neutral-400 transition-colors block"
               >
                 {cls.coverImage ? (
-                  <img
-                    src={cls.coverImage}
-                    alt={cls.title}
-                    className="w-20 h-20 rounded-xl object-cover shrink-0"
-                  />
+                  <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0">
+                    <Image src={cls.coverImage} alt={cls.title} fill sizes="80px" className="object-cover" />
+                  </div>
                 ) : (
                   <div className="w-20 h-20 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0">
                     <BookOpen className="w-6 h-6 text-neutral-300" />

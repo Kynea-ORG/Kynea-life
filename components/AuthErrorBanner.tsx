@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, X } from 'lucide-react';
@@ -7,14 +7,11 @@ import { AlertCircle, X } from 'lucide-react';
 function AuthErrorBannerInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [show, setShow] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   const errorCode = searchParams.get('error_code');
   const errorParam = searchParams.get('error');
-
-  useEffect(() => {
-    if (errorParam || errorCode) setShow(true);
-  }, [errorParam, errorCode]);
+  const show = !dismissed && !!(errorParam || errorCode);
 
   if (!show) return null;
 
@@ -24,7 +21,7 @@ function AuthErrorBannerInner() {
     : 'No pudimos completar la verificación. Intenta registrarte o iniciar sesión de nuevo.';
 
   function dismiss() {
-    setShow(false);
+    setDismissed(true);
     // Limpia los parámetros de error de la URL
     router.replace('/');
   }
@@ -42,14 +39,14 @@ function AuthErrorBannerInner() {
             <Link
               href="/registro"
               className="text-[13px] font-semibold text-neutral-900 hover:underline"
-              onClick={() => setShow(false)}
+              onClick={() => setDismissed(true)}
             >
               Crear cuenta
             </Link>
             <Link
               href="/login"
               className="text-[13px] font-semibold text-neutral-500 hover:text-neutral-700"
-              onClick={() => setShow(false)}
+              onClick={() => setDismissed(true)}
             >
               Iniciar sesión
             </Link>

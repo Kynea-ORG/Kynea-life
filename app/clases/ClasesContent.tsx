@@ -1,5 +1,5 @@
 'use client';
-import { useState, useTransition, useRef, useCallback } from 'react';
+import { useState, useTransition, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Search, SlidersHorizontal, Map, List, X, Loader2 } from 'lucide-react';
@@ -85,7 +85,9 @@ export default function ClasesContent({
   // Debounce for query URL updates
   const queryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestFilters = useRef(filters);
-  latestFilters.current = filters;
+  useEffect(() => {
+    latestFilters.current = filters;
+  }, [filters]);
 
   const pushUrl = useCallback((q: string, f: Filters) => {
     const params = buildSearchParams(q, f);

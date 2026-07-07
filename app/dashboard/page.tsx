@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { PlusCircle, Upload, BookOpen, TrendingUp, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
@@ -95,7 +96,9 @@ export default async function DashboardPage() {
           ) : recentClasses.map(cls => (
             <div key={cls.id} className="flex items-center gap-4 p-4 hover:bg-neutral-50 transition-colors">
               {cls.coverImage ? (
-                <img src={cls.coverImage} alt={cls.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0">
+                  <Image src={cls.coverImage} alt={cls.title} fill sizes="56px" className="object-cover" />
+                </div>
               ) : (
                 <div className="w-14 h-14 rounded-lg bg-neutral-100 shrink-0" />
               )}

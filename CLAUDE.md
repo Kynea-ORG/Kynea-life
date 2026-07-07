@@ -33,15 +33,21 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
 ### Data layer
 
+Feature-sliced under `lib/`, not a single flat `queries`/`actions` pair:
+
 | File | Purpose |
 |------|---------|
 | `lib/supabase/server.ts` | Server-side Supabase client (RSC / Server Actions / Route Handlers) |
 | `lib/supabase/client.ts` | Browser Supabase client (Client Components) |
-| `lib/types.ts` | All domain types: `DanceClass`, `Teacher`, `TimeSlot`, etc. |
-| `lib/queries/classes.ts` | Read queries + `mapDbClassToType` / `mapTeacher` (DB snake_case → TS camelCase) |
-| `lib/actions/classes.ts` | `'use server'` mutations: create/update/delete/duplicate class, update profile |
+| `lib/types.ts` | Shared domain types |
+| `lib/auth/actions.ts`, `lib/auth/redirectByRole.ts` | `'use server'` auth mutations + post-login/onboarding redirect by profile role |
+| `lib/catalog/queries.ts`, `lib/catalog/lookups.ts` | Read queries + lookup helpers for `dance_styles` / `class_levels` / `districts` |
+| `lib/classes/queries.ts`, `lib/classes/actions.ts`, `lib/classes/helpers.ts`, `lib/classes/types.ts` | Class read queries, `'use server'` mutations (create/update/delete), helpers, and class-specific types |
+| `lib/profiles/queries.ts`, `lib/profiles/actions.ts` | Profile read queries + `'use server'` mutations |
+| `lib/stats/queries.ts` | Dashboard/stats read queries |
+| `lib/utils.ts` | Shared utility functions |
 
-**DB → TypeScript mapping:** The database uses snake_case columns; all UI components use camelCase fields from `DanceClass` / `Teacher`. The mappers in `lib/queries/classes.ts` are the single source of truth for this translation — do not bypass them.
+**DB → TypeScript mapping:** The database uses snake_case columns; UI components use camelCase. Each feature slice's `queries.ts` owns its own DB → TS mapping — do not bypass it.
 
 ### Auth flow
 
@@ -51,16 +57,16 @@ OAuth/email confirm redirect: `app/auth/callback/route.ts`. After registration, 
 
 ### Page structure
 
-- **Public:** `/` (home), `/clases` (browse), `/clases/[id]` (detail), `/profesores/[id]` (teacher profile)
-- **Auth:** `/login`, `/registro`, `/confirmar-email`, `/reset-password`
+- **Public:** `/` (home), `/clases` (browse), `/clases/[id]` (detail), `/profesores` (teacher directory), `/profesores/[id]` (teacher profile), `/mapa`, `/terminos`, `/terminos-publicacion`
+- **Auth:** `/login`, `/registro`, `/confirmar-email`, `/reset-password`, `/completar-registro`
 - **Protected (proxy-guarded):** `/dashboard/*`, `/onboarding`
 - **Redirects** defined in `next.config.ts`: `/buscar` → `/clases`, `/clase/:id` → `/clases/:id`
 
 ### Supabase schema
 
-Three tables: `profiles` (extends `auth.users`), `classes`, `saved_classes` (bookmarks). RLS is enabled on all tables: published classes are publicly readable; teachers can only manage their own classes. Storage bucket `class-images` is public-read; upload path must be `<user-id>/...`.
+Ten tables: catalog reference data (`dance_styles`, `class_levels`, `districts`), `profiles` (extends `auth.users`) + `profile_styles`, `venues`, `classes` + `class_styles` + `class_schedules`, and `saved_classes` (bookmarks). RLS is enabled on all tables: published classes are publicly readable; teachers can only manage their own classes. Storage bucket `class-images` is public-read; upload path must be `<user-id>/...`.
 
-SQL schema: versioned migration files under `supabase/migrations/`, applied via `supabase db push` (Supabase CLI, linked to the project via `supabase link --project-ref <ref>`).
+SQL schema: versioned migration files under `supabase/migrations/`, applied via `supabase db push` (Supabase CLI). Two projects exist: a disposable `kynea-dev` for testing migrations, and the shared production project. `npm run db:link:dev` / `db:link:prod` switch which one the CLI is linked to; `npm run db:push` applies pending migrations to whichever is currently linked. Pushing to production is also automated via CI on merge to `main`, gated behind a required-reviewer approval on the `supabase-production` GitHub Environment — never push to production directly unless that pipeline is down.
 
 ### Component conventions
 

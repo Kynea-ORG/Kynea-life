@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { MapPin, Clock, MessageCircle, Bookmark, Users } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
@@ -33,7 +34,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     }
     const mode = cls.contactMode ?? 'whatsapp';
     if (mode === 'whatsapp' && cls.teacher.whatsapp) {
-      window.open(buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp, cls.title), '_blank');
+      window.open(buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp), '_blank');
       return;
     }
     if (mode === 'instagram' && cls.teacher.instagram) {
@@ -53,11 +54,13 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     <>
       <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-all duration-200 flex flex-col group hover:-translate-y-0.5">
         {/* Image */}
-        <div className="relative overflow-hidden">
-          <img
-            src={cls.coverImage || undefined}
+        <div className={`relative overflow-hidden ${compact ? 'h-36' : 'h-48'}`}>
+          <Image
+            src={cls.coverImage || '/logo.png'}
             alt={cls.title}
-            className={`w-full object-cover group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}
+            fill
+            sizes="(max-width: 768px) 100vw, 400px"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
           <div className="absolute top-3 left-3 flex gap-2">
             {isFullyBooked && (

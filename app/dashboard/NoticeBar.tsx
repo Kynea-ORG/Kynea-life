@@ -14,12 +14,14 @@ export default function NoticeBar() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
+  const [notice, setNotice] = useState<{ title: string; body: string } | null>(() => {
+    const key = searchParams.get('notice');
+    return key && NOTICES[key] ? NOTICES[key] : null;
+  });
 
   useEffect(() => {
     const key = searchParams.get('notice');
     if (key && NOTICES[key]) {
-      setNotice(NOTICES[key]);
       const params = new URLSearchParams(searchParams.toString());
       params.delete('notice');
       const clean = params.size > 0 ? `${pathname}?${params}` : pathname;

@@ -29,23 +29,21 @@ function ResetPasswordContent() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const [sessionCheck, setSessionCheck] = useState<boolean | null>(null);
 
   const confirmMismatch = confirm.length > 0 && password !== confirm;
+  const hasSession = isRecovery ? sessionCheck : false;
 
   useEffect(() => {
-    if (!isRecovery) {
-      setHasSession(false);
-      return;
-    }
+    if (!isRecovery) return;
     createClient().auth.getSession().then(({ data: { session } }) => {
-      if (!session) { setHasSession(false); return; }
+      if (!session) { setSessionCheck(false); return; }
       // Verify session was created recently (< 10 min) to reject pre-existing sessions
       try {
         const payload = JSON.parse(atob(session.access_token.split('.')[1]));
-        setHasSession(Date.now() / 1000 - payload.iat < 600);
+        setSessionCheck(Date.now() / 1000 - payload.iat < 600);
       } catch {
-        setHasSession(false);
+        setSessionCheck(false);
       }
     });
   }, [isRecovery]);

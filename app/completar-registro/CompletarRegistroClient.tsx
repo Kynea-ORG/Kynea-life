@@ -55,11 +55,9 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
             {/* Confirmación de identidad */}
             <div className="flex items-center gap-3 p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 mb-7">
               {userAvatar ? (
-                <img
-                  src={userAvatar}
-                  alt={userName}
-                  className="w-10 h-10 rounded-full object-cover shrink-0"
-                />
+                <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0">
+                  <Image src={userAvatar} alt={userName} fill sizes="40px" className="object-cover" />
+                </div>
               ) : (
                 <div className="w-10 h-10 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-bold shrink-0">
                   {userName.charAt(0).toUpperCase()}
