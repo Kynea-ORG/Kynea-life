@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronLeft, Star, MapPin, Camera, Video, Globe, MessageCircle } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
@@ -27,11 +28,9 @@ export default function ProfesorDetailClient({
         {/* Profile header */}
         <div className="flex flex-col sm:flex-row items-start gap-6 mb-8 p-6 bg-neutral-50 rounded-xl border border-neutral-200">
           {teacher.photo ? (
-            <img
-              src={teacher.photo}
-              alt={teacher.name}
-              className="w-24 h-24 rounded-xl object-cover shrink-0"
-            />
+            <div className="relative w-24 h-24 rounded-xl overflow-hidden shrink-0">
+              <Image src={teacher.photo} alt={teacher.name} fill sizes="96px" className="object-cover" />
+            </div>
           ) : (
             <div className="w-24 h-24 rounded-xl bg-neutral-200 flex items-center justify-center text-3xl font-black text-neutral-500 shrink-0">
               {teacher.name.charAt(0)}

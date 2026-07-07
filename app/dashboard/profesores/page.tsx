@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Image from 'next/image';
 import { Plus, Edit2, Star, BookOpen, Users, Activity, UserX, Upload, X, Download, Search, ChevronDown } from 'lucide-react';
 
 /* ── Mock data ─────────────────────────────────────────────────────────── */
@@ -265,11 +266,15 @@ export default function ProfesoresPage() {
           {filtered.map(teacher => (
             <div key={teacher.id} className="bg-white border border-neutral-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow">
               {/* Photo */}
-              <img
-                src={teacher.foto}
-                alt={`${teacher.nombre} ${teacher.apellido}`}
-                className="w-full h-40 object-cover"
-              />
+              <div className="relative w-full h-40">
+                <Image
+                  src={teacher.foto || '/logo.png'}
+                  alt={`${teacher.nombre} ${teacher.apellido}`}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover"
+                />
+              </div>
 
               {/* Info */}
               <div className="p-4 flex-1 flex flex-col gap-3">

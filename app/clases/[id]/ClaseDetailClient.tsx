@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video } from 'lucide-react';
 
 function IgIcon({ className }: { className?: string }) {
@@ -66,7 +67,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.whatsapp) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
-      const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp, cls.title);
+      const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
       return;
     }
@@ -118,12 +119,15 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
         <div className="grid lg:grid-cols-[1fr_360px] gap-10">
           {/* LEFT COLUMN */}
           <div>
-            <div className="relative rounded-xl overflow-hidden mb-6">
+            <div className="relative rounded-xl overflow-hidden mb-6 h-80 lg:h-[420px]">
               {images[activeImg] && (
-                <img
+                <Image
                   src={images[activeImg]}
                   alt={cls.title}
-                  className="w-full h-80 lg:h-[420px] object-cover"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 800px"
+                  priority
+                  className="object-cover"
                 />
               )}
               <div className="absolute top-4 left-4 flex gap-2">
@@ -229,7 +233,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               <div className="flex items-start gap-4">
                 <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
                   {cls.teacher.photo ? (
-                    <img src={cls.teacher.photo} alt={cls.teacher.name} className="w-16 h-16 rounded-xl object-cover hover:opacity-90 transition-opacity" />
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
+                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" />
+                    </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
                       {cls.teacher.name.charAt(0)}

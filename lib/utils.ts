@@ -37,7 +37,7 @@ export function formatTimeSlots(slots: { days: string[]; startTime: string; endT
   return slots.map(s => `${s.days.join(', ')} · ${s.startTime} – ${s.endTime}`).join(' | ');
 }
 
-export function buildWhatsAppMessage(style: string, startDate: string, teacherPhone: string, classTitle: string): string {
+export function buildWhatsAppMessage(style: string, startDate: string, teacherPhone: string): string {
   const date = startDate
     ? new Date(startDate).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
     : '';

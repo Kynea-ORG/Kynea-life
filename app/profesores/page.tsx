@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import Header from '@/components/Header';
 
@@ -22,10 +23,11 @@ export default async function ProfesoresPage() {
               {teachers.map(t => (
                 <Link key={t.id} href={`/profesores/${t.id}`}
                   className="border border-neutral-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow group">
-                  <div className="w-full h-48 overflow-hidden bg-neutral-200">
+                  <div className="relative w-full h-48 overflow-hidden bg-neutral-200">
                     {t.photo ? (
-                      <img src={t.photo} alt={t.name}
-                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" />
+                      <Image src={t.photo} alt={t.name} fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        className="object-cover object-top group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <span className="text-5xl font-black text-neutral-400 select-none">
@@ -55,9 +57,9 @@ export default async function ProfesoresPage() {
               {academias.map(t => (
                 <Link key={t.id} href={`/profesores/${t.id}`}
                   className="flex items-start gap-4 border border-neutral-100 rounded-xl p-4 hover:shadow-md transition-shadow group">
-                  <div className="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-neutral-200">
+                  <div className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-neutral-200">
                     {t.photo ? (
-                      <img src={t.photo} alt={t.name} className="w-full h-full object-cover" />
+                      <Image src={t.photo} alt={t.name} fill sizes="64px" className="object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <span className="text-2xl font-black text-neutral-400 select-none">

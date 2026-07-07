@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
@@ -160,7 +161,9 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {cls.coverImage ? (
-                        <img src={cls.coverImage} alt={cls.title} className="w-12 h-10 rounded-lg object-cover shrink-0" />
+                        <div className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0">
+                          <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" />
+                        </div>
                       ) : (
                         <div className="w-12 h-10 rounded-lg bg-neutral-100 shrink-0" />
                       )}
@@ -252,7 +255,9 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
           <div key={cls.id} className="bg-white rounded-xl border border-neutral-200 p-4 shadow-sm">
             <div className="flex items-start gap-3">
               {cls.coverImage ? (
-                <img src={cls.coverImage} alt={cls.title} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
+                  <Image src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" />
+                </div>
               ) : (
                 <div className="w-16 h-16 rounded-xl bg-neutral-100 shrink-0" />
               )}
