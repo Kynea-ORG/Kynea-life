@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Globe, Loader2, Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { redirectByRole } from '@/lib/auth/redirectByRole';
 
 
 export default function LoginPage() {
@@ -18,22 +19,62 @@ export default function LoginPage() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [loginFailed, setLoginFailed] = useState(false);
+
+  useEffect(() => {
+    createClient().auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace('/dashboard');
+    });
+  }, [router]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'cuenta_incompleta') {
+      setError('Tu cuenta no pudo completarse correctamente. Vuelve a registrarte o contacta soporte.');
+    } else if (params.get('error') === 'link_invalido') {
+      setError('El enlace de confirmación no es válido o ya expiró. Solicita uno nuevo.');
+    }
+  }, []);
 
   async function handleGoogle() {
+    setGoogleLoading(true);
     const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
+    if (error) {
+      setError('No se pudo iniciar sesión con Google. Intenta de nuevo.');
+      setGoogleLoading(false);
+    }
+    // If no error, browser redirects to Google — loading stays true intentionally
   }
 
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
+    setResetError('');
     setResetLoading(true);
     const supabase = createClient();
-    await supabase.auth.resetPasswordForEmail(resetEmail, {
+
+    // Check signup provider before sending reset email —
+    // accounts created with Google don't have a password to reset.
+    const { data: provider } = await supabase.rpc('email_signup_provider', { p_email: resetEmail });
+    if (provider === 'google') {
+      setResetError('Esta cuenta se creó con Google. Usa el botón "Continuar con Google" para ingresar.');
+      setResetLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
       redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     });
+    if (error) {
+      setResetError('No se pudo enviar el enlace. Intenta de nuevo.');
+      setResetLoading(false);
+      return;
+    }
     setResetSent(true);
     setResetLoading(false);
   }
@@ -50,20 +91,16 @@ export default function LoginPage() {
 
     if (authError) {
       setError('Correo o contraseña incorrectos.');
+      setLoginFailed(true);
       setLoading(false);
       return;
     }
 
-    // Fetch role to redirect correctly
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user!.id)
-      .single();
-
-    router.refresh(); // invalidate server caches
-    router.push(profile?.role === 'alumno' ? '/clases' : '/dashboard');
+    await redirectByRole(supabase, {
+      refresh: () => router.refresh(),
+      onSuccess: (path) => router.push(path),
+      onError: (msg) => { setError(msg); setLoading(false); },
+    });
   }
 
   return (
@@ -98,6 +135,11 @@ export default function LoginPage() {
               ) : (
                 <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
                   <p className="text-[15px] text-neutral-500">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+                  {resetError && (
+                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">
+                      {resetError}
+                    </div>
+                  )}
                   <div>
                     <label className="block text-[13px] font-semibold text-neutral-700 mb-1.5">Correo electrónico</label>
                     <input
@@ -124,8 +166,8 @@ export default function LoginPage() {
               )
             ) : (
               <>
-                <button type="button" onClick={handleGoogle} className="w-full btn-outline mb-4">
-                  <Globe className="w-4 h-4" />
+                <button type="button" onClick={handleGoogle} disabled={googleLoading} className="w-full btn-outline mb-4 flex items-center justify-center gap-2 disabled:opacity-50">
+                  {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
                   Continuar con Google
                 </button>
 
@@ -137,8 +179,15 @@ export default function LoginPage() {
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                   {error && (
-                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">
-                      {error}
+                    <div>
+                      <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">
+                        {error}
+                      </div>
+                      {loginFailed && (
+                        <p className="text-[12px] text-neutral-400 mt-1.5 px-1">
+                          ¿Te registraste con Google? Usa el botón de Google para ingresar.
+                        </p>
+                      )}
                     </div>
                   )}
                   <div>

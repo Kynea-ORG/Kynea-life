@@ -3,8 +3,8 @@ import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal } from 'lucide-react';
-import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/mockData';
-import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/actions/classes';
+import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
+import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/classes/actions';
 import type { ClassStatus, DanceClass } from '@/lib/types';
 
 const STATUS_TABS: { key: ClassStatus | 'all'; label: string }[] = [

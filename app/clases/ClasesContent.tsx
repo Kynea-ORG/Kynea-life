@@ -1,12 +1,14 @@
 'use client';
-import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useTransition, useRef, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, SlidersHorizontal, Map, List, X } from 'lucide-react';
+import { Search, SlidersHorizontal, Map, List, X, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import FilterPanel, { Filters, EMPTY_FILTERS } from '@/components/FilterPanel';
 import type { DanceClass } from '@/lib/types';
+
+// ── Price and time helpers (these stay client-side: require computed logic) ───
 
 function matchesPriceRange(cls: DanceClass, range: string): boolean {
   const free = cls.priceType === 'Gratis' || cls.price === 0;
@@ -31,19 +33,95 @@ function matchesTimeOfDay(cls: DanceClass, bucket: string): boolean {
   });
 }
 
-export default function ClasesContent({ initialClasses }: { initialClasses: DanceClass[] }) {
-  const searchParams = useSearchParams();
-  const [query, setQuery] = useState(searchParams.get('q') || '');
-  const [filters, setFilters] = useState<Filters>({
+// ── URL serialization / deserialization ───────────────────────────────────────
+
+function buildSearchParams(query: string, filters: Filters): URLSearchParams {
+  const p = new URLSearchParams();
+  if (query)               p.set('q', query);
+  filters.styles.forEach(s => p.append('style', s));
+  filters.levels.forEach(l => p.append('level', l));
+  filters.modalities.forEach(m => p.append('modality', m));
+  filters.types.forEach(t => p.append('type', t));
+  filters.days.forEach(d => p.append('day', d));
+  if (filters.city)        p.set('city', filters.city);
+  if (filters.withSpots)   p.set('spots', '1');
+  return p;
+}
+
+function initFiltersFromUrl(sp: ReturnType<typeof useSearchParams>): Filters {
+  return {
     ...EMPTY_FILTERS,
-    styles: searchParams.get('style') ? [searchParams.get('style')!] : [],
-    city: searchParams.get('city') || '',
-  });
+    styles:     sp.getAll('style'),
+    levels:     sp.getAll('level'),
+    modalities: sp.getAll('modality'),
+    types:      sp.getAll('type'),
+    days:       sp.getAll('day'),
+    city:       sp.get('city') || '',
+    withSpots:  sp.get('spots') === '1',
+    // priceRanges and timesOfDay are client-only: not in URL
+  };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function ClasesContent({
+  initialClasses,
+  danceStyles = [],
+  levels = [],
+}: {
+  initialClasses: DanceClass[];
+  danceStyles?: string[];
+  levels?: string[];
+}) {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const [query, setQuery] = useState(sp.get('q') || '');
+  const [filters, setFilters] = useState<Filters>(() => initFiltersFromUrl(sp));
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('Recomendados');
 
+  // Debounce for query URL updates
+  const queryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestFilters = useRef(filters);
+  latestFilters.current = filters;
+
+  const pushUrl = useCallback((q: string, f: Filters) => {
+    const params = buildSearchParams(q, f);
+    const qs = params.toString();
+    startTransition(() => {
+      router.replace(`/clases${qs ? '?' + qs : ''}`, { scroll: false });
+    });
+  }, [router]);
+
+  const handleFiltersChange = (newFilters: Filters) => {
+    setFilters(newFilters);
+    pushUrl(query, newFilters);
+  };
+
+  const handleQueryChange = (q: string) => {
+    setQuery(q);
+    if (queryTimerRef.current) clearTimeout(queryTimerRef.current);
+    queryTimerRef.current = setTimeout(() => {
+      pushUrl(q, latestFilters.current);
+    }, 400);
+  };
+
+  const handleClearAll = () => {
+    setFilters(EMPTY_FILTERS);
+    setQuery('');
+    startTransition(() => {
+      router.replace('/clases', { scroll: false });
+    });
+  };
+
+  // ── Client-side filtering (instant feedback + client-only dimensions) ─────────
+  // The server pre-filters by styles/levels/days/city/modalities/types/withSpots/query.
+  // Client applies priceRanges + timesOfDay on top, plus the other dims for
+  // instant feedback while the server re-fetch is in progress.
+
   const results = initialClasses.filter(cls => {
-    if (cls.status !== 'published') return false;
     if (query && !cls.title.toLowerCase().includes(query.toLowerCase()) &&
         !cls.style.toLowerCase().includes(query.toLowerCase()) &&
         !cls.teacher.name.toLowerCase().includes(query.toLowerCase())) return false;
@@ -58,13 +136,15 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
       const classdays = cls.timeSlots.flatMap(s => s.days);
       if (!filters.days.some(d => classdays.includes(d))) return false;
     }
+    if (filters.city && cls.city !== filters.city) return false;
     return true;
   });
 
   const activeCount =
     filters.styles.length + filters.levels.length + filters.days.length +
     filters.timesOfDay.length + filters.modalities.length + filters.priceRanges.length +
-    filters.types.length + (filters.withSpots ? 1 : 0);
+    filters.types.length + (filters.withSpots ? 1 : 0) + (filters.city ? 1 : 0) +
+    (query ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-white">
@@ -78,12 +158,12 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
             <input
               type="text"
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={e => handleQueryChange(e.target.value)}
               placeholder="Busca por estilo, profesor o academia…"
               className="flex-1 text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none"
             />
             {query && (
-              <button onClick={() => setQuery('')} className="text-neutral-400 hover:text-neutral-600">
+              <button onClick={() => handleQueryChange('')} className="text-neutral-400 hover:text-neutral-600">
                 <X className="w-4 h-4" />
               </button>
             )}
@@ -121,15 +201,15 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
             {filters.styles.map(s => (
               <span key={s} className="flex items-center gap-1 text-[13px] bg-neutral-900 text-white font-medium px-3 py-1 rounded-full whitespace-nowrap">
                 {s}
-                <button onClick={() => setFilters(f => ({ ...f, styles: f.styles.filter(x => x !== s) }))}>
+                <button onClick={() => handleFiltersChange({ ...filters, styles: filters.styles.filter(x => x !== s) })}>
                   <X className="w-3 h-3" />
                 </button>
               </span>
             ))}
             {filters.levels.map(l => (
               <span key={l} className="flex items-center gap-1 text-[13px] bg-neutral-900 text-white font-medium px-3 py-1 rounded-full whitespace-nowrap">
-                {l === 'Todos los niveles' ? 'All levels' : l}
-                <button onClick={() => setFilters(f => ({ ...f, levels: f.levels.filter(x => x !== l) }))}>
+                {l}
+                <button onClick={() => handleFiltersChange({ ...filters, levels: filters.levels.filter(x => x !== l) })}>
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -143,7 +223,7 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
         <aside className="hidden md:block w-60 shrink-0">
           <div className="sticky top-36">
             <h3 className="font-bold text-neutral-900 text-[15px] mb-4">Filtros</h3>
-            <FilterPanel filters={filters} onChange={setFilters} />
+            <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} />
           </div>
         </aside>
 
@@ -158,7 +238,7 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
                   <X className="w-5 h-5 text-neutral-500" />
                 </button>
               </div>
-              <FilterPanel filters={filters} onChange={setFilters} />
+              <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} />
               <button onClick={() => setShowFilters(false)} className="btn-dark w-full mt-5">
                 Ver {results.length} resultado{results.length !== 1 ? 's' : ''}
               </button>
@@ -167,10 +247,13 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
         )}
 
         {/* Results */}
-        <main className="flex-1 min-w-0">
+        <main className={`flex-1 min-w-0 transition-opacity duration-150 ${isPending ? 'opacity-60' : ''}`}>
           <div className="flex items-center justify-between mb-6">
-            <p className="text-[15px] text-neutral-500">
-              <span className="font-bold text-neutral-900">{results.length}</span> clase{results.length !== 1 ? 's' : ''} disponible{results.length !== 1 ? 's' : ''}
+            <p className="text-[15px] text-neutral-500 flex items-center gap-2">
+              {isPending
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Filtrando…</>
+                : <><span className="font-bold text-neutral-900">{results.length}</span> clase{results.length !== 1 ? 's' : ''} disponible{results.length !== 1 ? 's' : ''}</>
+              }
             </p>
             <div className="flex gap-2">
               <button className="p-2 rounded-md bg-neutral-900 text-white"><List className="w-4 h-4" /></button>
@@ -178,13 +261,13 @@ export default function ClasesContent({ initialClasses }: { initialClasses: Danc
             </div>
           </div>
 
-          {results.length === 0 ? (
+          {results.length === 0 && !isPending ? (
             <div className="text-center py-24">
               <p className="text-5xl mb-5">🕺</p>
               <h3 className="text-[24px] font-bold text-neutral-900 mb-2">Sin resultados</h3>
               <p className="text-neutral-500 text-[15px] max-w-sm mx-auto">No encontramos clases con esos filtros. Prueba cambiando el estilo, ciudad o nivel.</p>
               <button
-                onClick={() => { setFilters(EMPTY_FILTERS); setQuery(''); }}
+                onClick={handleClearAll}
                 className="btn-outline mt-6"
               >
                 Limpiar filtros

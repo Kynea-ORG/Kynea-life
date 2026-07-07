@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { fetchTeacherClasses } from '@/lib/queries/classes';
+import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { MessageCircle, Eye, Bookmark, TrendingUp } from 'lucide-react';
 
 export default async function ContactosPage() {

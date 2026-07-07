@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { fetchTeacherById, fetchTeacherClasses } from '@/lib/queries/classes';
+import { fetchTeacherClasses } from '@/lib/classes/queries';
+import { fetchTeacherById } from '@/lib/profiles/queries';
 import ProfesorDetailClient from './ProfesorDetailClient';
 
 export default async function ProfesorPage({ params }: { params: Promise<{ id: string }> }) {

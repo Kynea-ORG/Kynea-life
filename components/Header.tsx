@@ -33,6 +33,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,15 +46,18 @@ export default function Header({ transparent = false }: { transparent?: boolean 
         .eq('id', userId)
         .single();
       if (data) setProfile(data as Profile);
+      setAuthLoading(false);
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) loadProfile(session.user.id);
+    // getUser() verifies JWT server-side (more secure than getSession)
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) loadProfile(user.id);
+      else setAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) loadProfile(session.user.id);
-      else setProfile(null);
+      else { setProfile(null); setAuthLoading(false); }
     });
 
     return () => subscription.unsubscribe();
@@ -120,6 +124,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
             width={110}
             height={36}
             priority
+            style={{ height: 'auto' }}
           />
         </Link>
 
@@ -134,7 +139,9 @@ export default function Header({ transparent = false }: { transparent?: boolean 
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
-          {isLoggedIn ? (
+          {authLoading ? (
+            <div className="w-40 h-9 bg-neutral-100 rounded-lg animate-pulse" />
+          ) : isLoggedIn ? (
             <>
               {canPublish && (
                 <Link
@@ -223,7 +230,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
 
         {/* Mobile: avatar + hamburger */}
         <div className="md:hidden flex items-center gap-2">
-          {isLoggedIn && <Avatar sizeClass="w-8 h-8" className="border-2 border-neutral-200" />}
+          {!authLoading && isLoggedIn && <Avatar sizeClass="w-8 h-8" className="border-2 border-neutral-200" />}
           <button
             className={`p-2 rounded-md transition-all ${
               transparent ? 'text-white hover:bg-white/10' : 'text-neutral-700 hover:bg-neutral-100'

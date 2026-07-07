@@ -1,18 +1,19 @@
 export type ClassStatus = 'published' | 'draft' | 'finished' | 'archived';
 export type ClassType = 'clase' | 'taller' | 'curso' | 'masterclass' | 'evento' | 'clase-suelta';
-export type DanceStyle =
-  | 'Salsa' | 'Bachata' | 'Ballet' | 'Breakdance' | 'Cha-cha-chá'
-  | 'Contemporáneo' | 'Dancehall' | 'Folklore' | 'Heels' | 'Hip Hop'
-  | 'House' | 'Jazz' | 'Jazz Funk' | 'K-pop' | 'Reggaetón'
-  | 'Tango' | 'Urbano' | 'Zumba' | 'Acroverticales';
-export type Level = 'Iniciantes' | 'Principiantes' | 'Básico' | 'Intermedio' | 'Avanzado' | 'Todos los niveles';
+export type DanceStyle = string;
+export type Level = string;
 export type Modality = 'Presencial' | 'Online';
 export type PriceType = 'Gratis' | 'Por clase' | 'Mensual' | 'Paquete';
+
+// Catalog types returned by fetch functions (DB tables)
+export interface DbDanceStyle { id: number; name: string; slug: string; emoji: string; }
+export interface DbLevel { id: number; name: string; }
+export interface DbDistrict { id: number; name: string; city: string; }
 
 export interface Teacher {
   id: string;
   name: string;
-  type: 'profesor' | 'academia' | 'colectivo';
+  type: 'profesor' | 'academia';
   photo: string;
   city: string;
   district: string;
@@ -45,6 +46,7 @@ export interface DanceClass {
   id: string;
   type: ClassType;
   title: string;
+  slug?: string;
   style: DanceStyle;
   secondaryStyles?: DanceStyle[];
   level: Level;
@@ -81,15 +83,12 @@ export interface DanceClass {
   coverImage: string;
   gallery?: string[];
   videoUrl?: string;
-  tiktokUrl?: string;
-  instagramUrl?: string;
 
   footwear?: string;
   clothing?: string;
   toBring?: string[];
   ageGroup?: string;
-  prerequisites?: string;
-  contactMode?: 'whatsapp' | 'instagram' | 'ambos';
+  contactMode?: 'whatsapp' | 'instagram' | 'web';
 
   status: ClassStatus;
   teacher: Teacher;

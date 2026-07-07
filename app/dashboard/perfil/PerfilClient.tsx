@@ -2,26 +2,38 @@
 import { useState, useTransition, useRef } from 'react';
 import { Save, Upload, Loader2, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { DANCE_STYLES } from '@/lib/mockData';
-import { updateProfile } from '@/lib/actions/classes';
+import { updateProfile } from '@/lib/profiles/actions';
 import { createClient } from '@/lib/supabase/client';
+import type { DbDistrict } from '@/lib/types';
+
+interface ProfileStyleRow {
+  style_id: number;
+  dance_styles: { name: string } | null;
+}
 
 interface Profile {
   name: string | null;
   bio: string | null;
-  city: string | null;
-  district: string | null;
   years_experience: number | null;
   whatsapp: string | null;
   instagram: string | null;
   tiktok: string | null;
   youtube: string | null;
   website: string | null;
-  dance_styles: string[] | null;
   photo_url: string | null;
+  district: { name: string; city: string } | null;
+  profile_styles: ProfileStyleRow[] | null;
 }
 
-export default function PerfilClient({ profile }: { profile: Profile }) {
+export default function PerfilClient({
+  profile,
+  danceStyles,
+  allDistricts,
+}: {
+  profile: Profile;
+  danceStyles: string[];
+  allDistricts: DbDistrict[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -32,9 +44,13 @@ export default function PerfilClient({ profile }: { profile: Profile }) {
 
   const [name, setName] = useState(profile.name ?? '');
   const [bio, setBio] = useState(profile.bio ?? '');
-  const [city, setCity] = useState(profile.city ?? '');
-  const [district, setDistrict] = useState(profile.district ?? '');
+  const [city, setCity] = useState(profile.district?.city ?? 'Lima');
+  const [district, setDistrict] = useState(profile.district?.name ?? '');
   const [years, setYears] = useState(String(profile.years_experience ?? ''));
+  const [styles, setStyles] = useState<string[]>(
+    (profile.profile_styles ?? []).map(ps => ps.dance_styles?.name ?? '').filter(Boolean)
+  );
+
   const parseWa = (wa: string) => {
     const CODES = ['+51', '+1', '+34', '+57', '+56', '+54', '+52', '+58', '+593'];
     if (!wa) return { code: '+51', number: '' };
@@ -52,11 +68,13 @@ export default function PerfilClient({ profile }: { profile: Profile }) {
   const [tiktok, setTiktok] = useState(profile.tiktok ?? '');
   const [youtube, setYoutube] = useState(profile.youtube ?? '');
   const [website, setWebsite] = useState(profile.website ?? '');
-  const [styles, setStyles] = useState<string[]>(profile.dance_styles ?? []);
 
   const toggleStyle = (s: string) => {
     setStyles(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   };
+
+  const CITIES = [...new Set(allDistricts.map(d => d.city))].sort();
+  const districtsByCity = allDistricts.filter(d => d.city === city);
 
   const handlePhotoUpload = async (file: File) => {
     if (file.size > 2 * 1024 * 1024) { setError('La foto debe ser menor a 2MB'); return; }
@@ -89,20 +107,25 @@ export default function PerfilClient({ profile }: { profile: Profile }) {
   const handleSave = () => {
     setError('');
     setSaved(false);
+    const whatsappFull = waNumber ? `${waCode}${waNumber}` : '';
+    if (!whatsappFull && !instagram) {
+      setError('Ingresa al menos tu WhatsApp o Instagram para que los alumnos puedan contactarte.');
+      return;
+    }
     startTransition(async () => {
       try {
         await updateProfile({
           name,
           bio,
-          city,
-          district,
+          district_name: district || undefined,
+          district_city: district ? city : undefined,
           years_experience: years ? parseInt(years) : undefined,
           whatsapp: waNumber ? `${waCode}${waNumber}` : '',
           instagram,
           tiktok,
           youtube,
           website,
-          dance_styles: styles,
+          style_names: styles,
         });
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
@@ -169,13 +192,24 @@ export default function PerfilClient({ profile }: { profile: Profile }) {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Ciudad</label>
-              <input type="text" value={city} onChange={e => setCity(e.target.value)}
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900" />
+              <select
+                value={city}
+                onChange={e => { setCity(e.target.value); setDistrict(''); }}
+                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 bg-white"
+              >
+                {CITIES.map(c => <option key={c}>{c}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Distrito</label>
-              <input type="text" value={district} onChange={e => setDistrict(e.target.value)}
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900" />
+              <select
+                value={district}
+                onChange={e => setDistrict(e.target.value)}
+                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 bg-white"
+              >
+                <option value="">Seleccionar distrito…</option>
+                {districtsByCity.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Años de experiencia</label>
@@ -189,7 +223,7 @@ export default function PerfilClient({ profile }: { profile: Profile }) {
         <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6">
           <h2 className="font-bold text-neutral-900 mb-4">Estilos que enseñas</h2>
           <div className="flex flex-wrap gap-2">
-            {DANCE_STYLES.map(s => (
+            {danceStyles.map(s => (
               <button key={s} onClick={() => toggleStyle(s)}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                   styles.includes(s)
@@ -205,10 +239,10 @@ export default function PerfilClient({ profile }: { profile: Profile }) {
         {/* Contact & social */}
         <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6 space-y-4">
           <h2 className="font-bold text-neutral-900">Contacto y redes</h2>
+          <p className="text-xs text-neutral-400"><span className="text-red-500">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
 
-          {/* WhatsApp — split country code + number */}
           <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp</label>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp <span className="text-red-500">*</span></label>
             <div className="flex gap-2">
               <select
                 value={waCode}
@@ -237,13 +271,15 @@ export default function PerfilClient({ profile }: { profile: Profile }) {
           </div>
 
           {[
-            { label: 'Instagram', value: instagram, set: setInstagram },
+            { label: 'Instagram', value: instagram, set: setInstagram, required: true },
             { label: 'TikTok', value: tiktok, set: setTiktok },
             { label: 'YouTube', value: youtube, set: setYoutube },
             { label: 'Sitio web', value: website, set: setWebsite },
           ].map(f => (
             <div key={f.label}>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{f.label}</label>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                {f.label}{'required' in f && f.required && <span className="text-red-500 ml-0.5">*</span>}
+              </label>
               <input type="text" value={f.value} onChange={e => f.set(e.target.value)}
                 placeholder={`Tu ${f.label.toLowerCase()}`}
                 className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900" />

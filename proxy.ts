@@ -37,11 +37,27 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect /dashboard and /onboarding — redirect to /login if not authenticated
-  if ((request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/onboarding')) && !user) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/login';
-    return NextResponse.redirect(redirectUrl);
+  const path = request.nextUrl.pathname;
+
+  // Protect /dashboard, /onboarding and /completar-registro — redirect to /login if not authenticated
+  if ((path.startsWith('/dashboard') || path.startsWith('/onboarding') || path.startsWith('/completar-registro')) && !user) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Enforce onboarding: authenticated users who haven't completed it can only access
+  // the public home page, auth flows, and the onboarding itself.
+  // onboarding_done is stored in user_metadata (set after finishing onboarding or
+  // immediately for alumnos who don't need it) — no extra DB query needed.
+  if (user && user.user_metadata?.onboarding_done !== true) {
+    const ONBOARDING_FREE = [
+      '/onboarding', '/auth', '/login', '/registro',
+      '/confirmar-email', '/completar-registro', '/reset-password',
+      '/terminos', '/_next',
+    ];
+    const isAllowed = path === '/' || ONBOARDING_FREE.some(p => path.startsWith(p));
+    if (!isAllowed) {
+      return NextResponse.redirect(new URL('/onboarding', request.url));
+    }
   }
 
   return supabaseResponse;

@@ -12,7 +12,7 @@ function IgIcon({ className }: { className?: string }) {
 }
 import Header from '@/components/Header';
 import ContactModal from '@/components/ContactModal';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/mockData';
+import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 
@@ -25,8 +25,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [activeImg, setActiveImg] = useState(0);
 
   const contactMode = cls.contactMode ?? 'whatsapp';
-  const showWa = contactMode === 'whatsapp' || contactMode === 'ambos';
-  const showIg = contactMode === 'instagram' || contactMode === 'ambos';
+  const showWa = contactMode === 'whatsapp';
+  const showIg = contactMode === 'instagram';
 
   useEffect(() => {
     const supabase = createClient();
@@ -65,7 +65,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.whatsapp) {
-      supabase.rpc('increment_class_contacts', { class_id: cls.id });
+      supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp, cls.title);
       window.open(url, '_blank', 'noopener,noreferrer');
       return;
@@ -80,7 +80,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.instagram) {
-      supabase.rpc('increment_class_contacts', { class_id: cls.id });
+      supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
       return;

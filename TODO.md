@@ -1,0 +1,2 @@
+- mensaje de cuenta existente, no deberia salir si es un registro nuevo, me sale cuando me registro con correo y contraseña
+- enlace de olvide contraseña no deberia mandar si mi cuenta fue creada con google

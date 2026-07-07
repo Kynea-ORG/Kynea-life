@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MapPin, Clock, MessageCircle, Bookmark, Users } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/mockData';
+import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import ContactModal from './ContactModal';
 
@@ -32,13 +32,17 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
       return;
     }
     const mode = cls.contactMode ?? 'whatsapp';
-    if ((mode === 'whatsapp' || mode === 'ambos') && cls.teacher.whatsapp) {
+    if (mode === 'whatsapp' && cls.teacher.whatsapp) {
       window.open(buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp, cls.title), '_blank');
       return;
     }
-    if ((mode === 'instagram' || mode === 'ambos') && cls.teacher.instagram) {
+    if (mode === 'instagram' && cls.teacher.instagram) {
       const handle = cls.teacher.instagram.replace(/^@/, '');
       window.open(`https://instagram.com/${handle}`, '_blank');
+      return;
+    }
+    if (mode === 'web' && cls.teacher.website) {
+      window.open(cls.teacher.website, '_blank');
       return;
     }
     // Logged in but teacher has no contact configured
@@ -51,7 +55,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
         {/* Image */}
         <div className="relative overflow-hidden">
           <img
-            src={cls.coverImage}
+            src={cls.coverImage || undefined}
             alt={cls.title}
             className={`w-full object-cover group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}
           />

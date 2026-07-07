@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { fetchTeacherClasses } from '@/lib/queries/classes';
+import { fetchTeacherClasses } from '@/lib/classes/queries';
 import MisClasesClient from './MisClasesClient';
 
 export default async function MisClasesPage() {

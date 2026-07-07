@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import DashboardSidebar from './DashboardSidebar';
+import NoticeBar from './NoticeBar';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -13,14 +15,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq('id', user.id)
     .single();
 
-  if (!profile) redirect('/login');
+  // User authenticated but no profile row (trigger failed) — redirect with error param to break loop
+  if (!profile) redirect('/login?error=cuenta_incompleta');
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex">
-      <DashboardSidebar profile={profile} />
-      <main className="flex-1 min-w-0 pt-14 md:pt-0 pb-20 md:pb-0">
-        {children}
-      </main>
+    <div className="min-h-screen bg-neutral-50 flex flex-col">
+      <Suspense>
+        <NoticeBar />
+      </Suspense>
+      <div className="flex flex-1 min-h-0">
+        <DashboardSidebar profile={profile} />
+        <main className="flex-1 min-w-0 pt-14 md:pt-0 pb-20 md:pb-0">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
