@@ -28,6 +28,32 @@ const NAV_LINKS = [
   { label: 'Explorar clases', href: '/clases' },
 ];
 
+function Avatar({
+  photoUrl,
+  name,
+  sizeClass = 'w-8 h-8',
+  className = '',
+}: {
+  photoUrl: string | null | undefined;
+  name: string | undefined;
+  sizeClass?: string;
+  className?: string;
+}) {
+  if (photoUrl) {
+    return (
+      <div className={`relative ${sizeClass} rounded-full overflow-hidden shrink-0 ${className}`}>
+        <Image src={photoUrl} alt={name ?? ''} fill sizes="48px" className="object-cover" />
+      </div>
+    );
+  }
+  const initial = name?.charAt(0).toUpperCase() ?? '?';
+  return (
+    <div className={`${sizeClass} rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-bold shrink-0 ${className}`}>
+      {initial}
+    </div>
+  );
+}
+
 export default function Header({ transparent = false }: { transparent?: boolean }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -90,24 +116,6 @@ export default function Header({ transparent = false }: { transparent?: boolean 
     ? 'text-[15px] font-medium text-white/90 px-3.5 py-1.5 rounded-md hover:bg-white/10 transition-all'
     : 'nav-link';
 
-  function Avatar({ sizeClass = 'w-8 h-8', className = '' }: { sizeClass?: string; className?: string }) {
-    if (profile?.photo_url) {
-      return (
-        <img
-          src={profile.photo_url}
-          alt={profile.name}
-          className={`${sizeClass} rounded-full object-cover shrink-0 ${className}`}
-        />
-      );
-    }
-    const initial = profile?.name?.charAt(0).toUpperCase() ?? '?';
-    return (
-      <div className={`${sizeClass} rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-bold shrink-0 ${className}`}>
-        {initial}
-      </div>
-    );
-  }
-
   return (
     <header className={
       transparent
@@ -163,7 +171,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                     transparent ? 'hover:bg-white/10' : 'hover:bg-neutral-100'
                   }`}
                 >
-                  <Avatar sizeClass="w-8 h-8" />
+                  <Avatar photoUrl={profile?.photo_url} name={profile?.name} sizeClass="w-8 h-8" />
                   <div className="text-left hidden lg:block">
                     <p className={`text-[13px] font-bold leading-tight ${transparent ? 'text-white' : 'text-neutral-900'}`}>
                       {profile.name.split(' ')[0]}
@@ -178,7 +186,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-neutral-200 rounded-xl shadow-lg py-1 z-50 overflow-hidden">
                     <div className="px-4 py-3 border-b border-neutral-100 flex items-center gap-3">
-                      <Avatar sizeClass="w-9 h-9" />
+                      <Avatar photoUrl={profile?.photo_url} name={profile?.name} sizeClass="w-9 h-9" />
                       <div className="min-w-0">
                         <p className="text-[13px] font-bold text-neutral-900 truncate">{profile.name}</p>
                         <p className="text-[11px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
@@ -230,7 +238,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
 
         {/* Mobile: avatar + hamburger */}
         <div className="md:hidden flex items-center gap-2">
-          {!authLoading && isLoggedIn && <Avatar sizeClass="w-8 h-8" className="border-2 border-neutral-200" />}
+          {!authLoading && isLoggedIn && <Avatar photoUrl={profile?.photo_url} name={profile?.name} sizeClass="w-8 h-8" className="border-2 border-neutral-200" />}
           <button
             className={`p-2 rounded-md transition-all ${
               transparent ? 'text-white hover:bg-white/10' : 'text-neutral-700 hover:bg-neutral-100'
@@ -250,7 +258,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
           {/* User info */}
           {isLoggedIn ? (
             <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
-              <Avatar sizeClass="w-11 h-11" />
+              <Avatar photoUrl={profile?.photo_url} name={profile?.name} sizeClass="w-11 h-11" />
               <div>
                 <p className="text-[15px] font-bold text-neutral-900">{profile.name}</p>
                 <p className="text-[13px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>

@@ -19,6 +19,7 @@ export default async function CrearClasePage({ searchParams }: PageProps) {
 
   return (
     <CrearClaseForm
+      key={params.edit ?? 'new'}
       classId={params.edit ?? null}
       editClass={editClass as DanceClass | null}
       danceStyles={danceStyles.map(s => s.name)}
