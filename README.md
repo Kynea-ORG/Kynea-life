@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kynea
 
-## Getting Started
+Kynea es el directorio de referencia de clases de danza en Perú. Conecta a alumnos con profesores y academias que publican sus clases — el contacto entre ambos siempre ocurre fuera de la plataforma (WhatsApp, Instagram, sitio web).
 
-First, run the development server:
+## Stack
+
+- [Next.js 16](https://nextjs.org) (App Router)
+- [React 19](https://react.dev)
+- TypeScript
+- [Tailwind CSS v4](https://tailwindcss.com)
+- [Supabase](https://supabase.com) (`@supabase/ssr`)
+
+## Setup
+
+Requisitos: Node.js y la [Supabase CLI](https://supabase.com/docs/guides/cli) instalados.
+
+1. Copia el archivo de plantilla de variables de entorno y complétalo:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   `.env.local` necesita:
+
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+   ```
+
+2. Instala dependencias y levanta el servidor de desarrollo:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+   La app queda disponible en [http://localhost:3000](http://localhost:3000).
+
+## Comandos
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev             # servidor de desarrollo (localhost:3000)
+npm run build            # build de producción
+npm run lint              # ESLint (Next.js core-web-vitals + reglas TypeScript)
+
+npm run db:link:dev      # vincula la CLI de Supabase al proyecto kynea-dev
+npm run db:link:prod     # vincula la CLI de Supabase al proyecto de producción
+npm run db:push          # aplica las migraciones pendientes al proyecto vinculado
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Documentación
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [`docs/CONTEXT.md`](docs/CONTEXT.md) — contexto del proyecto, dominio y schema de base de datos
+- [`docs/TASKS.md`](docs/TASKS.md) — handoff de desarrollo y trabajo pendiente
+- [`docs/BUGS.md`](docs/BUGS.md) — bugs conocidos
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — despliegue en Vercel y migraciones de base de datos
+- [`CLAUDE.md`](CLAUDE.md) — guía de arquitectura y convenciones para agentes de código
+- [`AGENTS.md`](AGENTS.md) — advertencia sobre breaking changes de Next.js 16 en este repo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Nota sobre Next.js 16
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Este proyecto usa una versión de Next.js con breaking changes respecto a versiones anteriores (por ejemplo, el middleware se llama `proxy.ts` y exporta `proxy`, no `middleware`; `cookies()` es async). Ver [`AGENTS.md`](AGENTS.md) antes de escribir código nuevo.

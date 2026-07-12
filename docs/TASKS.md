@@ -30,7 +30,8 @@ están implementados** en el código actual:
   (`completeOAuthRegistration`), helper `lib/auth/redirectByRole.ts`.
 - **Upload de foto del profesor** — file upload real a Supabase Storage (`class-images`) desde
   `app/dashboard/perfil/PerfilClient.tsx`; ya no es un input de URL.
-- **RPC de contactos** — `increment_class_contacts` existe en `supabase/schema.sql` y se
+- **RPC de contactos** — `increment_class_contacts` existe en
+  `supabase/migrations/20260705000080_08_rpc_functions.sql` y se
   llama desde `app/clases/[id]/ClaseDetailClient.tsx` al tocar WhatsApp/Instagram.
 - **Mapa con datos reales** — `app/mapa/page.tsx` usa `fetchPublishedClasses()` y filtra por
   `lat/lng != null`; `lib/mockData.ts` fue borrado (0 referencias restantes).
@@ -90,7 +91,7 @@ están implementados** en el código actual:
 | `lib/catalog/lookups.ts` | `lookupLevelId`, `lookupStyleId`, `lookupDistrictId` |
 | `lib/stats/queries.ts` | `HomeStats`, `fetchHomeStats` |
 | `lib/types.ts` | Tipos TypeScript del proyecto (`DanceClass`, `Teacher`, etc.) |
-| `supabase/schema.sql` | Schema completo de la DB (tablas, RLS, triggers, storage, RPCs) |
+| `supabase/migrations/*.sql` | Schema versionado (14 migraciones: 00_reset … 13_grants) |
 | `proxy.ts` | Middleware de autenticación (Next.js 16: nombre `proxy.ts`, función `proxy`) |
 
 ---
@@ -114,10 +115,10 @@ técnicamente, pero es ambiguo cuál es el oficial:
    "Confirm signup" para que envíe `{{ .Token }}` (sin `{{ .ConfirmationURL }}`). Quitar
    `emailRedirectTo` del `signUp()` en `app/registro/page.tsx`.
 3. **Si se elige link:** quitar la pantalla `/confirmar-email` y el `verifyOtp`.
-4. **Documentar** la decisión en `DEPLOY.md`.
+4. **Documentar** la decisión en `docs/DEPLOY.md`.
 
 **Archivos:** `app/registro/page.tsx`, `app/confirmar-email/page.tsx`,
-`app/auth/callback/route.ts`, Supabase Dashboard, `DEPLOY.md`.
+`app/auth/callback/route.ts`, Supabase Dashboard, `docs/DEPLOY.md`.
 
 ### 1.2 ✅ Google OAuth — ya completo
 
@@ -232,7 +233,7 @@ de dirección y guardar `lat`/`lng` en `venues`. Esto alimenta el mapa (6.1).
 
 ### 4.3 🟡 Estado "finalizada" para clases vencidas
 
-El status `'finished'` existe en el schema (`schema.sql:232`, CHECK incluye `'finished'`), pero
+El status `'finished'` existe en el schema (`supabase/migrations/20260705000050_05_classes.sql`, CHECK incluye `'finished'`), pero
 **no se usa automáticamente**: `fetchPublishedClasses` filtra por `.eq('status','published')` sin
 verificar `end_date`, y no hay trigger que marque clases vencidas.
 
@@ -323,7 +324,8 @@ En `app/clases/[id]/page.tsx` (server component), tras obtener la clase, llamar
 
 ## 7. CONTACTO CON EL PROFESOR — parcialmente completo
 
-**Hecho:** `increment_class_contacts` existe en schema (`schema.sql:313-318`) y se llama desde
+**Hecho:** `increment_class_contacts` existe en
+`supabase/migrations/20260705000080_08_rpc_functions.sql` y se llama desde
 `app/clases/[id]/ClaseDetailClient.tsx` (botones WhatsApp/Instagram, solo si el usuario está
 logueado). El `ContactModal` actúa como gate de registro para no logueados.
 
@@ -476,7 +478,7 @@ Migraciones versionadas en `supabase/migrations/`, aplicadas con `supabase db pu
 ## Guía de inicio rápido para el desarrollador
 
 1. **Clonar el repo** y crear `.env.local` con las variables de Supabase (pedir al dueño).
-2. **Leer `supabase/schema.sql`** — modelo de datos completo.
+2. **Leer las migraciones en `supabase/migrations/`** — modelo de datos completo.
 3. **Leer `lib/types.ts`** — tipos del proyecto.
 4. **Leer las guías de Next.js 16** en `node_modules/next/dist/docs/` (hay breaking changes).
 5. **Ejecutar** `npm install && npm run dev` — debe correr en `localhost:3000`.
