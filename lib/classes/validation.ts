@@ -50,6 +50,7 @@ export interface ClassValidationInput {
 
 export type PublishErrorPayload = {
   code: 'VALIDATION' | 'MISSING_CONTACT_CHANNEL' | 'INVALID_IMAGE';
+  // NOTE: 'INVALID_IMAGE' is used by imageActions.ts's uploadClassImage
   message: string;
   errors?: FieldError[];
   missing?: ('whatsapp' | 'instagram')[];
