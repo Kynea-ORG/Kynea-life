@@ -2,7 +2,7 @@
 import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/classes/actions';
@@ -18,18 +18,34 @@ const STATUS_TABS: { key: ClassStatus | 'all'; label: string }[] = [
 
 export default function MisClasesClient({ initialClasses }: { initialClasses: DanceClass[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [classes, setClasses] = useState<DanceClass[]>(initialClasses);
   const [activeTab, setActiveTab] = useState<ClassStatus | 'all'>('all');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'info' | 'error' } | null>(null);
+  // Publish success signal survives the server redirect via ?published=1
+  // (set by createClass/updateClassFromForm) — read once via a lazy
+  // initializer so the initial toast doesn't require a setState-in-effect.
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'info' | 'error' } | null>(() =>
+    searchParams.get('published') === '1'
+      ? { msg: 'Tu clase fue publicada correctamente.', type: 'success' }
+      : null
+  );
 
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // Clear the ?published=1 param so a refresh doesn't re-show the toast.
+  useEffect(() => {
+    if (searchParams.get('published') === '1') {
+      router.replace('/dashboard/mis-clases');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const showToast = (msg: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToast({ msg, type });

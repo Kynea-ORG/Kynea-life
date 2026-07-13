@@ -6,12 +6,20 @@ import { lookupLevelId, lookupStyleId, lookupDistrictId } from '@/lib/catalog/lo
 import {
   createVenue, insertClassStyles, insertClassSchedules, buildClassColumns,
 } from './helpers';
+import { validateForPublish, formDataToValidationInput, publishError } from './validation';
 import type { FormSlot, ClassUpdatePayload } from './types';
 
 export async function createClass(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
+
+  if (formData.get('status') === 'published') {
+    const result = validateForPublish(formDataToValidationInput(formData));
+    if (!result.ok) {
+      throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
+    }
+  }
 
   const styleName = formData.get('style')    as string;
   const levelName = formData.get('level')    as string;
@@ -63,7 +71,7 @@ export async function createClass(formData: FormData) {
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath('/clases');
-  redirect('/dashboard/mis-clases');
+  redirect(cols.status === 'published' ? '/dashboard/mis-clases?published=1' : '/dashboard/mis-clases');
 }
 
 export async function updateClass(classId: string, updates: ClassUpdatePayload) {
@@ -147,6 +155,13 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
 
+  if (formData.get('status') === 'published') {
+    const result = validateForPublish(formDataToValidationInput(formData));
+    if (!result.ok) {
+      throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
+    }
+  }
+
   const styleName  = formData.get('style')     as string;
   const levelName  = formData.get('level')     as string;
   const modality   = formData.get('modality')  as string;
@@ -213,5 +228,5 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);
   revalidatePath('/clases');
-  redirect('/dashboard/mis-clases');
+  redirect(cols.status === 'published' ? '/dashboard/mis-clases?published=1' : '/dashboard/mis-clases');
 }
