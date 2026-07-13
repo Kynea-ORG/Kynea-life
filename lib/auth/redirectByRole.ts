@@ -1,11 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+export function roleMismatchNotice(
+  incomingRole: string | null,
+  profileRole: string | null,
+): 'cuenta_existente' | null {
+  return incomingRole && profileRole && incomingRole !== profileRole ? 'cuenta_existente' : null;
+}
+
 export async function redirectByRole(
   supabase: SupabaseClient,
   options: {
-    onSuccess: (path: string) => void;
+    onSuccess: (path: string, notice?: string | null) => void;
     onError: (msg: string) => void;
     refresh?: () => void;
+    expectedRole?: string | null;
   }
 ) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,5 +36,9 @@ export async function redirectByRole(
     await supabase.auth.updateUser({ data: { onboarding_done: true } });
   }
 
-  options.onSuccess(dest);
+  const notice = options.expectedRole !== undefined
+    ? roleMismatchNotice(options.expectedRole, profile?.role ?? null)
+    : null;
+
+  options.onSuccess(dest, notice);
 }
