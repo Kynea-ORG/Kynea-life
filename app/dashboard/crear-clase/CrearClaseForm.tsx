@@ -743,7 +743,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             {[
               { value: 'whatsapp', label: 'WhatsApp', desc: 'Los alumnos te contactan por WhatsApp' },
               { value: 'instagram', label: 'Instagram', desc: 'Los alumnos te escriben por Instagram' },
-              { value: 'web', label: 'Sitio web', desc: 'Los alumnos visitan tu sitio web' },
+              { value: 'both', label: 'WhatsApp e Instagram', desc: 'Los alumnos pueden contactarte por ambos canales' },
             ].map(opt => (
               <label key={opt.value}
                 className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -857,7 +857,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { label: 'Ubicación', value: locationLabel },
             { label: 'Horarios', value: slotsLabel },
             { label: 'Precio', value: priceLabel },
-            { label: 'Contacto', value: form.contactMode === 'web' ? 'Sitio web' : form.contactMode === 'instagram' ? 'Instagram' : 'WhatsApp' },
+            { label: 'Contacto', value: form.contactMode === 'both' ? 'WhatsApp e Instagram' : form.contactMode === 'instagram' ? 'Instagram' : 'WhatsApp' },
             { label: 'Cupos', value: form.maxSpots ? `${form.maxSpots} cupos` : '—' },
           ].map((row, i) => (
             <div key={row.label} className={`flex gap-4 px-4 py-3 ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}>

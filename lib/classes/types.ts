@@ -38,7 +38,7 @@ export interface ClassUpdatePayload {
   requirements?:     string | null;
   age_group?:        string | null;
   to_bring?:         string[];
-  contact_mode?:     'whatsapp' | 'instagram' | 'web';
+  contact_mode?:     'whatsapp' | 'instagram' | 'both';
   cover_image?:      string | null;
 }
 

@@ -75,7 +75,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     clothing:         row.clothing ?? undefined,
     toBring:          row.to_bring ?? [],
     ageGroup:         row.age_group ?? undefined,
-    contactMode:      (row.contact_mode ?? 'whatsapp') as 'whatsapp' | 'instagram' | 'web',
+    contactMode:      (row.contact_mode ?? 'whatsapp') as 'whatsapp' | 'instagram' | 'both',
     status:           row.status as ClassStatus,
     teacher:          row.teacher ? mapTeacher(row.teacher) : ({} as Teacher),
     metrics: {
