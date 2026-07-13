@@ -7,6 +7,7 @@ import {
   dbRowToValidationInput,
   publishError,
   parsePublishError,
+  profileFixHref,
   type ClassValidationInput,
 } from './validation';
 import type { DbClassRow, DbClassSchedule } from './types';
@@ -283,6 +284,31 @@ describe('formDataToValidationInput', () => {
     const fd = new FormData();
     const input = formDataToValidationInput(fd);
     expect(input.slots).toEqual([]);
+  });
+
+  it('defaults priceType to "Gratis" when the key is genuinely absent from FormData', () => {
+    // Guards against a regression where an absent priceType key silently
+    // falls through to a different default (or undefined) as more callers
+    // reuse this adapter — documented behavior, not incidental.
+    const fd = new FormData();
+    const input = formDataToValidationInput(fd);
+    expect(input.priceType).toBe('Gratis');
+  });
+});
+
+// ─── profileFixHref ──────────────────────────────────────────────────────────
+
+describe('profileFixHref', () => {
+  it('builds a single-channel deep link', () => {
+    expect(profileFixHref(['whatsapp'])).toBe('/dashboard/perfil?missing=whatsapp#contacto');
+  });
+
+  it('builds a multi-channel deep link', () => {
+    expect(profileFixHref(['whatsapp', 'instagram'])).toBe('/dashboard/perfil?missing=whatsapp,instagram#contacto');
+  });
+
+  it('falls back to the bare anchor when missing is empty (defensive)', () => {
+    expect(profileFixHref([])).toBe('/dashboard/perfil#contacto');
   });
 });
 

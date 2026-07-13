@@ -72,6 +72,13 @@ export function parsePublishError(err: unknown): PublishErrorPayload | null {
   }
 }
 
+// Single source for the contact-gating deep link. Every call site (wizard
+// banner, list-view toast) builds the identical href via this helper.
+export function profileFixHref(missing: ('whatsapp' | 'instagram')[]): string {
+  if (!missing.length) return '/dashboard/perfil#contacto';
+  return `/dashboard/perfil?missing=${missing.join(',')}#contacto`;
+}
+
 // ─── Rule helpers ───────────────────────────────────────────────────────────
 
 function isPastDate(dateStr: string): boolean {

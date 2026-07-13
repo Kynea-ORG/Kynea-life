@@ -6,8 +6,12 @@ import { lookupLevelId, lookupStyleId, lookupDistrictId } from '@/lib/catalog/lo
 import {
   createVenue, insertClassStyles, insertClassSchedules, buildClassColumns,
 } from './helpers';
-import { validateForPublish, formDataToValidationInput, publishError } from './validation';
-import type { FormSlot, ClassUpdatePayload } from './types';
+import {
+  validateForPublish, formDataToValidationInput, dbRowToValidationInput, publishError,
+} from './validation';
+import { assertContactChannel } from './publishGuard';
+import { CLASS_SELECT } from './queries';
+import type { FormSlot, ClassUpdatePayload, DbClassRow } from './types';
 
 export async function createClass(formData: FormData) {
   const supabase = await createClient();
@@ -46,6 +50,10 @@ export async function createClass(formData: FormData) {
 
   const cols = buildClassColumns(formData, { levelId, venueId });
 
+  if (cols.status === 'published') {
+    await assertContactChannel(supabase, user.id, cols.contact_mode ?? 'whatsapp');
+  }
+
   const { data: newClass, error } = await supabase
     .from('classes')
     .insert({
@@ -80,8 +88,30 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload) 
   if (!user) throw new Error('No autenticado');
 
   const payload: ClassUpdatePayload = { ...updates };
-  if (payload.status === 'published' && !payload.published_at) {
-    payload.published_at = new Date().toISOString();
+
+  // Publish strictness parity (Addition B): the list-view "Publicar"/"Activar"
+  // path bypasses the wizard's form entirely, so it must independently fetch
+  // the stored row + schedules and run the SAME validate+guard pipeline the
+  // wizard runs. Non-published transitions (draft/archived) stay permissive.
+  if (payload.status === 'published') {
+    const { data: row } = await supabase
+      .from('classes')
+      .select(CLASS_SELECT)
+      .eq('id', classId)
+      .eq('teacher_id', user.id)
+      .single();
+
+    if (!row) throw new Error('Clase no encontrada');
+
+    const typedRow = row as unknown as DbClassRow;
+    const result = validateForPublish(dbRowToValidationInput(typedRow, typedRow.class_schedules ?? []));
+    if (!result.ok) {
+      throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
+    }
+
+    await assertContactChannel(supabase, user.id, typedRow.contact_mode ?? 'whatsapp');
+
+    if (!payload.published_at) payload.published_at = new Date().toISOString();
   }
 
   const { error } = await supabase
@@ -200,6 +230,10 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
 
   const cols = buildClassColumns(formData, { levelId, venueId });
   const updates: ClassUpdatePayload = { ...cols };
+
+  if (cols.status === 'published') {
+    await assertContactChannel(supabase, user.id, cols.contact_mode ?? 'whatsapp');
+  }
 
   if (coverImage) updates.cover_image = coverImage;
   if (cols.status === 'published') updates.published_at = new Date().toISOString();
