@@ -4,6 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Documentation
+
+- [`docs/CONTEXT.md`](docs/CONTEXT.md) — project/domain context and full database schema overview
+- [`docs/TASKS.md`](docs/TASKS.md) — dev handoff and open work
+- [`docs/BUGS.md`](docs/BUGS.md) — known bugs
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — Vercel deploy and database migration flow
+
 ## Commands
 
 ```bash
@@ -21,6 +28,8 @@ Requires a `.env.local` with:
 NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```
+
+The template for these variables lives in `.env.example` — copy it to `.env.local` and fill in the values.
 
 ## Architecture
 
