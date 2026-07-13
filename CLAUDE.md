@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [`docs/TASKS.md`](docs/TASKS.md) — dev handoff and open work
 - [`docs/BUGS.md`](docs/BUGS.md) — known bugs
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — Vercel deploy and database migration flow
+- [`docs/HOTFIX.md`](docs/HOTFIX.md) — emergency branch-protection bypass procedure
+- [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — PR/branch/review workflow for the team
 
 ## Commands
 
