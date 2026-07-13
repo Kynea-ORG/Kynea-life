@@ -424,7 +424,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
       {/* Cover image upload */}
       <div>
-        <FieldLabel>Imagen de portada</FieldLabel>
+        <FieldLabel>Imagen de portada *</FieldLabel>
         <input
           ref={fileInputRef}
           type="file"
@@ -462,6 +462,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         )}
 
         {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
+        {fieldErrors.coverImage && <p className="text-xs text-red-600 mt-1">{fieldErrors.coverImage}</p>}
         <Hint>Recomendado: 1200×630 px, formato JPG o PNG</Hint>
       </div>
     </div>
@@ -949,13 +950,17 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           ))}
         </div>
 
-        {coverImageUrl && (
+        {coverImageUrl ? (
           <div>
             <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Imagen de portada</p>
             <div className="relative w-full h-40 rounded-xl border border-neutral-200 overflow-hidden">
               <Image src={coverImageUrl} alt="Portada" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
             </div>
           </div>
+        ) : (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            La imagen de portada es obligatoria para publicar. Agrega una foto en el paso &quot;Información básica&quot;.
+          </p>
         )}
 
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">

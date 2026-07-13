@@ -42,6 +42,7 @@ function validInput(overrides: Partial<ClassValidationInput> = {}): ClassValidat
     district: 'Miraflores',
     address: 'Av. Benavides 1234',
     accessLink: '',
+    coverImage: 'https://example.com/cover.jpg',
     slots: [{ days: ['Lunes'], startTime: '19:00', endTime: '20:30' }],
     ...overrides,
   };
@@ -89,6 +90,28 @@ describe('validateForPublish — required fields', () => {
   it('rejects empty level', () => {
     const result = validateForPublish(validInput({ level: '' }));
     expect(result.errors.some(e => e.field === 'level')).toBe(true);
+  });
+
+  it('rejects empty coverImage', () => {
+    const result = validateForPublish(validInput({ coverImage: '' }));
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContainEqual({
+      field: 'coverImage',
+      message: 'La imagen de portada es obligatoria para publicar.',
+    });
+  });
+
+  it('rejects whitespace-only coverImage', () => {
+    const result = validateForPublish(validInput({ coverImage: '   ' }));
+    expect(result.errors).toContainEqual({
+      field: 'coverImage',
+      message: 'La imagen de portada es obligatoria para publicar.',
+    });
+  });
+
+  it('accepts a non-empty coverImage', () => {
+    const result = validateForPublish(validInput());
+    expect(result.errors.some(e => e.field === 'coverImage')).toBe(false);
   });
 });
 
@@ -245,6 +268,10 @@ describe('validateForDraft', () => {
     expect(validateForDraft({} as ClassValidationInput)).toEqual({ ok: true, errors: [] });
     expect(validateForDraft(validInput({ title: '' }))).toEqual({ ok: true, errors: [] });
   });
+
+  it('is ok even when coverImage is empty (drafts stay permissive)', () => {
+    expect(validateForDraft(validInput({ coverImage: '' }))).toEqual({ ok: true, errors: [] });
+  });
 });
 
 // ─── formDataToValidationInput ──────────────────────────────────────────────
@@ -293,6 +320,19 @@ describe('formDataToValidationInput', () => {
     const fd = new FormData();
     const input = formDataToValidationInput(fd);
     expect(input.priceType).toBe('Gratis');
+  });
+
+  it('maps coverImage from FormData when present', () => {
+    const fd = new FormData();
+    fd.set('coverImage', 'https://example.com/cover.jpg');
+    const input = formDataToValidationInput(fd);
+    expect(input.coverImage).toBe('https://example.com/cover.jpg');
+  });
+
+  it('defaults coverImage to an empty string when absent from FormData', () => {
+    const fd = new FormData();
+    const input = formDataToValidationInput(fd);
+    expect(input.coverImage).toBe('');
   });
 });
 
@@ -363,6 +403,7 @@ function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
       address: 'Av. Test 99',
       reference: null,
       maps_url: null,
+      place_id: null,
       lat: null,
       lng: null,
       district: { name: 'Miraflores', city: 'Lima' },
@@ -402,7 +443,11 @@ describe('dbRowToValidationInput', () => {
       { id: 's1', day_of_week: 0, start_time: '19:00', end_time: '20:00' },
       { id: 's2', day_of_week: 2, start_time: '19:00', end_time: '20:00' },
     ];
-    const row = makeDbRow({ start_date: isoDaysFromToday(1), end_date: isoDaysFromToday(30) });
+    const row = makeDbRow({
+      start_date: isoDaysFromToday(1),
+      end_date: isoDaysFromToday(30),
+      cover_image: 'https://storage.example.com/cover.jpg',
+    });
     const input = dbRowToValidationInput(row, schedules);
     const result = validateForPublish(input);
     expect(result.ok).toBe(true);
@@ -414,6 +459,18 @@ describe('dbRowToValidationInput', () => {
     const result = validateForPublish(input);
     expect(result.ok).toBe(false);
     expect(result.errors.some(e => e.field === 'price')).toBe(true);
+  });
+
+  it('maps cover_image from the DB row when present', () => {
+    const row = makeDbRow({ cover_image: 'https://storage.example.com/cover.jpg' });
+    const input = dbRowToValidationInput(row, []);
+    expect(input.coverImage).toBe('https://storage.example.com/cover.jpg');
+  });
+
+  it('defaults coverImage to an empty string when cover_image is null', () => {
+    const row = makeDbRow({ cover_image: null });
+    const input = dbRowToValidationInput(row, []);
+    expect(input.coverImage).toBe('');
   });
 });
 
