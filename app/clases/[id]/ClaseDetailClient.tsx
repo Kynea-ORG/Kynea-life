@@ -26,8 +26,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [activeImg, setActiveImg] = useState(0);
 
   const contactMode = cls.contactMode ?? 'whatsapp';
-  const showWa = contactMode === 'whatsapp';
-  const showIg = contactMode === 'instagram';
+  const showWa = contactMode === 'whatsapp' || contactMode === 'both';
+  const showIg = contactMode === 'instagram' || contactMode === 'both';
 
   useEffect(() => {
     const supabase = createClient();

@@ -68,7 +68,7 @@ export function buildClassColumns(
     requirements:      (formData.get('prerequisites') as string) || null,
     age_group:         (formData.get('ageGroup') as string) || null,
     to_bring:          toBring ? JSON.parse(toBring) : [],
-    contact_mode:      ((formData.get('contactMode') as string) || 'whatsapp') as 'whatsapp' | 'instagram' | 'web',
+    contact_mode:      ((formData.get('contactMode') as string) || 'whatsapp') as 'whatsapp' | 'instagram' | 'both',
     status:            formData.get('status') as ClassStatus,
   };
 }

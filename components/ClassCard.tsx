@@ -33,20 +33,16 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
       return;
     }
     const mode = cls.contactMode ?? 'whatsapp';
-    if (mode === 'whatsapp' && cls.teacher.whatsapp) {
+    if ((mode === 'whatsapp' || mode === 'both') && cls.teacher.whatsapp) {
       window.open(buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp), '_blank');
       return;
     }
-    if (mode === 'instagram' && cls.teacher.instagram) {
+    if ((mode === 'instagram' || mode === 'both') && cls.teacher.instagram) {
       const handle = cls.teacher.instagram.replace(/^@/, '');
       window.open(`https://instagram.com/${handle}`, '_blank');
       return;
     }
-    if (mode === 'web' && cls.teacher.website) {
-      window.open(cls.teacher.website, '_blank');
-      return;
-    }
-    // Logged in but teacher has no contact configured
+    // Logged in but teacher has no matching contact channel configured
     setShowContact(true);
   }
 

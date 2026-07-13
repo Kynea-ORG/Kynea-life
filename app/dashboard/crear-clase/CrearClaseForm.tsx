@@ -8,8 +8,19 @@ import {
   Upload, MapPin, Monitor, Loader2, X,
 } from 'lucide-react';
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
-import { createClient } from '@/lib/supabase/client';
+import { uploadClassImage } from '@/lib/classes/imageActions';
+import {
+  MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
+} from '@/lib/classes/validation';
 import type { DanceClass, DbDistrict } from '@/lib/types';
+
+// Maps a validator field name to the wizard step where it's editable, so a
+// blocked publish attempt can jump the user straight to the offending step.
+const FIELD_STEP: Record<string, number> = {
+  title: 0, style: 0, level: 0, fullDesc: 0,
+  schedule: 1, startDate: 1, endDate: 1, modality: 1, address: 1, city: 1, district: 1, accessLink: 1,
+  price: 2,
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -136,16 +147,28 @@ function SegmentedProgress({ step }: { step: number }) {
   );
 }
 
-function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Pill({ active, onClick, disabled, badge, children }: {
+  active: boolean; onClick: () => void; disabled?: boolean; badge?: string; children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-2 border-2 text-sm font-semibold transition-all ${
-        active ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+      disabled={disabled}
+      className={`rounded-full px-4 py-2 border-2 text-sm font-semibold transition-all inline-flex items-center gap-1.5 ${
+        disabled
+          ? 'border-neutral-100 text-neutral-300 cursor-not-allowed opacity-60'
+          : active
+            ? 'bg-neutral-900 text-white border-neutral-900'
+            : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
       }`}
     >
       {children}
+      {badge && (
+        <span className="text-[10px] font-bold uppercase tracking-wide bg-neutral-100 text-neutral-400 rounded-full px-1.5 py-0.5">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -181,6 +204,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [contactGateError, setContactGateError] = useState<{ message: string; href: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [coverImageUrl, setCoverImageUrl] = useState(() => editClass?.coverImage ?? '');
@@ -204,21 +229,23 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   const handleFileSelect = async (file: File) => {
     if (!file) return;
+    // Fast client-side UX hint only — the server is the authoritative check
+    // (re-validates size + MIME + magic bytes independently).
     if (file.size > 5 * 1024 * 1024) { setUploadError('Imagen mayor a 5MB'); return; }
     setUploadError('');
     setUploadingImage(true);
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No autenticado');
-      const ext = file.name.split('.').pop() ?? 'jpg';
-      const path = `${session.user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file);
-      if (uploadErr) throw new Error(uploadErr.message);
-      const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
-      setCoverImageUrl(publicUrl);
+      const fd = new FormData();
+      fd.set('file', file);
+      const { url } = await uploadClassImage(fd);
+      setCoverImageUrl(url);
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Error al subir imagen');
+      const payload = parsePublishError(err);
+      if (payload?.code === 'INVALID_IMAGE') {
+        setUploadError(payload.message);
+      } else {
+        setUploadError(err instanceof Error ? err.message : 'Error al subir imagen');
+      }
     } finally {
       setUploadingImage(false);
     }
@@ -242,6 +269,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   const handlePublish = (status: string) => {
     setSubmitError('');
+    setFieldErrors({});
+    setContactGateError(null);
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -252,6 +281,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('level', form.level);
         fd.set('shortDesc', form.shortDesc);
         fd.set('fullDesc', form.fullDesc);
+        fd.set('recurrence', form.recurrence);
         fd.set('startDate', form.startDate);
         fd.set('endDate', form.recurrence === 'unica' ? form.startDate : form.endDate);
         fd.set('priceType', form.priceType);
@@ -278,6 +308,21 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('timeSlots', JSON.stringify(slots));
         if (coverImageUrl) fd.set('coverImage', coverImageUrl);
 
+        // Draft saves stay permissive — only publish attempts are gated.
+        if (status === 'published') {
+          const result = validateForPublish(formDataToValidationInput(fd));
+          if (!result.ok) {
+            const errorsByField: Record<string, string> = {};
+            result.errors.forEach(e => { errorsByField[e.field] = e.message; });
+            setFieldErrors(errorsByField);
+            setSubmitError('Completa los campos obligatorios antes de publicar.');
+            const firstStep = FIELD_STEP[result.errors[0].field] ?? 0;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setStep(firstStep);
+            return;
+          }
+        }
+
         if (classId) {
           await updateClassFromForm(classId, fd);
         } else {
@@ -285,7 +330,22 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
-        setSubmitError(err instanceof Error ? err.message : 'Error al guardar');
+        const payload = parsePublishError(err);
+        if (payload?.code === 'VALIDATION' && payload.errors) {
+          const errorsByField: Record<string, string> = {};
+          payload.errors.forEach(e => { errorsByField[e.field] = e.message; });
+          setFieldErrors(errorsByField);
+          setSubmitError(payload.message);
+          const firstStep = FIELD_STEP[payload.errors[0].field] ?? 0;
+          setStep(firstStep);
+          return;
+        }
+        if (payload?.code === 'MISSING_CONTACT_CHANNEL') {
+          setContactGateError({ message: payload.message, href: profileFixHref(payload.missing ?? []) });
+          setStep(2);
+          return;
+        }
+        setSubmitError(payload?.message ?? (err instanceof Error ? err.message : 'Error al guardar'));
       }
     });
   };
@@ -323,6 +383,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         <input className="input" value={form.title} onChange={e => set('title', e.target.value)}
           placeholder="Ej: Salsa Básico desde cero" maxLength={80} />
         <Hint>{form.title.length}/80 caracteres</Hint>
+        {fieldErrors.title && <p className="text-xs text-red-600 mt-1">{fieldErrors.title}</p>}
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -332,6 +393,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <option value="">Seleccionar estilo…</option>
             {danceStyles.map(s => <option key={s}>{s}</option>)}
           </NativeSelect>
+          {fieldErrors.style && <p className="text-xs text-red-600 mt-1">{fieldErrors.style}</p>}
         </div>
         <div>
           <FieldLabel>Nivel *</FieldLabel>
@@ -339,6 +401,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <option value="">Seleccionar nivel…</option>
             {levels.map(l => <option key={l}>{l}</option>)}
           </NativeSelect>
+          {fieldErrors.level && <p className="text-xs text-red-600 mt-1">{fieldErrors.level}</p>}
         </div>
       </div>
 
@@ -353,7 +416,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         <FieldLabel>Descripción completa</FieldLabel>
         <textarea rows={5} value={form.fullDesc} onChange={e => set('fullDesc', e.target.value)}
           placeholder="Cuéntanos todo sobre la clase: qué aprenderán, para quién es, dinámica, requisitos…"
+          maxLength={MAX_FULL_DESC}
           className="input resize-none" />
+        <Hint>{form.fullDesc.length}/{MAX_FULL_DESC} caracteres</Hint>
+        {fieldErrors.fullDesc && <p className="text-xs text-red-600 mt-1">{fieldErrors.fullDesc}</p>}
       </div>
 
       {/* Cover image upload */}
@@ -406,6 +472,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
     <div className="space-y-6">
       <h2 className="text-lg font-bold text-neutral-900 mb-5">Horario y ubicación</h2>
 
+      {fieldErrors.schedule && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{fieldErrors.schedule}</p>
+      )}
+
       {/* Recurrence type — FIRST */}
       <div>
         <FieldLabel>Tipo de recurrencia</FieldLabel>
@@ -413,9 +483,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           {[
             { value: 'unica', label: 'Clase única' },
             { value: 'mensual', label: 'Mensual' },
-            { value: 'personalizado', label: 'Personalizado' },
+            { value: 'personalizado', label: 'Personalizado', disabled: true, badge: 'Próximamente' },
           ].map(opt => (
-            <Pill key={opt.value} active={form.recurrence === opt.value} onClick={() => {
+            <Pill key={opt.value} active={form.recurrence === opt.value} disabled={opt.disabled} badge={opt.badge} onClick={() => {
+              if (opt.disabled) return;
               set('recurrence', opt.value);
               setSlots([{ days: [], startTime: '19:00', endTime: '20:30' }]);
             }}>
@@ -433,6 +504,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               <FieldLabel>Fecha de la clase</FieldLabel>
               <input type="date" className="input" value={form.startDate}
                 onChange={e => { set('startDate', e.target.value); set('endDate', e.target.value); }} />
+              {fieldErrors.startDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.startDate}</p>}
             </div>
             <div>
               <FieldLabel>Fecha de fin</FieldLabel>
@@ -470,11 +542,13 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               <FieldLabel>Fecha de inicio</FieldLabel>
               <input type="date" className="input" value={form.startDate}
                 onChange={e => set('startDate', e.target.value)} />
+              {fieldErrors.startDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.startDate}</p>}
             </div>
             <div>
               <FieldLabel>Fecha de fin</FieldLabel>
               <input type="date" className="input" value={form.endDate}
                 onChange={e => set('endDate', e.target.value)} />
+              {fieldErrors.endDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.endDate}</p>}
             </div>
           </div>
           <div>
@@ -513,7 +587,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         </>
       )}
 
-      {/* PERSONALIZADO */}
+      {/* PERSONALIZADO — reserved for a future custom-recurrence feature.
+          The Pill above is disabled (see FIELD_STEP/Pill), so this branch is
+          currently unreachable via the UI; kept intact rather than removed
+          per design (do not delete, do not activate). */}
       {form.recurrence === 'personalizado' && (
         <>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -633,6 +710,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             {/* TODO: Google Places Autocomplete — add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable */}
             <input className="input" value={form.address} onChange={e => set('address', e.target.value)}
               placeholder="Av. Benavides 1234, piso 3" />
+            {fieldErrors.address && <p className="text-xs text-red-600 mt-1">{fieldErrors.address}</p>}
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
@@ -640,6 +718,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               <NativeSelect value={form.city} onChange={e => { set('city', e.target.value); set('district', ''); }}>
                 {CITIES.map(c => <option key={c}>{c}</option>)}
               </NativeSelect>
+              {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
             </div>
             <div>
               <FieldLabel>Distrito</FieldLabel>
@@ -647,6 +726,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 <option value="">Seleccionar distrito…</option>
                 {districtsByCity.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
               </NativeSelect>
+              {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
             </div>
           </div>
           <div>
@@ -674,6 +754,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <input className="input" value={form.accessLink} onChange={e => set('accessLink', e.target.value)}
               placeholder="https://zoom.us/j/..." />
             <Hint>Puedes ocultarlo hasta confirmar la inscripción</Hint>
+            {fieldErrors.accessLink && <p className="text-xs text-red-600 mt-1">{fieldErrors.accessLink}</p>}
           </div>
         </div>
       )}
@@ -708,6 +789,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                   <input type="number" className="input pl-10" value={form.price}
                     onChange={e => set('price', e.target.value)} placeholder="0" min={0} />
                 </div>
+                {fieldErrors.price && <p className="text-xs text-red-600 mt-1">{fieldErrors.price}</p>}
               </div>
               <div>
                 <FieldLabel>Moneda</FieldLabel>
@@ -743,7 +825,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             {[
               { value: 'whatsapp', label: 'WhatsApp', desc: 'Los alumnos te contactan por WhatsApp' },
               { value: 'instagram', label: 'Instagram', desc: 'Los alumnos te escriben por Instagram' },
-              { value: 'web', label: 'Sitio web', desc: 'Los alumnos visitan tu sitio web' },
+              { value: 'both', label: 'WhatsApp e Instagram', desc: 'Los alumnos pueden contactarte por ambos canales' },
             ].map(opt => (
               <label key={opt.value}
                 className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -857,7 +939,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { label: 'Ubicación', value: locationLabel },
             { label: 'Horarios', value: slotsLabel },
             { label: 'Precio', value: priceLabel },
-            { label: 'Contacto', value: form.contactMode === 'web' ? 'Sitio web' : form.contactMode === 'instagram' ? 'Instagram' : 'WhatsApp' },
+            { label: 'Contacto', value: form.contactMode === 'both' ? 'WhatsApp e Instagram' : form.contactMode === 'instagram' ? 'Instagram' : 'WhatsApp' },
             { label: 'Cupos', value: form.maxSpots ? `${form.maxSpots} cupos` : '—' },
           ].map((row, i) => (
             <div key={row.label} className={`flex gap-4 px-4 py-3 ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}>
@@ -923,6 +1005,14 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         ) : (
           <div className="flex flex-col gap-3 items-end">
             {submitError && <p className="text-[13px] text-red-600 font-medium">{submitError}</p>}
+            {contactGateError && (
+              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5">
+                {contactGateError.message}
+                <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
+                  Completar perfil
+                </Link>
+              </p>
+            )}
             <div className="flex gap-3">
               <button type="button" onClick={() => handlePublish('draft')} disabled={isPending}
                 className="btn-outline flex items-center gap-2 disabled:opacity-50">
