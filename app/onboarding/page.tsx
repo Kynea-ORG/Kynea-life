@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ChevronRight, ChevronLeft, Upload, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/profiles/actions';
+import { validateStep } from '@/lib/onboarding/validation';
 
 const STEPS = [
   'Datos públicos',
@@ -20,7 +21,7 @@ function OnboardingContent() {
   const [form, setForm] = useState({
     publicName: '',
     representante: '',
-    city: 'Lima',
+    city: '',
     district: '',
     bio: '',
     instagram: '',
@@ -112,11 +113,10 @@ function OnboardingContent() {
   }
 
   function handleNext() {
-    if (step === 1) {
-      if (!waNumber && !form.instagram) {
-        setError('Ingresa al menos tu WhatsApp o Instagram para que los alumnos puedan contactarte.');
-        return;
-      }
+    const result = validateStep(step, form, { waNumber });
+    if (!result.ok) {
+      setError(result.errors[0].message);
+      return;
     }
     setError('');
     setStep(s => s + 1);
@@ -125,6 +125,14 @@ function OnboardingContent() {
   const back = () => { setError(''); setStep(s => s - 1); };
 
   async function handleFinish() {
+    for (let s = 0; s <= 2; s++) {
+      const result = validateStep(s, form, { waNumber });
+      if (!result.ok) {
+        setError(`Revisa el paso ${s + 1}: ${result.errors[0].message}`);
+        setStep(s);
+        return;
+      }
+    }
     if (!form.rulesAccepted) {
       setError('Debes aceptar las reglas de publicación para continuar.');
       return;
@@ -234,12 +242,15 @@ function OnboardingContent() {
                   <p className="text-xs text-neutral-500">{photoUrl ? 'Cambiar foto' : 'Subir foto o logo'}</p>
                 </div>
                 {[
-                  { key: 'publicName', label: role === 'academia' ? 'Nombre de la academia' : 'Nombre público', placeholder: role === 'academia' ? 'Ej. Studio Ritmo Latino' : 'Tu nombre completo' },
+                  { key: 'publicName', label: role === 'academia' ? 'Nombre de la academia' : 'Nombre público', placeholder: role === 'academia' ? 'Ej. Studio Ritmo Latino' : 'Tu nombre completo', required: true },
                   ...(role === 'academia' ? [{ key: 'representante', label: 'Nombre del representante', placeholder: 'Nombre de quien gestiona la cuenta' }] : []),
                   { key: 'bio', label: 'Bio corta', placeholder: 'Cuéntanos sobre ti o tu academia…', type: 'textarea' },
                 ].map(field => (
                   <div key={field.key}>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{field.label}</label>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                      {field.label}
+                      {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                    </label>
                     {field.type === 'textarea' ? (
                       <textarea
                         rows={3}
@@ -261,17 +272,22 @@ function OnboardingContent() {
                 ))}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Ciudad</label>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                      Ciudad <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={form.city}
                       onChange={e => { set('city', e.target.value); set('district', ''); }}
                       className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
                     >
-                      {[...new Set(allDistricts.map(d => d.city))].sort().map(c => <option key={c}>{c}</option>)}
+                      <option value="">Seleccionar…</option>
+                      {[...new Set(allDistricts.map(d => d.city))].sort().map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Distrito</label>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                      Distrito <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={form.district}
                       onChange={e => set('district', e.target.value)}
@@ -353,7 +369,9 @@ function OnboardingContent() {
           {step === 2 && (
             <div>
               <h2 className="text-xl font-black text-neutral-900 mb-2">Tu especialidad</h2>
-              <p className="text-sm text-neutral-500 mb-4">¿Qué estilos enseñas?</p>
+              <p className="text-sm text-neutral-500 mb-4">
+                ¿Qué estilos enseñas? <span className="text-red-500">*</span>
+              </p>
               <div className="flex flex-wrap gap-2 mb-6">
                 {availableStyles.map(s => (
                   <button
