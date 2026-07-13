@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/classes/actions';
+import { parsePublishError, profileFixHref } from '@/lib/classes/validation';
 import type { ClassStatus, DanceClass } from '@/lib/types';
 
 const STATUS_TABS: { key: ClassStatus | 'all'; label: string }[] = [
@@ -27,7 +28,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
   // Publish success signal survives the server redirect via ?published=1
   // (set by createClass/updateClassFromForm) — read once via a lazy
   // initializer so the initial toast doesn't require a setState-in-effect.
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'info' | 'error' } | null>(() =>
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'info' | 'error'; href?: string; actionLabel?: string } | null>(() =>
     searchParams.get('published') === '1'
       ? { msg: 'Tu clase fue publicada correctamente.', type: 'success' }
       : null
@@ -47,19 +48,27 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const showToast = (msg: string, type: 'success' | 'info' | 'error' = 'success') => {
-    setToast({ msg, type });
+  const showToast = (msg: string, type: 'success' | 'info' | 'error' = 'success', href?: string, actionLabel?: string) => {
+    setToast({ msg, type, href, actionLabel });
   };
 
   const publishClass = (id: string) => {
+    const previousStatus = classes.find(c => c.id === id)?.status ?? 'draft';
     setClasses(prev => prev.map(c => c.id === id ? { ...c, status: 'published' as const } : c));
     showToast('Clase publicada', 'success');
     startTransition(async () => {
       try {
         await updateClass(id, { status: 'published' });
-      } catch {
-        setClasses(prev => prev.map(c => c.id === id ? { ...c, status: 'draft' as const } : c));
-        showToast('Error al publicar', 'error');
+      } catch (err) {
+        setClasses(prev => prev.map(c => c.id === id ? { ...c, status: previousStatus } : c));
+        const payload = parsePublishError(err);
+        if (payload?.code === 'MISSING_CONTACT_CHANNEL') {
+          showToast(payload.message, 'error', profileFixHref(payload.missing ?? []), 'Completar perfil');
+        } else if (payload?.code === 'VALIDATION') {
+          showToast(payload.message, 'error', `/dashboard/crear-clase?edit=${id}`, 'Completar clase');
+        } else {
+          showToast('Error al publicar', 'error');
+        }
       }
     });
   };
@@ -113,7 +122,12 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
         <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-all duration-300 ${
           toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-neutral-900 text-white'
         }`}>
-          {toast.msg}
+          <span>{toast.msg}</span>
+          {toast.href && (
+            <Link href={toast.href} className="underline font-bold shrink-0">
+              {toast.actionLabel ?? 'Ver'}
+            </Link>
+          )}
         </div>
       )}
 

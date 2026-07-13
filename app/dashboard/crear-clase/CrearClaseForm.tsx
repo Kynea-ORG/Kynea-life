@@ -10,7 +10,7 @@ import {
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
 import { createClient } from '@/lib/supabase/client';
 import {
-  MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError,
+  MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
 } from '@/lib/classes/validation';
 import type { DanceClass, DbDistrict } from '@/lib/types';
 
@@ -205,6 +205,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [contactGateError, setContactGateError] = useState<{ message: string; href: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [coverImageUrl, setCoverImageUrl] = useState(() => editClass?.coverImage ?? '');
@@ -267,6 +268,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const handlePublish = (status: string) => {
     setSubmitError('');
     setFieldErrors({});
+    setContactGateError(null);
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -334,6 +336,11 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           setSubmitError(payload.message);
           const firstStep = FIELD_STEP[payload.errors[0].field] ?? 0;
           setStep(firstStep);
+          return;
+        }
+        if (payload?.code === 'MISSING_CONTACT_CHANNEL') {
+          setContactGateError({ message: payload.message, href: profileFixHref(payload.missing ?? []) });
+          setStep(2);
           return;
         }
         setSubmitError(payload?.message ?? (err instanceof Error ? err.message : 'Error al guardar'));
@@ -996,6 +1003,14 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         ) : (
           <div className="flex flex-col gap-3 items-end">
             {submitError && <p className="text-[13px] text-red-600 font-medium">{submitError}</p>}
+            {contactGateError && (
+              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5">
+                {contactGateError.message}
+                <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
+                  Completar perfil
+                </Link>
+              </p>
+            )}
             <div className="flex gap-3">
               <button type="button" onClick={() => handlePublish('draft')} disabled={isPending}
                 className="btn-outline flex items-center gap-2 disabled:opacity-50">
