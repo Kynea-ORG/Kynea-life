@@ -1,5 +1,6 @@
 import { fetchClassById } from '@/lib/classes/queries';
 import { fetchDanceStyles, fetchClassLevels, fetchDistricts } from '@/lib/catalog/queries';
+import { requireRole } from '@/lib/auth/requireRole';
 import CrearClaseForm from './CrearClaseForm';
 import type { DanceClass } from '@/lib/types';
 
@@ -8,6 +9,8 @@ interface PageProps {
 }
 
 export default async function CrearClasePage({ searchParams }: PageProps) {
+  await requireRole(['profesor', 'academia']);
+
   const params = await searchParams;
 
   const [danceStyles, levels, allDistricts, editClass] = await Promise.all([
