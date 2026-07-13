@@ -8,7 +8,7 @@ import {
   Upload, MapPin, Monitor, Loader2, X,
 } from 'lucide-react';
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
-import { createClient } from '@/lib/supabase/client';
+import { uploadClassImage } from '@/lib/classes/imageActions';
 import {
   MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
 } from '@/lib/classes/validation';
@@ -229,21 +229,23 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   const handleFileSelect = async (file: File) => {
     if (!file) return;
+    // Fast client-side UX hint only — the server is the authoritative check
+    // (re-validates size + MIME + magic bytes independently).
     if (file.size > 5 * 1024 * 1024) { setUploadError('Imagen mayor a 5MB'); return; }
     setUploadError('');
     setUploadingImage(true);
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No autenticado');
-      const ext = file.name.split('.').pop() ?? 'jpg';
-      const path = `${session.user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file);
-      if (uploadErr) throw new Error(uploadErr.message);
-      const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
-      setCoverImageUrl(publicUrl);
+      const fd = new FormData();
+      fd.set('file', file);
+      const { url } = await uploadClassImage(fd);
+      setCoverImageUrl(url);
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Error al subir imagen');
+      const payload = parsePublishError(err);
+      if (payload?.code === 'INVALID_IMAGE') {
+        setUploadError(payload.message);
+      } else {
+        setUploadError(err instanceof Error ? err.message : 'Error al subir imagen');
+      }
     } finally {
       setUploadingImage(false);
     }
