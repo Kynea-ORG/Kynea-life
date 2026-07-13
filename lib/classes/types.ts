@@ -62,6 +62,7 @@ export interface DbVenue {
   address: string | null;
   reference: string | null;
   maps_url: string | null;
+  place_id: string | null;
   lat: number | null;
   lng: number | null;
   district: { name: string; city: string } | null;

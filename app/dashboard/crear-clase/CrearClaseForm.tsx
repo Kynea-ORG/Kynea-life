@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useTransition } from 'react';
+import { useState, useRef, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -17,10 +17,120 @@ import type { DanceClass, DbDistrict } from '@/lib/types';
 // Maps a validator field name to the wizard step where it's editable, so a
 // blocked publish attempt can jump the user straight to the offending step.
 const FIELD_STEP: Record<string, number> = {
-  title: 0, style: 0, level: 0, fullDesc: 0,
+  title: 0, style: 0, level: 0, fullDesc: 0, coverImage: 0,
   schedule: 1, startDate: 1, endDate: 1, modality: 1, address: 1, city: 1, district: 1, accessLink: 1,
   price: 2,
 };
+
+// ─── Google Places (PlaceAutocompleteElement) — env-gated ────────────────────
+// Web Component API (not the classic `google.maps.places.Autocomplete`, which
+// is unavailable to new Maps customers as of 2025-03-01). Degrades to a plain
+// <input> when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is unset or loading fails.
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+interface GooglePlaceResult {
+  placeId?: string;
+  formattedAddress?: string;
+  displayName?: string;
+  location?: { lat: () => number; lng: () => number } | null;
+  fetchFields: (opts: { fields: string[] }) => Promise<void>;
+}
+
+interface GmpSelectEvent extends Event {
+  placePrediction: { toPlace: () => GooglePlaceResult };
+}
+
+type PlaceAutocompleteElementInstance = HTMLElement;
+
+interface GoogleMapsPlacesLibrary {
+  PlaceAutocompleteElement: new () => PlaceAutocompleteElementInstance;
+}
+
+interface GoogleMapsNamespace {
+  maps: { importLibrary: (library: string) => Promise<GoogleMapsPlacesLibrary> };
+}
+
+declare global {
+  interface Window { google?: GoogleMapsNamespace }
+}
+
+let mapsScriptPromise: Promise<void> | null = null;
+
+function loadGoogleMapsScript(apiKey: string): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window.google?.maps) return Promise.resolve();
+  if (mapsScriptPromise) return mapsScriptPromise;
+  mapsScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('No se pudo cargar Google Maps'));
+    document.head.appendChild(script);
+  });
+  return mapsScriptPromise;
+}
+
+interface PlaceSelection { address: string; placeId: string; lat: number; lng: number }
+
+function PlacesAddressField({
+  value, onManualChange, onPlaceSelect, placeholder,
+}: {
+  value: string;
+  onManualChange: (v: string) => void;
+  onPlaceSelect: (selection: PlaceSelection) => void;
+  placeholder: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const onPlaceSelectRef = useRef(onPlaceSelect);
+  useEffect(() => { onPlaceSelectRef.current = onPlaceSelect; }, [onPlaceSelect]);
+
+  useEffect(() => {
+    if (!GOOGLE_MAPS_API_KEY) return;
+    const container = containerRef.current;
+    let element: PlaceAutocompleteElementInstance | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await loadGoogleMapsScript(GOOGLE_MAPS_API_KEY);
+        if (cancelled || !window.google || !container) return;
+        const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
+        if (cancelled) return;
+        element = new PlaceAutocompleteElement();
+        container.appendChild(element);
+        element.addEventListener('gmp-select', (async (event: Event) => {
+          const place = (event as GmpSelectEvent).placePrediction.toPlace();
+          await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+          onPlaceSelectRef.current({
+            address: place.formattedAddress ?? '',
+            placeId: place.placeId ?? '',
+            lat: place.location ? place.location.lat() : 0,
+            lng: place.location ? place.location.lng() : 0,
+          });
+        }) as EventListener);
+      } catch (err) {
+        console.error('[PlacesAddressField] Google Maps init failed', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (element && container?.contains(element)) {
+        container.removeChild(element);
+      }
+    };
+  }, []);
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <input className="input" value={value} onChange={e => onManualChange(e.target.value)} placeholder={placeholder} />
+    );
+  }
+
+  return <div ref={containerRef} />;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -59,6 +169,9 @@ function buildInitialForm(editClass: DanceClass | null) {
       address: '',
       reference: '',
       mapsUrl: '',
+      placeId: '',
+      lat: '',
+      lng: '',
       platform: '',
       accessLink: '',
       videoUrl: '',
@@ -92,6 +205,9 @@ function buildInitialForm(editClass: DanceClass | null) {
     address: editClass.address ?? '',
     reference: editClass.reference ?? '',
     mapsUrl: editClass.mapsUrl ?? '',
+    placeId: editClass.placeId ?? '',
+    lat: editClass.lat != null ? String(editClass.lat) : '',
+    lng: editClass.lng != null ? String(editClass.lng) : '',
     platform: editClass.platform ?? '',
     accessLink: editClass.accessLink ?? '',
     videoUrl: editClass.videoUrl ?? '',
@@ -294,6 +410,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('district', form.district);
         fd.set('address', form.address);
         fd.set('reference', form.reference);
+        fd.set('placeId', form.placeId);
+        fd.set('lat', form.lat);
+        fd.set('lng', form.lng);
         fd.set('platform', form.platform);
         fd.set('accessLink', form.accessLink);
         fd.set('footwear', form.footwear);
@@ -708,9 +827,22 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           <p className="text-xs font-bold text-neutral-700">Ubicación presencial</p>
           <div>
             <FieldLabel>Dirección</FieldLabel>
-            {/* TODO: Google Places Autocomplete — add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable */}
-            <input className="input" value={form.address} onChange={e => set('address', e.target.value)}
-              placeholder="Av. Benavides 1234, piso 3" />
+            <PlacesAddressField
+              value={form.address}
+              placeholder="Av. Benavides 1234, piso 3"
+              onManualChange={v => {
+                set('address', v);
+                set('placeId', '');
+                set('lat', '');
+                set('lng', '');
+              }}
+              onPlaceSelect={selection => {
+                set('address', selection.address);
+                set('placeId', selection.placeId);
+                set('lat', String(selection.lat));
+                set('lng', String(selection.lng));
+              }}
+            />
             {fieldErrors.address && <p className="text-xs text-red-600 mt-1">{fieldErrors.address}</p>}
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
