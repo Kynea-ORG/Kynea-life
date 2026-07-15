@@ -1,10 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
-// Minimal Vitest config scoped to lib/classes/*.ts pure functions
-// (validation.ts, imageValidation.ts, publishGuard.ts land in later PRs).
+// Minimal Vitest config scoped to pure-function unit tests under lib/.
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['lib/classes/**/*.test.ts'],
+    include: ['lib/**/*.test.ts'],
   },
 });

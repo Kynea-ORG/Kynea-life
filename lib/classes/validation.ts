@@ -43,6 +43,7 @@ export interface ClassValidationInput {
   district: string;
   address: string;
   accessLink: string;
+  coverImage: string;
   slots: ValidationSlot[];
 }
 
@@ -115,6 +116,9 @@ export function validateForPublish(input: ClassValidationInput): ValidationResul
   }
   if (!input.level || !input.level.trim()) {
     errors.push({ field: 'level', message: 'El nivel es obligatorio.' });
+  }
+  if (!input.coverImage || !input.coverImage.trim()) {
+    errors.push({ field: 'coverImage', message: 'La imagen de portada es obligatoria para publicar.' });
   }
 
   const slots = input.slots ?? [];
@@ -197,6 +201,7 @@ export function formDataToValidationInput(fd: FormData): ClassValidationInput {
     district: (fd.get('district') as string) ?? '',
     address: (fd.get('address') as string) ?? '',
     accessLink: (fd.get('accessLink') as string) ?? '',
+    coverImage: (fd.get('coverImage') as string) ?? '',
     slots,
   };
 }
@@ -230,6 +235,7 @@ export function dbRowToValidationInput(row: DbClassRow, schedules: DbClassSchedu
     district: row.venue?.district?.name ?? '',
     address: row.venue?.address ?? '',
     accessLink: row.access_link ?? '',
+    coverImage: row.cover_image ?? '',
     slots,
   };
 }

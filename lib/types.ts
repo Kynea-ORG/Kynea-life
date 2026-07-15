@@ -75,6 +75,7 @@ export interface DanceClass {
   address?: string;
   reference?: string;
   mapsUrl?: string;
+  placeId?: string;
   lat?: number;
   lng?: number;
   platform?: string;

@@ -59,7 +59,6 @@ export default function RegistroPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const origin = window.location.origin;
     const nextPath = role === 'alumno' ? '/clases' : '/onboarding?new=1';
 
     const metadata: Record<string, string> = { name: form.name, role };
@@ -72,7 +71,6 @@ export default function RegistroPage() {
       password: form.password,
       options: {
         data: metadata,
-        emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
       },
     });
 
@@ -89,7 +87,7 @@ export default function RegistroPage() {
       router.refresh();
       router.push(nextPath);
     } else {
-      router.push(`/confirmar-email?email=${encodeURIComponent(form.email)}`);
+      router.push(`/confirmar-email?email=${encodeURIComponent(form.email)}&role=${role}`);
     }
   }
 

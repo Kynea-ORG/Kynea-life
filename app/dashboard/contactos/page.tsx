@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
+import { requireRole } from '@/lib/auth/requireRole';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { MessageCircle, Eye, Bookmark, TrendingUp } from 'lucide-react';
 
 export default async function ContactosPage() {
+  await requireRole(['profesor', 'academia']);
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
