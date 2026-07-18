@@ -6,6 +6,7 @@ Cómo se mergea código en Kynea desde ahora. Aplica a los dos, sin excepciones 
 
 - `main` → producción. `develop` → integración.
 - Todo cambio va en una rama propia (`feature/lo-que-sea`, `fix/lo-que-sea`), nunca directo a `develop` o `main`.
+- Cada miembro del equipo puede tener una rama personal con su nombre de usuario de GitHub usando el prefijo `user/` (ej. `user/DavidVilcaO`) para subir cambios propios en curso.
 - Push directo a `develop`/`main` está bloqueado a nivel de GitHub — ni siquiera un admin puede saltárselo sin pasar por el procedimiento de [HOTFIX.md](HOTFIX.md).
 
 ## 2. Pull Requests
