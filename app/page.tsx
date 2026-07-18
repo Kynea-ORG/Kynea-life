@@ -6,8 +6,9 @@ import HomeClient from './HomeClient';
 import AuthErrorBanner from '@/components/AuthErrorBanner';
 
 export default async function Page() {
-  const [classes, teachers, academias, danceStyles, stats] = await Promise.all([
+  const [classes, salsaClasses, teachers, academias, danceStyles, stats] = await Promise.all([
     fetchPublishedClasses(),
+    fetchPublishedClasses({ styles: ['Salsa'] }),
     fetchFeaturedProfiles('profesor'),
     fetchFeaturedProfiles('academia'),
     fetchDanceStyles(),
@@ -19,9 +20,10 @@ export default async function Page() {
       <AuthErrorBanner />
       <HomeClient
         initialClasses={classes}
+        salsaClasses={salsaClasses}
         initialTeachers={teachers}
         initialAcademias={academias}
-        danceStyles={danceStyles.slice(0, 9).map(s => s.name)}
+        danceStyles={danceStyles.slice(0, 9)}
         stats={stats}
       />
     </>
