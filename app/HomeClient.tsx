@@ -11,7 +11,7 @@ import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import { getTypeLabel } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
-import type { DanceClass, Teacher } from '@/lib/types';
+import type { DanceClass, Teacher, DbDanceStyle } from '@/lib/types';
 import type { HomeStats } from '@/lib/stats/queries';
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -19,6 +19,33 @@ import type { HomeStats } from '@/lib/stats/queries';
 type SearchClass   = { id: string; title: string; type: string; class_styles: any[] | null };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SearchProfile = { id: string; name: string; role: string; districts: any; photo_url: string | null };
+
+const AVATAR_PALETTE = [
+  { bg: 'bg-primary-bg',     text: 'text-primary' },
+  { bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-dark' },
+  { bg: 'bg-green-bg',       text: 'text-green-dark' },
+  { bg: 'bg-yellow-bg',      text: 'text-yellow-dark' },
+];
+
+// Uploaded photos, assigned round-robin across categories for now.
+// TODO: map one specific photo per dance style once curated.
+const CATEGORY_IMAGES = [
+  '/categorias/rainier-ridao-GRDpPpKczdY-unsplash.jpg',
+  '/categorias/samantha-weisburg-hFTcxZFsG6g-unsplash.jpg',
+  '/categorias/ardian-lumi-6Woj_wozqmA-unsplash.jpg',
+  '/categorias/barrett-smith-uB4cOqtOf90-unsplash.jpg',
+  '/categorias/michael-afonso-z8Tul255kGg-unsplash.jpg',
+];
+
+// Fallback gradients shown behind the photo while it loads (also color variety across cards)
+const CATEGORY_GRADIENTS = [
+  'linear-gradient(135deg, #8a11bc 0%, #4a0a67 100%)',
+  'linear-gradient(135deg, #A8C8F8 0%, #4b6fd6 100%)',
+  'linear-gradient(135deg, #00D68F 0%, #00745A 100%)',
+  'linear-gradient(135deg, #d499f0 0%, #8a11bc 100%)',
+  'linear-gradient(135deg, #FFE040 0%, #d68f2f 100%)',
+  'linear-gradient(135deg, #e8c5f7 0%, #6d0d97 100%)',
+];
 
 const HOW_IT_WORKS = [
   { step: '1', Icon: Search,       title: 'Busca tu estilo',   desc: 'Filtra por ciudad, día, nivel y estilo de baile.' },
@@ -59,14 +86,15 @@ function StatCard({ stat, visible }: { stat: { target: number; suffix: string; l
 // ── Props ─────────────────────────────────────────────────────────────────
 interface Props {
   initialClasses:   DanceClass[];
+  salsaClasses:     DanceClass[];
   initialTeachers:  Teacher[];
   initialAcademias: Teacher[];
-  danceStyles:      string[];
+  danceStyles:      DbDanceStyle[];
   stats:            HomeStats;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ initialClasses, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
+export default function HomeClient({ initialClasses, salsaClasses, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
   const [city, setCity]           = useState('Lima');
@@ -76,10 +104,15 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
     { target: stats.classes,  suffix: '+', label: 'Clases disponibles',     dark: false },
     { target: stats.teachers, suffix: '+', label: 'Profesores verificados', dark: true  },
     { target: stats.styles,   suffix: '',  label: 'Estilos de baile',       dark: false },
-    { target: stats.cities,   suffix: '',  label: 'Ciudades en Perú',       dark: false },
+    { target: stats.cities,   suffix: '',  label: 'Ciudades en Latinoamérica', dark: false },
   ];
 
-  const CLASS_TABS = ['Todas', ...Array.from(new Set(initialClasses.map(c => c.style))).slice(0, 3)];
+  const CLASS_TABS = [
+    'Todas',
+    ...Array.from(new Set(initialClasses.map(c => c.style)))
+      .filter(style => style !== 'Cumbia')
+      .slice(0, 3),
+  ];
 
   // ── Search autocomplete ──
   const [suggestions, setSuggestions]       = useState<{ classes: SearchClass[]; profiles: SearchProfile[] }>({ classes: [], profiles: [] });
@@ -141,6 +174,12 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
     return () => observer.disconnect();
   }, []);
 
+  // ── Teachers carousel ──
+  const teachersScrollRef = useRef<HTMLDivElement>(null);
+
+  // ── Salsa category carousel ──
+  const salsaScrollRef = useRef<HTMLDivElement>(null);
+
   // ── Carousel auto-scroll ──
   const carouselRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -188,7 +227,7 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
             {/* Left */}
             <div>
               <div className="badge-black mb-8 text-xs tracking-wider uppercase">
-                🇵🇪 Perú · Plataforma de danza
+                🌎 Latinoamérica · Plataforma de danza
               </div>
 
               <h1 className="text-[48px] lg:text-[66px] font-black tracking-tighter text-white leading-none mb-6">
@@ -353,38 +392,38 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
             className="flex gap-3 overflow-x-auto pb-2"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
           >
-            {danceStyles.map(name => (
+            {danceStyles.map((style, i) => (
               <Link
-                key={name}
-                href={`/clases?style=${encodeURIComponent(name)}`}
-                className="relative shrink-0 w-[168px] h-[152px] rounded-2xl cursor-pointer group select-none block"
+                key={style.id}
+                href={`/clases?style=${encodeURIComponent(style.name)}`}
+                className="relative shrink-0 w-[168px] h-[152px] rounded-2xl cursor-pointer group select-none block overflow-hidden"
               >
-                {/* Base: lavender solid */}
-                <div className="absolute inset-0 bg-[#f0e6fc] rounded-2xl transition-opacity duration-300 group-hover:opacity-0" />
-
-                {/* Hover: white + purple radial glow */}
-                <div
-                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: 'radial-gradient(ellipse at 55% 45%, rgba(150, 70, 220, 0.38) 0%, rgba(185, 120, 255, 0.16) 48%, #ffffff 76%)',
-                  }}
-                />
-
-                {/* Border — only on hover */}
-                <div className="absolute inset-0 rounded-2xl border-[3px] border-transparent group-hover:border-neutral-900 transition-colors duration-200 pointer-events-none" />
-
-                {/* Content: icon top-left, name bottom-left */}
-                <div className="relative z-10 p-4 h-full flex flex-col justify-between">
+                {/* Background: uploaded photos assigned round-robin for now — will map one per style later */}
+                <div className="absolute inset-0 scale-100 group-hover:scale-110 transition-transform duration-500 ease-out">
+                  <div
+                    className="absolute inset-0 -z-10"
+                    style={{ background: CATEGORY_GRADIENTS[i % CATEGORY_GRADIENTS.length] }}
+                  />
                   <Image
-                    src="/Icon-categorias.png"
+                    src={CATEGORY_IMAGES[i % CATEGORY_IMAGES.length]}
                     alt=""
                     aria-hidden="true"
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 object-contain self-start"
+                    fill
+                    sizes="168px"
+                    className="object-cover"
                   />
-                  <p className="text-[17px] font-black text-neutral-900 tracking-tight leading-none">
-                    {name}
+                </div>
+
+                {/* Legibility + hover overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/0 transition-opacity duration-300 group-hover:from-black/60" />
+
+                {/* Border — only on hover */}
+                <div className="absolute inset-0 rounded-2xl border-[3px] border-transparent group-hover:border-white/70 transition-colors duration-200 pointer-events-none" />
+
+                {/* Content: name bottom-left */}
+                <div className="relative z-10 p-4 h-full flex flex-col justify-end">
+                  <p className="text-[17px] font-black text-white tracking-tight leading-none drop-shadow-sm transition-transform duration-300 group-hover:-translate-y-0.5">
+                    {style.name}
                   </p>
                 </div>
               </Link>
@@ -393,13 +432,144 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
         </div>
       </section>
 
+      {/* ── PROFESORES DESTACADOS ── */}
+      {initialTeachers.length > 0 && (
+        <section className="bg-white py-16">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+              <div>
+                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Profesores destacados</h2>
+                <p className="text-neutral-500 text-[15px] mt-1">Los mejores instructores de Latinoamérica</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link href="/profesores" className="text-[15px] font-semibold text-neutral-900 hover:text-primary transition-colors whitespace-nowrap">
+                  Ver todos →
+                </Link>
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={() => teachersScrollRef.current?.scrollBy({ left: -460, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    aria-label="Anterior"
+                  >
+                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                  <button
+                    onClick={() => teachersScrollRef.current?.scrollBy({ left: 460, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    aria-label="Siguiente"
+                  >
+                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              ref={teachersScrollRef}
+              className="flex gap-5 overflow-x-auto pb-3 pt-1 -mx-1 px-1"
+              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {initialTeachers.map((t, i) => {
+                const avatar = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/profesores/${t.id}`}
+                    className="shrink-0 w-[210px] rounded-2xl border border-neutral-100 bg-white overflow-hidden transition-all duration-150 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5"
+                    style={{ scrollSnapAlign: 'start' }}
+                  >
+                    <div className={`relative w-full aspect-square flex items-center justify-center ${avatar.bg}`}>
+                      {t.photo ? (
+                        <Image
+                          src={t.photo}
+                          alt={t.name}
+                          fill
+                          sizes="210px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <span className={`text-[56px] font-extrabold ${avatar.text} select-none`}>
+                          {t.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      {t.experience > 0 && (
+                        <span className="absolute top-2.5 left-2.5 bg-white/90 rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-900 whitespace-nowrap">
+                          {t.experience} {t.experience === 1 ? 'año' : 'años'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="px-4 pt-3.5 pb-4">
+                      <h3 className="font-bold text-neutral-900 text-[16px] leading-tight mb-0.5 truncate">{t.name}</h3>
+                      <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.city}</p>
+                      <div className="flex flex-wrap gap-1.5 mb-3 min-h-[26px]">
+                        {t.styles.slice(0, 2).map(s => (
+                          <span key={s} className="badge-pink text-[11.5px] px-2.5 py-1">{s}</span>
+                        ))}
+                      </div>
+                      <span className="text-[13.5px] font-semibold text-neutral-900">Ver perfil →</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── CATEGORÍA DESTACADA: SALSA ── */}
+      {salsaClasses.length > 0 && (
+        <section className="bg-white py-16 border-t border-neutral-100">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+              <div>
+                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Salsa</h2>
+                <p className="text-neutral-500 text-[15px] mt-1">Las clases de salsa más populares</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link href="/clases?style=Salsa" className="text-[15px] font-semibold text-neutral-900 hover:text-primary transition-colors whitespace-nowrap">
+                  Ver todas →
+                </Link>
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={() => salsaScrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    aria-label="Anterior"
+                  >
+                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                  <button
+                    onClick={() => salsaScrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    aria-label="Siguiente"
+                  >
+                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              ref={salsaScrollRef}
+              className="flex gap-4 overflow-x-auto pb-3 pt-1"
+              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {salsaClasses.map(cls => (
+                <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
+                  <ClassCard cls={cls} compact />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── CLASES ESTA SEMANA ── */}
       <section className="bg-neutral-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex items-end justify-between mb-6">
             <div>
               <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases esta semana</h2>
-              <p className="text-neutral-500 text-[15px] mt-1">Seleccionadas para ti en Lima</p>
+              <p className="text-neutral-500 text-[15px] mt-1">Seleccionadas para ti en {city}</p>
             </div>
             <div className="hidden sm:flex items-center gap-3">
               <Link href="/clases" className="flex items-center gap-1 text-[15px] text-neutral-900 font-semibold hover:underline">
@@ -503,71 +673,6 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
         </div>
       </section>
 
-      {/* ── PROFESORES DESTACADOS ── */}
-      {initialTeachers.length > 0 && (
-        <section className="bg-white py-16 border-t border-neutral-100">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Profesores destacados</h2>
-                <p className="text-neutral-500 text-[15px] mt-1">Los mejores instructores del Perú</p>
-              </div>
-              <Link href="/profesores" className="hidden sm:flex items-center gap-1 text-[15px] text-neutral-900 font-semibold hover:underline">
-                Ver todos <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
-              {initialTeachers.map(t => (
-                <Link
-                  key={t.id}
-                  href={`/profesores/${t.id}`}
-                  className="card-hover overflow-hidden p-0 block group rounded-xl border border-neutral-100"
-                >
-                  <div className="relative w-full h-56 overflow-hidden rounded-t-xl bg-neutral-100">
-                    {t.photo ? (
-                      <Image
-                        src={t.photo}
-                        alt={t.name}
-                        fill
-                        sizes="(max-width: 640px) 50vw, 25vw"
-                        className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-neutral-200">
-                        <span className="text-5xl font-black text-neutral-400 select-none">
-                          {t.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-neutral-900 text-[15px] leading-tight mb-1">{t.name}</h3>
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {t.styles.slice(0, 2).map(s => (
-                        <span key={s} className="badge-pink text-[11px]">{s}</span>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      {t.rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                          <span className="text-[13px] font-bold text-neutral-800">{t.rating}</span>
-                        </div>
-                      )}
-                      {t.totalClasses && (
-                        <p className="text-[12px] text-neutral-400">{t.totalClasses} clases</p>
-                      )}
-                    </div>
-                    <span className="mt-2 block text-[12px] font-semibold text-neutral-900 hover:underline">Ver perfil →</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ── ACADEMIAS ── */}
       {initialAcademias.length > 0 && (
         <section className="bg-neutral-50 py-16">
@@ -575,7 +680,7 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
             <div className="flex items-end justify-between mb-8">
               <div>
                 <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Academias</h2>
-                <p className="text-neutral-500 text-[15px] mt-1">Espacios de danza en todo el Perú</p>
+                <p className="text-neutral-500 text-[15px] mt-1">Espacios de danza en toda Latinoamérica</p>
               </div>
               <Link href="/profesores?type=academia" className="hidden sm:flex items-center gap-1 text-[15px] text-neutral-900 font-semibold hover:underline">
                 Ver todas <ArrowRight className="w-4 h-4" />
@@ -646,11 +751,10 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
             ¿Eres profesor o academia?
           </h2>
           <p className="text-[17px] text-white/80 mb-10 max-w-xl mx-auto leading-relaxed">
-            Publica tus clases gratis y llega a cientos de alumnos en todo el Perú. Sin comisiones.
+            Publica tus clases gratis y llega a cientos de alumnos en toda Latinoamérica. Sin comisiones.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <Link href="/registro" className="btn-hero">Publicar mi primera clase →</Link>
-            <Link href="/dashboard" className="btn-hero-white">Ver demo del panel</Link>
           </div>
         </div>
       </section>
@@ -660,7 +764,7 @@ export default function HomeClient({ initialClasses, initialTeachers, initialAca
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <Image src="/logo.png" alt="Kynea" width={90} height={30} />
-            <p className="text-[13px] text-neutral-400">© 2026 Kynea. La primera plataforma integral de danza en el Perú.</p>
+            <p className="text-[13px] text-neutral-400">© 2026 Kynea. La primera plataforma integral de danza en Latinoamérica.</p>
             <div className="flex gap-6 text-[13px] text-neutral-400">
               {['Términos', 'Privacidad', 'Contacto'].map(l => (
                 <Link key={l} href="#" className="hover:text-neutral-700 transition-colors">{l}</Link>

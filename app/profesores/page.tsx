@@ -14,7 +14,7 @@ export default async function ProfesoresPage() {
       <Header />
       <div className="max-w-[1200px] mx-auto px-6 py-12">
         <h1 className="text-[32px] font-black text-neutral-900 mb-2">Profesores y academias</h1>
-        <p className="text-neutral-500 mb-10">Encuentra los mejores instructores de danza en el Perú</p>
+        <p className="text-neutral-500 mb-10">Encuentra los mejores instructores de danza en Latinoamérica</p>
 
         {teachers.length > 0 && (
           <section className="mb-12">

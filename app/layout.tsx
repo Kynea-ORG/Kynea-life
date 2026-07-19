@@ -10,7 +10,7 @@ const hanken = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Kynea – La primera plataforma integral de danza en el Perú",
+  title: "Kynea – La primera plataforma integral de danza en Latinoamérica",
   description: "Encuentra clases de baile, audiciones, shows, eventos culturales y tiendas especializadas. Donde la pasión por la danza cobra vida.",
 };
 
