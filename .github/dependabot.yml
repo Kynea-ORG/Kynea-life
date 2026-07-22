@@ -5,6 +5,12 @@ updates:
     target-branch: "develop"
     schedule:
       interval: "weekly"
+    ignore:
+      # typescript-eslint doesn't support TS 7.0 yet — see
+      # https://github.com/typescript-eslint/typescript-eslint/issues/10940
+      # and https://github.com/Kynea-ORG/Kynea-life/issues/71
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
