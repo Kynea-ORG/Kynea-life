@@ -6,6 +6,7 @@ Cómo se mergea código en Kynea desde ahora. Aplica a los dos, sin excepciones 
 
 - `main` → producción. `develop` → integración.
 - Todo cambio va en una rama propia (`feature/lo-que-sea`, `fix/lo-que-sea`), nunca directo a `develop` o `main`.
+- Cada miembro del equipo puede tener una rama personal con su nombre de usuario de GitHub usando el prefijo `user/` (ej. `user/DavidVilcaO`) para subir cambios propios en curso.
 - Push directo a `develop`/`main` está bloqueado a nivel de GitHub — ni siquiera un admin puede saltárselo sin pasar por el procedimiento de [HOTFIX.md](HOTFIX.md).
 
 ## 2. Pull Requests
@@ -19,6 +20,14 @@ Cada cambio entra por PR. Un PR necesita:
 3. En `main` además se exige que pase el build/preview de **Vercel**.
 
 **Importante**: GitHub nunca deja que el autor de un PR apruebe su propio PR — es una regla de la plataforma, no de este repo. Si sos el único disponible para revisar tu propio cambio, pedile al otro que lo revise. No hay atajo salvo la excepción de emergencia en [HOTFIX.md](HOTFIX.md).
+
+**Cuenta de autoría (`joseniquen08-pr`)**: como `lib/`, `supabase/` y `proxy.ts` requieren aprobación específica de `@joseniquen08`, y GitHub no deja auto-aprobar, los PRs que tocan esas rutas se abren con la cuenta bot `joseniquen08-pr` (no con `joseniquen08`) para que la aprobación humana sea posible. El token de esa cuenta vive en `~/.kynea-bot-token` fuera del repo; se usa así, sin tocar la sesión de `gh` por defecto:
+
+```bash
+GH_TOKEN=$(cat ~/.kynea-bot-token) gh pr create --repo Kynea-ORG/Kynea-life ...
+```
+
+No uses `gh auth login`/`gh auth switch` para esto — el token del bot no tiene el scope `read:org` que esos comandos exigen y falla.
 
 ## 3. Antes de abrir un PR
 

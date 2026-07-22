@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
   Settings, LogOut, Users,
@@ -53,17 +53,19 @@ type NavItem = (typeof NAV_BY_ROLE)[Role][number];
 function NavLinks({
   items,
   pathname,
-  role,
+  isEditingClass,
 }: {
   items: NavItem[];
   pathname: string;
-  role: Role;
+  isEditingClass: boolean;
 }) {
   return (
     <>
       {items.map(item => {
         const Icon = item.icon;
-        const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+        const isCrearClase = item.href === '/dashboard/crear-clase';
+        const active = !(isCrearClase && isEditingClass)
+          && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
         return (
           <Link
             key={item.href}
@@ -76,9 +78,6 @@ function NavLinks({
           >
             <Icon className="w-4 h-4" />
             {item.label}
-            {item.label === 'Crear clase' && (role === 'profesor' || role === 'academia') && (
-              <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold ${active ? 'bg-white/20 text-white' : 'bg-neutral-900 text-white'}`}>+</span>
-            )}
           </Link>
         );
       })}
@@ -89,6 +88,8 @@ function NavLinks({
 export default function DashboardSidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEditingClass = pathname === '/dashboard/crear-clase' && Boolean(searchParams.get('edit'));
 
   const badge = BADGE[profile.role];
   const NAV   = NAV_BY_ROLE[profile.role];
@@ -147,7 +148,7 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
         </div>
 
         <nav className="flex-1 py-4 px-3">
-          <NavLinks items={NAV} pathname={pathname} role={profile.role} />
+          <NavLinks items={NAV} pathname={pathname} isEditingClass={isEditingClass} />
         </nav>
 
         <div className="p-4 border-t border-neutral-200">
@@ -170,7 +171,9 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
             const mobileItems = perfilItem ? [...others, perfilItem] : NAV.slice(0, 5);
             return mobileItems.map(item => {
               const Icon = item.icon;
-              const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+              const isCrearClase = item.href === '/dashboard/crear-clase';
+              const active = !(isCrearClase && isEditingClass)
+                && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
               return (
                 <Link
                   key={item.href}

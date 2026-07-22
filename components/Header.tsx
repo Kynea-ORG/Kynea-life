@@ -271,7 +271,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
             </div>
           ) : (
             <div className="px-5 py-4 border-b border-neutral-100">
-              <p className="text-[14px] text-neutral-500">Encuentra clases de baile en el Perú</p>
+              <p className="text-[14px] text-neutral-500">Encuentra clases de baile en Latinoamérica</p>
             </div>
           )}
 

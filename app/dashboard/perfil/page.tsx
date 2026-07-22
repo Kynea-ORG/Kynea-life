@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { fetchDanceStyles, fetchDistricts } from '@/lib/catalog/queries';
@@ -22,15 +23,19 @@ export default async function PerfilPage() {
   const profile = profileResult.data as any;
 
   return (
-    <PerfilClient
-      profile={profile ?? {
-        name: null, bio: null, years_experience: null,
-        whatsapp: null, instagram: null, tiktok: null,
-        youtube: null, website: null, photo_url: null,
-        district: null, profile_styles: null,
-      }}
-      danceStyles={danceStyles.map(s => s.name)}
-      allDistricts={allDistricts}
-    />
+    // PerfilClient reads ?missing=... via useSearchParams (contact-gating
+    // deep-link landing), which requires a Suspense boundary.
+    <Suspense>
+      <PerfilClient
+        profile={profile ?? {
+          name: null, bio: null, years_experience: null,
+          whatsapp: null, instagram: null, tiktok: null,
+          youtube: null, website: null, photo_url: null,
+          district: null, profile_styles: null,
+        }}
+        danceStyles={danceStyles.map(s => s.name)}
+        allDistricts={allDistricts}
+      />
+    </Suspense>
   );
 }

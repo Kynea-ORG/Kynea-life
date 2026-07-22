@@ -13,6 +13,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [`docs/HOTFIX.md`](docs/HOTFIX.md) — emergency branch-protection bypass procedure
 - [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — PR/branch/review workflow for the team
 
+## Opening pull requests
+
+**Every PR in this repo MUST be authored by the bot account `joseniquen08-pr`, never by `joseniquen08` (the human account `gh` is normally logged in as on this machine).** This is not optional — see `docs/WORKFLOW.md`: CODEOWNERS requires `@joseniquen08`'s own approval on `lib/`, `supabase/`, and `proxy.ts` changes, and GitHub blocks a PR author from approving their own PR. If the PR is authored by `joseniquen08`, it becomes unapprovable and has to be closed and reopened under the bot account — do not let this happen.
+
+Do **not** run `gh auth login` or `gh auth switch` to change the machine's default account for this — the bot token lacks the `read:org` scope that `gh auth login` demands, so that flow fails. Instead, pass the token via `GH_TOKEN` for the specific command only, leaving the machine's stored `gh` session (`joseniquen08`, used for reviews/reads) untouched:
+
+```bash
+GH_TOKEN=$(cat ~/.kynea-bot-token) gh pr create --repo Kynea-ORG/Kynea-life ...
+```
+
+The token lives at `~/.kynea-bot-token` (outside this repo — never print/echo its contents, pipe it directly). Verify identity before creating a PR if unsure: `GH_TOKEN=$(cat ~/.kynea-bot-token) gh api user --jq .login` must print `joseniquen08-pr`.
+
+This applies to every `gh pr create` call, regardless of session, memory, or prior context — treat it as a hard rule of this repo, not a one-off preference.
+
 ## Commands
 
 ```bash

@@ -75,6 +75,7 @@ export interface DanceClass {
   address?: string;
   reference?: string;
   mapsUrl?: string;
+  placeId?: string;
   lat?: number;
   lng?: number;
   platform?: string;
@@ -88,7 +89,7 @@ export interface DanceClass {
   clothing?: string;
   toBring?: string[];
   ageGroup?: string;
-  contactMode?: 'whatsapp' | 'instagram' | 'web';
+  contactMode?: 'whatsapp' | 'instagram' | 'both';
 
   status: ClassStatus;
   teacher: Teacher;

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { roleMismatchNotice } from '@/lib/auth/redirectByRole';
 import { NextResponse } from 'next/server';
 
 const VALID_ROLES = new Set(['alumno', 'profesor', 'academia']);
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
         // Existing user with a role — redirect to their area
         const dest = profile.role === 'alumno' ? '/clases' : '/dashboard';
         // If they came from /registro with a different role, warn them they already have an account
-        const notice = incomingRole && incomingRole !== profile.role ? 'cuenta_existente' : null;
+        const notice = roleMismatchNotice(incomingRole, profile.role);
         const url = notice ? `${origin}${dest}?notice=${notice}` : `${origin}${dest}`;
         return NextResponse.redirect(url);
       }

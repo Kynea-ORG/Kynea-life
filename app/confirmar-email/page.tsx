@@ -8,11 +8,15 @@ import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 
 const CODE_LENGTH = 6;
+const VALID_ROLES = new Set(['alumno', 'profesor', 'academia']);
 
 function ConfirmarEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email') ?? '';
+  const roleParam = searchParams.get('role') ?? '';
+  // Only accept known roles — ignore anything else (mirrors auth/callback/route.ts's VALID_ROLES guard)
+  const role = VALID_ROLES.has(roleParam) ? roleParam : null;
 
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -81,10 +85,11 @@ function ConfirmarEmailContent() {
     // Sesión activa — redirigir según rol
     await redirectByRole(supabase, {
       refresh: () => router.refresh(),
-      onSuccess: (path) => {
+      expectedRole: role,
+      onSuccess: (path, notice) => {
         // Alumnos van a /clases, profesores/academias pasan por onboarding
         const dest = path === '/dashboard' ? '/onboarding?new=1' : path;
-        router.push(dest);
+        router.push(notice ? `${dest}${dest.includes('?') ? '&' : '?'}notice=${notice}` : dest);
       },
       onError: (msg) => { setError(msg); setVerifying(false); },
     });

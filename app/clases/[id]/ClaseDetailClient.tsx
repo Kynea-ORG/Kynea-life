@@ -26,8 +26,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [activeImg, setActiveImg] = useState(0);
 
   const contactMode = cls.contactMode ?? 'whatsapp';
-  const showWa = contactMode === 'whatsapp';
-  const showIg = contactMode === 'instagram';
+  const showWa = contactMode === 'whatsapp' || contactMode === 'both';
+  const showIg = contactMode === 'instagram' || contactMode === 'both';
 
   useEffect(() => {
     const supabase = createClient();
@@ -172,7 +172,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             </div>
 
             <div className="mb-8">
-              <p className="text-[15px] text-neutral-600 leading-relaxed">{cls.fullDescription}</p>
+              <p className="text-[15px] text-neutral-600 leading-relaxed whitespace-pre-line">{cls.fullDescription}</p>
             </div>
 
             {cls.whatYouLearn && cls.whatYouLearn.length > 0 && (
@@ -228,7 +228,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               </div>
             )}
 
-            <div className="border border-neutral-200 rounded-xl p-6">
+            <div className="hidden lg:block border border-neutral-200 rounded-xl p-6">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
               <div className="flex items-start gap-4">
                 <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
@@ -311,7 +311,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   {cls.startDate && (
                     <div className="flex items-center gap-2.5 text-[13px] text-neutral-600">
                       <Calendar className="w-4 h-4 text-neutral-400 shrink-0" />
-                      <span>Inicia {new Date(cls.startDate).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      <span>Inicia {new Date(`${cls.startDate}T12:00:00`).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     </div>
                   )}
                   {spotsLeft !== undefined && spotsLeft > 0 && (
@@ -386,6 +386,56 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <MapPin className="w-3.5 h-3.5" /> Ver en Google Maps
                   </a>
                 )}
+              </div>
+            </div>
+
+            <div className="lg:hidden border border-neutral-200 rounded-xl p-6 mt-6">
+              <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
+              <div className="flex items-start gap-4">
+                <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
+                  {cls.teacher.photo ? (
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
+                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
+                      {cls.teacher.name.charAt(0)}
+                    </div>
+                  )}
+                </Link>
+                <div className="flex-1">
+                  <Link href={`/profesores/${cls.teacher.id}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
+                    {cls.teacher.name}
+                  </Link>
+                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {cls.teacher.experience} años de experiencia</p>
+                  {cls.teacher.rating && (
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                      <span className="text-[13px] font-semibold text-neutral-900">{cls.teacher.rating}</span>
+                      {cls.teacher.totalClasses && (
+                        <span className="text-[13px] text-neutral-400">· {cls.teacher.totalClasses} clases</span>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[13px] text-neutral-600 mt-2 leading-relaxed">{cls.teacher.bio}</p>
+                  <div className="flex flex-wrap gap-3 mt-3">
+                    {cls.teacher.instagram && (
+                      <span className="text-[13px] text-neutral-500 flex items-center gap-1">
+                        <Camera className="w-3.5 h-3.5" /> {cls.teacher.instagram}
+                      </span>
+                    )}
+                    {cls.teacher.tiktok && (
+                      <span className="text-[13px] text-neutral-500 flex items-center gap-1">
+                        <Video className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
+                      </span>
+                    )}
+                    {cls.teacher.website && (
+                      <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
+                        <Globe className="w-3.5 h-3.5" /> Sitio web
+                      </a>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
