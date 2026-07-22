@@ -75,10 +75,17 @@ export async function createClass(formData: FormData) {
 
   const classId = newClass.id;
   const slots: FormSlot[] = timeSlots ? JSON.parse(timeSlots) : [];
-  await Promise.all([
-    insertClassStyles(supabase, classId, styleId),
-    insertClassSchedules(supabase, classId, slots),
-  ]);
+  try {
+    await Promise.all([
+      insertClassStyles(supabase, classId, styleId),
+      insertClassSchedules(supabase, classId, slots, cols.start_date),
+    ]);
+  } catch (err) {
+    // Roll back the orphaned class row rather than leaving a published/draft
+    // class with no style or schedule attached.
+    await supabase.from('classes').delete().eq('id', classId);
+    throw err;
+  }
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath('/clases');
@@ -262,14 +269,25 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
     throw new Error(error.message);
   }
 
+  // Capture the old rows' ids before writing the new ones, so if the new
+  // insert fails we throw with the previous style/schedule still intact
+  // instead of losing them to a delete that already committed.
+  const [{ data: oldStyleRows }, { data: oldScheduleRows }] = await Promise.all([
+    supabase.from('class_styles').select('id').eq('class_id', classId),
+    supabase.from('class_schedules').select('id').eq('class_id', classId),
+  ]);
+
   const slots: FormSlot[] = timeSlots ? JSON.parse(timeSlots) : [];
   await Promise.all([
-    supabase.from('class_styles').delete().eq('class_id', classId),
-    supabase.from('class_schedules').delete().eq('class_id', classId),
-  ]);
-  await Promise.all([
     insertClassStyles(supabase, classId, styleId),
-    insertClassSchedules(supabase, classId, slots),
+    insertClassSchedules(supabase, classId, slots, cols.start_date),
+  ]);
+
+  const oldStyleIds = (oldStyleRows ?? []).map(r => r.id);
+  const oldScheduleIds = (oldScheduleRows ?? []).map(r => r.id);
+  await Promise.all([
+    oldStyleIds.length ? supabase.from('class_styles').delete().in('id', oldStyleIds) : Promise.resolve(),
+    oldScheduleIds.length ? supabase.from('class_schedules').delete().in('id', oldScheduleIds) : Promise.resolve(),
   ]);
 
   revalidatePath('/dashboard/mis-clases');
