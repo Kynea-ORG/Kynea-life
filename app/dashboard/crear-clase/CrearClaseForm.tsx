@@ -145,6 +145,13 @@ const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 
 type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: string; endTime: string };
 
+// Same rule as dbRowToValidationInput (lib/classes/validation.ts): more than
+// one weekday, or more than one slot, means a recurring ("mensual") schedule.
+function deriveRecurrence(editClass: DanceClass): 'unica' | 'mensual' {
+  const totalDays = editClass.timeSlots?.reduce((sum, s) => sum + s.days.length, 0) ?? 0;
+  return totalDays > 1 || (editClass.timeSlots?.length ?? 0) > 1 ? 'mensual' : 'unica';
+}
+
 function buildInitialForm(editClass: DanceClass | null) {
   if (!editClass) {
     return {
@@ -192,7 +199,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     fullDesc: editClass.fullDescription ?? '',
     startDate: editClass.startDate ?? '',
     endDate: editClass.endDate ?? '',
-    recurrence: 'mensual',
+    recurrence: deriveRecurrence(editClass),
     priceType: editClass.priceType ?? 'Mensual',
     price: editClass.price ? String(editClass.price) : '',
     offerPrice: editClass.offerPrice ? String(editClass.offerPrice) : '',
@@ -1052,7 +1059,14 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       ? [form.address, form.district, form.city].filter(Boolean).join(', ') || '—'
       : form.platform || '—';
     const slotsLabel = slots.map(s => {
-      const days = s.days.join(', ') || '—';
+      // "Clase única" doesn't collect a weekday — derive it from startDate to
+      // match what the server stores, instead of showing a blank "—".
+      let days = s.days.join(', ');
+      if (!days && form.recurrence === 'unica' && form.startDate) {
+        const dayOfWeek = (new Date(`${form.startDate}T12:00:00`).getDay() + 6) % 7;
+        days = DAYS[dayOfWeek];
+      }
+      days = days || '—';
       const range = s.startDate ? `${s.startDate}${s.endDate && s.endDate !== s.startDate ? ` – ${s.endDate}` : ''}, ` : '';
       return `${range}${days} · ${s.startTime}–${s.endTime}`;
     }).join(' | ') || '—';

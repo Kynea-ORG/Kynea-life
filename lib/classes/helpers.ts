@@ -57,16 +57,31 @@ export async function findOrCreateVenue(
 
 export async function insertClassStyles(supabase: SupabaseClient, classId: string, styleId: number | null): Promise<void> {
   if (!styleId) return;
-  await supabase.from('class_styles').insert({ class_id: classId, style_id: styleId, is_main: true });
+  const { error } = await supabase.from('class_styles').insert({ class_id: classId, style_id: styleId, is_main: true });
+  if (error) throw new Error(`No se pudo guardar el estilo de la clase: ${error.message}`);
 }
 
-export async function insertClassSchedules(supabase: SupabaseClient, classId: string, slots: FormSlot[]): Promise<void> {
-  const rows = slots.flatMap(slot =>
-    slot.days
+export async function insertClassSchedules(
+  supabase: SupabaseClient, classId: string, slots: FormSlot[], startDate?: string | null
+): Promise<void> {
+  // "Clase única" slots carry no `days` (single date, not a weekly recurrence) —
+  // derive day_of_week from startDate so the schedule row still gets written.
+  const fallbackDay = startDate ? (new Date(`${startDate}T12:00:00`).getDay() + 6) % 7 : null;
+
+  const rows = slots.flatMap(slot => {
+    if (slot.days.length === 0) {
+      return fallbackDay !== null
+        ? [{ class_id: classId, day_of_week: fallbackDay, start_time: slot.startTime, end_time: slot.endTime }]
+        : [];
+    }
+    return slot.days
       .filter(day => DAY_MAP[day] !== undefined)
-      .map(day => ({ class_id: classId, day_of_week: DAY_MAP[day], start_time: slot.startTime, end_time: slot.endTime }))
-  );
-  if (rows.length) await supabase.from('class_schedules').insert(rows);
+      .map(day => ({ class_id: classId, day_of_week: DAY_MAP[day], start_time: slot.startTime, end_time: slot.endTime }));
+  });
+  if (rows.length) {
+    const { error } = await supabase.from('class_schedules').insert(rows);
+    if (error) throw new Error(`No se pudo guardar el horario de la clase: ${error.message}`);
+  }
 }
 
 // Returns the ~22 columns shared between createClass and updateClassFromForm.

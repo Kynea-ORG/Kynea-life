@@ -138,7 +138,7 @@ export default async function DashboardPage() {
             <PlusCircle className="w-6 h-6" />
           </div>
           <div>
-            <p className="font-bold text-[15px]">Crear nueva clase</p>
+            <p className="font-bold text-[15px] text-white">Crear nueva clase</p>
             <p className="text-[13px] text-neutral-400">Publica en minutos</p>
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
