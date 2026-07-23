@@ -55,14 +55,18 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     <>
       <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 flex flex-col group hover:-translate-y-0.5">
         {/* Image */}
-        <div className={`relative overflow-hidden ${compact ? 'h-36' : 'h-48'}`}>
+        {/* Hover zoom lives on this wrapper (not the <Image>) because the
+            image already carries an inline transform for the saved crop
+            zoom — an inline style would silently override any transform
+            utility class placed on the same element. */}
+        <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
           <Image
             src={cls.coverImage || '/logo.png'}
             alt={cls.title}
             fill
             sizes="(max-width: 768px) 100vw, 400px"
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            style={{ objectPosition: cls.coverImagePosition || '50% 50%' }}
+            className="object-cover"
+            style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }}
           />
           <div className="absolute top-3 left-3 flex gap-2">
             {isFullyBooked && (

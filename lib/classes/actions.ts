@@ -66,6 +66,8 @@ export async function createClass(formData: FormData) {
       ...cols,
       teacher_id:    user.id,
       cover_image:   formData.get('coverImage') || null,
+      cover_image_position: (formData.get('coverImagePosition') as string) || '50% 50%',
+      cover_image_zoom: formData.get('coverImageZoom') ? parseFloat(formData.get('coverImageZoom') as string) : 1,
       published_at:  cols.status === 'published' ? new Date().toISOString() : null,
     })
     .select('id')
@@ -260,7 +262,11 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
     await assertContactChannel(supabase, user.id, cols.contact_mode ?? 'whatsapp');
   }
 
-  if (coverImage) updates.cover_image = coverImage;
+  if (coverImage) {
+    updates.cover_image = coverImage;
+    updates.cover_image_position = (formData.get('coverImagePosition') as string) || '50% 50%';
+    updates.cover_image_zoom = formData.get('coverImageZoom') ? parseFloat(formData.get('coverImageZoom') as string) : 1;
+  }
   if (cols.status === 'published') updates.published_at = new Date().toISOString();
 
   // Style/schedule writes run BEFORE the `classes` update, not after: they're

@@ -208,7 +208,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                 <div role="cell" className="flex items-center gap-3 min-w-0">
                   {cls.coverImage ? (
                     <div className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0">
-                      <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%' }} />
+                      <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
                     </div>
                   ) : (
                     <div className="w-12 h-10 rounded-lg bg-neutral-100 shrink-0" />
@@ -300,7 +300,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
             <div className="flex items-start gap-3">
               {cls.coverImage ? (
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
-                  <Image src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%' }} />
+                  <Image src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
                 </div>
               ) : (
                 <div className="w-16 h-16 rounded-xl bg-neutral-100 shrink-0" />

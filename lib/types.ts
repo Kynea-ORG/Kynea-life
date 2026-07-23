@@ -16,6 +16,7 @@ export interface Teacher {
   type: 'profesor' | 'academia';
   photo: string;
   photoPosition: string;
+  photoZoom: number;
   city: string;
   district: string;
   bio: string;
@@ -84,6 +85,7 @@ export interface DanceClass {
 
   coverImage: string;
   coverImagePosition: string;
+  coverImageZoom: number;
   gallery?: string[];
   videoUrl?: string;
 

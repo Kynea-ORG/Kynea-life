@@ -23,6 +23,7 @@ interface Profile {
   website: string | null;
   photo_url: string | null;
   photo_position: string | null;
+  photo_zoom: number | null;
   district: { name: string; city: string } | null;
   profile_styles: ProfileStyleRow[] | null;
 }
@@ -49,7 +50,7 @@ export default function PerfilClient({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(profile.photo_url ?? '');
   const [photoPosition, setPhotoPosition] = useState(profile.photo_position ?? '50% 50%');
-  const [photoZoom, setPhotoZoom] = useState(1);
+  const [photoZoom, setPhotoZoom] = useState(profile.photo_zoom ?? 1);
 
   const [name, setName] = useState(profile.name ?? '');
   const [bio, setBio] = useState(profile.bio ?? '');
@@ -103,7 +104,7 @@ export default function PerfilClient({
       setPhotoUrl(publicUrl);
       setPhotoPosition('50% 50%');
       setPhotoZoom(1);
-      await updateProfile({ photo_url: publicUrl, photo_position: '50% 50%' });
+      await updateProfile({ photo_url: publicUrl, photo_position: '50% 50%', photo_zoom: 1 });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir foto');
     } finally {
@@ -117,13 +118,19 @@ export default function PerfilClient({
     });
   };
 
+  const handlePhotoZoomDragEnd = (zoom: number) => {
+    updateProfile({ photo_zoom: zoom }).catch(err => {
+      setError(err instanceof Error ? err.message : 'Error al guardar el zoom de la foto');
+    });
+  };
+
   const handleRemovePhoto = async () => {
     setPhotoUrl('');
     setPhotoPosition('50% 50%');
     setPhotoZoom(1);
     if (photoInputRef.current) photoInputRef.current.value = '';
     try {
-      await updateProfile({ photo_url: '', photo_position: '50% 50%' });
+      await updateProfile({ photo_url: '', photo_position: '50% 50%', photo_zoom: 1 });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar la foto');
     }
@@ -214,6 +221,7 @@ export default function PerfilClient({
                     onDragEnd={handlePhotoPositionDragEnd}
                     zoom={photoZoom}
                     onZoomChange={setPhotoZoom}
+                    onZoomDragEnd={handlePhotoZoomDragEnd}
                     frameClassName="w-32 h-32 rounded-xl border border-neutral-200"
                     sizes="128px"
                     compact

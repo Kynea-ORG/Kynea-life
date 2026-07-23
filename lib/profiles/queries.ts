@@ -14,6 +14,7 @@ export function mapTeacher(t: any): Teacher {
     type:         t.role as 'profesor' | 'academia',
     photo:        t.photo_url ?? '',
     photoPosition: t.photo_position || '50% 50%',
+    photoZoom:    t.photo_zoom ?? 1,
     city:         dist?.city ?? '',
     district:     dist?.name ?? '',
     bio:          t.bio ?? '',
@@ -31,7 +32,7 @@ export function mapTeacher(t: any): Teacher {
 }
 
 export const PROFILE_SELECT = `
-  id, name, role, photo_url, bio, years_experience,
+  id, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
   whatsapp, instagram, tiktok, youtube, website,
   district:districts(name, city),
   profile_styles(style_id, dance_styles(name))

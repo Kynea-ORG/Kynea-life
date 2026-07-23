@@ -168,6 +168,7 @@ function OnboardingContent() {
         years_experience: expKey ? yearsMap[expKey] : undefined,
         photo_url:        photoUrl || undefined,
         photo_position:   photoUrl ? photoPosition : undefined,
+        photo_zoom:       photoUrl ? photoZoom : undefined,
       });
       router.push('/dashboard');
     } catch (err: unknown) {

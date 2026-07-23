@@ -134,7 +134,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   sizes="(max-width: 1024px) 100vw, 800px"
                   priority
                   className="object-cover"
-                  style={activeImg === 0 ? { objectPosition: cls.coverImagePosition || '50% 50%' } : undefined}
+                  style={activeImg === 0 ? { objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` } : undefined}
                 />
               )}
               <div className="absolute top-4 left-4 flex gap-2">
@@ -272,7 +272,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%' }} />
+                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
@@ -436,7 +436,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%' }} />
+                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">

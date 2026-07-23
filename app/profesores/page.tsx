@@ -23,11 +23,15 @@ export default async function ProfesoresPage() {
               {teachers.map(t => (
                 <Link key={t.id} href={`/profesores/${t.id}`}
                   className="border border-neutral-200 rounded-2xl overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98] group">
-                  <div className="relative w-full h-48 overflow-hidden bg-neutral-200">
+                  {/* Hover zoom lives on this wrapper, not the <Image> — an
+                      inline transform for the saved crop zoom would override
+                      any transform utility class placed on the image itself. */}
+                  <div className="relative w-full h-48 overflow-hidden bg-neutral-200 group-hover:scale-105 transition-transform duration-200">
                     {t.photo ? (
                       <Image src={t.photo} alt={t.name} fill
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        className="object-cover object-top group-hover:scale-105 transition-transform duration-200" />
+                        className="object-cover"
+                        style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <span className="text-5xl font-black text-neutral-400 select-none">
@@ -59,7 +63,7 @@ export default async function ProfesoresPage() {
                   className="flex items-start gap-4 border border-neutral-200 rounded-2xl p-4 transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98] group">
                   <div className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-neutral-200">
                     {t.photo ? (
-                      <Image src={t.photo} alt={t.name} fill sizes="64px" className="object-cover" />
+                      <Image src={t.photo} alt={t.name} fill sizes="64px" className="object-cover" style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <span className="text-2xl font-black text-neutral-400 select-none">

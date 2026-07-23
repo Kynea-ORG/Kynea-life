@@ -539,6 +539,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                           fill
                           sizes="210px"
                           className="object-cover"
+                          style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
                         />
                       ) : (
                         <span className={`text-[56px] font-extrabold ${avatar.text} select-none`}>
@@ -626,14 +627,15 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                   href={`/profesores/${t.id}`}
                   className="card-hover flex items-start gap-4 group"
                 >
-                  <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200">
+                  <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 transition-transform duration-300 group-hover:scale-105">
                     {t.photo ? (
                       <Image
                         src={t.photo}
                         alt={t.name}
                         fill
                         sizes="80px"
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="object-cover"
+                        style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

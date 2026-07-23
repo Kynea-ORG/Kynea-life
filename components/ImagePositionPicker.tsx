@@ -79,7 +79,7 @@ export default function ImagePositionPicker({
     onZoomChange?.(clamped);
   }
 
-  const isDefault = x !== 50 || y !== 50 || zoom !== 1;
+  const isModified = x !== 50 || y !== 50 || zoom !== 1;
 
   return (
     <div>
@@ -121,10 +121,10 @@ export default function ImagePositionPicker({
         </div>
       )}
 
-      {(!compact || isDefault) && (
+      {(!compact || isModified) && (
         <div className={`flex items-center mt-1.5 ${compact ? 'justify-end' : 'justify-between'}`}>
           {!compact && <p className="text-xs text-neutral-500">Arrastra la foto para centrarla</p>}
-          {isDefault && (
+          {isModified && (
             <button
               type="button"
               onClick={() => {

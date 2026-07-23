@@ -18,6 +18,7 @@ interface Profile {
   role: Role;
   photo_url: string | null;
   photo_position: string | null;
+  photo_zoom: number | null;
 }
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -33,12 +34,14 @@ const NAV_LINKS = [
 function Avatar({
   photoUrl,
   photoPosition,
+  photoZoom,
   name,
   sizeClass = 'w-8 h-8',
   className = '',
 }: {
   photoUrl: string | null | undefined;
   photoPosition?: string | null;
+  photoZoom?: number | null;
   name: string | undefined;
   sizeClass?: string;
   className?: string;
@@ -46,7 +49,7 @@ function Avatar({
   if (photoUrl) {
     return (
       <div className={`relative ${sizeClass} rounded-full overflow-hidden shrink-0 ${className}`}>
-        <Image src={photoUrl} alt={name ?? ''} fill sizes="48px" className="object-cover" style={{ objectPosition: photoPosition || '50% 50%' }} />
+        <Image src={photoUrl} alt={name ?? ''} fill sizes="48px" className="object-cover" style={{ objectPosition: photoPosition || '50% 50%', transform: `scale(${photoZoom || 1})` }} />
       </div>
     );
   }
@@ -74,7 +77,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
     async function loadProfile(userId: string) {
       const { data } = await supabase
         .from('profiles')
-        .select('id, name, role, photo_url')
+        .select('id, name, role, photo_url, photo_position, photo_zoom')
         .eq('id', userId)
         .single();
       if (data) setProfile(data as Profile);
@@ -182,7 +185,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                     transparent ? 'hover:bg-white/10' : 'hover:bg-neutral-100'
                   }`}
                 >
-                  <Avatar photoUrl={profile?.photo_url} name={profile?.name} sizeClass="w-8 h-8" />
+                  <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-8 h-8" />
                   <div className="text-left hidden lg:block">
                     <p className={`text-[13px] font-bold leading-tight ${transparent ? 'text-white' : 'text-neutral-900'}`}>
                       {profile.name.split(' ')[0]}
@@ -197,7 +200,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                 {shouldRenderUserMenu && (
                   <div className={`absolute right-0 top-full mt-2 w-56 bg-white border border-neutral-200 rounded-xl shadow-lg py-1 z-50 overflow-hidden origin-top-right transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:-translate-y-1 ${userMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}>
                     <div className="px-4 py-3 border-b border-neutral-100 flex items-center gap-3">
-                      <Avatar photoUrl={profile?.photo_url} name={profile?.name} sizeClass="w-9 h-9" />
+                      <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-9 h-9" />
                       <div className="min-w-0">
                         <p className="text-[13px] font-bold text-neutral-900 truncate">{profile.name}</p>
                         <p className="text-[11px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
@@ -249,7 +252,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
 
         {/* Mobile: avatar + hamburger */}
         <div className="md:hidden flex items-center gap-2">
-          {!authLoading && isLoggedIn && <Avatar photoUrl={profile?.photo_url} name={profile?.name} sizeClass="w-8 h-8" className="border-2 border-neutral-200" />}
+          {!authLoading && isLoggedIn && <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-8 h-8" className="border-2 border-neutral-200" />}
           <button
             className={`p-2 rounded-md transition-colors active:scale-90 ${
               transparent ? 'text-white hover:bg-white/10' : 'text-neutral-700 hover:bg-neutral-100'
@@ -269,7 +272,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
           {/* User info */}
           {isLoggedIn ? (
             <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
-              <Avatar photoUrl={profile?.photo_url} name={profile?.name} sizeClass="w-11 h-11" />
+              <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-11 h-11" />
               <div>
                 <p className="text-[15px] font-bold text-neutral-900">{profile.name}</p>
                 <p className="text-[13px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
