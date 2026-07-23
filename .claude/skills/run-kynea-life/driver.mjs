@@ -64,7 +64,19 @@ async function shot(page, name) {
 
 const [, , cmd, ...args] = process.argv;
 
-if (cmd === 'signup') {
+if (cmd === 'login') {
+  const [email, password] = args;
+  if (!email || !password) { console.error('usage: login <email> <password>'); process.exit(1); }
+  await withPage(async page => {
+    await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await page.fill('input[placeholder="tu@correo.com"]', email);
+    await page.fill('input[placeholder="Tu contraseña"]', password);
+    await page.click('button[type="submit"]:has-text("Iniciar sesión")');
+    await page.waitForTimeout(3000);
+    await shot(page, '00-post-login');
+  });
+
+} else if (cmd === 'signup') {
   const [role, email] = args;
   const roleLabel = { alumno: 'Alumno', profesor: 'Profesor', academia: 'Academia' }[role];
   if (!roleLabel) { console.error('role must be alumno|profesor|academia'); process.exit(1); }
@@ -192,6 +204,94 @@ if (cmd === 'signup') {
     await page.waitForTimeout(4000);
     await shot(page, '12-crear-clase-after-publish');
     console.log('errors after publish attempt:', JSON.stringify(await page.locator('.text-red-600').allTextContents()));
+  });
+
+} else if (cmd === 'crear-clase-multi') {
+  // One-off verification for the multi-slot schedule editor fix: creates a
+  // "Mensual" draft with 2 distinct day+time blocks via "Agregar otro
+  // horario", saves as draft, then reopens the edit form and screenshots the
+  // schedule step to confirm BOTH blocks render (not just the first).
+  const [title] = args;
+  if (!title) { console.error('usage: crear-clase-multi <title>'); process.exit(1); }
+  await withPage(async page => {
+    await page.goto(`${BASE}/dashboard/crear-clase`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('text=Título de la clase', { timeout: 15000 });
+
+    await page.fill('input[placeholder="Ej: Salsa Básico desde cero"]', title);
+    const s0 = page.locator('select');
+    await s0.nth(0).selectOption({ index: 1 });
+    await s0.nth(1).selectOption({ index: 1 });
+    await page.click('button:has-text("Continuar")');
+    await page.waitForTimeout(500);
+
+    await page.click('button:has-text("Mensual")');
+    await page.fill('input[type="date"]', tomorrow());
+
+    // Slot 1 — Lunes 19:00-20:30 (defaults)
+    await page.click('button:has-text("Lun")');
+
+    // Add a second block — Miércoles 20:00-21:00
+    await page.click('button:has-text("Agregar otro horario")');
+    await page.waitForTimeout(200);
+    const dayButtons = page.locator('button').filter({ hasText: /^Mié$/ });
+    await dayButtons.nth(1).click(); // index 0 = slot 1's "Mié" pill, index 1 = slot 2's
+    const timeInputs = page.locator('input[type="time"]');
+    await timeInputs.nth(2).fill('20:00'); // slot 2 start
+    await timeInputs.nth(3).fill('21:00'); // slot 2 end
+    await shot(page, '20-crear-clase-multi-step1');
+
+    await page.click('button:has-text("Presencial")');
+    await page.waitForTimeout(300);
+    await page.locator('input[placeholder="Av. Benavides 1234, piso 3"]').fill('Av. Benavides 1234, San Isidro');
+    for (const sel of await page.locator('select').all()) {
+      const opts = await sel.locator('option').allTextContents();
+      if (opts.some(o => o.includes('Lima') || o.includes('Arequipa'))) await sel.selectOption({ index: 0 });
+    }
+    const districtSelect = page.locator('select').filter({ hasText: 'Seleccionar distrito' });
+    if (await districtSelect.count()) await districtSelect.selectOption({ index: 1 });
+
+    await page.click('button:has-text("Continuar")');
+    await page.waitForTimeout(500);
+    await page.click('button:has-text("Gratis")');
+    await page.click('button:has-text("Continuar")');
+    await page.waitForTimeout(500);
+
+    await page.click('button:has-text("Guardar borrador")');
+    await page.waitForTimeout(4000);
+    await shot(page, '21-crear-clase-multi-after-save');
+    console.log('FINAL URL after save:', page.url());
+  });
+
+} else if (cmd === 'reopen-edit-schedule') {
+  // Navigates to mis-clases, opens the most recent draft matching `title`
+  // for editing, jumps to the schedule step, and screenshots it — to verify
+  // both time blocks survive a save + reload round trip.
+  const [title] = args;
+  if (!title) { console.error('usage: reopen-edit-schedule <title>'); process.exit(1); }
+  await withPage(async page => {
+    await page.goto(`${BASE}/dashboard/mis-clases`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1000);
+    const card = page.locator(`text=${title}`).first();
+    await card.waitFor({ timeout: 15000 });
+    const editLink = page.locator('a[href*="/dashboard/crear-clase?edit="]').filter({ has: page.locator(`text=${title}`) });
+    let href = null;
+    if (await editLink.count()) {
+      href = await editLink.first().getAttribute('href');
+    } else {
+      // Fallback: find the class card container and look for the edit link inside it
+      const container = card.locator('xpath=ancestor::*[self::div or self::li][1]');
+      href = await container.locator('a[href*="/dashboard/crear-clase?edit="]').first().getAttribute('href');
+    }
+    console.log('edit href:', href);
+    await page.goto(`${BASE}${href}`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('text=Título de la clase', { timeout: 15000 });
+    await page.click('button:has-text("Continuar")');
+    await page.waitForTimeout(500);
+    await shot(page, '22-reopen-edit-schedule-step1');
+    const blockCount = await page.locator('text=/^Horario \\d+$/').count();
+    console.log('visible schedule block headers:', blockCount);
+    const dayPills = await page.locator('p:has-text("Los ") + p, p.bg-white').allTextContents();
+    console.log('slot summaries:', JSON.stringify(dayPills));
   });
 
 } else if (cmd === 'check-clases') {

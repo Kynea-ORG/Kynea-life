@@ -51,12 +51,13 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     if (!session) { window.location.href = '/login'; return; }
     setSaving(true);
     if (saved) {
-      await supabase.from('saved_classes').delete()
+      const { error } = await supabase.from('saved_classes').delete()
         .eq('user_id', session.user.id).eq('class_id', cls.id);
-      setSaved(false);
+      if (!error) setSaved(false);
     } else {
-      await supabase.from('saved_classes').insert({ user_id: session.user.id, class_id: cls.id });
-      setSaved(true);
+      const { error } = await supabase.from('saved_classes').insert({ user_id: session.user.id, class_id: cls.id });
+      // 23505 = already saved (stale local state, e.g. another tab) — treat as success.
+      if (!error || error.code === '23505') setSaved(true);
     }
     setSaving(false);
   };
