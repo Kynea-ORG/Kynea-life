@@ -174,6 +174,7 @@ function buildInitialForm(editClass: DanceClass | null) {
       city: 'Lima',
       district: '',
       address: '',
+      venueName: '',
       reference: '',
       mapsUrl: '',
       placeId: '',
@@ -210,6 +211,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     city: editClass.city ?? 'Lima',
     district: editClass.district ?? '',
     address: editClass.address ?? '',
+    venueName: editClass.venueName ?? '',
     reference: editClass.reference ?? '',
     mapsUrl: editClass.mapsUrl ?? '',
     placeId: editClass.placeId ?? '',
@@ -414,6 +416,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('city', form.city);
         fd.set('district', form.district);
         fd.set('address', form.address);
+        fd.set('venueName', form.venueName);
         fd.set('reference', form.reference);
         fd.set('placeId', form.placeId);
         fd.set('lat', form.lat);
@@ -851,6 +854,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       {form.modality !== 'Online' && (
         <div className="space-y-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50/50">
           <p className="text-xs font-bold text-neutral-700">Ubicación presencial</p>
+          <div>
+            <FieldLabel>Nombre del local <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+            <input className="input" value={form.venueName} onChange={e => set('venueName', e.target.value)}
+              placeholder="Ej: Danxestudio" />
+            <Hint>Se muestra junto a la dirección. Déjalo vacío si no aplica.</Hint>
+          </div>
           <div>
             <FieldLabel>Dirección</FieldLabel>
             <PlacesAddressField

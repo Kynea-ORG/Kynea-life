@@ -47,7 +47,10 @@ export async function createClass(formData: FormData) {
 
   let venueId: string | null = null;
   if (isPresencial && address) {
-    const venueName = (formData.get('venueName') as string) || address;
+    // No fallback to `address` here: the detail page shows venue name and
+    // address as separate lines, so defaulting an unnamed venue's name to
+    // its own address made that block print the address twice.
+    const venueName = (formData.get('venueName') as string) || '';
     venueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, districtId, placeId, lat, lng });
   }
 
@@ -217,7 +220,7 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
 
   const { data: existing } = await supabase
     .from('classes')
-    .select('venue_id, venues(place_id, address)')
+    .select('venue_id, venues(place_id, address, name)')
     .eq('id', classId)
     .eq('teacher_id', user.id)
     .single();
@@ -234,13 +237,15 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
 
   // `venues` is a to-one FK relation, but PostgREST types it as an array when
   // inferred loosely — normalize before reading.
-  const currentVenueRaw = existing.venues as { place_id: string | null; address: string | null } | Array<{ place_id: string | null; address: string | null }> | null;
+  const currentVenueRaw = existing.venues as { place_id: string | null; address: string | null; name: string | null } | Array<{ place_id: string | null; address: string | null; name: string | null }> | null;
   const currentVenue = Array.isArray(currentVenueRaw) ? (currentVenueRaw[0] ?? null) : currentVenueRaw;
 
   let venueId: string | null = existing.venue_id ?? null;
   if (isPresencial && address) {
-    if (venueNeedsUpdate(currentVenue, { placeId, address })) {
-      const venueName = (formData.get('venueName') as string) || address;
+    // See createClass: no fallback to `address` — an unnamed venue should
+    // stay unnamed, not silently mirror the address into the name field.
+    const venueName = (formData.get('venueName') as string) || '';
+    if (venueNeedsUpdate(currentVenue, { placeId, address, name: venueName })) {
       const newVenueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, districtId, placeId, lat, lng });
       if (newVenueId) venueId = newVenueId;
     }
