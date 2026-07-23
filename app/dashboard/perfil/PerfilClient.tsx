@@ -7,6 +7,15 @@ import { createClient } from '@/lib/supabase/client';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import type { DbDistrict } from '@/lib/types';
 
+// Extracts the storage object path from a public Supabase Storage URL
+// (".../object/public/class-images/<path>" -> "<path>") so a replaced or
+// removed photo's old file can be cleaned up instead of left orphaned.
+function storagePathFromUrl(url: string): string | null {
+  const marker = '/object/public/class-images/';
+  const idx = url.indexOf(marker);
+  return idx === -1 ? null : url.slice(idx + marker.length);
+}
+
 interface ProfileStyleRow {
   style_id: number;
   dance_styles: { name: string } | null;
@@ -93,6 +102,7 @@ export default function PerfilClient({
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No autenticado');
+      const previousPath = storagePathFromUrl(photoUrl);
       const ext = file.name.split('.').pop() ?? 'jpg';
       // Timestamped path (not a fixed "profile.<ext>" name) so a re-upload gets
       // a brand-new public URL — reusing the same URL would let the browser/CDN
@@ -105,6 +115,9 @@ export default function PerfilClient({
       setPhotoPosition('50% 50%');
       setPhotoZoom(1);
       await updateProfile({ photo_url: publicUrl, photo_position: '50% 50%', photo_zoom: 1 });
+      // Best-effort cleanup of the replaced file — the new photo is already
+      // saved at this point, so a failure here shouldn't surface as an error.
+      if (previousPath) supabase.storage.from('class-images').remove([previousPath]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir foto');
     } finally {
@@ -125,12 +138,14 @@ export default function PerfilClient({
   };
 
   const handleRemovePhoto = async () => {
+    const previousPath = storagePathFromUrl(photoUrl);
     setPhotoUrl('');
     setPhotoPosition('50% 50%');
     setPhotoZoom(1);
     if (photoInputRef.current) photoInputRef.current.value = '';
     try {
       await updateProfile({ photo_url: '', photo_position: '50% 50%', photo_zoom: 1 });
+      if (previousPath) createClient().storage.from('class-images').remove([previousPath]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar la foto');
     }
