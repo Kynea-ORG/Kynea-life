@@ -183,27 +183,29 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
 
       {/* Desktop table (CSS Grid — not a literal <table>, so each row can carry its own border/hover treatment) */}
       {filtered.length > 0 && (
-        <div className="hidden md:block bg-white rounded-xl shadow-sm border-2 border-neutral-900 overflow-hidden">
+        <div role="table" aria-label="Mis clases" className="hidden md:block bg-white rounded-xl shadow-sm border-2 border-neutral-900 overflow-hidden">
           <div
+            role="row"
             className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-500 uppercase tracking-wide"
             style={{ gridTemplateColumns: '2.2fr 0.9fr 1fr 1.3fr 0.8fr 0.9fr 1.6fr' }}
           >
-            <span>Clase</span>
-            <span>Tipo</span>
-            <span>Estado</span>
-            <span>Horario</span>
-            <span>Cupos</span>
-            <span>Precio</span>
-            <span>Acciones</span>
+            <span role="columnheader">Clase</span>
+            <span role="columnheader">Tipo</span>
+            <span role="columnheader">Estado</span>
+            <span role="columnheader">Horario</span>
+            <span role="columnheader">Cupos</span>
+            <span role="columnheader">Precio</span>
+            <span role="columnheader">Acciones</span>
           </div>
-          <div className="divide-y divide-neutral-50">
+          <div role="rowgroup" className="divide-y divide-neutral-50">
             {filtered.map(cls => (
               <div
                 key={cls.id}
+                role="row"
                 className={`grid gap-4 items-center px-6 py-4 hover:bg-neutral-50 ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}
                 style={{ gridTemplateColumns: '2.2fr 0.9fr 1fr 1.3fr 0.8fr 0.9fr 1.6fr' }}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div role="cell" className="flex items-center gap-3 min-w-0">
                   {cls.coverImage ? (
                     <div className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0">
                       <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" />
@@ -216,24 +218,24 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                     <p className="text-xs text-neutral-500 truncate">{cls.style} · {cls.level}</p>
                   </div>
                 </div>
-                <div>
+                <div role="cell">
                   <span className="text-xs text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full">{getTypeLabel(cls.type)}</span>
                 </div>
-                <div>
+                <div role="cell">
                   <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(cls.status)}`}>
                     {getStatusLabel(cls.status)}
                   </span>
                 </div>
-                <div className="text-xs text-neutral-600 min-w-0">
+                <div role="cell" className="text-xs text-neutral-600 min-w-0">
                   <span className="truncate block">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</span>
                 </div>
-                <div className="text-xs text-neutral-600">
+                <div role="cell" className="text-xs text-neutral-600">
                   {cls.availableSpots ?? '—'}/{cls.maxSpots ?? '—'}
                 </div>
-                <div className="text-xs font-semibold text-neutral-900">
+                <div role="cell" className="text-xs font-semibold text-neutral-900">
                   {formatPrice(cls.priceType, cls.price, cls.currency)}
                 </div>
-                <div>
+                <div role="cell">
                   {confirmDelete === cls.id ? (
                     <div className="flex items-center gap-2 animate-fade-in">
                       <span className="text-xs text-neutral-600 whitespace-nowrap">¿Eliminar?</span>
