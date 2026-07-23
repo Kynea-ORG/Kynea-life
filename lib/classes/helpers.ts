@@ -9,10 +9,11 @@ export const DAY_MAP: Record<string, number> = {
 };
 
 export function venueNeedsUpdate(
-  current: { place_id: string | null; address: string | null } | null,
-  incoming: { placeId: string | null; address: string }
+  current: { place_id: string | null; address: string | null; name: string | null } | null,
+  incoming: { placeId: string | null; address: string; name: string }
 ): boolean {
   if (!current) return true;
+  if (current.name !== incoming.name) return true;
   if (current.place_id && incoming.placeId) return current.place_id !== incoming.placeId;
   if (!incoming.placeId) return current.address !== incoming.address;
   return true;
@@ -34,7 +35,18 @@ export async function findOrCreateVenue(
       .eq('place_id', opts.placeId)
       .maybeSingle();
     if (lookupError) console.error('[findOrCreateVenue] lookup', lookupError.message);
-    if (existing?.id) return existing.id;
+    if (existing?.id) {
+      // Venues are reused across classes at the same place (see table
+      // comment), so keep the shared row's editable fields in sync with
+      // whatever the teacher just typed instead of leaving them frozen at
+      // whatever they were the first time this place was saved.
+      const { error: updateError } = await supabase
+        .from('venues')
+        .update({ name: opts.name, reference: opts.reference, district_id: opts.districtId, lat: opts.lat, lng: opts.lng })
+        .eq('id', existing.id);
+      if (updateError) console.error('[findOrCreateVenue] update', updateError.message);
+      return existing.id;
+    }
   }
 
   const { data, error } = await supabase

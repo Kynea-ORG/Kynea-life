@@ -341,7 +341,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <div>
                       {cls.venueName && <p className="font-semibold text-neutral-900">{cls.venueName}</p>}
                       <p>{cls.district}, {cls.city}</p>
-                      {cls.address && <p className="text-neutral-400 mt-0.5">{cls.address}</p>}
+                      {/* Older venues had their name defaulted to their own address
+                          (no "nombre del local" field existed yet) — skip the address
+                          line when it would just repeat the name above it. */}
+                      {cls.address && cls.address !== cls.venueName && <p className="text-neutral-400 mt-0.5">{cls.address}</p>}
                       {cls.reference && <p className="text-neutral-400">{cls.reference}</p>}
                     </div>
                   </div>
