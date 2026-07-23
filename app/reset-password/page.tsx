@@ -89,11 +89,11 @@ function ResetPasswordContent() {
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
             {hasSession === null ? (
-              <div className="flex justify-center py-8">
+              <div key="checking" className="flex justify-center py-8 animate-fade-in">
                 <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
               </div>
             ) : !hasSession ? (
-              <div className="flex flex-col items-center gap-4 py-4 text-center">
+              <div key="invalid" className="flex flex-col items-center gap-4 py-4 text-center animate-fade-in">
                 <p className="text-[17px] font-black text-neutral-900">Enlace inválido o expirado</p>
                 <p className="text-[14px] text-neutral-500">
                   Este enlace ya no es válido. Solicita un nuevo correo de recuperación desde el login.
@@ -103,13 +103,13 @@ function ResetPasswordContent() {
                 </Link>
               </div>
             ) : (
-              <>
+              <div key="form" className="animate-fade-in">
                 <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-1">Nueva contraseña</h1>
                 <p className="text-[15px] text-neutral-500 mb-6">Elige una contraseña segura para tu cuenta</p>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                   {error && (
-                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">
+                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">
                       {error}
                     </div>
                   )}
@@ -154,7 +154,7 @@ function ResetPasswordContent() {
                       </button>
                     </div>
                     {confirmMismatch && (
-                      <p className="text-[12px] text-red-500 mt-1">Las contraseñas no coinciden</p>
+                      <p className="text-[12px] text-red-500 mt-1 animate-fade-in">Las contraseñas no coinciden</p>
                     )}
                   </div>
 
@@ -163,7 +163,7 @@ function ResetPasswordContent() {
                     {loading ? 'Guardando…' : 'Guardar contraseña'}
                   </button>
                 </form>
-              </>
+              </div>
             )}
           </div>
         </div>

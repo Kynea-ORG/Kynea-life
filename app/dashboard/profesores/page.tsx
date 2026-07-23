@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Plus, Edit2, Star, BookOpen, Users, Activity, UserX, Upload, X, Download, Search, ChevronDown } from 'lucide-react';
+import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 
 /* ── Mock data ─────────────────────────────────────────────────────────── */
 
@@ -88,11 +89,16 @@ export default function ProfesoresPage() {
   const [form, setForm] = useState(EMPTY_FORM);
 
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toastOpen, setToastOpen] = useState(false);
+  const shouldRenderToast = useDelayedUnmount(toastOpen, 200);
+  const shouldRenderModal = useDelayedUnmount(showModal, 200);
+  const shouldRenderCSV = useDelayedUnmount(showCSV, 200);
 
   /* helpers */
   const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    setToastOpen(true);
+    setTimeout(() => setToastOpen(false), 3000);
   };
 
   const toggleStatus = (id: string) => {
@@ -161,14 +167,16 @@ export default function ProfesoresPage() {
     <div className="p-6 lg:p-8 w-full max-w-6xl">
 
       {/* Toast */}
-      {toast && (
-        <div className={`fixed top-5 right-5 z-[60] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-all ${
+      {shouldRenderToast && toast && (
+        <div className={`fixed top-5 right-5 z-[60] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95 ${
+          toastOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+        } ${
           toast.type === 'success' ? 'bg-green-bg text-green-text border border-green-dark/20' :
           toast.type === 'error'   ? 'bg-red-bg text-red-border border border-red-100' :
           'bg-blue-pastel-bg text-blue-700 border border-blue-pastel'
         }`}>
           {toast.msg}
-          <button onClick={() => setToast(null)}><X className="w-4 h-4" /></button>
+          <button onClick={() => setToastOpen(false)} className="active:scale-90"><X className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -262,7 +270,7 @@ export default function ProfesoresPage() {
           <p className="text-sm mt-1">Prueba con otro filtro o agrega un nuevo profesor</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-fade-in">
           {filtered.map(teacher => (
             <div key={teacher.id} className="bg-white border border-neutral-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow">
               {/* Photo */}
@@ -332,14 +340,14 @@ export default function ProfesoresPage() {
                   Ver clases
                 </button>
                 <button
-                  className="p-2 rounded-btn border-2 border-neutral-200 text-neutral-600 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+                  className="p-2 rounded-btn border-2 border-neutral-200 text-neutral-600 hover:border-neutral-900 hover:text-neutral-900 transition-colors active:scale-90"
                   title="Editar"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => toggleStatus(teacher.id)}
-                  className={`btn-sm px-3 py-2 rounded-btn border-2 font-semibold text-[13px] transition-colors whitespace-nowrap ${
+                  className={`btn-sm px-3 py-2 rounded-btn border-2 font-semibold text-[13px] transition-colors active:scale-[0.97] whitespace-nowrap ${
                     teacher.estado === 'activo'
                       ? 'border-neutral-200 text-neutral-600 hover:border-red-500 hover:text-red-600 hover:bg-red-50'
                       : 'border-green-dark/30 text-green-text hover:bg-green-bg'
@@ -354,9 +362,10 @@ export default function ProfesoresPage() {
       )}
 
       {/* ── Add professor modal ─────────────────────────────────────────────── */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
-          <div className="max-w-lg mx-4 sm:mx-auto mt-10 sm:mt-20 mb-10 bg-white rounded-xl p-6 shadow-xl">
+      {shouldRenderModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className={`fixed inset-0 bg-black/40 transition-opacity duration-200 ease-out starting:opacity-0 ${showModal ? 'opacity-100' : 'opacity-0'}`} />
+          <div className={`relative max-w-lg mx-4 sm:mx-auto mt-10 sm:mt-20 mb-10 bg-white rounded-xl p-6 shadow-xl transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95 ${showModal ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-black text-neutral-900">Agregar profesor</h2>
               <button
@@ -472,9 +481,10 @@ export default function ProfesoresPage() {
       )}
 
       {/* ── CSV import modal ─────────────────────────────────────────────────── */}
-      {showCSV && (
-        <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
-          <div className="max-w-lg mx-4 sm:mx-auto mt-10 sm:mt-20 mb-10 bg-white rounded-xl p-6 shadow-xl">
+      {shouldRenderCSV && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className={`fixed inset-0 bg-black/40 transition-opacity duration-200 ease-out starting:opacity-0 ${showCSV ? 'opacity-100' : 'opacity-0'}`} />
+          <div className={`relative max-w-lg mx-4 sm:mx-auto mt-10 sm:mt-20 mb-10 bg-white rounded-xl p-6 shadow-xl transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95 ${showCSV ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-black text-neutral-900">Importar profesores desde CSV</h2>
               <button

@@ -22,12 +22,12 @@ export default async function ProfesoresPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
               {teachers.map(t => (
                 <Link key={t.id} href={`/profesores/${t.id}`}
-                  className="border border-neutral-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow group">
+                  className="border border-neutral-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow active:scale-[0.98] group">
                   <div className="relative w-full h-48 overflow-hidden bg-neutral-200">
                     {t.photo ? (
                       <Image src={t.photo} alt={t.name} fill
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        className="object-cover object-top group-hover:scale-105 transition-transform duration-300" />
+                        className="object-cover object-top group-hover:scale-105 transition-transform duration-200" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <span className="text-5xl font-black text-neutral-400 select-none">
@@ -56,7 +56,7 @@ export default async function ProfesoresPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {academias.map(t => (
                 <Link key={t.id} href={`/profesores/${t.id}`}
-                  className="flex items-start gap-4 border border-neutral-100 rounded-xl p-4 hover:shadow-md transition-shadow group">
+                  className="flex items-start gap-4 border border-neutral-100 rounded-xl p-4 hover:shadow-md transition-shadow active:scale-[0.98] group">
                   <div className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-neutral-200">
                     {t.photo ? (
                       <Image src={t.photo} alt={t.name} fill sizes="64px" className="object-cover" />
@@ -83,8 +83,8 @@ export default async function ProfesoresPage() {
         )}
 
         {teachers.length === 0 && academias.length === 0 && (
-          <div className="text-center py-24 text-neutral-400">
-            <p className="text-5xl mb-4">🕺</p>
+          <div className="text-center py-24 text-neutral-400 animate-fade-in">
+            <p className="text-5xl mb-4 animate-pop">🕺</p>
             <p className="text-[16px]">Pronto habrá profesores disponibles.</p>
           </div>
         )}

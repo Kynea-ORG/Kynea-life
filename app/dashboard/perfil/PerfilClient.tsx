@@ -228,7 +228,7 @@ export default function PerfilClient({
           <div className="flex flex-wrap gap-2">
             {danceStyles.map(s => (
               <button key={s} onClick={() => toggleStyle(s)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors active:scale-95 ${
                   styles.includes(s)
                     ? 'bg-neutral-900 text-white border-neutral-900'
                     : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
@@ -291,7 +291,7 @@ export default function PerfilClient({
         </div>
 
         {error && (
-          <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">{error}</div>
+          <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">{error}</div>
         )}
 
         <div className="flex items-center justify-between gap-4 flex-wrap">

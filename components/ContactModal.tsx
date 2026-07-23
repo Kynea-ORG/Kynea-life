@@ -1,7 +1,8 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, MessageCircle, Globe, Phone } from 'lucide-react';
+import { X, MessageCircle, Globe, Phone, Check } from 'lucide-react';
 
 function IgIcon({ className }: { className?: string }) {
   return (
@@ -32,15 +33,32 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
 
   const hasContact = contactType === 'instagram' ? hasInstagram : hasWhatsapp;
 
+  const [closing, setClosing] = useState(false);
+  const handleClose = () => {
+    setClosing(true);
+    setTimeout(onClose, 200);
+  };
+
+  const [confirmed, setConfirmed] = useState(false);
+  const handleContactClick = () => {
+    setConfirmed(true);
+    handleClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ease-out starting:opacity-0 ${closing ? 'opacity-0' : 'opacity-100'}`}
+        onClick={handleClose}
+      />
 
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+      <div
+        className={`relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95 ${closing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4">
           <h2 className="text-[20px] font-bold text-neutral-900">Contactar al profesor</h2>
-          <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-md transition-colors">
+          <button onClick={handleClose} className="p-2 hover:bg-neutral-100 rounded-md transition-colors active:scale-90">
             <X className="w-5 h-5 text-neutral-400" />
           </button>
         </div>
@@ -116,7 +134,7 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
               </p>
             </div>
 
-            <button onClick={onClose} className="w-full btn-outline">Entendido</button>
+            <button onClick={handleClose} className="w-full btn-outline">Entendido</button>
           </div>
         ) : (
           /* ── Logueado + tiene contacto (fallback — normalmente abre directo) ── */
@@ -150,11 +168,11 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
                   href={`https://instagram.com/${instagramHandle}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={onClose}
-                  className="w-full flex items-center justify-center gap-2 bg-[#E1306C] hover:bg-[#c9225a] text-white font-bold py-3.5 rounded-btn transition-colors"
+                  onClick={handleContactClick}
+                  className="w-full flex items-center justify-center gap-2 bg-[#E1306C] hover:bg-[#c9225a] text-white font-bold py-3.5 rounded-btn transition-colors active:scale-[0.97]"
                 >
-                  <IgIcon className="w-5 h-5" />
-                  Abrir Instagram
+                  {confirmed ? <Check className="w-5 h-5 animate-fade-in" /> : <IgIcon className="w-5 h-5" />}
+                  {confirmed ? 'Abriendo…' : 'Abrir Instagram'}
                 </a>
               </>
             ) : (
@@ -170,11 +188,11 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={onClose}
-                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20BC5A] text-white font-bold py-3.5 rounded-btn transition-colors"
+                  onClick={handleContactClick}
+                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20BC5A] text-white font-bold py-3.5 rounded-btn transition-colors active:scale-[0.97]"
                 >
-                  <MessageCircle className="w-5 h-5" />
-                  Abrir WhatsApp
+                  {confirmed ? <Check className="w-5 h-5 animate-fade-in" /> : <MessageCircle className="w-5 h-5" />}
+                  {confirmed ? 'Abriendo…' : 'Abrir WhatsApp'}
                 </a>
               </>
             )}

@@ -13,7 +13,7 @@ export default function NotFound() {
         <p className="text-neutral-500 mb-8">Parece que esta clase ya terminó o fue removida. Pero hay muchas más esperándote.</p>
         <Link
           href="/"
-          className="inline-flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold px-8 py-3 rounded-btn transition-colors"
+          className="inline-flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold px-8 py-3 rounded-btn transition-colors active:scale-[0.97]"
         >
           Explorar clases
         </Link>

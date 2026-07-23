@@ -182,10 +182,12 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
 
   // ── Carousel auto-scroll ──
   const carouselRef = useRef<HTMLDivElement>(null);
+  const carouselPausedRef = useRef(false);
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
     const interval = setInterval(() => {
+      if (carouselPausedRef.current) return;
       if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
         el.scrollTo({ left: 0, behavior: 'smooth' });
       } else {
@@ -279,7 +281,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
 
                 {/* Autocomplete dropdown */}
                 {showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 overflow-hidden">
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 overflow-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95">
 
                     {isSearching && (
                       <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-neutral-400">
@@ -399,7 +401,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 className="relative shrink-0 w-[168px] h-[152px] rounded-2xl cursor-pointer group select-none block overflow-hidden"
               >
                 {/* Background: uploaded photos assigned round-robin for now — will map one per style later */}
-                <div className="absolute inset-0 scale-100 group-hover:scale-110 transition-transform duration-500 ease-out">
+                <div className="absolute inset-0 scale-100 group-hover:scale-110 transition-transform duration-200 ease-out">
                   <div
                     className="absolute inset-0 -z-10"
                     style={{ background: CATEGORY_GRADIENTS[i % CATEGORY_GRADIENTS.length] }}
@@ -415,7 +417,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 </div>
 
                 {/* Legibility + hover overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/0 transition-opacity duration-300 group-hover:from-black/60" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/0 transition-opacity duration-200 group-hover:from-black/60" />
 
                 {/* Border — only on hover */}
                 <div className="absolute inset-0 rounded-2xl border-[3px] border-transparent group-hover:border-white/70 transition-colors duration-200 pointer-events-none" />
@@ -448,14 +450,14 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 <div className="hidden sm:flex items-center gap-2">
                   <button
                     onClick={() => teachersScrollRef.current?.scrollBy({ left: -460, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
                     aria-label="Anterior"
                   >
                     <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
                   </button>
                   <button
                     onClick={() => teachersScrollRef.current?.scrollBy({ left: 460, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
                     aria-label="Siguiente"
                   >
                     <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
@@ -475,7 +477,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                   <Link
                     key={t.id}
                     href={`/profesores/${t.id}`}
-                    className="shrink-0 w-[210px] rounded-2xl border border-neutral-100 bg-white overflow-hidden transition-all duration-150 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5"
+                    className="shrink-0 w-[210px] rounded-2xl border border-neutral-100 bg-white overflow-hidden transition-[box-shadow,transform] duration-150 ease-out hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
                     style={{ scrollSnapAlign: 'start' }}
                   >
                     <div className={`relative w-full aspect-square flex items-center justify-center ${avatar.bg}`}>
@@ -532,14 +534,14 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 <div className="hidden sm:flex items-center gap-2">
                   <button
                     onClick={() => salsaScrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
                     aria-label="Anterior"
                   >
                     <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
                   </button>
                   <button
                     onClick={() => salsaScrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
                     aria-label="Siguiente"
                   >
                     <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
@@ -583,7 +585,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`text-[14px] font-semibold px-4 py-2.5 transition-all duration-150 border-b-2 -mb-px ${
+                className={`text-[14px] font-semibold px-4 py-2.5 transition-[color,border-color] duration-150 ease-out border-b-2 -mb-px ${
                   activeTab === tab
                     ? 'border-neutral-900 text-neutral-900'
                     : 'border-transparent text-neutral-400 hover:text-neutral-700'
@@ -603,7 +605,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
             <div className="relative">
               <button
                 onClick={() => carouselRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center hover:bg-neutral-50 transition-colors hidden sm:flex"
+                className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center hover:bg-neutral-50 transition-colors duration-150 ease-out active:scale-90 hidden sm:flex"
                 aria-label="Anterior"
               >
                 <ChevronLeft className="w-5 h-5 text-neutral-600" />
@@ -613,6 +615,8 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 ref={carouselRef}
                 className="flex gap-4 overflow-x-auto pb-4"
                 style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+                onMouseEnter={() => { carouselPausedRef.current = true; }}
+                onMouseLeave={() => { carouselPausedRef.current = false; }}
               >
                 {displayedClasses.map(cls => (
                   <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
@@ -623,7 +627,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
 
               <button
                 onClick={() => carouselRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center hover:bg-neutral-50 transition-colors hidden sm:flex"
+                className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center hover:bg-neutral-50 transition-colors duration-150 ease-out active:scale-90 hidden sm:flex"
                 aria-label="Siguiente"
               >
                 <ChevronRight className="w-5 h-5 text-neutral-600" />

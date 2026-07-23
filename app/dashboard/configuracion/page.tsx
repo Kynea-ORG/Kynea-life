@@ -47,7 +47,7 @@ export default function ConfiguracionPage() {
                     <span className="text-sm text-neutral-700">{s.label}</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" defaultChecked={s.default} className="sr-only peer" />
-                      <div className="w-10 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-neutral-900" />
+                      <div className="w-10 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-transform peer-checked:bg-neutral-900" />
                     </label>
                   </div>
                 ))}
@@ -61,10 +61,10 @@ export default function ConfiguracionPage() {
           <h2 className="font-bold text-red-700 mb-2">Zona de peligro</h2>
           <p className="text-sm text-red-600 mb-4">Estas acciones son irreversibles. Procede con cuidado.</p>
           <div className="flex flex-col sm:flex-row gap-3">
-            <button className="text-sm font-semibold text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors">
+            <button className="text-sm font-semibold text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors active:scale-[0.97]">
               Eliminar todas mis clases
             </button>
-            <button className="text-sm font-semibold text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl transition-colors">
+            <button className="text-sm font-semibold text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl transition-colors active:scale-[0.97]">
               Eliminar mi cuenta
             </button>
           </div>

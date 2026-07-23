@@ -86,7 +86,7 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
                     type="button"
                     onClick={() => !loading && setSelected(r.key)}
                     disabled={loading}
-                    className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                    className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-[border-color,background-color] active:scale-[0.98] ${
                       isSelected
                         ? 'border-neutral-900 bg-neutral-50'
                         : 'border-neutral-200 hover:border-neutral-400 disabled:hover:border-neutral-200 disabled:cursor-not-allowed'
@@ -101,7 +101,7 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
                       <p className="font-bold text-neutral-900 text-[15px]">{r.label}</p>
                       <p className="text-[13px] text-neutral-500">{r.description}</p>
                     </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-[background-color,border-color] ${
                       isSelected ? 'bg-neutral-900 border-neutral-900' : 'border-neutral-300'
                     }`}>
                       {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
@@ -112,7 +112,7 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
             </div>
 
             {error && (
-              <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 mb-4">
+              <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 mb-4 animate-fade-in">
                 {error}
               </div>
             )}

@@ -51,13 +51,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div className="border-b border-neutral-100 pb-4 mb-4">
       <button
-        className="flex items-center justify-between w-full text-[13px] font-semibold text-neutral-800 mb-3"
+        className="flex items-center justify-between w-full text-[13px] font-semibold text-neutral-800 mb-3 active:opacity-70"
         onClick={() => setOpen(!open)}
       >
         {title}
-        <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ease-out ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && children}
+      <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden">{children}</div>
+      </div>
     </div>
   );
 }
