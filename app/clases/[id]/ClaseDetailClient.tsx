@@ -27,8 +27,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [justContacted, setJustContacted] = useState<'whatsapp' | 'instagram' | null>(null);
 
   const contactMode = cls.contactMode ?? 'whatsapp';
-  const showWa = contactMode === 'whatsapp';
-  const showIg = contactMode === 'instagram';
+  const showWa = contactMode === 'whatsapp' || contactMode === 'both';
+  const showIg = contactMode === 'instagram' || contactMode === 'both';
 
   useEffect(() => {
     const supabase = createClient();
@@ -183,7 +183,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             </div>
 
             <div className="mb-8">
-              <p className="text-[15px] text-neutral-600 leading-relaxed">{cls.fullDescription}</p>
+              <p className="text-[15px] text-neutral-600 leading-relaxed whitespace-pre-line">{cls.fullDescription}</p>
             </div>
 
             {cls.whatYouLearn && cls.whatYouLearn.length > 0 && (
@@ -322,7 +322,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   {cls.startDate && (
                     <div className="flex items-center gap-2.5 text-[13px] text-neutral-600">
                       <Calendar className="w-4 h-4 text-neutral-400 shrink-0" />
-                      <span>Inicia {new Date(cls.startDate).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      <span>Inicia {new Date(`${cls.startDate}T12:00:00`).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     </div>
                   )}
                   {spotsLeft !== undefined && spotsLeft > 0 && (

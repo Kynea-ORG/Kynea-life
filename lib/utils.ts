@@ -34,12 +34,14 @@ export function formatPrice(priceType: string, price: number, currency: string):
 }
 
 export function formatTimeSlots(slots: { days: string[]; startTime: string; endTime: string }[]): string {
-  return slots.map(s => `${s.days.join(', ')} · ${s.startTime} – ${s.endTime}`).join(' | ');
+  // DB `time` columns come back as "HH:MM:SS" — trim to "HH:MM" for display.
+  return slots.map(s => `${s.days.join(', ')} · ${s.startTime.slice(0, 5)} – ${s.endTime.slice(0, 5)}`).join(' | ');
 }
 
 export function buildWhatsAppMessage(style: string, startDate: string, teacherPhone: string): string {
+  // Append noon to avoid UTC-midnight parsing rolling the date back a day in UTC-5.
   const date = startDate
-    ? new Date(startDate).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
+    ? new Date(`${startDate}T12:00:00`).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
     : '';
   const text = encodeURIComponent(
     `Hola, vi tu clase de ${style}${date ? ` en Kynea el ${date}` : ' en Kynea'} y me gustaría asistir. ¿Está disponible?`

@@ -64,8 +64,7 @@ están implementados** en el código actual:
 ### ⚠️ Pendiente o incompleto (prioridad de corrección)
 - **Confirmación de email: approach sin definir.** El callback de link y la pantalla de código OTP
   coexisten; falta elegir uno y configurar la plantilla de Supabase. Ver **1.1**.
-- **Protección de rutas por rol: ROTA.** Un alumno autenticado puede entrar a
-  `/dashboard/crear-clase`, `/mis-clases`, etc. Ver **1.3**.
+- ~~**Protección de rutas por rol: ROTA.**~~ RESUELTO — ver **1.3**.
 - **Contador de vistas: siempre en 0.** `classes.views_count` nunca se incrementa. Ver **6.2**.
 - **Sort "Recomendados/Menor precio": cosmético.** El `<select>` de ordenamiento en `/clases`
   no aplica ningún `.sort()`. Ver **5.1**.
@@ -128,18 +127,21 @@ Botones en registro y login, callback en `app/auth/callback/route.ts`, flujo
 Client ID/Secret de Google Cloud Console, y autorizar el callback en Google Console. Es config,
 no código.
 
-### 1.3 🔴 Protección de rutas por rol — PENDIENTE
+### 1.3 ✅ Protección de rutas por rol — RESUELTO
 
-**Problema:** `proxy.ts` verifica "¿está logueado?" pero **no el rol**. Un alumno puede entrar
-a `/dashboard/crear-clase`, `/dashboard/mis-clases`, `/dashboard/contactos`, etc. Los server
-components de esas rutas no verifican el rol y devuelven `null` en silencio.
+**Problema (ya corregido):** `proxy.ts` verificaba "¿está logueado?" pero no el rol. Un alumno
+podía entrar a `/dashboard/crear-clase`, `/dashboard/mis-clases`, `/dashboard/contactos`, etc.
 
-**Tarea:** En cada server component exclusivo de profesor/academia, obtener el `profile.role` y
-redirigir al alumno a `/dashboard/alumno`.
+**Solución:** nuevo helper server-only `lib/auth/requireRole.ts` (distinto de
+`lib/auth/redirectByRole.ts`, que es client-side y no sirve para RSC). Se llama al inicio de
+cada server component exclusivo de profesor/academia y redirige al alumno a `/dashboard/alumno`.
 
 **Archivos:** `app/dashboard/mis-clases/page.tsx`, `app/dashboard/crear-clase/page.tsx`,
-`app/dashboard/contactos/page.tsx`, `app/dashboard/importar-csv/page.tsx`,
-`app/dashboard/profesores/page.tsx`. El helper `lib/auth/redirectByRole.ts` ya existe.
+`app/dashboard/contactos/page.tsx` (profesor+academia); `app/dashboard/profesores/page.tsx`
+(solo academia); `app/dashboard/importar-csv/page.tsx` (profesor+academia). Estas dos últimas
+eran Client Components puros sin wrapper de servidor — se dividieron en `page.tsx` (server,
+hace el check) + `ProfesoresClient.tsx`/`ImportarCSVClient.tsx` (la UI existente, renombrada
+según la convención `*Client.tsx` del repo).
 
 ### 1.4 ⬜ Validación del lado servidor (Zod)
 

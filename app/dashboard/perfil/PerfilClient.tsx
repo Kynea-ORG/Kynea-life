@@ -1,8 +1,8 @@
 'use client';
-import { useState, useTransition, useRef } from 'react';
+import { useState, useTransition, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Save, Upload, Loader2, LogOut } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { updateProfile } from '@/lib/profiles/actions';
 import { createClient } from '@/lib/supabase/client';
 import type { DbDistrict } from '@/lib/types';
@@ -36,10 +36,15 @@ export default function PerfilClient({
   allDistricts: DbDistrict[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const waInputRef = useRef<HTMLInputElement>(null);
+  const instagramInputRef = useRef<HTMLInputElement>(null);
+  // Deep-link landing target from the contact-gating CTA (?missing=whatsapp,instagram#contacto).
+  const [highlightField, setHighlightField] = useState<'whatsapp' | 'instagram' | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(profile.photo_url ?? '');
 
@@ -97,6 +102,23 @@ export default function PerfilClient({
       setUploadingPhoto(false);
     }
   };
+
+  // Land on the missing contact field(s) when arriving via the publish
+  // contact-gating deep link (?missing=whatsapp,instagram#contacto).
+  useEffect(() => {
+    const missing = searchParams.get('missing');
+    if (!missing) return;
+    const fields = missing.split(',').filter((f): f is 'whatsapp' | 'instagram' => f === 'whatsapp' || f === 'instagram');
+    const first = fields[0];
+    const target = first === 'whatsapp' ? waInputRef.current : first === 'instagram' ? instagramInputRef.current : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.focus();
+    setHighlightField(first);
+    const timer = setTimeout(() => setHighlightField(null), 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -240,7 +262,7 @@ export default function PerfilClient({
         </div>
 
         {/* Contact & social */}
-        <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6 space-y-4">
+        <div id="contacto" className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6 space-y-4">
           <h2 className="font-bold text-neutral-900">Contacto y redes</h2>
           <p className="text-xs text-neutral-400"><span className="text-red-500">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
 
@@ -263,26 +285,44 @@ export default function PerfilClient({
                 <option value="+593">🇪🇨 +593</option>
               </select>
               <input
+                ref={waInputRef}
+                id="field-whatsapp"
                 type="tel"
                 value={waNumber}
                 onChange={e => setWaNumber(e.target.value.replace(/\D/g, ''))}
                 placeholder="999 999 999"
-                className="flex-1 border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900"
+                className={`flex-1 border rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 transition-shadow ${
+                  highlightField === 'whatsapp' ? 'border-amber-400 ring-2 ring-amber-200' : 'border-neutral-200'
+                }`}
               />
             </div>
             <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales ni guiones. Ej: 999999999</p>
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+              Instagram<span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <input
+              ref={instagramInputRef}
+              id="field-instagram"
+              type="text"
+              value={instagram}
+              onChange={e => setInstagram(e.target.value)}
+              placeholder="Tu instagram"
+              className={`w-full border rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 transition-shadow ${
+                highlightField === 'instagram' ? 'border-amber-400 ring-2 ring-amber-200' : 'border-neutral-200'
+              }`}
+            />
+          </div>
+
           {[
-            { label: 'Instagram', value: instagram, set: setInstagram, required: true },
             { label: 'TikTok', value: tiktok, set: setTiktok },
             { label: 'YouTube', value: youtube, set: setYoutube },
             { label: 'Sitio web', value: website, set: setWebsite },
           ].map(f => (
             <div key={f.label}>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                {f.label}{'required' in f && f.required && <span className="text-red-500 ml-0.5">*</span>}
-              </label>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{f.label}</label>
               <input type="text" value={f.value} onChange={e => f.set(e.target.value)}
                 placeholder={`Tu ${f.label.toLowerCase()}`}
                 className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900" />

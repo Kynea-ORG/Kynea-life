@@ -21,6 +21,14 @@ Cada cambio entra por PR. Un PR necesita:
 
 **Importante**: GitHub nunca deja que el autor de un PR apruebe su propio PR — es una regla de la plataforma, no de este repo. Si sos el único disponible para revisar tu propio cambio, pedile al otro que lo revise. No hay atajo salvo la excepción de emergencia en [HOTFIX.md](HOTFIX.md).
 
+**Cuenta de autoría (`joseniquen08-pr`)**: como `lib/`, `supabase/` y `proxy.ts` requieren aprobación específica de `@joseniquen08`, y GitHub no deja auto-aprobar, los PRs que tocan esas rutas se abren con la cuenta bot `joseniquen08-pr` (no con `joseniquen08`) para que la aprobación humana sea posible. El token de esa cuenta vive en `~/.kynea-bot-token` fuera del repo; se usa así, sin tocar la sesión de `gh` por defecto:
+
+```bash
+GH_TOKEN=$(cat ~/.kynea-bot-token) gh pr create --repo Kynea-ORG/Kynea-life ...
+```
+
+No uses `gh auth login`/`gh auth switch` para esto — el token del bot no tiene el scope `read:org` que esos comandos exigen y falla.
+
 ## 3. Antes de abrir un PR
 
 - Corré `npm run lint` y `npx tsc --noEmit` localmente — así no descubrís el error recién en el CI.

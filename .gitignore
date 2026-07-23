@@ -49,3 +49,6 @@ supabase/.temp/
 
 # AI tooling local state (SDD skill registry, not for the repo)
 .atl/
+
+# Claude Code local settings (per-machine, not for the repo)
+.claude/settings.local.json

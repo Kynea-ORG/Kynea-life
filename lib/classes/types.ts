@@ -38,7 +38,7 @@ export interface ClassUpdatePayload {
   requirements?:     string | null;
   age_group?:        string | null;
   to_bring?:         string[];
-  contact_mode?:     'whatsapp' | 'instagram' | 'web';
+  contact_mode?:     'whatsapp' | 'instagram' | 'both';
   cover_image?:      string | null;
 }
 
@@ -62,6 +62,7 @@ export interface DbVenue {
   address: string | null;
   reference: string | null;
   maps_url: string | null;
+  place_id: string | null;
   lat: number | null;
   lng: number | null;
   district: { name: string; city: string } | null;
