@@ -98,20 +98,12 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
   const router = useRouter();
   const [query, setQuery]         = useState('');
   const [city, setCity]           = useState('Lima');
-  const [activeTab, setActiveTab] = useState('Todas');
 
   const STATS = [
     { target: stats.classes,  suffix: '+', label: 'Clases disponibles',     dark: false },
     { target: stats.teachers, suffix: '+', label: 'Profesores verificados', dark: true  },
     { target: stats.styles,   suffix: '',  label: 'Estilos de baile',       dark: false },
     { target: stats.cities,   suffix: '',  label: 'Ciudades en Latinoamérica', dark: false },
-  ];
-
-  const CLASS_TABS = [
-    'Todas',
-    ...Array.from(new Set(initialClasses.map(c => c.style)))
-      .filter(style => style !== 'Cumbia')
-      .slice(0, 3),
   ];
 
   // ── Search autocomplete ──
@@ -209,10 +201,6 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
     e.preventDefault();
     navigateSearch();
   };
-
-  const displayedClasses = activeTab === 'Todas'
-    ? initialClasses
-    : initialClasses.filter(c => c.style === activeTab);
 
   const hasSuggestions = query.trim().length >= 2 && (suggestions.classes.length > 0 || suggestions.profiles.length > 0);
 
@@ -580,23 +568,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
             </div>
           </div>
 
-          <div className="flex items-center gap-1 mb-8 border-b border-neutral-200">
-            {CLASS_TABS.map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`text-[14px] font-semibold px-4 py-2.5 transition-[color,border-color] duration-150 ease-out border-b-2 -mb-px ${
-                  activeTab === tab
-                    ? 'border-neutral-900 text-neutral-900'
-                    : 'border-transparent text-neutral-400 hover:text-neutral-700'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {displayedClasses.length === 0 ? (
+          {initialClasses.length === 0 ? (
             <div className="text-center py-16 text-neutral-400">
               <p className="text-[15px]">No hay clases disponibles en este momento.</p>
               <p className="text-[13px] mt-1">¡Pronto habrá más!</p>
@@ -618,7 +590,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 onMouseEnter={() => { carouselPausedRef.current = true; }}
                 onMouseLeave={() => { carouselPausedRef.current = false; }}
               >
-                {displayedClasses.map(cls => (
+                {initialClasses.map(cls => (
                   <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
                     <ClassCard cls={cls} compact />
                   </div>

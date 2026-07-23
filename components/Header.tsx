@@ -129,17 +129,14 @@ export default function Header({ transparent = false }: { transparent?: boolean 
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-<Image
-  src={transparent ? "/logo-white.png" : "/logo.png"}
-  alt="Kynea"
-  width={110}
-  height={36}
-  priority
-  style={{
-    width: "110px",
-    height: "36px",
-  }}
-/>
+          <Image
+            src={transparent ? '/logo-white.png' : '/logo.png'}
+            alt="Kynea"
+            width={110}
+            height={36}
+            priority
+            style={{ height: 'auto' }}
+          />
           {process.env.NEXT_PUBLIC_APP_ENV === 'development' && (
             <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-400 text-amber-950 rounded px-1.5 py-0.5">
               dev
