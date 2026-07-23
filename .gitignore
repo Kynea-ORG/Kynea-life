@@ -52,3 +52,11 @@ supabase/.temp/
 
 # Claude Code local settings (per-machine, not for the repo)
 .claude/settings.local.json
+
+# Claude Code personal skills fetched via skills-lock.json (per-developer
+# tooling, not product code). Project-authored skills like run-kynea-life
+# stay tracked via the negated exception below.
+.agents/skills/
+skills-lock.json
+.claude/skills/*
+!.claude/skills/run-kynea-life
