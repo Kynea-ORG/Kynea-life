@@ -133,6 +133,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   sizes="(max-width: 1024px) 100vw, 800px"
                   priority
                   className="object-cover"
+                  style={activeImg === 0 ? { objectPosition: cls.coverImagePosition || '50% 50%' } : undefined}
                 />
               )}
               <div className="absolute top-4 left-4 flex gap-2">
@@ -270,7 +271,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" />
+                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%' }} />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
@@ -401,7 +402,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <button
                     onClick={toggleSave}
                     disabled={saving}
-                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border-2 border-neutral-900 transition-[background-color,color] active:scale-[0.97] disabled:opacity-60 ${
+                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border border-neutral-900 transition-[background-color,color] active:scale-[0.97] disabled:opacity-60 ${
                       saved
                         ? 'bg-neutral-900 text-white'
                         : 'text-neutral-700 hover:bg-neutral-50'
@@ -431,7 +432,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" />
+                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%' }} />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">

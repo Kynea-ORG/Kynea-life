@@ -40,6 +40,7 @@ export interface ClassUpdatePayload {
   to_bring?:         string[];
   contact_mode?:     'whatsapp' | 'instagram' | 'both';
   cover_image?:      string | null;
+  cover_image_position?: string;
 }
 
 // Shape returned by CLASS_SELECT (DB columns + joined relations)
@@ -73,6 +74,7 @@ export interface DbTeacherProfile {
   name: string;
   role: string;
   photo_url: string | null;
+  photo_position?: string | null;
   bio: string | null;
   years_experience: number | null;
   whatsapp: string | null;
@@ -113,6 +115,7 @@ export interface DbClassRow {
   platform: string | null;
   access_link: string | null;
   cover_image: string | null;
+  cover_image_position: string | null;
   gallery: string[] | null;
   video_url: string | null;
   footwear: string | null;

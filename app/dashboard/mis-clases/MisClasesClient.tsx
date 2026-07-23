@@ -183,7 +183,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
 
       {/* Desktop table (CSS Grid — not a literal <table>, so each row can carry its own border/hover treatment) */}
       {filtered.length > 0 && (
-        <div role="table" aria-label="Mis clases" className="hidden md:block bg-white rounded-xl shadow-sm border-2 border-neutral-900 overflow-hidden">
+        <div role="table" aria-label="Mis clases" className="hidden md:block bg-white rounded-xl shadow-sm border border-neutral-900 overflow-hidden">
           <div
             role="row"
             className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-500 uppercase tracking-wide"
@@ -208,7 +208,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                 <div role="cell" className="flex items-center gap-3 min-w-0">
                   {cls.coverImage ? (
                     <div className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0">
-                      <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" />
+                      <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%' }} />
                     </div>
                   ) : (
                     <div className="w-12 h-10 rounded-lg bg-neutral-100 shrink-0" />
@@ -250,19 +250,19 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                     <div className="flex items-center gap-1.5 animate-fade-in">
                       {cls.status === 'draft' && (
                         <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                          className="text-xs px-3 py-1.5 rounded-btn border-2 border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
                           Publicar
                         </button>
                       )}
                       {cls.status === 'published' && (
                         <button onClick={() => hideClass(cls.id)} disabled={isPending}
-                          className="text-xs px-3 py-1.5 rounded-btn border-2 border-neutral-900 text-neutral-700 font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-50">
+                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 text-neutral-700 font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-50">
                           Ocultar
                         </button>
                       )}
                       {cls.status === 'archived' && (
                         <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                          className="text-xs px-3 py-1.5 rounded-btn border-2 border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
                           Activar
                         </button>
                       )}
@@ -296,11 +296,11 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {filtered.map(cls => (
-          <div key={cls.id} className={`bg-white rounded-xl border-2 border-neutral-900 p-4 shadow-sm ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}>
+          <div key={cls.id} className={`bg-white rounded-xl border border-neutral-900 p-4 shadow-sm ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}>
             <div className="flex items-start gap-3">
               {cls.coverImage ? (
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
-                  <Image src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" />
+                  <Image src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%' }} />
                 </div>
               ) : (
                 <div className="w-16 h-16 rounded-xl bg-neutral-100 shrink-0" />
@@ -330,19 +330,19 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                 <div className="flex gap-2">
                   {cls.status === 'draft' && (
                     <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-bold text-white flex items-center gap-1 border-2 border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                      className="text-xs font-bold text-white flex items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
                       <Eye className="w-3 h-3" /> Publicar
                     </button>
                   )}
                   {cls.status === 'published' && (
                     <button onClick={() => { hideClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-semibold text-neutral-700 flex items-center gap-1 border-2 border-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-50 transition-colors disabled:opacity-50">
+                      className="text-xs font-semibold text-neutral-700 flex items-center gap-1 border border-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-50 transition-colors disabled:opacity-50">
                       <EyeOff className="w-3 h-3" /> Ocultar
                     </button>
                   )}
                   {cls.status === 'archived' && (
                     <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-bold text-white flex items-center gap-1 border-2 border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                      className="text-xs font-bold text-white flex items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
                       <Eye className="w-3 h-3" /> Activar
                     </button>
                   )}

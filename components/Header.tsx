@@ -17,6 +17,7 @@ interface Profile {
   name: string;
   role: Role;
   photo_url: string | null;
+  photo_position: string | null;
 }
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -31,11 +32,13 @@ const NAV_LINKS = [
 
 function Avatar({
   photoUrl,
+  photoPosition,
   name,
   sizeClass = 'w-8 h-8',
   className = '',
 }: {
   photoUrl: string | null | undefined;
+  photoPosition?: string | null;
   name: string | undefined;
   sizeClass?: string;
   className?: string;
@@ -43,7 +46,7 @@ function Avatar({
   if (photoUrl) {
     return (
       <div className={`relative ${sizeClass} rounded-full overflow-hidden shrink-0 ${className}`}>
-        <Image src={photoUrl} alt={name ?? ''} fill sizes="48px" className="object-cover" />
+        <Image src={photoUrl} alt={name ?? ''} fill sizes="48px" className="object-cover" style={{ objectPosition: photoPosition || '50% 50%' }} />
       </div>
     );
   }
@@ -162,7 +165,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
               {canPublish && (
                 <Link
                   href="/dashboard/crear-clase"
-                  className={`text-[15px] font-bold px-5 py-2 rounded-btn border-2 border-neutral-900 transition-[background-color] active:scale-[0.97] flex items-center gap-2 ${
+                  className={`text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 transition-[background-color] active:scale-[0.97] flex items-center gap-2 ${
                     transparent
                       ? 'bg-white text-neutral-900 hover:bg-neutral-100'
                       : 'bg-neutral-900 text-white hover:bg-neutral-800'
@@ -233,7 +236,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                 Iniciar sesión
               </Link>
               <Link href="/registro"
-                className={`text-[15px] font-bold px-5 py-2 rounded-btn border-2 border-neutral-900 transition-[background-color] active:scale-[0.97] ${
+                className={`text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 transition-[background-color] active:scale-[0.97] ${
                   transparent
                     ? 'bg-white text-neutral-900 hover:bg-neutral-100'
                     : 'bg-neutral-900 text-white hover:bg-neutral-800'

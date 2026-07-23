@@ -31,6 +31,7 @@ export default async function PerfilPage() {
           name: null, bio: null, years_experience: null,
           whatsapp: null, instagram: null, tiktok: null,
           youtube: null, website: null, photo_url: null,
+          photo_position: null,
           district: null, profile_styles: null,
         }}
         danceStyles={danceStyles.map(s => s.name)}

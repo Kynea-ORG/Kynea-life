@@ -13,6 +13,7 @@ export function mapTeacher(t: any): Teacher {
     name:         t.name,
     type:         t.role as 'profesor' | 'academia',
     photo:        t.photo_url ?? '',
+    photoPosition: t.photo_position || '50% 50%',
     city:         dist?.city ?? '',
     district:     dist?.name ?? '',
     bio:          t.bio ?? '',

@@ -16,6 +16,7 @@ export async function updateProfile(updates: {
   website?: string;
   style_names?: string[];
   photo_url?: string;
+  photo_position?: string;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

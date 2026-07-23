@@ -11,16 +11,11 @@ import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 
 // ── Price and time helpers (these stay client-side: require computed logic) ───
 
-function matchesPriceRange(cls: DanceClass, range: string): boolean {
+function matchesPriceMax(cls: DanceClass, priceMax: number): boolean {
   const free = cls.priceType === 'Gratis' || cls.price === 0;
+  if (free) return true;
   const p = cls.offerPrice ?? cls.price;
-  switch (range) {
-    case 'Gratis':      return free;
-    case 'Hasta S/50':  return !free && p <= 50;
-    case 'S/50–S/150':  return !free && p > 50 && p <= 150;
-    case 'S/150+':      return !free && p > 150;
-    default:            return false;
-  }
+  return p <= priceMax;
 }
 
 function matchesTimeOfDay(cls: DanceClass, bucket: string): boolean {
@@ -59,7 +54,7 @@ function initFiltersFromUrl(sp: ReturnType<typeof useSearchParams>): Filters {
     days:       sp.getAll('day'),
     city:       sp.get('city') || '',
     withSpots:  sp.get('spots') === '1',
-    // priceRanges and timesOfDay are client-only: not in URL
+    // priceMax and timesOfDay are client-only: not in URL
   };
 }
 
@@ -122,7 +117,7 @@ export default function ClasesContent({
 
   // ── Client-side filtering (instant feedback + client-only dimensions) ─────────
   // The server pre-filters by styles/levels/days/city/modalities/types/withSpots/query.
-  // Client applies priceRanges + timesOfDay on top, plus the other dims for
+  // Client applies priceMax + timesOfDay on top, plus the other dims for
   // instant feedback while the server re-fetch is in progress.
 
   const results = initialClasses.filter(cls => {
@@ -134,7 +129,7 @@ export default function ClasesContent({
     if (filters.modalities.length && !filters.modalities.includes(cls.modality)) return false;
     if (filters.types.length && !filters.types.includes(cls.type)) return false;
     if (filters.withSpots && ((cls.availableSpots ?? 0) === 0)) return false;
-    if (filters.priceRanges.length && !filters.priceRanges.some(r => matchesPriceRange(cls, r))) return false;
+    if (filters.priceMax !== null && !matchesPriceMax(cls, filters.priceMax)) return false;
     if (filters.timesOfDay.length && !filters.timesOfDay.some(t => matchesTimeOfDay(cls, t))) return false;
     if (filters.days.length) {
       const classdays = cls.timeSlots.flatMap(s => s.days);
@@ -146,7 +141,7 @@ export default function ClasesContent({
 
   const activeCount =
     filters.styles.length + filters.levels.length + filters.days.length +
-    filters.timesOfDay.length + filters.modalities.length + filters.priceRanges.length +
+    filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
     filters.types.length + (filters.withSpots ? 1 : 0) + (filters.city ? 1 : 0) +
     (query ? 1 : 0);
 
@@ -175,24 +170,24 @@ export default function ClasesContent({
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 text-[15px] font-semibold px-4 py-2.5 rounded-btn border-2 border-neutral-900 transition-colors active:scale-[0.97] md:hidden ${
+            className={`flex items-center gap-2 text-[15px] font-semibold px-4 py-2.5 rounded-btn border-2 transition-colors active:scale-[0.97] md:hidden ${
               activeCount > 0
-                ? 'bg-neutral-900 text-white'
-                : 'bg-white text-neutral-700 hover:bg-neutral-50'
+                ? 'bg-neutral-900 border-neutral-900 text-white'
+                : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" />
             Filtros {activeCount > 0 && `(${activeCount})`}
           </button>
 
-          <Link href="/mapa" className="hidden md:flex items-center gap-2 text-[15px] font-medium px-4 py-2.5 rounded-btn border-2 border-neutral-900 text-neutral-700 hover:bg-neutral-50 transition-colors">
+          <Link href="/mapa" className="hidden md:flex items-center gap-2 text-[15px] font-medium px-4 py-2.5 rounded-btn border-2 border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors">
             <Map className="w-4 h-4" /> Mapa
           </Link>
 
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
-            className="hidden md:block text-[15px] text-neutral-600 border-2 border-neutral-900 rounded-btn px-4 py-2.5 outline-none bg-white cursor-pointer hover:bg-neutral-50 transition-colors"
+            className="hidden md:block text-[15px] text-neutral-600 border-2 border-neutral-200 rounded-btn px-4 py-2.5 outline-none bg-white cursor-pointer hover:bg-neutral-50 transition-colors"
           >
             {['Recomendados', 'Menor precio', 'Próximamente', 'Mejor disponibilidad'].map(o => (
               <option key={o}>{o}</option>

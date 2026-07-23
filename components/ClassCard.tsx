@@ -62,6 +62,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
             fill
             sizes="(max-width: 768px) 100vw, 400px"
             className="object-cover group-hover:scale-105 transition-transform duration-300"
+            style={{ objectPosition: cls.coverImagePosition || '50% 50%' }}
           />
           <div className="absolute top-3 left-3 flex gap-2">
             {isFullyBooked && (
@@ -128,17 +129,17 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           <div className="flex gap-2 mt-auto pt-1">
             <Link
               href={`/clases/${cls.id}`}
-              className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border-2 border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
+              className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
             >
               Ver clase
             </Link>
             <button
               onClick={handleContact}
               disabled={isFullyBooked}
-              className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border-2 ${
+              className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border ${
                 isFullyBooked
                   ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                  : 'bg-primary border-primary hover:bg-primary-dark hover:border-primary-dark active:bg-neutral-900 active:border-neutral-900 text-white active:scale-[0.97]'
+                  : 'bg-primary border-neutral-900 hover:bg-primary-dark active:bg-neutral-900 text-white active:scale-[0.97]'
               }`}
             >
               {justContacted ? <Check className="w-3.5 h-3.5 animate-fade-in" /> : <MessageCircle className="w-3.5 h-3.5" />}

@@ -70,6 +70,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     platform:         row.platform ?? undefined,
     accessLink:       row.access_link ?? undefined,
     coverImage:       row.cover_image ?? '',
+    coverImagePosition: row.cover_image_position || '50% 50%',
     gallery:          row.gallery ?? [],
     videoUrl:         row.video_url ?? undefined,
     footwear:         row.footwear ?? undefined,

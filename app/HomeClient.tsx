@@ -183,7 +183,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
               <div className="relative max-w-xl mb-8" ref={searchRef}>
                 <form
                   onSubmit={handleSearch}
-                  className="bg-white rounded-full shadow-md border-2 border-neutral-900 pl-5 pr-1.5 py-1.5 flex items-center gap-2"
+                  className="bg-white rounded-full shadow-md border border-neutral-900 pl-5 pr-1.5 py-1.5 flex items-center gap-2"
                 >
                   <div className="flex-1 flex items-center gap-2.5 min-w-0">
                     <Search className="w-4 h-4 text-neutral-400 shrink-0" />
@@ -315,17 +315,17 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 />
               </div>
 
-              <div className="absolute top-6 left-0 bg-white border-2 border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow">
+              <div className="absolute top-6 left-0 bg-white border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow">
                 <p className="text-[26px] font-black tracking-tighter text-neutral-900 leading-none">{stats.classes}+</p>
                 <p className="text-[12px] text-neutral-500 mt-0.5">Clases disponibles</p>
               </div>
 
-              <div className="absolute bottom-10 right-2 bg-neutral-900 border-2 border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow-2">
+              <div className="absolute bottom-10 right-2 bg-neutral-900 border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow-2">
                 <p className="text-[26px] font-black tracking-tighter text-white leading-none">{stats.teachers}+</p>
                 <p className="text-[12px] text-neutral-400 mt-0.5">Profesores verificados</p>
               </div>
 
-              <div className="absolute top-1/2 right-5 bg-white border-2 border-neutral-900 rounded-2xl px-4.5 py-3 shadow-xl animate-float-slow [animation-delay:1s]">
+              <div className="absolute top-1/2 right-5 bg-white border border-neutral-900 rounded-2xl px-4.5 py-3 shadow-xl animate-float-slow [animation-delay:1s]">
                 <p className="text-[22px] font-black tracking-tighter text-neutral-900 leading-none">{stats.styles}</p>
                 <p className="text-[12px] text-neutral-500 mt-0.5">Estilos de baile</p>
               </div>
@@ -345,7 +345,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
               <Link
                 key={style.id}
                 href={`/clases?style=${encodeURIComponent(style.name)}`}
-                className="relative shrink-0 w-[168px] h-[152px] rounded-2xl border-2 border-neutral-900 cursor-pointer group select-none block overflow-hidden"
+                className="relative shrink-0 w-[168px] h-[152px] rounded-2xl border border-neutral-900 cursor-pointer group select-none block overflow-hidden"
               >
                 {/* Background: uploaded photos assigned round-robin for now — will map one per style later */}
                 <div className="absolute inset-0 scale-100 group-hover:scale-110 transition-transform duration-200 ease-out">
@@ -528,7 +528,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                   <Link
                     key={t.id}
                     href={`/profesores/${t.id}`}
-                    className="shrink-0 w-[210px] rounded-2xl border-2 border-neutral-900 bg-white overflow-hidden transition-[box-shadow,transform] duration-150 ease-out hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
+                    className="shrink-0 w-[210px] rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
                     style={{ scrollSnapAlign: 'start' }}
                   >
                     <div className={`relative w-full aspect-square flex items-center justify-center ${avatar.bg}`}>

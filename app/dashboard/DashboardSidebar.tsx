@@ -120,8 +120,8 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r-2 border-neutral-900 shrink-0">
-        <div className="p-6 border-b-2 border-neutral-900">
+      <aside className="hidden md:flex flex-col w-64 bg-white shrink-0">
+        <div className="p-6 border-b border-neutral-900">
           <Link href="/" className="flex items-center">
             <Image src="/logo.png" alt="Kynea" width={100} height={32} priority />
           </Link>

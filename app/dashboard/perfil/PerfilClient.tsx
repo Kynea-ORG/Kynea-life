@@ -1,10 +1,10 @@
 'use client';
 import { useState, useTransition, useRef, useEffect } from 'react';
-import Image from 'next/image';
-import { Save, Upload, Loader2, LogOut } from 'lucide-react';
+import { Save, Upload, Loader2, LogOut, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { updateProfile } from '@/lib/profiles/actions';
 import { createClient } from '@/lib/supabase/client';
+import ImagePositionPicker from '@/components/ImagePositionPicker';
 import type { DbDistrict } from '@/lib/types';
 
 interface ProfileStyleRow {
@@ -22,6 +22,7 @@ interface Profile {
   youtube: string | null;
   website: string | null;
   photo_url: string | null;
+  photo_position: string | null;
   district: { name: string; city: string } | null;
   profile_styles: ProfileStyleRow[] | null;
 }
@@ -47,6 +48,8 @@ export default function PerfilClient({
   const [highlightField, setHighlightField] = useState<'whatsapp' | 'instagram' | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(profile.photo_url ?? '');
+  const [photoPosition, setPhotoPosition] = useState(profile.photo_position ?? '50% 50%');
+  const [photoZoom, setPhotoZoom] = useState(1);
 
   const [name, setName] = useState(profile.name ?? '');
   const [bio, setBio] = useState(profile.bio ?? '');
@@ -90,16 +93,39 @@ export default function PerfilClient({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No autenticado');
       const ext = file.name.split('.').pop() ?? 'jpg';
-      const path = `${session.user.id}/profile.${ext}`;
-      const { error: upErr } = await supabase.storage.from('class-images').upload(path, file, { upsert: true });
+      // Timestamped path (not a fixed "profile.<ext>" name) so a re-upload gets
+      // a brand-new public URL — reusing the same URL would let the browser/CDN
+      // keep serving the previous cached image after replacing the file.
+      const path = `${session.user.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('class-images').upload(path, file);
       if (upErr) throw new Error(upErr.message);
       const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
       setPhotoUrl(publicUrl);
-      await updateProfile({ photo_url: publicUrl });
+      setPhotoPosition('50% 50%');
+      setPhotoZoom(1);
+      await updateProfile({ photo_url: publicUrl, photo_position: '50% 50%' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir foto');
     } finally {
       setUploadingPhoto(false);
+    }
+  };
+
+  const handlePhotoPositionDragEnd = (position: string) => {
+    updateProfile({ photo_position: position }).catch(err => {
+      setError(err instanceof Error ? err.message : 'Error al guardar la posición de la foto');
+    });
+  };
+
+  const handleRemovePhoto = async () => {
+    setPhotoUrl('');
+    setPhotoPosition('50% 50%');
+    setPhotoZoom(1);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+    try {
+      await updateProfile({ photo_url: '', photo_position: '50% 50%' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar la foto');
     }
   };
 
@@ -167,9 +193,10 @@ export default function PerfilClient({
 
       <div className="space-y-6">
         {/* Photo */}
-        <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6">
-          <h2 className="font-bold text-neutral-900 mb-4">Foto / Logo</h2>
-          <div className="flex items-center gap-5">
+        <div className="bg-white rounded-xl border border-neutral-900 p-6">
+          <h2 className="text-lg font-bold text-neutral-900">Foto / Logo</h2>
+          <p className="text-xs text-neutral-500 mt-0.5 mb-4">Esto es lo que verán los alumnos en tu perfil público</p>
+          <div className="flex flex-col sm:flex-row items-start gap-6">
             <input
               ref={photoInputRef}
               type="file"
@@ -177,42 +204,73 @@ export default function PerfilClient({
               className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }}
             />
-            {photoUrl ? (
-              <div className="relative w-24 h-24 rounded-xl overflow-hidden">
-                <Image src={photoUrl} alt="Profile" fill sizes="96px" className="object-cover" />
-              </div>
-            ) : (
-              <div className="w-24 h-24 rounded-xl bg-neutral-200 flex items-center justify-center text-3xl font-bold text-neutral-500">
-                {name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div>
+            <div className="w-32 shrink-0">
+              {photoUrl ? (
+                <div className="relative">
+                  <ImagePositionPicker
+                    src={photoUrl}
+                    value={photoPosition}
+                    onChange={setPhotoPosition}
+                    onDragEnd={handlePhotoPositionDragEnd}
+                    zoom={photoZoom}
+                    onZoomChange={setPhotoZoom}
+                    frameClassName="w-32 h-32 rounded-xl border border-neutral-200"
+                    sizes="128px"
+                    compact
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors active:scale-90 z-10"
+                    aria-label="Eliminar foto"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="w-32 h-32 rounded-xl border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors flex items-center justify-center bg-neutral-50 disabled:opacity-50"
+                >
+                  {uploadingPhoto ? (
+                    <Loader2 className="w-6 h-6 text-neutral-400 animate-spin" />
+                  ) : name ? (
+                    <span className="text-3xl font-bold text-neutral-400">{name.charAt(0).toUpperCase()}</span>
+                  ) : (
+                    <Upload className="w-6 h-6 text-neutral-400" />
+                  )}
+                </button>
+              )}
+            </div>
+            <div className="pt-1">
               <button
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={uploadingPhoto}
-                className="flex items-center gap-2 text-sm font-semibold text-neutral-900 border border-neutral-200 px-4 py-2 rounded-btn hover:bg-neutral-100 mb-2 disabled:opacity-50"
+                className="btn-outline btn-sm disabled:opacity-50"
               >
                 {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {uploadingPhoto ? 'Subiendo…' : 'Cambiar foto'}
+                {uploadingPhoto ? 'Subiendo…' : photoUrl ? 'Cambiar foto' : 'Subir foto'}
               </button>
-              <p className="text-xs text-neutral-400">PNG o JPG · Máx. 2MB</p>
+              <p className="text-xs text-neutral-400 mt-2">PNG o JPG · Máx. 2MB</p>
             </div>
           </div>
         </div>
 
         {/* Basic info */}
-        <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6 space-y-4">
-          <h2 className="font-bold text-neutral-900">Información pública</h2>
+        <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+          <h2 className="text-lg font-bold text-neutral-900">Información pública</h2>
           <div>
             <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Nombre público</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900" />
+              className="input" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Bio corta</label>
             <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)}
-              className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 resize-none" />
+              className="input resize-none" />
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
@@ -220,7 +278,7 @@ export default function PerfilClient({
               <select
                 value={city}
                 onChange={e => { setCity(e.target.value); setDistrict(''); }}
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 bg-white"
+                className="input appearance-none cursor-pointer"
               >
                 {CITIES.map(c => <option key={c}>{c}</option>)}
               </select>
@@ -230,7 +288,7 @@ export default function PerfilClient({
               <select
                 value={district}
                 onChange={e => setDistrict(e.target.value)}
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 bg-white"
+                className="input appearance-none cursor-pointer"
               >
                 <option value="">Seleccionar distrito…</option>
                 {districtsByCity.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
@@ -239,22 +297,18 @@ export default function PerfilClient({
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Años de experiencia</label>
               <input type="number" min="0" value={years} onChange={e => setYears(e.target.value)}
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900" />
+                className="input" />
             </div>
           </div>
         </div>
 
         {/* Styles */}
-        <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6">
-          <h2 className="font-bold text-neutral-900 mb-4">Estilos que enseñas</h2>
+        <div className="bg-white rounded-xl border border-neutral-900 p-6">
+          <h2 className="text-lg font-bold text-neutral-900 mb-4">Estilos que enseñas</h2>
           <div className="flex flex-wrap gap-2">
             {danceStyles.map(s => (
               <button key={s} onClick={() => toggleStyle(s)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-colors active:scale-95 ${
-                  styles.includes(s)
-                    ? 'bg-neutral-900 text-white border-neutral-900'
-                    : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
-                }`}>
+                className={styles.includes(s) ? 'tag-active' : 'tag'}>
                 {s}
               </button>
             ))}
@@ -262,8 +316,8 @@ export default function PerfilClient({
         </div>
 
         {/* Contact & social */}
-        <div id="contacto" className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6 space-y-4">
-          <h2 className="font-bold text-neutral-900">Contacto y redes</h2>
+        <div id="contacto" className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+          <h2 className="text-lg font-bold text-neutral-900">Contacto y redes</h2>
           <p className="text-xs text-neutral-400"><span className="text-red-500">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
 
           <div>
@@ -272,7 +326,7 @@ export default function PerfilClient({
               <select
                 value={waCode}
                 onChange={e => setWaCode(e.target.value)}
-                className="border border-neutral-200 rounded-xl px-3 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 bg-white shrink-0"
+                className="input appearance-none cursor-pointer w-auto shrink-0"
               >
                 <option value="+51">🇵🇪 +51</option>
                 <option value="+1">🇺🇸 +1</option>
@@ -291,8 +345,8 @@ export default function PerfilClient({
                 value={waNumber}
                 onChange={e => setWaNumber(e.target.value.replace(/\D/g, ''))}
                 placeholder="999 999 999"
-                className={`flex-1 border rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 transition-shadow ${
-                  highlightField === 'whatsapp' ? 'border-amber-400 ring-2 ring-amber-200' : 'border-neutral-200'
+                className={`input flex-1 ${
+                  highlightField === 'whatsapp' ? '!border-amber-400 ring-2 ring-amber-200' : ''
                 }`}
               />
             </div>
@@ -310,8 +364,8 @@ export default function PerfilClient({
               value={instagram}
               onChange={e => setInstagram(e.target.value)}
               placeholder="Tu instagram"
-              className={`w-full border rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 transition-shadow ${
-                highlightField === 'instagram' ? 'border-amber-400 ring-2 ring-amber-200' : 'border-neutral-200'
+              className={`input ${
+                highlightField === 'instagram' ? '!border-amber-400 ring-2 ring-amber-200' : ''
               }`}
             />
           </div>
@@ -325,7 +379,7 @@ export default function PerfilClient({
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{f.label}</label>
               <input type="text" value={f.value} onChange={e => f.set(e.target.value)}
                 placeholder={`Tu ${f.label.toLowerCase()}`}
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900" />
+                className="input" />
             </div>
           ))}
         </div>
@@ -338,7 +392,7 @@ export default function PerfilClient({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="flex items-center gap-2 bg-neutral-900 hover:bg-neutral-700 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-btn transition-colors"
+            className="btn-dark disabled:opacity-50"
           >
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saved ? '¡Guardado!' : isPending ? 'Guardando…' : 'Guardar cambios'}

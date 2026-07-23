@@ -2,13 +2,13 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Save,
   Upload, MapPin, Monitor, Loader2, X,
 } from 'lucide-react';
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
 import { uploadClassImage } from '@/lib/classes/imageActions';
+import ImagePositionPicker from '@/components/ImagePositionPicker';
 import {
   MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
 } from '@/lib/classes/validation';
@@ -276,7 +276,7 @@ function Pill({ active, onClick, disabled, badge, children }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full px-4 py-2 border-2 text-sm font-semibold transition-[background-color,color] inline-flex items-center gap-1.5 ${
+      className={`rounded-full px-4 py-2 border text-sm font-semibold transition-[background-color,color] inline-flex items-center gap-1.5 ${
         disabled
           ? 'border-neutral-100 text-neutral-300 cursor-not-allowed opacity-60'
           : active
@@ -330,6 +330,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [coverImageUrl, setCoverImageUrl] = useState(() => editClass?.coverImage ?? '');
+  const [coverImagePosition, setCoverImagePosition] = useState(() => editClass?.coverImagePosition ?? '50% 50%');
+  const [coverImageZoom, setCoverImageZoom] = useState(1);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
@@ -360,6 +362,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       fd.set('file', file);
       const { url } = await uploadClassImage(fd);
       setCoverImageUrl(url);
+      setCoverImagePosition('50% 50%');
+      setCoverImageZoom(1);
     } catch (err) {
       const payload = parsePublishError(err);
       if (payload?.code === 'INVALID_IMAGE') {
@@ -431,6 +435,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('toBring', JSON.stringify(finalToBring));
         fd.set('timeSlots', JSON.stringify(slots));
         if (coverImageUrl) fd.set('coverImage', coverImageUrl);
+        if (coverImageUrl) fd.set('coverImagePosition', coverImagePosition);
+        if (coverImageUrl) fd.set('coverImageZoom', String(coverImageZoom));
 
         // Draft saves stay permissive — only publish attempts are gated.
         if (status === 'published') {
@@ -492,7 +498,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('type', opt.value)}
               className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] ${
-                form.type === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-900 hover:bg-neutral-50'
+                form.type === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
               }`}>
               <p className="text-xl mb-1">{opt.emoji}</p>
               <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
@@ -558,12 +564,25 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         />
 
         {coverImageUrl ? (
-          <div className="relative rounded-xl overflow-hidden border border-neutral-200 h-48">
-            <Image src={coverImageUrl} alt="Portada" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
+          <div className="relative rounded-xl overflow-hidden border border-neutral-200">
+            <ImagePositionPicker
+              src={coverImageUrl}
+              value={coverImagePosition}
+              onChange={setCoverImagePosition}
+              zoom={coverImageZoom}
+              onZoomChange={setCoverImageZoom}
+              frameClassName="w-full h-48"
+              sizes="(max-width: 768px) 100vw, 600px"
+            />
             <button
               type="button"
-              onClick={() => { setCoverImageUrl(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors active:scale-90"
+              onClick={() => {
+                setCoverImageUrl('');
+                setCoverImagePosition('50% 50%');
+                setCoverImageZoom(1);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors active:scale-90 z-10"
             >
               <X className="w-4 h-4" />
             </button>
@@ -681,8 +700,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <div className="flex flex-wrap gap-1.5">
               {DAYS.map(d => (
                 <button key={d} type="button" onClick={() => toggleSlotDay(0, d)}
-                  className={`text-xs px-2.5 py-1.5 rounded-full border-2 font-semibold transition-colors ${
-                    slots[0].days.includes(d) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                  className={`text-xs px-2.5 py-1.5 rounded-full border border-neutral-900 font-semibold transition-colors ${
+                    slots[0].days.includes(d) ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'
                   }`}>
                   {d.slice(0, 3)}
                 </button>
@@ -770,8 +789,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                     <div className="flex flex-wrap gap-1.5">
                       {DAYS.map(d => (
                         <button key={d} type="button" onClick={() => toggleSlotDay(i, d)}
-                          className={`text-xs px-2.5 py-1.5 rounded-full border-2 font-semibold transition-colors ${
-                            slot.days.includes(d) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                          className={`text-xs px-2.5 py-1.5 rounded-full border border-neutral-900 font-semibold transition-colors ${
+                            slot.days.includes(d) ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'
                           }`}>
                           {d.slice(0, 3)}
                         </button>
@@ -814,7 +833,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('modality', opt.value)}
               className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] flex items-start gap-3 ${
-                form.modality === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-900 hover:bg-neutral-50'
+                form.modality === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
               }`}>
               <opt.icon className={`w-5 h-5 mt-0.5 shrink-0 ${form.modality === opt.value ? 'text-primary' : 'text-neutral-400'}`} />
               <div>
@@ -967,7 +986,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             ].map(opt => (
               <label key={opt.value}
                 className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
-                  form.contactMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-900 hover:bg-neutral-50'
+                  form.contactMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
                 }`}>
                 <input type="radio" name="contactMode" value={opt.value}
                   checked={form.contactMode === opt.value} onChange={() => set('contactMode', opt.value)}
@@ -1097,8 +1116,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         {coverImageUrl ? (
           <div>
             <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Imagen de portada</p>
-            <div className="relative w-full h-40 rounded-xl border border-neutral-200 overflow-hidden">
-              <Image src={coverImageUrl} alt="Portada" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
+            <div className="rounded-xl border border-neutral-200 overflow-hidden">
+              <ImagePositionPicker
+                src={coverImageUrl}
+                value={coverImagePosition}
+                onChange={setCoverImagePosition}
+                zoom={coverImageZoom}
+                onZoomChange={setCoverImageZoom}
+                frameClassName="w-full h-40"
+                sizes="(max-width: 768px) 100vw, 600px"
+              />
             </div>
           </div>
         ) : (
@@ -1131,7 +1158,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         </p>
       </div>
 
-      <div key={step} className="bg-white rounded-xl border-2 border-neutral-900 p-6 mb-6 shadow-sm animate-fade-in">
+      <div key={step} className="bg-white rounded-xl border border-neutral-900 p-6 mb-6 shadow-sm animate-fade-in">
         {step === 0 && renderStep0()}
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
