@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk } from "next/font/google";
+import { Hanken_Grotesk, Figtree } from "next/font/google";
 import "./globals.css";
 
 const hanken = Hanken_Grotesk({
   subsets: ["latin"],
   variable: "--font-hanken",
   weight: ["400", "500", "600", "700", "800", "900"],
+  display: "swap",
+});
+
+const figtree = Figtree({
+  subsets: ["latin"],
+  variable: "--font-figtree-loaded",
+  weight: ["400", "500", "600"],
   display: "swap",
 });
 
@@ -20,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${hanken.variable} h-full antialiased`}>
+    <html lang="es" className={`${hanken.variable} ${figtree.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">{children}</body>
     </html>
   );

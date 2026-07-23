@@ -199,14 +199,14 @@ function OnboardingContent() {
               <div
                 key={i}
                 className={`h-1.5 flex-1 rounded-full transition-colors ${
-                  i <= step ? 'bg-neutral-900' : 'bg-neutral-200'
+                  i <= step ? 'bg-primary' : 'bg-neutral-200'
                 }`}
               />
             ))}
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl p-8">
+        <div className="bg-white rounded-[20px] border-2 border-neutral-900 shadow-xl p-8">
           {/* Step 0: Public data */}
           {step === 0 && (
             <div className="animate-fade-in">
@@ -225,7 +225,7 @@ function OnboardingContent() {
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
                     disabled={uploadingPhoto}
-                    className="w-20 h-20 rounded-xl overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors relative"
+                    className="w-20 h-20 rounded-full overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors relative"
                   >
                     {photoUrl ? (
                       <Image src={photoUrl} alt="Foto de perfil" fill sizes="80px" className="object-cover" />
@@ -257,7 +257,7 @@ function OnboardingContent() {
                         placeholder={field.placeholder}
                         value={(form as Record<string, unknown>)[field.key] as string}
                         onChange={e => set(field.key as keyof typeof form, e.target.value)}
-                        className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 resize-none"
+                        className="w-full border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary resize-none"
                       />
                     ) : (
                       <input
@@ -265,7 +265,7 @@ function OnboardingContent() {
                         placeholder={field.placeholder}
                         value={(form as Record<string, unknown>)[field.key] as string}
                         onChange={e => set(field.key as keyof typeof form, e.target.value)}
-                        className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900"
+                        className="w-full border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
                       />
                     )}
                   </div>
@@ -278,7 +278,7 @@ function OnboardingContent() {
                     <select
                       value={form.city}
                       onChange={e => { set('city', e.target.value); set('district', ''); }}
-                      className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
+                      className="w-full border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
                     >
                       <option value="">Seleccionar…</option>
                       {[...new Set(allDistricts.map(d => d.city))].sort().map(c => <option key={c} value={c}>{c}</option>)}
@@ -291,7 +291,7 @@ function OnboardingContent() {
                     <select
                       value={form.district}
                       onChange={e => set('district', e.target.value)}
-                      className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
+                      className="w-full border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
                     >
                       <option value="">Seleccionar…</option>
                       {allDistricts.filter(d => d.city === form.city).map(d => (
@@ -318,7 +318,7 @@ function OnboardingContent() {
                     <select
                       value={waCode}
                       onChange={e => setWaCode(e.target.value)}
-                      className="border border-neutral-200 rounded-xl px-3 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 bg-white shrink-0"
+                      className="border-2 border-neutral-900 rounded-btn px-3 py-3 text-sm text-neutral-800 outline-none focus:border-primary bg-white shrink-0"
                     >
                       <option value="+51">🇵🇪 +51</option>
                       <option value="+1">🇺🇸 +1</option>
@@ -335,7 +335,7 @@ function OnboardingContent() {
                       value={waNumber}
                       onChange={e => { setWaNumber(e.target.value.replace(/\D/g, '')); setError(''); }}
                       placeholder="999 999 999"
-                      className="flex-1 border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900"
+                      className="flex-1 border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
                     />
                   </div>
                   <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales. Ej: 999999999</p>
@@ -377,10 +377,10 @@ function OnboardingContent() {
                   <button
                     key={s}
                     onClick={() => toggleStyle(s)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors active:scale-95 ${
+                    className={`text-xs px-3 py-1.5 rounded-full border-2 border-neutral-900 transition-colors active:scale-95 ${
                       form.styles.includes(s)
-                        ? 'bg-neutral-900 text-white border-neutral-900'
-                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                        ? 'bg-primary text-white'
+                        : 'text-neutral-600 hover:bg-neutral-50'
                     }`}
                   >
                     {s}
@@ -431,8 +431,16 @@ function OnboardingContent() {
                     <span className="font-semibold text-neutral-900">{waCode} {waNumber}</span>
                   </div>
                 )}
+                {(form.instagram || form.tiktok || form.youtube) && (
+                  <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
+                    <span className="text-neutral-500">Redes</span>
+                    <span className="font-semibold text-neutral-900">
+                      {[form.instagram, form.tiktok, form.youtube].filter(Boolean).join(' · ')}
+                    </span>
+                  </div>
+                )}
               </div>
-              <label className="flex items-start gap-3 cursor-pointer p-4 border border-neutral-200 rounded-xl mt-4">
+              <label className="flex items-start gap-3 cursor-pointer p-4 border-2 border-neutral-900 rounded-xl mt-4">
                 <input
                   type="checkbox"
                   checked={form.rulesAccepted}
@@ -443,9 +451,9 @@ function OnboardingContent() {
                   Acepto las <a href="/terminos-publicacion" target="_blank" rel="noopener noreferrer" className="text-neutral-900 underline hover:text-neutral-700">reglas de publicación</a> de Kynea y me comprometo a mantener mis clases actualizadas.
                 </span>
               </label>
-              <div className="mt-4 p-4 bg-neutral-50 rounded-xl">
-                <p className="text-sm font-semibold text-neutral-900 mb-1">🎉 ¡Ya casi!</p>
-                <p className="text-xs text-neutral-600">Al guardar tu perfil podrás publicar tu primera clase.</p>
+              <div className="mt-4 p-4 bg-primary-bg rounded-xl">
+                <p className="text-sm font-semibold text-primary-dark mb-1">🎉 ¡Ya casi!</p>
+                <p className="text-xs text-primary-dark/80">Al guardar tu perfil podrás publicar tu primera clase.</p>
               </div>
             </div>
           )}
@@ -458,7 +466,7 @@ function OnboardingContent() {
             {step > 0 && (
               <button
                 onClick={back}
-                className="flex items-center gap-2 px-5 py-3 border border-neutral-200 rounded-btn text-sm font-semibold text-neutral-600 hover:border-neutral-900 transition-colors active:scale-[0.97]"
+                className="flex items-center gap-2 px-5 py-3 border-2 border-neutral-900 rounded-btn text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors active:scale-[0.97]"
               >
                 <ChevronLeft className="w-4 h-4" /> Atrás
               </button>

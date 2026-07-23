@@ -162,7 +162,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
               {canPublish && (
                 <Link
                   href="/dashboard/crear-clase"
-                  className={`text-[15px] font-bold px-5 py-2 rounded-btn transition-[background-color] active:scale-[0.97] flex items-center gap-2 ${
+                  className={`text-[15px] font-bold px-5 py-2 rounded-btn border-2 border-neutral-900 transition-[background-color] active:scale-[0.97] flex items-center gap-2 ${
                     transparent
                       ? 'bg-white text-neutral-900 hover:bg-neutral-100'
                       : 'bg-neutral-900 text-white hover:bg-neutral-800'
@@ -233,7 +233,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                 Iniciar sesión
               </Link>
               <Link href="/registro"
-                className={`text-[15px] font-bold px-5 py-2 rounded-btn transition-[background-color] active:scale-[0.97] ${
+                className={`text-[15px] font-bold px-5 py-2 rounded-btn border-2 border-neutral-900 transition-[background-color] active:scale-[0.97] ${
                   transparent
                     ? 'bg-white text-neutral-900 hover:bg-neutral-100'
                     : 'bg-neutral-900 text-white hover:bg-neutral-800'
