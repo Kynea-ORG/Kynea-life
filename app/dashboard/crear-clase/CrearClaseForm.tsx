@@ -174,6 +174,7 @@ function buildInitialForm(editClass: DanceClass | null) {
       city: 'Lima',
       district: '',
       address: '',
+      venueName: '',
       reference: '',
       mapsUrl: '',
       placeId: '',
@@ -210,6 +211,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     city: editClass.city ?? 'Lima',
     district: editClass.district ?? '',
     address: editClass.address ?? '',
+    venueName: editClass.venueName ?? '',
     reference: editClass.reference ?? '',
     mapsUrl: editClass.mapsUrl ?? '',
     placeId: editClass.placeId ?? '',
@@ -418,6 +420,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('city', form.city);
         fd.set('district', form.district);
         fd.set('address', form.address);
+        fd.set('venueName', form.venueName);
         fd.set('reference', form.reference);
         fd.set('placeId', form.placeId);
         fd.set('lat', form.lat);
@@ -695,39 +698,60 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               {fieldErrors.endDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.endDate}</p>}
             </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-neutral-500 mb-2">Días de la semana</p>
-            <div className="flex flex-wrap gap-1.5">
-              {DAYS.map(d => (
-                <button key={d} type="button" onClick={() => toggleSlotDay(0, d)}
-                  className={`text-xs px-2.5 py-1.5 rounded-full border border-neutral-900 font-semibold transition-colors ${
-                    slots[0].days.includes(d) ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'
-                  }`}>
-                  {d.slice(0, 3)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Hora inicio</FieldLabel>
-              <input type="time" className="input" value={slots[0].startTime}
-                onChange={e => updateSlot(0, 'startTime', e.target.value)} />
-            </div>
-            <div>
-              <FieldLabel>Hora fin</FieldLabel>
-              <input type="time" className="input" value={slots[0].endTime}
-                onChange={e => updateSlot(0, 'endTime', e.target.value)} />
-            </div>
-          </div>
-          {(slots[0].days.length > 0 || form.startDate) && (
+          {(form.startDate || form.endDate) && (
             <div className="text-xs text-neutral-600 bg-white px-3 py-2.5 rounded-lg border border-neutral-200">
               Desde <span className="font-semibold">{form.startDate || '—'}</span> hasta{' '}
               <span className="font-semibold">{form.endDate || '—'}</span>
-              {slots[0].days.length > 0 && <>, los <span className="font-semibold">{slots[0].days.join(', ')}</span></>}
-              {' '}de {slots[0].startTime} a {slots[0].endTime}
             </div>
           )}
+          <div className="space-y-4">
+            {slots.map((slot, i) => (
+              <div key={i} className="border border-neutral-200 rounded-xl p-4 space-y-4 bg-neutral-50/50">
+                {slots.length > 1 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-neutral-700">Horario {i + 1}</p>
+                    <button type="button" onClick={() => removeSlot(i)} className="text-neutral-400 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-semibold text-neutral-500 mb-2">Días de la semana</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DAYS.map(d => (
+                      <button key={d} type="button" onClick={() => toggleSlotDay(i, d)}
+                        className={`text-xs px-2.5 py-1.5 rounded-full border-2 font-semibold transition-colors ${
+                          slot.days.includes(d) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                        }`}>
+                        {d.slice(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <FieldLabel>Hora inicio</FieldLabel>
+                    <input type="time" className="input" value={slot.startTime}
+                      onChange={e => updateSlot(i, 'startTime', e.target.value)} />
+                  </div>
+                  <div>
+                    <FieldLabel>Hora fin</FieldLabel>
+                    <input type="time" className="input" value={slot.endTime}
+                      onChange={e => updateSlot(i, 'endTime', e.target.value)} />
+                  </div>
+                </div>
+                {slot.days.length > 0 && (
+                  <p className="text-xs text-neutral-600 bg-white px-3 py-2.5 rounded-lg border border-neutral-200">
+                    Los <span className="font-semibold">{slot.days.join(', ')}</span> de {slot.startTime} a {slot.endTime}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={addSlot}
+            className="flex items-center gap-1.5 text-xs text-neutral-900 font-semibold hover:bg-neutral-100 px-3 py-1.5 rounded-lg transition-colors border border-neutral-200">
+            <Plus className="w-3.5 h-3.5" /> Agregar otro horario
+          </button>
         </>
       )}
 
@@ -849,6 +873,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       {form.modality !== 'Online' && (
         <div className="space-y-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50/50">
           <p className="text-xs font-bold text-neutral-700">Ubicación presencial</p>
+          <div>
+            <FieldLabel>Nombre del local <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+            <input className="input" value={form.venueName} onChange={e => set('venueName', e.target.value)}
+              placeholder="Ej: Danxestudio" />
+            <Hint>Se muestra junto a la dirección. Déjalo vacío si no aplica.</Hint>
+          </div>
           <div>
             <FieldLabel>Dirección</FieldLabel>
             <PlacesAddressField

@@ -51,12 +51,13 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     if (!session) { window.location.href = '/login'; return; }
     setSaving(true);
     if (saved) {
-      await supabase.from('saved_classes').delete()
+      const { error } = await supabase.from('saved_classes').delete()
         .eq('user_id', session.user.id).eq('class_id', cls.id);
-      setSaved(false);
+      if (!error) setSaved(false);
     } else {
-      await supabase.from('saved_classes').insert({ user_id: session.user.id, class_id: cls.id });
-      setSaved(true);
+      const { error } = await supabase.from('saved_classes').insert({ user_id: session.user.id, class_id: cls.id });
+      // 23505 = already saved (stale local state, e.g. another tab) — treat as success.
+      if (!error || error.code === '23505') setSaved(true);
     }
     setSaving(false);
   };
@@ -341,7 +342,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <div>
                       {cls.venueName && <p className="font-semibold text-neutral-900">{cls.venueName}</p>}
                       <p>{cls.district}, {cls.city}</p>
-                      {cls.address && <p className="text-neutral-400 mt-0.5">{cls.address}</p>}
+                      {/* Older venues had their name defaulted to their own address
+                          (no "nombre del local" field existed yet) — skip the address
+                          line when it would just repeat the name above it. */}
+                      {cls.address && cls.address !== cls.venueName && <p className="text-neutral-400 mt-0.5">{cls.address}</p>}
                       {cls.reference && <p className="text-neutral-400">{cls.reference}</p>}
                     </div>
                   </div>

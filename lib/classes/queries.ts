@@ -18,7 +18,11 @@ function schedulesToTimeSlots(schedules: DbClassRow['class_schedules']): TimeSlo
   for (const s of (schedules ?? [])) {
     const key = `${s.start_time}|${s.end_time}`;
     if (!groups.has(key)) groups.set(key, { days: [], startTime: s.start_time, endTime: s.end_time });
-    groups.get(key)!.days.push(DAY_NAMES[s.day_of_week] ?? '');
+    const day = DAY_NAMES[s.day_of_week] ?? '';
+    // Duplicate class_schedules rows (same day + same time) can exist from
+    // legacy inserts — never surface the same day twice for a given slot.
+    const group = groups.get(key)!;
+    if (day && !group.days.includes(day)) group.days.push(day);
   }
   return Array.from(groups.values());
 }

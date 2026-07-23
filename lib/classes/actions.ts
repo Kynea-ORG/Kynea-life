@@ -47,7 +47,10 @@ export async function createClass(formData: FormData) {
 
   let venueId: string | null = null;
   if (isPresencial && address) {
-    const venueName = (formData.get('venueName') as string) || address;
+    // No fallback to `address` here: the detail page shows venue name and
+    // address as separate lines, so defaulting an unnamed venue's name to
+    // its own address made that block print the address twice.
+    const venueName = (formData.get('venueName') as string) || '';
     venueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, districtId, placeId, lat, lng });
   }
 
@@ -217,7 +220,7 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
 
   const { data: existing } = await supabase
     .from('classes')
-    .select('venue_id, venues(place_id, address)')
+    .select('venue_id, venues(place_id, address, name)')
     .eq('id', classId)
     .eq('teacher_id', user.id)
     .single();
@@ -234,13 +237,15 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
 
   // `venues` is a to-one FK relation, but PostgREST types it as an array when
   // inferred loosely — normalize before reading.
-  const currentVenueRaw = existing.venues as { place_id: string | null; address: string | null } | Array<{ place_id: string | null; address: string | null }> | null;
+  const currentVenueRaw = existing.venues as { place_id: string | null; address: string | null; name: string | null } | Array<{ place_id: string | null; address: string | null; name: string | null }> | null;
   const currentVenue = Array.isArray(currentVenueRaw) ? (currentVenueRaw[0] ?? null) : currentVenueRaw;
 
   let venueId: string | null = existing.venue_id ?? null;
   if (isPresencial && address) {
-    if (venueNeedsUpdate(currentVenue, { placeId, address })) {
-      const venueName = (formData.get('venueName') as string) || address;
+    // See createClass: no fallback to `address` — an unnamed venue should
+    // stay unnamed, not silently mirror the address into the name field.
+    const venueName = (formData.get('venueName') as string) || '';
+    if (venueNeedsUpdate(currentVenue, { placeId, address, name: venueName })) {
       const newVenueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, districtId, placeId, lat, lng });
       if (newVenueId) venueId = newVenueId;
     }
@@ -258,6 +263,37 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   if (coverImage) updates.cover_image = coverImage;
   if (cols.status === 'published') updates.published_at = new Date().toISOString();
 
+  // Style/schedule writes run BEFORE the `classes` update, not after: they're
+  // the step most likely to fail (e.g. a UNIQUE violation from overlapping
+  // slots), and doing the riskier work first means a failure here leaves the
+  // `classes` row completely untouched — no partial save, nothing to roll
+  // back. (createClass has an explicit rollback for the same reason; here we
+  // just avoid ever needing one.)
+
+  // Capture the old rows' ids before writing the new ones, so if the new
+  // insert fails we throw with the previous style/schedule still intact
+  // instead of losing them to a delete that already committed.
+  const [{ data: oldStyleRows }, { data: oldScheduleRows }] = await Promise.all([
+    supabase.from('class_styles').select('id, style_id').eq('class_id', classId),
+    supabase.from('class_schedules').select('id').eq('class_id', classId),
+  ]);
+
+  const slots: FormSlot[] = timeSlots ? JSON.parse(timeSlots) : [];
+  await Promise.all([
+    insertClassStyles(supabase, classId, styleId),
+    insertClassSchedules(supabase, classId, slots, cols.start_date),
+  ]);
+
+  // insertClassStyles upserts on (class_id, style_id), so a row matching the
+  // new style_id was updated in place, not duplicated — only a stale style
+  // from before this edit (a different style_id) needs deleting.
+  const oldStyleIds = (oldStyleRows ?? []).filter(r => r.style_id !== styleId).map(r => r.id);
+  const oldScheduleIds = (oldScheduleRows ?? []).map(r => r.id);
+  await Promise.all([
+    oldStyleIds.length ? supabase.from('class_styles').delete().in('id', oldStyleIds) : Promise.resolve(),
+    oldScheduleIds.length ? supabase.from('class_schedules').delete().in('id', oldScheduleIds) : Promise.resolve(),
+  ]);
+
   const { error } = await supabase
     .from('classes')
     .update(updates)
@@ -268,27 +304,6 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
     console.error('[updateClassFromForm]', error.message);
     throw new Error(error.message);
   }
-
-  // Capture the old rows' ids before writing the new ones, so if the new
-  // insert fails we throw with the previous style/schedule still intact
-  // instead of losing them to a delete that already committed.
-  const [{ data: oldStyleRows }, { data: oldScheduleRows }] = await Promise.all([
-    supabase.from('class_styles').select('id').eq('class_id', classId),
-    supabase.from('class_schedules').select('id').eq('class_id', classId),
-  ]);
-
-  const slots: FormSlot[] = timeSlots ? JSON.parse(timeSlots) : [];
-  await Promise.all([
-    insertClassStyles(supabase, classId, styleId),
-    insertClassSchedules(supabase, classId, slots, cols.start_date),
-  ]);
-
-  const oldStyleIds = (oldStyleRows ?? []).map(r => r.id);
-  const oldScheduleIds = (oldScheduleRows ?? []).map(r => r.id);
-  await Promise.all([
-    oldStyleIds.length ? supabase.from('class_styles').delete().in('id', oldStyleIds) : Promise.resolve(),
-    oldScheduleIds.length ? supabase.from('class_schedules').delete().in('id', oldScheduleIds) : Promise.resolve(),
-  ]);
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);

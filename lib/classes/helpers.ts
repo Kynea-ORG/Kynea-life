@@ -9,10 +9,11 @@ export const DAY_MAP: Record<string, number> = {
 };
 
 export function venueNeedsUpdate(
-  current: { place_id: string | null; address: string | null } | null,
-  incoming: { placeId: string | null; address: string }
+  current: { place_id: string | null; address: string | null; name: string | null } | null,
+  incoming: { placeId: string | null; address: string; name: string }
 ): boolean {
   if (!current) return true;
+  if (current.name !== incoming.name) return true;
   if (current.place_id && incoming.placeId) return current.place_id !== incoming.placeId;
   if (!incoming.placeId) return current.address !== incoming.address;
   return true;
@@ -34,7 +35,18 @@ export async function findOrCreateVenue(
       .eq('place_id', opts.placeId)
       .maybeSingle();
     if (lookupError) console.error('[findOrCreateVenue] lookup', lookupError.message);
-    if (existing?.id) return existing.id;
+    if (existing?.id) {
+      // Venues are reused across classes at the same place (see table
+      // comment), so keep the shared row's editable fields in sync with
+      // whatever the teacher just typed instead of leaving them frozen at
+      // whatever they were the first time this place was saved.
+      const { error: updateError } = await supabase
+        .from('venues')
+        .update({ name: opts.name, reference: opts.reference, district_id: opts.districtId, lat: opts.lat, lng: opts.lng })
+        .eq('id', existing.id);
+      if (updateError) console.error('[findOrCreateVenue] update', updateError.message);
+      return existing.id;
+    }
   }
 
   const { data, error } = await supabase
@@ -57,7 +69,13 @@ export async function findOrCreateVenue(
 
 export async function insertClassStyles(supabase: SupabaseClient, classId: string, styleId: number | null): Promise<void> {
   if (!styleId) return;
-  const { error } = await supabase.from('class_styles').insert({ class_id: classId, style_id: styleId, is_main: true });
+  // Upsert, not insert: class_styles has PRIMARY KEY (class_id, style_id), so
+  // editing a class without changing its style would otherwise violate that
+  // key on every save — aborting the update before it reaches the schedule
+  // cleanup step below and leaking a duplicate class_schedules row per retry.
+  const { error } = await supabase
+    .from('class_styles')
+    .upsert({ class_id: classId, style_id: styleId, is_main: true }, { onConflict: 'class_id,style_id' });
   if (error) throw new Error(`No se pudo guardar el estilo de la clase: ${error.message}`);
 }
 
