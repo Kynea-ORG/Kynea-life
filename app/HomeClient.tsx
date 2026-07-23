@@ -53,36 +53,6 @@ const HOW_IT_WORKS = [
   { step: '3', Icon: MessageCircle, title: 'Contacta directo', desc: 'Escríbele por WhatsApp y reserva tu cupo.' },
 ];
 
-// ── Animated counter ──────────────────────────────────────────────────────
-function useCountUp(target: number, duration = 1500, start = false) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!start) return;
-    let startTime: number | null = null;
-    const numericTarget = parseInt(String(target).replace(/\D/g, ''));
-    const step = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      setCount(Math.floor(progress * numericTarget));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [start, target, duration]);
-  return count;
-}
-
-function StatCard({ stat, visible }: { stat: { target: number; suffix: string; label: string; dark: boolean }; visible: boolean }) {
-  const count = useCountUp(stat.target, 1500, visible);
-  return (
-    <div className={`rounded-xl p-6 shadow-sm border ${stat.dark ? 'bg-neutral-900 border-neutral-900 text-white' : 'bg-white border-white/70'}`}>
-      <p className={`text-[38px] font-black leading-none tracking-tighter mb-1 ${stat.dark ? 'text-white' : 'text-neutral-900'}`}>
-        {count}{stat.suffix}
-      </p>
-      <p className={`text-[13px] ${stat.dark ? 'text-neutral-400' : 'text-neutral-500'}`}>{stat.label}</p>
-    </div>
-  );
-}
-
 // ── Props ─────────────────────────────────────────────────────────────────
 interface Props {
   initialClasses:   DanceClass[];
@@ -97,14 +67,6 @@ interface Props {
 export default function HomeClient({ initialClasses, salsaClasses, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
-  const [city, setCity]           = useState('Lima');
-
-  const STATS = [
-    { target: stats.classes,  suffix: '+', label: 'Clases disponibles',     dark: false },
-    { target: stats.teachers, suffix: '+', label: 'Profesores verificados', dark: true  },
-    { target: stats.styles,   suffix: '',  label: 'Estilos de baile',       dark: false },
-    { target: stats.cities,   suffix: '',  label: 'Ciudades en Latinoamérica', dark: false },
-  ];
 
   // ── Search autocomplete ──
   const [suggestions, setSuggestions]       = useState<{ classes: SearchClass[]; profiles: SearchProfile[] }>({ classes: [], profiles: [] });
@@ -154,18 +116,6 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  // ── Stats IntersectionObserver ──
-  const statsRef = useRef<HTMLDivElement>(null);
-  const [statsVisible, setStatsVisible] = useState(false);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setStatsVisible(true); },
-      { threshold: 0.3 }
-    );
-    if (statsRef.current) observer.observe(statsRef.current);
-    return () => observer.disconnect();
-  }, []);
-
   // ── Teachers carousel ──
   const teachersScrollRef = useRef<HTMLDivElement>(null);
 
@@ -192,7 +142,6 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
   const navigateSearch = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.set('q', query.trim());
-    if (city) params.set('city', city);
     router.push(`/clases?${params.toString()}`);
     setShowSuggestions(false);
   };
@@ -234,9 +183,9 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
               <div className="relative max-w-xl mb-8" ref={searchRef}>
                 <form
                   onSubmit={handleSearch}
-                  className="bg-white rounded-xl shadow-md border border-neutral-200 p-2 flex gap-2"
+                  className="bg-white rounded-full shadow-md border-2 border-neutral-900 pl-5 pr-1.5 py-1.5 flex items-center gap-2"
                 >
-                  <div className="flex-1 flex items-center gap-2.5 px-3 py-1">
+                  <div className="flex-1 flex items-center gap-2.5 min-w-0">
                     <Search className="w-4 h-4 text-neutral-400 shrink-0" />
                     <input
                       type="text"
@@ -246,21 +195,9 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                       onFocus={() => {
                         if (query.trim().length >= 2 && hasSuggestions) setShowSuggestions(true);
                       }}
-                      className="flex-1 text-[15px] text-neutral-800 placeholder:text-neutral-400 outline-none bg-transparent"
+                      className="flex-1 min-w-0 text-[15px] text-neutral-800 placeholder:text-neutral-400 outline-none bg-transparent"
                     />
                     {isSearching && <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0" />}
-                  </div>
-                  <div className="hidden sm:flex items-center gap-2 px-3 border-l border-neutral-200">
-                    <MapPin className="w-4 h-4 text-neutral-400 shrink-0" />
-                    <select
-                      value={city}
-                      onChange={e => setCity(e.target.value)}
-                      className="text-[15px] text-neutral-600 outline-none bg-transparent py-1 cursor-pointer"
-                    >
-                      {stats.cityNames.map(c => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
                   </div>
                   <button type="submit" className="btn-hero text-[15px] px-6 py-3">
                     Buscar
@@ -365,11 +302,33 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
               </div>
             </div>
 
-            {/* Right — Stats */}
-            <div ref={statsRef} className="hidden lg:grid grid-cols-2 gap-4">
-              {STATS.map(stat => (
-                <StatCard key={stat.label} stat={stat} visible={statsVisible} />
-              ))}
+            {/* Right — Photo + floating stats */}
+            <div className="hidden lg:block relative h-[460px]">
+              <div className="absolute inset-y-0 left-5 right-10 rounded-[32px] overflow-hidden border-4 border-neutral-900">
+                <Image
+                  src="/categorias/michael-afonso-z8Tul255kGg-unsplash.jpg"
+                  alt="Bailarín en movimiento"
+                  fill
+                  sizes="600px"
+                  priority
+                  className="object-cover"
+                />
+              </div>
+
+              <div className="absolute top-6 left-0 bg-white border-2 border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow">
+                <p className="text-[26px] font-black tracking-tighter text-neutral-900 leading-none">{stats.classes}+</p>
+                <p className="text-[12px] text-neutral-500 mt-0.5">Clases disponibles</p>
+              </div>
+
+              <div className="absolute bottom-10 right-2 bg-neutral-900 border-2 border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow-2">
+                <p className="text-[26px] font-black tracking-tighter text-white leading-none">{stats.teachers}+</p>
+                <p className="text-[12px] text-neutral-400 mt-0.5">Profesores verificados</p>
+              </div>
+
+              <div className="absolute top-1/2 right-5 bg-white border-2 border-neutral-900 rounded-2xl px-4.5 py-3 shadow-xl animate-float-slow [animation-delay:1s]">
+                <p className="text-[22px] font-black tracking-tighter text-neutral-900 leading-none">{stats.styles}</p>
+                <p className="text-[12px] text-neutral-500 mt-0.5">Estilos de baile</p>
+              </div>
             </div>
           </div>
         </div>
@@ -386,7 +345,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
               <Link
                 key={style.id}
                 href={`/clases?style=${encodeURIComponent(style.name)}`}
-                className="relative shrink-0 w-[168px] h-[152px] rounded-2xl cursor-pointer group select-none block overflow-hidden"
+                className="relative shrink-0 w-[168px] h-[152px] rounded-2xl border-2 border-neutral-900 cursor-pointer group select-none block overflow-hidden"
               >
                 {/* Background: uploaded photos assigned round-robin for now — will map one per style later */}
                 <div className="absolute inset-0 scale-100 group-hover:scale-110 transition-transform duration-200 ease-out">
@@ -407,9 +366,6 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 {/* Legibility + hover overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/0 transition-opacity duration-200 group-hover:from-black/60" />
 
-                {/* Border — only on hover */}
-                <div className="absolute inset-0 rounded-2xl border-[3px] border-transparent group-hover:border-white/70 transition-colors duration-200 pointer-events-none" />
-
                 {/* Content: name bottom-left */}
                 <div className="relative z-10 p-4 h-full flex flex-col justify-end">
                   <p className="text-[17px] font-black text-white tracking-tight leading-none drop-shadow-sm transition-transform duration-300 group-hover:-translate-y-0.5">
@@ -422,147 +378,16 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
         </div>
       </section>
 
-      {/* ── PROFESORES DESTACADOS ── */}
-      {initialTeachers.length > 0 && (
-        <section className="bg-white py-16">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
-              <div>
-                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Profesores destacados</h2>
-                <p className="text-neutral-500 text-[15px] mt-1">Los mejores instructores de Latinoamérica</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Link href="/profesores" className="text-[15px] font-semibold text-neutral-900 hover:text-primary transition-colors whitespace-nowrap">
-                  Ver todos →
-                </Link>
-                <div className="hidden sm:flex items-center gap-2">
-                  <button
-                    onClick={() => teachersScrollRef.current?.scrollBy({ left: -460, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
-                    aria-label="Anterior"
-                  >
-                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
-                  </button>
-                  <button
-                    onClick={() => teachersScrollRef.current?.scrollBy({ left: 460, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
-                    aria-label="Siguiente"
-                  >
-                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div
-              ref={teachersScrollRef}
-              className="flex gap-5 overflow-x-auto pb-3 pt-1 -mx-1 px-1"
-              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
-            >
-              {initialTeachers.map((t, i) => {
-                const avatar = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
-                return (
-                  <Link
-                    key={t.id}
-                    href={`/profesores/${t.id}`}
-                    className="shrink-0 w-[210px] rounded-2xl border border-neutral-100 bg-white overflow-hidden transition-[box-shadow,transform] duration-150 ease-out hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
-                    style={{ scrollSnapAlign: 'start' }}
-                  >
-                    <div className={`relative w-full aspect-square flex items-center justify-center ${avatar.bg}`}>
-                      {t.photo ? (
-                        <Image
-                          src={t.photo}
-                          alt={t.name}
-                          fill
-                          sizes="210px"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span className={`text-[56px] font-extrabold ${avatar.text} select-none`}>
-                          {t.name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                      {t.experience > 0 && (
-                        <span className="absolute top-2.5 left-2.5 bg-white/90 rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-900 whitespace-nowrap">
-                          {t.experience} {t.experience === 1 ? 'año' : 'años'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="px-4 pt-3.5 pb-4">
-                      <h3 className="font-bold text-neutral-900 text-[16px] leading-tight mb-0.5 truncate">{t.name}</h3>
-                      <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.city}</p>
-                      <div className="flex flex-wrap gap-1.5 mb-3 min-h-[26px]">
-                        {t.styles.slice(0, 2).map(s => (
-                          <span key={s} className="badge-pink text-[11.5px] px-2.5 py-1">{s}</span>
-                        ))}
-                      </div>
-                      <span className="text-[13.5px] font-semibold text-neutral-900">Ver perfil →</span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── CATEGORÍA DESTACADA: SALSA ── */}
-      {salsaClasses.length > 0 && (
-        <section className="bg-white py-16 border-t border-neutral-100">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
-              <div>
-                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Salsa</h2>
-                <p className="text-neutral-500 text-[15px] mt-1">Las clases de salsa más populares</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Link href="/clases?style=Salsa" className="text-[15px] font-semibold text-neutral-900 hover:text-primary transition-colors whitespace-nowrap">
-                  Ver todas →
-                </Link>
-                <div className="hidden sm:flex items-center gap-2">
-                  <button
-                    onClick={() => salsaScrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
-                    aria-label="Anterior"
-                  >
-                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
-                  </button>
-                  <button
-                    onClick={() => salsaScrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
-                    aria-label="Siguiente"
-                  >
-                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div
-              ref={salsaScrollRef}
-              className="flex gap-4 overflow-x-auto pb-3 pt-1"
-              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
-            >
-              {salsaClasses.map(cls => (
-                <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-                  <ClassCard cls={cls} compact />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ── CLASES ESTA SEMANA ── */}
       <section className="bg-neutral-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex items-end justify-between mb-6">
             <div>
               <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases esta semana</h2>
-              <p className="text-neutral-500 text-[15px] mt-1">Seleccionadas para ti en {city}</p>
+              <p className="text-neutral-500 text-[15px] mt-1">Seleccionadas para ti</p>
             </div>
             <div className="hidden sm:flex items-center gap-3">
-              <Link href="/clases" className="flex items-center gap-1 text-[15px] text-neutral-900 font-semibold hover:underline">
+              <Link href="/clases" className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
                 Ver todas <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -613,6 +438,137 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
         </div>
       </section>
 
+      {/* ── CATEGORÍA DESTACADA: SALSA ── */}
+      {salsaClasses.length > 0 && (
+        <section className="bg-white py-16 border-t border-neutral-100">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+              <div>
+                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Salsa</h2>
+                <p className="text-neutral-500 text-[15px] mt-1">Las clases de salsa más populares</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link href="/clases?style=Salsa" className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+                  Ver todas →
+                </Link>
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={() => salsaScrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                    aria-label="Anterior"
+                  >
+                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                  <button
+                    onClick={() => salsaScrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                    aria-label="Siguiente"
+                  >
+                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              ref={salsaScrollRef}
+              className="flex gap-4 overflow-x-auto pb-3 pt-1"
+              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {salsaClasses.map(cls => (
+                <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
+                  <ClassCard cls={cls} compact />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── PROFESORES DESTACADOS ── */}
+      {initialTeachers.length > 0 && (
+        <section className="bg-white py-16">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+              <div>
+                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Profesores destacados</h2>
+                <p className="text-neutral-500 text-[15px] mt-1">Los mejores instructores de Latinoamérica</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link href="/profesores" className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+                  Ver todos →
+                </Link>
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={() => teachersScrollRef.current?.scrollBy({ left: -460, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                    aria-label="Anterior"
+                  >
+                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                  <button
+                    onClick={() => teachersScrollRef.current?.scrollBy({ left: 460, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                    aria-label="Siguiente"
+                  >
+                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              ref={teachersScrollRef}
+              className="flex gap-5 overflow-x-auto pb-3 pt-1 -mx-1 px-1"
+              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {initialTeachers.map((t, i) => {
+                const avatar = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/profesores/${t.id}`}
+                    className="shrink-0 w-[210px] rounded-2xl border-2 border-neutral-900 bg-white overflow-hidden transition-[box-shadow,transform] duration-150 ease-out hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
+                    style={{ scrollSnapAlign: 'start' }}
+                  >
+                    <div className={`relative w-full aspect-square flex items-center justify-center ${avatar.bg}`}>
+                      {t.photo ? (
+                        <Image
+                          src={t.photo}
+                          alt={t.name}
+                          fill
+                          sizes="210px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <span className={`text-[56px] font-extrabold ${avatar.text} select-none`}>
+                          {t.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      {t.experience > 0 && (
+                        <span className="absolute top-2.5 left-2.5 bg-white/90 rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-900 whitespace-nowrap">
+                          {t.experience} {t.experience === 1 ? 'año' : 'años'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="px-4 pt-3.5 pb-4">
+                      <h3 className="font-bold text-neutral-900 text-[16px] leading-tight mb-0.5 truncate">{t.name}</h3>
+                      <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.city}</p>
+                      <div className="flex flex-wrap gap-1.5 mb-3 min-h-[26px]">
+                        {t.styles.slice(0, 2).map(s => (
+                          <span key={s} className="badge-pink text-[11.5px] px-2.5 py-1">{s}</span>
+                        ))}
+                      </div>
+                      <span className="text-[13.5px] font-semibold text-primary">Ver perfil →</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── CÓMO FUNCIONA ── */}
       <section className="bg-white py-20">
         <div className="max-w-[1200px] mx-auto px-6">
@@ -658,7 +614,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Academias</h2>
                 <p className="text-neutral-500 text-[15px] mt-1">Espacios de danza en toda Latinoamérica</p>
               </div>
-              <Link href="/profesores?type=academia" className="hidden sm:flex items-center gap-1 text-[15px] text-neutral-900 font-semibold hover:underline">
+              <Link href="/profesores?type=academia" className="hidden sm:flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
                 Ver todas <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

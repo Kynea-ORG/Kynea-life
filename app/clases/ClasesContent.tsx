@@ -157,7 +157,7 @@ export default function ClasesContent({
       {/* Search bar */}
       <div className="bg-white border-b border-neutral-200 sticky top-[64px] z-40">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/8 transition-[border-color,box-shadow]">
+          <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-neutral-900/8 transition-[border-color,box-shadow]">
             <Search className="w-4 h-4 text-neutral-400 shrink-0" />
             <input
               type="text"
@@ -175,24 +175,24 @@ export default function ClasesContent({
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 text-[15px] font-semibold px-4 py-2.5 rounded-btn border-2 transition-colors active:scale-[0.97] md:hidden ${
+            className={`flex items-center gap-2 text-[15px] font-semibold px-4 py-2.5 rounded-btn border-2 border-neutral-900 transition-colors active:scale-[0.97] md:hidden ${
               activeCount > 0
-                ? 'bg-neutral-900 text-white border-neutral-900'
-                : 'bg-white border-neutral-300 text-neutral-700 hover:border-neutral-900'
+                ? 'bg-neutral-900 text-white'
+                : 'bg-white text-neutral-700 hover:bg-neutral-50'
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" />
             Filtros {activeCount > 0 && `(${activeCount})`}
           </button>
 
-          <Link href="/mapa" className="hidden md:flex items-center gap-2 text-[15px] font-medium px-4 py-2.5 rounded-btn border-2 border-neutral-200 text-neutral-600 hover:border-neutral-900 transition-colors">
+          <Link href="/mapa" className="hidden md:flex items-center gap-2 text-[15px] font-medium px-4 py-2.5 rounded-btn border-2 border-neutral-900 text-neutral-700 hover:bg-neutral-50 transition-colors">
             <Map className="w-4 h-4" /> Mapa
           </Link>
 
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
-            className="hidden md:block text-[15px] text-neutral-600 border-2 border-neutral-200 rounded-btn px-4 py-2.5 outline-none bg-white cursor-pointer hover:border-neutral-900 transition-colors"
+            className="hidden md:block text-[15px] text-neutral-600 border-2 border-neutral-900 rounded-btn px-4 py-2.5 outline-none bg-white cursor-pointer hover:bg-neutral-50 transition-colors"
           >
             {['Recomendados', 'Menor precio', 'Próximamente', 'Mejor disponibilidad'].map(o => (
               <option key={o}>{o}</option>

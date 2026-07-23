@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video, Check } from 'lucide-react';
+import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
 
 function IgIcon({ className }: { className?: string }) {
   return (
@@ -188,51 +188,76 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
             {cls.whatYouLearn && cls.whatYouLearn.length > 0 && (
               <div className="mb-8">
-                <h2 className="font-bold text-neutral-900 text-[17px] mb-4">¿Qué aprenderás?</h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                    <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <h2 className="font-bold text-neutral-900 text-[17px]">¿Qué aprenderás?</h2>
+                </div>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {cls.whatYouLearn.map(item => (
-                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3">
-                      <span className="text-primary font-bold text-[15px] mt-0.5 shrink-0">✓</span>
-                      <span className="text-[13px] text-neutral-700">{item}</span>
+                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                      <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <span className="text-[13px] text-neutral-700 font-figtree">{item}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {cls.forWhom && (
-              <div className="mb-8">
-                <h2 className="font-bold text-neutral-900 text-[17px] mb-3">¿Para quién es?</h2>
-                <p className="text-[15px] text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg p-4 leading-relaxed">{cls.forWhom}</p>
-              </div>
-            )}
+            {(cls.forWhom || cls.requirements) && (
+              <div className="mb-8 grid sm:grid-cols-2 gap-3">
+                {cls.forWhom && (
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                        <UserCheck className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <h2 className="font-bold text-neutral-900 text-[15px]">¿Para quién es?</h2>
+                    </div>
+                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree">{cls.forWhom}</p>
+                  </div>
+                )}
 
-            {cls.requirements && (
-              <div className="mb-8">
-                <h2 className="font-bold text-neutral-900 text-[17px] mb-3">Requisitos</h2>
-                <p className="text-[15px] text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg p-4">{cls.requirements}</p>
+                {cls.requirements && (
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                        <ClipboardCheck className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <h2 className="font-bold text-neutral-900 text-[15px]">Requisitos</h2>
+                    </div>
+                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree">{cls.requirements}</p>
+                  </div>
+                )}
               </div>
             )}
 
             {(cls.footwear || cls.clothing || (cls.toBring && cls.toBring.length > 0)) && (
               <div className="mb-8">
-                <h2 className="font-bold text-neutral-900 text-[17px] mb-4">¿Qué traer?</h2>
-                <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                    <Backpack className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <h2 className="font-bold text-neutral-900 text-[17px]">¿Qué traer?</h2>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
                   {cls.footwear && (
-                    <div className="flex items-center gap-3 text-[15px] text-neutral-600">
-                      <span className="text-lg">👟</span>
-                      <span><strong className="text-neutral-900">Calzado:</strong> {cls.footwear}</span>
+                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                      <Footprints className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <span className="text-[13px] text-neutral-700 font-figtree"><strong className="font-sans text-neutral-900">Calzado:</strong> {cls.footwear}</span>
                     </div>
                   )}
                   {cls.clothing && (
-                    <div className="flex items-center gap-3 text-[15px] text-neutral-600">
-                      <span className="text-lg">👕</span>
-                      <span><strong className="text-neutral-900">Ropa:</strong> {cls.clothing}</span>
+                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                      <Shirt className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <span className="text-[13px] text-neutral-700 font-figtree"><strong className="font-sans text-neutral-900">Ropa:</strong> {cls.clothing}</span>
                     </div>
                   )}
                   {cls.toBring?.map(item => (
-                    <div key={item} className="flex items-center gap-3 text-[15px] text-neutral-600">
-                      <span className="text-neutral-300">—</span> {item}
+                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                      <Package className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <span className="text-[13px] text-neutral-700 font-figtree">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -292,8 +317,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
           {/* RIGHT COLUMN */}
           <div>
-            <div className="sticky top-24">
-              <div className="border-2 border-neutral-200 rounded-xl p-6 shadow-sm">
+            <div className="lg:sticky lg:top-24">
+              <div className="border-2 border-neutral-200 rounded-lg p-6 shadow-sm">
                 <div className="flex items-baseline justify-between mb-5">
                   <div>
                     {typeof priceDisplay === 'string' ? (
@@ -376,10 +401,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <button
                     onClick={toggleSave}
                     disabled={saving}
-                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border-2 transition-[background-color,border-color,color] active:scale-[0.97] disabled:opacity-60 ${
+                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border-2 border-neutral-900 transition-[background-color,color] active:scale-[0.97] disabled:opacity-60 ${
                       saved
-                        ? 'bg-neutral-900 text-white border-neutral-900'
-                        : 'border-neutral-300 text-neutral-700 hover:border-neutral-900 hover:bg-neutral-50'
+                        ? 'bg-neutral-900 text-white'
+                        : 'text-neutral-700 hover:bg-neutral-50'
                     }`}
                   >
                     <Bookmark className={`w-4 h-4 ${saved ? 'fill-white animate-pop' : ''}`} />

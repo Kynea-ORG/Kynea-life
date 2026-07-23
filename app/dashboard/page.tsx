@@ -58,7 +58,7 @@ export default async function DashboardPage() {
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
-            <div key={m.label} className={`${m.bg} rounded-xl p-5 border border-neutral-200`}>
+            <div key={m.label} className={`${m.bg} rounded-xl p-5 border-2 border-neutral-900`}>
               <div className={`w-9 h-9 ${m.iconBg} rounded-lg flex items-center justify-center mb-3`}>
                 <Icon className={`w-4 h-4 ${m.text}`} />
               </div>
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Recent published classes */}
-      <div className="bg-white rounded-xl border border-neutral-200 mb-6">
+      <div className="bg-white rounded-xl border-2 border-neutral-900 mb-6">
         <div className="flex items-center justify-between p-6 border-b border-neutral-100">
           <h2 className="font-bold text-neutral-900 text-[17px]">Clases publicadas</h2>
           <Link href="/dashboard/mis-clases" className="text-[13px] text-neutral-600 font-medium flex items-center gap-1 hover:text-neutral-900">
@@ -133,7 +133,7 @@ export default async function DashboardPage() {
 
       {/* Quick actions */}
       <div className="grid sm:grid-cols-3 gap-4">
-        <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors active:scale-[0.98]">
+        <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 border-2 border-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors active:scale-[0.98]">
           <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
             <PlusCircle className="w-6 h-6" />
           </div>
@@ -143,7 +143,7 @@ export default async function DashboardPage() {
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>
-        <Link href="/dashboard/importar-csv" className="flex items-center gap-4 p-5 bg-white border-2 border-neutral-200 rounded-xl text-neutral-900 hover:border-neutral-900 transition-colors active:scale-[0.98]">
+        <Link href="/dashboard/importar-csv" className="flex items-center gap-4 p-5 bg-white border-2 border-neutral-900 rounded-xl text-neutral-900 hover:bg-neutral-50 transition-colors active:scale-[0.98]">
           <div className="w-12 h-12 bg-neutral-50 rounded-lg flex items-center justify-center">
             <Upload className="w-6 h-6 text-neutral-600" />
           </div>
@@ -154,7 +154,7 @@ export default async function DashboardPage() {
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>
         {profile?.role === 'academia' && (
-          <Link href="/dashboard/profesores" className="flex items-center gap-4 p-5 bg-pink-50 border-2 border-pink-100 rounded-xl text-neutral-900 hover:border-pink-400 transition-colors active:scale-[0.98]">
+          <Link href="/dashboard/profesores" className="flex items-center gap-4 p-5 bg-pink-50 border-2 border-neutral-900 rounded-xl text-neutral-900 transition-transform active:scale-[0.98]">
             <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
               <Users className="w-6 h-6 text-pink-600" />
             </div>

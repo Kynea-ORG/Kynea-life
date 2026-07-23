@@ -53,7 +53,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
 
   return (
     <>
-      <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 flex flex-col group hover:-translate-y-0.5">
+      <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 flex flex-col group hover:-translate-y-0.5">
         {/* Image */}
         <div className={`relative overflow-hidden ${compact ? 'h-36' : 'h-48'}`}>
           <Image
@@ -128,7 +128,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           <div className="flex gap-2 mt-auto pt-1">
             <Link
               href={`/clases/${cls.id}`}
-              className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border-2 border-neutral-200 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition-[border-color,color] active:scale-[0.97]"
+              className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border-2 border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
             >
               Ver clase
             </Link>
@@ -138,7 +138,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
               className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border-2 ${
                 isFullyBooked
                   ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                  : 'bg-neutral-900 border-neutral-900 hover:bg-neutral-800 hover:border-neutral-800 text-white active:scale-[0.97]'
+                  : 'bg-primary border-primary hover:bg-primary-dark hover:border-primary-dark active:bg-neutral-900 active:border-neutral-900 text-white active:scale-[0.97]'
               }`}
             >
               {justContacted ? <Check className="w-3.5 h-3.5 animate-fade-in" /> : <MessageCircle className="w-3.5 h-3.5" />}

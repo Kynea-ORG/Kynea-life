@@ -242,9 +242,7 @@ function SegmentedProgress({ step }: { step: number }) {
             }`}
           >
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 transition-colors ${
-              i < step  ? 'bg-neutral-900 text-white' :
-              i === step ? 'bg-neutral-900 text-white' :
-              'bg-neutral-200 text-neutral-400'
+              i <= step ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-400'
             }`}>
               {i < step ? '✓' : i + 1}
             </span>
@@ -261,7 +259,7 @@ function SegmentedProgress({ step }: { step: number }) {
           <div
             key={i}
             className={`flex-1 h-2 rounded-full transition-colors duration-300 ${
-              i <= step ? 'bg-neutral-900' : 'bg-neutral-100'
+              i <= step ? 'bg-primary' : 'bg-neutral-100'
             }`}
           />
         ))}
@@ -278,12 +276,12 @@ function Pill({ active, onClick, disabled, badge, children }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full px-4 py-2 border-2 text-sm font-semibold transition-[border-color,background-color,color] inline-flex items-center gap-1.5 ${
+      className={`rounded-full px-4 py-2 border-2 text-sm font-semibold transition-[background-color,color] inline-flex items-center gap-1.5 ${
         disabled
           ? 'border-neutral-100 text-neutral-300 cursor-not-allowed opacity-60'
           : active
-            ? 'bg-neutral-900 text-white border-neutral-900'
-            : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+            ? 'bg-primary text-white border-neutral-900'
+            : 'border-neutral-900 text-neutral-600 hover:bg-neutral-50'
       }`}
     >
       {children}
@@ -494,7 +492,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('type', opt.value)}
               className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] ${
-                form.type === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+                form.type === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-900 hover:bg-neutral-50'
               }`}>
               <p className="text-xl mb-1">{opt.emoji}</p>
               <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
@@ -816,9 +814,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('modality', opt.value)}
               className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] flex items-start gap-3 ${
-                form.modality === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+                form.modality === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-900 hover:bg-neutral-50'
               }`}>
-              <opt.icon className={`w-5 h-5 mt-0.5 shrink-0 ${form.modality === opt.value ? 'text-neutral-900' : 'text-neutral-400'}`} />
+              <opt.icon className={`w-5 h-5 mt-0.5 shrink-0 ${form.modality === opt.value ? 'text-primary' : 'text-neutral-400'}`} />
               <div>
                 <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
                 <p className="text-xs text-neutral-500">{opt.desc}</p>
@@ -969,11 +967,11 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             ].map(opt => (
               <label key={opt.value}
                 className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
-                  form.contactMode === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+                  form.contactMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-900 hover:bg-neutral-50'
                 }`}>
                 <input type="radio" name="contactMode" value={opt.value}
                   checked={form.contactMode === opt.value} onChange={() => set('contactMode', opt.value)}
-                  className="mt-0.5 accent-neutral-900" />
+                  className="mt-0.5 accent-primary" />
                 <div>
                   <p className="text-sm font-semibold text-neutral-900">{opt.label}</p>
                   <p className="text-xs text-neutral-500 mt-0.5">{opt.desc}</p>
@@ -1133,7 +1131,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         </p>
       </div>
 
-      <div key={step} className="bg-white rounded-xl border border-neutral-100 p-6 mb-6 shadow-sm animate-fade-in">
+      <div key={step} className="bg-white rounded-xl border-2 border-neutral-900 p-6 mb-6 shadow-sm animate-fade-in">
         {step === 0 && renderStep0()}
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}

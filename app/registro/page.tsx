@@ -46,7 +46,7 @@ export default function RegistroPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { bgColor, bgRef, shift } = useFunFocusBackground();
+  const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
 
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) => {
@@ -117,16 +117,10 @@ export default function RegistroPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col">
-      <div
-        ref={bgRef}
-        aria-hidden
-        className="absolute z-0"
-        style={{
-          top: '-5%', left: '-5%', right: '-5%', bottom: '-5%',
-          backgroundColor: bgColor,
-          transition: 'background-color 900ms cubic-bezier(0.22, 1, 0.36, 1)',
-        }}
-      />
+      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
+        <div key={revealId} style={revealStyle} />
+      </div>
 
       <div className="relative z-10 flex flex-col flex-1">
       <header className="bg-white border-b border-neutral-200 px-6 py-4">
@@ -137,7 +131,7 @@ export default function RegistroPage() {
 
       <div className="flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
+          <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-8">
 
             {step === 'role' ? (
               <div key="role-step" className="animate-fade-in">
@@ -157,12 +151,12 @@ export default function RegistroPage() {
                         onClick={() => { setRole(r.key); shift(); }}
                         className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-[border-color,background-color] active:scale-[0.98] ${
                           isSelected
-                            ? 'border-neutral-900 bg-neutral-50'
+                            ? 'border-primary bg-primary-bg'
                             : 'border-neutral-200 hover:border-neutral-400'
                         }`}
                       >
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
+                          isSelected ? 'bg-primary text-white' : 'bg-neutral-100 text-neutral-500'
                         }`}>
                           <Icon className="w-5 h-5" />
                         </div>
@@ -171,7 +165,7 @@ export default function RegistroPage() {
                           <p className="text-[13px] text-neutral-500">{r.description}</p>
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 shrink-0 transition-[background-color,border-color] flex items-center justify-center ${
-                          isSelected ? 'bg-neutral-900 border-neutral-900' : 'border-neutral-300'
+                          isSelected ? 'bg-primary border-primary' : 'border-neutral-300'
                         }`}>
                           {isSelected && (
                             <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -323,7 +317,7 @@ export default function RegistroPage() {
                     {form.password.length > 0 && (
                       <ul className="flex flex-col gap-1 mt-2 animate-fade-in">
                         {passwordChecks.map(c => (
-                          <li key={c.label} className={`flex items-center gap-2 text-[12px] ${c.ok ? 'text-green-600' : 'text-neutral-400'}`}>
+                          <li key={c.label} className={`flex items-center gap-2 text-[12px] font-figtree ${c.ok ? 'text-green-600' : 'text-neutral-400'}`}>
                             {c.ok
                               ? <Check className="w-3.5 h-3.5 shrink-0" />
                               : <X className="w-3.5 h-3.5 shrink-0" />
@@ -339,7 +333,7 @@ export default function RegistroPage() {
                     type="submit"
                     disabled={loading || !passwordValid}
                     onClick={shift}
-                    className="btn-dark w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="btn-primary w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                     {loading ? 'Creando cuenta…' : 'Crear cuenta'}

@@ -33,7 +33,8 @@ function LoginPageContent() {
   const [resetError, setResetError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
-  const { bgColor, bgRef, shift } = useFunFocusBackground();
+  const [rememberMe, setRememberMe] = useState(true);
+  const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
 
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) => {
@@ -108,16 +109,10 @@ function LoginPageContent() {
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col">
-      <div
-        ref={bgRef}
-        aria-hidden
-        className="absolute z-0"
-        style={{
-          top: '-5%', left: '-5%', right: '-5%', bottom: '-5%',
-          backgroundColor: bgColor,
-          transition: 'background-color 900ms cubic-bezier(0.22, 1, 0.36, 1)',
-        }}
-      />
+      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
+        <div key={revealId} style={revealStyle} />
+      </div>
 
       <div className="relative z-10 flex flex-col flex-1">
       <header className="bg-white border-b border-neutral-200 px-6 py-4">
@@ -128,7 +123,7 @@ function LoginPageContent() {
 
       <div className="flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
+          <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-8">
             <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-1">Iniciar sesión</h1>
             <p className="text-[15px] text-neutral-500 mb-6">Bienvenido de vuelta a Kynea</p>
 
@@ -249,7 +244,17 @@ function LoginPageContent() {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={loading} onClick={shift} className="btn-dark w-full mt-1 flex items-center justify-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer select-none -mt-1">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={e => { setRememberMe(e.target.checked); shift(); }}
+                      className="w-4 h-4 accent-primary shrink-0"
+                    />
+                    <span className="text-[13px] text-neutral-500">Recuérdame en este dispositivo</span>
+                  </label>
+
+                  <button type="submit" disabled={loading} onClick={shift} className="btn-primary w-full mt-1 flex items-center justify-center gap-2">
                     {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                     {loading ? 'Ingresando…' : 'Iniciar sesión'}
                   </button>

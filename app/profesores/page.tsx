@@ -22,7 +22,7 @@ export default async function ProfesoresPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
               {teachers.map(t => (
                 <Link key={t.id} href={`/profesores/${t.id}`}
-                  className="border border-neutral-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow active:scale-[0.98] group">
+                  className="border-2 border-neutral-900 rounded-2xl overflow-hidden transition-[box-shadow,transform] duration-150 ease-out hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98] group">
                   <div className="relative w-full h-48 overflow-hidden bg-neutral-200">
                     {t.photo ? (
                       <Image src={t.photo} alt={t.name} fill
@@ -40,7 +40,7 @@ export default async function ProfesoresPage() {
                     <h3 className="font-bold text-neutral-900 text-[15px] leading-tight">{t.name}</h3>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {t.styles.slice(0, 2).map(s => (
-                        <span key={s} className="text-[11px] bg-pink-50 text-pink-600 border border-pink-100 px-2 py-0.5 rounded-full">{s}</span>
+                        <span key={s} className="badge-pink text-[11px] px-2 py-0.5">{s}</span>
                       ))}
                     </div>
                   </div>
@@ -56,7 +56,7 @@ export default async function ProfesoresPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {academias.map(t => (
                 <Link key={t.id} href={`/profesores/${t.id}`}
-                  className="flex items-start gap-4 border border-neutral-100 rounded-xl p-4 hover:shadow-md transition-shadow active:scale-[0.98] group">
+                  className="flex items-start gap-4 border-2 border-neutral-900 rounded-2xl p-4 transition-[box-shadow,transform] duration-150 ease-out hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98] group">
                   <div className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-neutral-200">
                     {t.photo ? (
                       <Image src={t.photo} alt={t.name} fill sizes="64px" className="object-cover" />
@@ -72,7 +72,7 @@ export default async function ProfesoresPage() {
                     <h3 className="font-bold text-neutral-900 text-[15px]">{t.name}</h3>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {t.styles.slice(0, 3).map(s => (
-                        <span key={s} className="text-[11px] bg-pink-50 text-pink-600 border border-pink-100 px-2 py-0.5 rounded-full">{s}</span>
+                        <span key={s} className="badge-pink text-[11px] px-2 py-0.5">{s}</span>
                       ))}
                     </div>
                   </div>
