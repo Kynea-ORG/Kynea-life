@@ -241,7 +241,7 @@ function SegmentedProgress({ step }: { step: number }) {
               i === step ? 'text-neutral-900' : i < step ? 'text-neutral-400' : 'text-neutral-300'
             }`}
           >
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 transition-all ${
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 transition-colors ${
               i < step  ? 'bg-neutral-900 text-white' :
               i === step ? 'bg-neutral-900 text-white' :
               'bg-neutral-200 text-neutral-400'
@@ -260,7 +260,7 @@ function SegmentedProgress({ step }: { step: number }) {
         {STEPS.map((_, i) => (
           <div
             key={i}
-            className={`flex-1 h-2 rounded-full transition-all duration-300 ${
+            className={`flex-1 h-2 rounded-full transition-colors duration-300 ${
               i <= step ? 'bg-neutral-900' : 'bg-neutral-100'
             }`}
           />
@@ -278,7 +278,7 @@ function Pill({ active, onClick, disabled, badge, children }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full px-4 py-2 border-2 text-sm font-semibold transition-all inline-flex items-center gap-1.5 ${
+      className={`rounded-full px-4 py-2 border-2 text-sm font-semibold transition-[border-color,background-color,color] inline-flex items-center gap-1.5 ${
         disabled
           ? 'border-neutral-100 text-neutral-300 cursor-not-allowed opacity-60'
           : active
@@ -493,7 +493,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { value: 'evento', label: 'Evento', desc: 'Varios días seguidos', emoji: '🔥' },
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('type', opt.value)}
-              className={`text-left p-4 rounded-xl border-2 transition-all ${
+              className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] ${
                 form.type === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
               }`}>
               <p className="text-xl mb-1">{opt.emoji}</p>
@@ -565,7 +565,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <button
               type="button"
               onClick={() => { setCoverImageUrl(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors"
+              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors active:scale-90"
             >
               <X className="w-4 h-4" />
             </button>
@@ -587,8 +587,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </div>
         )}
 
-        {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
-        {fieldErrors.coverImage && <p className="text-xs text-red-600 mt-1">{fieldErrors.coverImage}</p>}
+        {uploadError && <p className="text-xs text-red-600 mt-1 animate-fade-in">{uploadError}</p>}
+        {fieldErrors.coverImage && <p className="text-xs text-red-600 mt-1 animate-fade-in">{fieldErrors.coverImage}</p>}
         <Hint>Recomendado: 1200×630 px, formato JPG o PNG</Hint>
       </div>
     </div>
@@ -815,7 +815,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { value: 'Online', label: 'Online', desc: 'Por videollamada', icon: Monitor },
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('modality', opt.value)}
-              className={`text-left p-4 rounded-xl border-2 transition-all flex items-start gap-3 ${
+              className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] flex items-start gap-3 ${
                 form.modality === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
               }`}>
               <opt.icon className={`w-5 h-5 mt-0.5 shrink-0 ${form.modality === opt.value ? 'text-neutral-900' : 'text-neutral-400'}`} />
@@ -968,7 +968,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               { value: 'both', label: 'WhatsApp e Instagram', desc: 'Los alumnos pueden contactarte por ambos canales' },
             ].map(opt => (
               <label key={opt.value}
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
                   form.contactMode === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
                 }`}>
                 <input type="radio" name="contactMode" value={opt.value}
@@ -1133,7 +1133,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-neutral-100 p-6 mb-6 shadow-sm">
+      <div key={step} className="bg-white rounded-xl border border-neutral-100 p-6 mb-6 shadow-sm animate-fade-in">
         {step === 0 && renderStep0()}
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
@@ -1155,9 +1155,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </button>
         ) : (
           <div className="flex flex-col gap-3 items-end">
-            {submitError && <p className="text-[13px] text-red-600 font-medium">{submitError}</p>}
+            {submitError && <p className="text-[13px] text-red-600 font-medium animate-fade-in">{submitError}</p>}
             {contactGateError && (
-              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5">
+              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5 animate-fade-in">
                 {contactGateError.message}
                 <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
                   Completar perfil

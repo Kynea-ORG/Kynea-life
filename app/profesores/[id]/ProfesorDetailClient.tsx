@@ -110,7 +110,7 @@ export default function ProfesorDetailClient({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-[background-color,color,box-shadow] active:scale-[0.97] ${
                 activeTab === tab.key ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
               }`}
             >
@@ -143,7 +143,7 @@ export default function ProfesorDetailClient({
                   href={`https://wa.me/${teacher.whatsapp.replace(/\s+/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20BC5A] text-white font-bold px-5 py-2.5 rounded-btn text-sm transition-colors"
+                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20BC5A] text-white font-bold px-5 py-2.5 rounded-btn text-sm transition-colors active:scale-[0.97]"
                 >
                   <MessageCircle className="w-4 h-4" /> WhatsApp
                 </a>

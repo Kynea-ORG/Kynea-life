@@ -180,7 +180,7 @@ function OnboardingContent() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-xl">
+      <div className="w-full max-w-xl animate-fade-in">
         {/* Logo */}
         <div className="flex items-center gap-2 justify-center mb-8">
           <Image src="/logo.png" alt="Kynea" width={100} height={32} />
@@ -209,7 +209,7 @@ function OnboardingContent() {
         <div className="bg-white rounded-3xl shadow-xl p-8">
           {/* Step 0: Public data */}
           {step === 0 && (
-            <div>
+            <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Tus datos públicos</h2>
               <p className="text-sm text-neutral-500 mb-6">Esto es lo que verán los alumnos en tu perfil</p>
               <div className="space-y-4">
@@ -306,7 +306,7 @@ function OnboardingContent() {
 
           {/* Step 1: Contact */}
           {step === 1 && (
-            <div>
+            <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Contacto y redes</h2>
               <p className="text-sm text-neutral-500 mb-6">Los alumnos te contactarán por estos canales</p>
               <div className="space-y-4">
@@ -367,7 +367,7 @@ function OnboardingContent() {
 
           {/* Step 2: Specialty */}
           {step === 2 && (
-            <div>
+            <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Tu especialidad</h2>
               <p className="text-sm text-neutral-500 mb-4">
                 ¿Qué estilos enseñas? <span className="text-red-500">*</span>
@@ -377,7 +377,7 @@ function OnboardingContent() {
                   <button
                     key={s}
                     onClick={() => toggleStyle(s)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors active:scale-95 ${
                       form.styles.includes(s)
                         ? 'bg-neutral-900 text-white border-neutral-900'
                         : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
@@ -403,7 +403,7 @@ function OnboardingContent() {
 
           {/* Step 3: Confirmation */}
           {step === 3 && (
-            <div>
+            <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Confirmar y guardar</h2>
               <p className="text-sm text-neutral-500 mb-6">Revisa tu información antes de guardar</p>
               <div className="space-y-3">
@@ -452,13 +452,13 @@ function OnboardingContent() {
 
           {/* Navigation */}
           {error && (
-            <p className="mt-6 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>
+            <p className="mt-6 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3 animate-fade-in">{error}</p>
           )}
           <div className="flex gap-3 mt-4">
             {step > 0 && (
               <button
                 onClick={back}
-                className="flex items-center gap-2 px-5 py-3 border border-neutral-200 rounded-btn text-sm font-semibold text-neutral-600 hover:border-neutral-900 transition-colors"
+                className="flex items-center gap-2 px-5 py-3 border border-neutral-200 rounded-btn text-sm font-semibold text-neutral-600 hover:border-neutral-900 transition-colors active:scale-[0.97]"
               >
                 <ChevronLeft className="w-4 h-4" /> Atrás
               </button>
@@ -466,7 +466,7 @@ function OnboardingContent() {
             <button
               onClick={step === STEPS.length - 1 ? handleFinish : handleNext}
               disabled={loading}
-              className="flex-1 flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-700 text-white font-bold py-3 rounded-btn transition-colors disabled:opacity-60"
+              className="btn-dark flex-1 disabled:opacity-60"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Guardando…' : step === STEPS.length - 1 ? 'Guardar y entrar' : 'Continuar'}

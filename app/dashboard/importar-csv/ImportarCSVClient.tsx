@@ -66,7 +66,7 @@ export default function ImportarCSVClient() {
 
       {/* Step: Upload */}
       {importStep === 'upload' && (
-        <div className="space-y-6">
+        <div key="upload" className="space-y-6 animate-fade-in">
           {/* Download template */}
           <div className="bg-neutral-50 border border-neutral-100 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="w-12 h-12 bg-neutral-100 rounded-xl flex items-center justify-center shrink-0">
@@ -87,7 +87,7 @@ export default function ImportarCSVClient() {
             onDragLeave={() => setDragging(false)}
             onDrop={e => { e.preventDefault(); setDragging(false); handleFileDrop(); }}
             onClick={() => fileRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
+            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-[border-color,background-color] ${
               dragging ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-900 hover:bg-neutral-50'
             }`}
           >
@@ -136,7 +136,7 @@ export default function ImportarCSVClient() {
 
       {/* Step: Preview */}
       {importStep === 'preview' && (
-        <div className="space-y-5">
+        <div key="preview" className="space-y-5 animate-fade-in">
           {/* File info */}
           <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-4 flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
@@ -270,7 +270,7 @@ export default function ImportarCSVClient() {
 
       {/* Step: Success */}
       {importStep === 'success' && (
-        <div className="text-center py-16">
+        <div key="success" className="text-center py-16 animate-fade-in">
           <div className="w-20 h-20 bg-green-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-10 h-10 text-green-600" />
           </div>

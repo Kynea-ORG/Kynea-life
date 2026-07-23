@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/classes/actions';
+import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { parsePublishError, profileFixHref } from '@/lib/classes/validation';
 import type { ClassStatus, DanceClass } from '@/lib/types';
 
@@ -25,6 +26,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
   const [activeTab, setActiveTab] = useState<ClassStatus | 'all'>('all');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   // Publish success signal survives the server redirect via ?published=1
   // (set by createClass/updateClassFromForm) — read once via a lazy
   // initializer so the initial toast doesn't require a setState-in-effect.
@@ -33,12 +35,14 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
       ? { msg: 'Tu clase fue publicada correctamente.', type: 'success' }
       : null
   );
+  const [toastOpen, setToastOpen] = useState(() => searchParams.get('published') === '1');
+  const shouldRenderToast = useDelayedUnmount(toastOpen, 200);
 
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 3000);
+    if (!toastOpen) return;
+    const timer = setTimeout(() => setToastOpen(false), 3000);
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toastOpen]);
 
   // Clear the ?published=1 param so a refresh doesn't re-show the toast.
   useEffect(() => {
@@ -50,6 +54,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
 
   const showToast = (msg: string, type: 'success' | 'info' | 'error' = 'success', href?: string, actionLabel?: string) => {
     setToast({ msg, type, href, actionLabel });
+    setToastOpen(true);
   };
 
   const publishClass = (id: string) => {
@@ -87,9 +92,13 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
   };
 
   const handleDelete = (id: string) => {
-    setClasses(prev => prev.filter(c => c.id !== id));
     setConfirmDelete(null);
     setOpenMenu(null);
+    setRemovingId(id);
+    setTimeout(() => {
+      setClasses(prev => prev.filter(c => c.id !== id));
+      setRemovingId(null);
+    }, 150);
     showToast('Clase eliminada', 'error');
     startTransition(async () => {
       try {
@@ -118,8 +127,10 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
 
   return (
     <div className="p-6 lg:p-8">
-      {toast && (
-        <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-all duration-300 ${
+      {shouldRenderToast && toast && (
+        <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95 ${
+          toastOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+        } ${
           toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-neutral-900 text-white'
         }`}>
           <span>{toast.msg}</span>
@@ -187,7 +198,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
             </thead>
             <tbody className="divide-y divide-neutral-50">
               {filtered.map(cls => (
-                <tr key={cls.id} className="hover:bg-neutral-50 transition-colors">
+                <tr key={cls.id} className={`hover:bg-neutral-50 ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {cls.coverImage ? (
@@ -222,7 +233,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                   </td>
                   <td className="px-4 py-4">
                     {confirmDelete === cls.id ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 animate-fade-in">
                         <span className="text-xs text-neutral-600 whitespace-nowrap">¿Eliminar?</span>
                         <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red-600 hover:text-red-700 whitespace-nowrap">
                           Sí, eliminar
@@ -232,7 +243,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 animate-fade-in">
                         {cls.status === 'draft' && (
                           <button onClick={() => publishClass(cls.id)} disabled={isPending}
                             className="text-xs px-3 py-1.5 rounded-btn bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
@@ -252,21 +263,21 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                           </button>
                         )}
                         <Link href={`/dashboard/crear-clase?edit=${cls.id}`} title="Editar"
-                          className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-700 transition-colors">
+                          className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-700 transition-colors active:scale-90">
                           <Edit2 className="w-4 h-4" />
                         </Link>
                         <button title="Duplicar" onClick={() => handleDuplicate(cls.id)} disabled={isPending}
-                          className="p-1.5 hover:bg-blue-50 rounded-lg text-neutral-400 hover:text-blue-600 transition-colors disabled:opacity-50">
+                          className="p-1.5 hover:bg-blue-50 rounded-lg text-neutral-400 hover:text-blue-600 transition-colors active:scale-90 disabled:opacity-50">
                           <Copy className="w-4 h-4" />
                         </button>
                         {cls.status === 'published' && (
                           <Link href={`/clases/${cls.id}`} title="Ver publicación" target="_blank"
-                            className="p-1.5 hover:bg-green-50 rounded-lg text-neutral-400 hover:text-green-600 transition-colors">
+                            className="p-1.5 hover:bg-green-50 rounded-lg text-neutral-400 hover:text-green-600 transition-colors active:scale-90">
                             <ExternalLink className="w-4 h-4" />
                           </Link>
                         )}
                         <button title="Eliminar" onClick={() => setConfirmDelete(cls.id)}
-                          className="p-1.5 hover:bg-red-50 rounded-lg text-neutral-400 hover:text-red-500 transition-colors">
+                          className="p-1.5 hover:bg-red-50 rounded-lg text-neutral-400 hover:text-red-500 transition-colors active:scale-90">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -282,7 +293,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {filtered.map(cls => (
-          <div key={cls.id} className="bg-white rounded-xl border border-neutral-200 p-4 shadow-sm">
+          <div key={cls.id} className={`bg-white rounded-xl border border-neutral-200 p-4 shadow-sm ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}>
             <div className="flex items-start gap-3">
               {cls.coverImage ? (
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
@@ -312,7 +323,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
             </div>
 
             {openMenu === cls.id && (
-              <div className="mt-3 pt-3 border-t border-neutral-100 space-y-2">
+              <div className="mt-3 pt-3 border-t border-neutral-100 space-y-2 animate-fade-in">
                 <div className="flex gap-2">
                   {cls.status === 'draft' && (
                     <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
@@ -349,14 +360,14 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                     </Link>
                   )}
                   {confirmDelete === cls.id ? (
-                    <div className="flex items-center gap-2 w-full mt-1">
+                    <div className="flex items-center gap-2 w-full mt-1 animate-fade-in">
                       <span className="text-xs text-neutral-600">¿Eliminar esta clase?</span>
                       <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red-600">Sí</button>
                       <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-neutral-500">No</button>
                     </div>
                   ) : (
                     <button onClick={() => setConfirmDelete(cls.id)}
-                      className="text-xs font-medium text-red-600 flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-lg">
+                      className="text-xs font-medium text-red-600 flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-lg animate-fade-in">
                       <Trash2 className="w-3 h-3" /> Eliminar
                     </button>
                   )}

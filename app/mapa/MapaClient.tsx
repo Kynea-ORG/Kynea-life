@@ -6,9 +6,31 @@ import { List, MapPin, X, MessageCircle, Clock, ChevronRight } from 'lucide-reac
 import Header from '@/components/Header';
 import { formatPrice, formatTimeSlots, getTypeLabel } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
+import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
+
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+function isClassToday(cls: DanceClass): boolean {
+  const today = DAY_NAMES[new Date().getDay()];
+  return cls.timeSlots.some(slot => slot.days.includes(today));
+}
 
 export default function MapaClient({ classes }: { classes: DanceClass[] }) {
-  const [selected, setSelected] = useState<DanceClass | null>(null);
+  const [selectedClass, setSelectedClass] = useState<DanceClass | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const shouldRenderPopup = useDelayedUnmount(isOpen, 200);
+
+  const openClass = (cls: DanceClass) => {
+    setSelectedClass(cls);
+    setIsOpen(true);
+  };
+  const toggleClass = (cls: DanceClass) => {
+    if (isOpen && selectedClass?.id === cls.id) {
+      setIsOpen(false);
+    } else {
+      openClass(cls);
+    }
+  };
 
   const mapBounds = {
     minLat: -12.20, maxLat: -12.05,
@@ -49,9 +71,9 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
             {classes.map(cls => (
               <button
                 key={cls.id}
-                onClick={() => setSelected(selected?.id === cls.id ? null : cls)}
-                className={`w-full text-left p-4 hover:bg-neutral-50 transition-colors flex gap-3 ${
-                  selected?.id === cls.id ? 'bg-neutral-100 border-l-2 border-neutral-900' : ''
+                onClick={() => toggleClass(cls)}
+                className={`w-full text-left p-4 hover:bg-neutral-50 transition-colors active:scale-[0.98] flex gap-3 ${
+                  isOpen && selectedClass?.id === cls.id ? 'bg-neutral-100 border-l-2 border-neutral-900' : ''
                 }`}
               >
                 <div className="relative w-20 h-16 rounded-xl overflow-hidden shrink-0">
@@ -98,22 +120,24 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
             <div className="absolute top-[35%] left-[60%] text-xs font-semibold text-neutral-500 bg-white/60 px-2 py-1 rounded">Surco</div>
             <div className="absolute top-[25%] left-[50%] text-xs font-semibold text-neutral-500 bg-white/60 px-2 py-1 rounded">San Borja</div>
 
-            {classes.map(cls => {
+            {classes.map((cls, i) => {
               const pos = cls.lat != null && cls.lng != null ? toPercent(cls.lat, cls.lng) : null;
               if (!pos) return null;
-              const isSelected = selected?.id === cls.id;
+              const isSelected = isOpen && selectedClass?.id === cls.id;
+              const today = isClassToday(cls);
               return (
                 <button
                   key={cls.id}
-                  style={{ top: `${pos.top}%`, left: `${pos.left}%` }}
-                  className="absolute transform -translate-x-1/2 -translate-y-full group z-20"
-                  onClick={() => setSelected(selected?.id === cls.id ? null : cls)}
+                  style={{ top: `${pos.top}%`, left: `${pos.left}%`, animationDelay: `${Math.min(i, 20) * 30}ms` }}
+                  className="absolute transform -translate-x-1/2 -translate-y-full group z-20 animate-pin-in"
+                  onClick={() => toggleClass(cls)}
                 >
-                  <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full shadow-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full shadow-lg text-xs font-bold whitespace-nowrap transition-[transform,background-color,color] ${
                     isSelected
                       ? 'bg-neutral-900 text-white scale-110'
-                      : 'bg-white text-neutral-900 hover:bg-neutral-900 hover:text-white hover:scale-105'
+                      : `bg-white text-neutral-900 hover:bg-neutral-900 hover:text-white hover:scale-105 ${today ? 'animate-pulse-soft' : ''}`
                   }`}>
+                    {today && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
                     <span>{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
                   </div>
                   <div className={`w-2 h-2 rounded-full mx-auto -mt-0.5 ${isSelected ? 'bg-neutral-900' : 'bg-white border-2 border-neutral-300'}`} />
@@ -122,43 +146,47 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
             })}
           </div>
 
-          {selected && (
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 z-30">
+          {shouldRenderPopup && selectedClass && (
+            <div
+              className={`absolute bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-sm px-4 z-30 transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:translate-y-4 ${
+                isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              }`}
+            >
               <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
                 <div className="relative h-36">
-                  <Image src={selected.coverImage || '/logo.png'} alt={selected.title} fill sizes="384px" className="object-cover" />
+                  <Image src={selectedClass.coverImage || '/logo.png'} alt={selectedClass.title} fill sizes="384px" className="object-cover" />
                   <button
-                    onClick={() => setSelected(null)}
-                    className="absolute top-3 right-3 w-7 h-7 bg-black/40 rounded-full flex items-center justify-center text-white hover:bg-black/60"
+                    onClick={() => setIsOpen(false)}
+                    className="absolute top-3 right-3 w-7 h-7 bg-black/40 rounded-full flex items-center justify-center text-white hover:bg-black/60 transition-colors active:scale-90"
                   >
                     <X className="w-4 h-4" />
                   </button>
                   <span className="absolute top-3 left-3 text-xs font-semibold bg-white text-neutral-900 px-2.5 py-1 rounded-full">
-                    {getTypeLabel(selected.type)}
+                    {getTypeLabel(selectedClass.type)}
                   </span>
                 </div>
                 <div className="p-4">
-                  <p className="text-xs text-neutral-900 font-semibold">{selected.style}</p>
-                  <h3 className="font-bold text-neutral-900 mt-0.5">{selected.title}</h3>
-                  <p className="text-xs text-neutral-500 mt-1">{selected.teacher.name}</p>
+                  <p className="text-xs text-neutral-900 font-semibold">{selectedClass.style}</p>
+                  <h3 className="font-bold text-neutral-900 mt-0.5">{selectedClass.title}</h3>
+                  <p className="text-xs text-neutral-500 mt-1">{selectedClass.teacher.name}</p>
                   <div className="flex items-center gap-3 mt-2">
                     <span className="text-xs text-neutral-500 flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />{selected.district}
+                      <MapPin className="w-3 h-3" />{selectedClass.district}
                     </span>
                     <span className="text-xs text-neutral-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />{formatTimeSlots(selected.timeSlots).split(' | ')[0]}
+                      <Clock className="w-3 h-3" />{formatTimeSlots(selectedClass.timeSlots).split(' | ')[0]}
                     </span>
                   </div>
                   <div className="flex gap-2 mt-3">
                     <Link
-                      href={`/clases/${selected.id}`}
+                      href={`/clases/${selectedClass.id}`}
                       className="flex-1 text-center text-sm font-semibold py-2 rounded-xl border border-neutral-200 text-neutral-900 hover:bg-neutral-100 transition-colors flex items-center justify-center gap-1"
                     >
                       Ver clase <ChevronRight className="w-4 h-4" />
                     </Link>
-                    {selected.teacher.whatsapp && (
+                    {selectedClass.teacher.whatsapp && (
                       <a
-                        href={`https://wa.me/${selected.teacher.whatsapp}`}
+                        href={`https://wa.me/${selectedClass.teacher.whatsapp}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1 text-center text-sm font-semibold py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white transition-colors flex items-center justify-center gap-1"
@@ -180,7 +208,7 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
               {classes.map(cls => (
                 <button
                   key={cls.id}
-                  onClick={() => setSelected(cls)}
+                  onClick={() => openClass(cls)}
                   className="shrink-0 w-48 text-left bg-neutral-50 rounded-xl overflow-hidden"
                 >
                   <div className="relative w-full h-24">

@@ -133,7 +133,7 @@ export default async function DashboardPage() {
 
       {/* Quick actions */}
       <div className="grid sm:grid-cols-3 gap-4">
-        <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors">
+        <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors active:scale-[0.98]">
           <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
             <PlusCircle className="w-6 h-6" />
           </div>
@@ -143,7 +143,7 @@ export default async function DashboardPage() {
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>
-        <Link href="/dashboard/importar-csv" className="flex items-center gap-4 p-5 bg-white border-2 border-neutral-200 rounded-xl text-neutral-900 hover:border-neutral-900 transition-colors">
+        <Link href="/dashboard/importar-csv" className="flex items-center gap-4 p-5 bg-white border-2 border-neutral-200 rounded-xl text-neutral-900 hover:border-neutral-900 transition-colors active:scale-[0.98]">
           <div className="w-12 h-12 bg-neutral-50 rounded-lg flex items-center justify-center">
             <Upload className="w-6 h-6 text-neutral-600" />
           </div>
@@ -154,7 +154,7 @@ export default async function DashboardPage() {
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>
         {profile?.role === 'academia' && (
-          <Link href="/dashboard/profesores" className="flex items-center gap-4 p-5 bg-pink-50 border-2 border-pink-100 rounded-xl text-neutral-900 hover:border-pink-400 transition-colors">
+          <Link href="/dashboard/profesores" className="flex items-center gap-4 p-5 bg-pink-50 border-2 border-pink-100 rounded-xl text-neutral-900 hover:border-pink-400 transition-colors active:scale-[0.98]">
             <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
               <Users className="w-6 h-6 text-pink-600" />
             </div>

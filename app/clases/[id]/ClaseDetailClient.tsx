@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video } from 'lucide-react';
+import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video, Check } from 'lucide-react';
 
 function IgIcon({ className }: { className?: string }) {
   return (
@@ -24,6 +24,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [saving, setSaving] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
+  const [justContacted, setJustContacted] = useState<'whatsapp' | 'instagram' | null>(null);
 
   const contactMode = cls.contactMode ?? 'whatsapp';
   const showWa = contactMode === 'whatsapp' || contactMode === 'both';
@@ -69,6 +70,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
+      setJustContacted('whatsapp');
+      setTimeout(() => setJustContacted(null), 1200);
       return;
     }
     setContactType('whatsapp');
@@ -84,6 +87,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
+      setJustContacted('instagram');
+      setTimeout(() => setJustContacted(null), 1200);
       return;
     }
     setContactType('instagram');
@@ -142,8 +147,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <button
                       key={i}
                       onClick={() => setActiveImg(i)}
-                      className={`h-2 rounded-full transition-all ${i === activeImg ? 'bg-white w-5' : 'bg-white/60 w-2'}`}
-                    />
+                      className="relative h-2 w-5 flex items-center"
+                    >
+                      <span
+                        className={`block h-2 w-5 rounded-full origin-left transition-[transform,background-color] duration-200 ease-out ${
+                          i === activeImg ? 'bg-white scale-x-100' : 'bg-white/60 scale-x-[0.4]'
+                        }`}
+                      />
+                    </button>
                   ))}
                 </div>
               )}
@@ -336,14 +347,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <button
                       onClick={handleWhatsAppClick}
                       disabled={isFullyBooked}
-                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-all text-[15px] border-2 ${
+                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
                         isFullyBooked
                           ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                           : 'bg-[#25D366] border-[#25D366] hover:bg-[#20BC5A] hover:border-[#20BC5A] text-white'
                       }`}
                     >
-                      <MessageCircle className="w-4 h-4" />
-                      {isFullyBooked ? 'Sin cupos' : 'WhatsApp'}
+                      {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
+                      {isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}
                     </button>
                   )}
 
@@ -351,27 +362,27 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <button
                       onClick={handleInstagramClick}
                       disabled={isFullyBooked}
-                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-all text-[15px] border-2 ${
+                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
                         isFullyBooked
                           ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                           : 'bg-[#E1306C] border-[#E1306C] hover:bg-[#c9225a] hover:border-[#c9225a] text-white'
                       }`}
                     >
-                      <IgIcon className="w-4 h-4" />
-                      {isFullyBooked ? 'Sin cupos' : 'Instagram'}
+                      {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <IgIcon className="w-4 h-4" />}
+                      {isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
                     </button>
                   )}
 
                   <button
                     onClick={toggleSave}
                     disabled={saving}
-                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border-2 transition-all disabled:opacity-60 ${
+                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border-2 transition-[background-color,border-color,color] active:scale-[0.97] disabled:opacity-60 ${
                       saved
                         ? 'bg-neutral-900 text-white border-neutral-900'
                         : 'border-neutral-300 text-neutral-700 hover:border-neutral-900 hover:bg-neutral-50'
                     }`}
                   >
-                    <Bookmark className={`w-4 h-4 ${saved ? 'fill-white' : ''}`} />
+                    <Bookmark className={`w-4 h-4 ${saved ? 'fill-white animate-pop' : ''}`} />
                     {saved ? 'Guardado' : 'Guardar clase'}
                   </button>
                 </div>
@@ -459,24 +470,24 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             <button
               onClick={handleWhatsAppClick}
               disabled={isFullyBooked}
-              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-all ${
+              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-[#25D366] hover:bg-[#20BC5A] text-white'
               }`}
             >
-              <MessageCircle className="w-4 h-4" />
-              {!showIg && (isFullyBooked ? 'Sin cupos' : 'Contactar')}
+              {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
+              {!showIg && (isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'Contactar')}
             </button>
           )}
           {showIg && (
             <button
               onClick={handleInstagramClick}
               disabled={isFullyBooked}
-              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-all ${
+              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-[#E1306C] hover:bg-[#c9225a] text-white'
               }`}
             >
-              <IgIcon className="w-4 h-4" />
-              {!showWa && (isFullyBooked ? 'Sin cupos' : 'Contactar')}
+              {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <IgIcon className="w-4 h-4" />}
+              {!showWa && (isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Contactar')}
             </button>
           )}
         </div>

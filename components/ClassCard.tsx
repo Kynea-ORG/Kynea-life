@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Clock, MessageCircle, Bookmark, Users } from 'lucide-react';
+import { MapPin, Clock, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -17,6 +17,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
   const [showContact, setShowContact] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [justContacted, setJustContacted] = useState(false);
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user));
@@ -35,11 +36,15 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     const mode = cls.contactMode ?? 'whatsapp';
     if ((mode === 'whatsapp' || mode === 'both') && cls.teacher.whatsapp) {
       window.open(buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp), '_blank');
+      setJustContacted(true);
+      setTimeout(() => setJustContacted(false), 1200);
       return;
     }
     if ((mode === 'instagram' || mode === 'both') && cls.teacher.instagram) {
       const handle = cls.teacher.instagram.replace(/^@/, '');
       window.open(`https://instagram.com/${handle}`, '_blank');
+      setJustContacted(true);
+      setTimeout(() => setJustContacted(false), 1200);
       return;
     }
     // Logged in but teacher has no matching contact channel configured
@@ -48,7 +53,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
 
   return (
     <>
-      <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-all duration-200 flex flex-col group hover:-translate-y-0.5">
+      <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 flex flex-col group hover:-translate-y-0.5">
         {/* Image */}
         <div className={`relative overflow-hidden ${compact ? 'h-36' : 'h-48'}`}>
           <Image
@@ -71,12 +76,12 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           </div>
           <button
             onClick={() => setSaved(!saved)}
-            className={`absolute bottom-3 right-3 p-2 rounded-full shadow transition-all ${
+            className={`absolute bottom-3 right-3 p-2 rounded-full shadow transition-[background-color,color] active:scale-90 ${
               saved ? 'bg-neutral-900 text-white' : 'bg-white/90 text-neutral-500 hover:text-neutral-900 backdrop-blur-sm'
             }`}
             title={saved ? 'Guardado' : 'Guardar clase'}
           >
-            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white' : ''}`} />
+            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white animate-pop' : ''}`} />
           </button>
         </div>
 
@@ -123,21 +128,21 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           <div className="flex gap-2 mt-auto pt-1">
             <Link
               href={`/clases/${cls.id}`}
-              className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border-2 border-neutral-200 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition-all"
+              className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border-2 border-neutral-200 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition-[border-color,color] active:scale-[0.97]"
             >
               Ver clase
             </Link>
             <button
               onClick={handleContact}
               disabled={isFullyBooked}
-              className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-all flex items-center justify-center gap-1.5 border-2 ${
+              className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border-2 ${
                 isFullyBooked
                   ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                  : 'bg-neutral-900 border-neutral-900 hover:bg-neutral-800 hover:border-neutral-800 text-white'
+                  : 'bg-neutral-900 border-neutral-900 hover:bg-neutral-800 hover:border-neutral-800 text-white active:scale-[0.97]'
               }`}
             >
-              <MessageCircle className="w-3.5 h-3.5" />
-              {isFullyBooked ? 'Sin cupos' : 'Contactar'}
+              {justContacted ? <Check className="w-3.5 h-3.5 animate-fade-in" /> : <MessageCircle className="w-3.5 h-3.5" />}
+              {isFullyBooked ? 'Sin cupos' : justContacted ? 'Abriendo…' : 'Contactar'}
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { X } from 'lucide-react';
+import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 
 const NOTICES: Record<string, { title: string; body: string }> = {
   cuenta_existente: {
@@ -14,10 +15,12 @@ export default function NoticeBar() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [notice, setNotice] = useState<{ title: string; body: string } | null>(() => {
+  const [notice] = useState<{ title: string; body: string } | null>(() => {
     const key = searchParams.get('notice');
     return key && NOTICES[key] ? NOTICES[key] : null;
   });
+  const [isOpen, setIsOpen] = useState(notice !== null);
+  const shouldRender = useDelayedUnmount(isOpen, 200);
 
   useEffect(() => {
     const key = searchParams.get('notice');
@@ -30,13 +33,19 @@ export default function NoticeBar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!notice) return null;
+  const handleClose = () => setIsOpen(false);
+
+  if (!shouldRender || !notice) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div
+        className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ease-out starting:opacity-0 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+        onClick={handleClose}
+      />
+      <div className={`relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95 ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
         <button
-          onClick={() => setNotice(null)}
+          onClick={handleClose}
           className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-700 transition-colors"
         >
           <X className="w-5 h-5" />
@@ -47,7 +56,7 @@ export default function NoticeBar() {
         <h3 className="text-[17px] font-black text-neutral-900 mb-2">{notice.title}</h3>
         <p className="text-[14px] text-neutral-500 leading-relaxed mb-5">{notice.body}</p>
         <button
-          onClick={() => setNotice(null)}
+          onClick={handleClose}
           className="w-full bg-neutral-900 hover:bg-neutral-700 text-white font-bold py-3 rounded-xl text-sm transition-colors"
         >
           Entendido

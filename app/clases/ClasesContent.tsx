@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import FilterPanel, { Filters, EMPTY_FILTERS } from '@/components/FilterPanel';
 import type { DanceClass } from '@/lib/types';
+import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 
 // ── Price and time helpers (these stay client-side: require computed logic) ───
 
@@ -80,6 +81,7 @@ export default function ClasesContent({
   const [query, setQuery] = useState(sp.get('q') || '');
   const [filters, setFilters] = useState<Filters>(() => initFiltersFromUrl(sp));
   const [showFilters, setShowFilters] = useState(false);
+  const shouldRenderFilters = useDelayedUnmount(showFilters, 200);
   const [sortBy, setSortBy] = useState('Recomendados');
 
   // Debounce for query URL updates
@@ -155,7 +157,7 @@ export default function ClasesContent({
       {/* Search bar */}
       <div className="bg-white border-b border-neutral-200 sticky top-[64px] z-40">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/8 transition-all">
+          <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 focus-within:border-neutral-900 focus-within:ring-2 focus-within:ring-neutral-900/8 transition-[border-color,box-shadow]">
             <Search className="w-4 h-4 text-neutral-400 shrink-0" />
             <input
               type="text"
@@ -173,7 +175,7 @@ export default function ClasesContent({
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 text-[15px] font-semibold px-4 py-2.5 rounded-btn border-2 transition-all md:hidden ${
+            className={`flex items-center gap-2 text-[15px] font-semibold px-4 py-2.5 rounded-btn border-2 transition-colors active:scale-[0.97] md:hidden ${
               activeCount > 0
                 ? 'bg-neutral-900 text-white border-neutral-900'
                 : 'bg-white border-neutral-300 text-neutral-700 hover:border-neutral-900'
@@ -183,14 +185,14 @@ export default function ClasesContent({
             Filtros {activeCount > 0 && `(${activeCount})`}
           </button>
 
-          <Link href="/mapa" className="hidden md:flex items-center gap-2 text-[15px] font-medium px-4 py-2.5 rounded-btn border-2 border-neutral-200 text-neutral-600 hover:border-neutral-900 transition-all">
+          <Link href="/mapa" className="hidden md:flex items-center gap-2 text-[15px] font-medium px-4 py-2.5 rounded-btn border-2 border-neutral-200 text-neutral-600 hover:border-neutral-900 transition-colors">
             <Map className="w-4 h-4" /> Mapa
           </Link>
 
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
-            className="hidden md:block text-[15px] text-neutral-600 border-2 border-neutral-200 rounded-btn px-4 py-2.5 outline-none bg-white cursor-pointer hover:border-neutral-900 transition-all"
+            className="hidden md:block text-[15px] text-neutral-600 border-2 border-neutral-200 rounded-btn px-4 py-2.5 outline-none bg-white cursor-pointer hover:border-neutral-900 transition-colors"
           >
             {['Recomendados', 'Menor precio', 'Próximamente', 'Mejor disponibilidad'].map(o => (
               <option key={o}>{o}</option>
@@ -203,7 +205,10 @@ export default function ClasesContent({
             {filters.styles.map(s => (
               <span key={s} className="flex items-center gap-1 text-[13px] bg-neutral-900 text-white font-medium px-3 py-1 rounded-full whitespace-nowrap">
                 {s}
-                <button onClick={() => handleFiltersChange({ ...filters, styles: filters.styles.filter(x => x !== s) })}>
+                <button
+                  onClick={() => handleFiltersChange({ ...filters, styles: filters.styles.filter(x => x !== s) })}
+                  className="p-0.5 rounded-full hover:bg-white/20 active:scale-90 transition-[background-color,transform]"
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -211,7 +216,10 @@ export default function ClasesContent({
             {filters.levels.map(l => (
               <span key={l} className="flex items-center gap-1 text-[13px] bg-neutral-900 text-white font-medium px-3 py-1 rounded-full whitespace-nowrap">
                 {l}
-                <button onClick={() => handleFiltersChange({ ...filters, levels: filters.levels.filter(x => x !== l) })}>
+                <button
+                  onClick={() => handleFiltersChange({ ...filters, levels: filters.levels.filter(x => x !== l) })}
+                  className="p-0.5 rounded-full hover:bg-white/20 active:scale-90 transition-[background-color,transform]"
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -230,13 +238,18 @@ export default function ClasesContent({
         </aside>
 
         {/* Mobile filter modal */}
-        {showFilters && (
+        {shouldRenderFilters && (
           <div className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
-            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-6 max-h-[85vh] overflow-y-auto">
+            <div
+              className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ease-out starting:opacity-0 ${showFilters ? 'opacity-100' : 'opacity-0'}`}
+              onClick={() => setShowFilters(false)}
+            />
+            <div
+              className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-6 max-h-[85vh] overflow-y-auto transition-transform duration-200 ease-out starting:translate-y-full ${showFilters ? 'translate-y-0' : 'translate-y-full'}`}
+            >
               <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold text-neutral-900 text-[17px]">Filtros</h3>
-                <button onClick={() => setShowFilters(false)} className="p-2 hover:bg-neutral-100 rounded-md">
+                <button onClick={() => setShowFilters(false)} className="p-2 hover:bg-neutral-100 rounded-md transition-colors active:scale-90">
                   <X className="w-5 h-5 text-neutral-500" />
                 </button>
               </div>
@@ -264,8 +277,8 @@ export default function ClasesContent({
           </div>
 
           {results.length === 0 && !isPending ? (
-            <div className="text-center py-24">
-              <p className="text-5xl mb-5">🕺</p>
+            <div className="text-center py-24 animate-fade-in">
+              <p className="text-5xl mb-5 animate-pop">🕺</p>
               <h3 className="text-[24px] font-bold text-neutral-900 mb-2">Sin resultados</h3>
               <p className="text-neutral-500 text-[15px] max-w-sm mx-auto">No encontramos clases con esos filtros. Prueba cambiando el estilo, ciudad o nivel.</p>
               <button
