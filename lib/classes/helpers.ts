@@ -57,7 +57,13 @@ export async function findOrCreateVenue(
 
 export async function insertClassStyles(supabase: SupabaseClient, classId: string, styleId: number | null): Promise<void> {
   if (!styleId) return;
-  const { error } = await supabase.from('class_styles').insert({ class_id: classId, style_id: styleId, is_main: true });
+  // Upsert, not insert: class_styles has PRIMARY KEY (class_id, style_id), so
+  // editing a class without changing its style would otherwise violate that
+  // key on every save — aborting the update before it reaches the schedule
+  // cleanup step below and leaking a duplicate class_schedules row per retry.
+  const { error } = await supabase
+    .from('class_styles')
+    .upsert({ class_id: classId, style_id: styleId, is_main: true }, { onConflict: 'class_id,style_id' });
   if (error) throw new Error(`No se pudo guardar el estilo de la clase: ${error.message}`);
 }
 
