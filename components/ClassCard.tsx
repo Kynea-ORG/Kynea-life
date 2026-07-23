@@ -55,13 +55,18 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     <>
       <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 flex flex-col group hover:-translate-y-0.5">
         {/* Image */}
-        <div className={`relative overflow-hidden ${compact ? 'h-36' : 'h-48'}`}>
+        {/* Hover zoom lives on this wrapper (not the <Image>) because the
+            image already carries an inline transform for the saved crop
+            zoom — an inline style would silently override any transform
+            utility class placed on the same element. */}
+        <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
           <Image
             src={cls.coverImage || '/logo.png'}
             alt={cls.title}
             fill
             sizes="(max-width: 768px) 100vw, 400px"
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="object-cover"
+            style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }}
           />
           <div className="absolute top-3 left-3 flex gap-2">
             {isFullyBooked && (
@@ -128,17 +133,17 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           <div className="flex gap-2 mt-auto pt-1">
             <Link
               href={`/clases/${cls.id}`}
-              className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border-2 border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
+              className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
             >
               Ver clase
             </Link>
             <button
               onClick={handleContact}
               disabled={isFullyBooked}
-              className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border-2 ${
+              className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border ${
                 isFullyBooked
                   ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                  : 'bg-primary border-primary hover:bg-primary-dark hover:border-primary-dark active:bg-neutral-900 active:border-neutral-900 text-white active:scale-[0.97]'
+                  : 'bg-primary border-neutral-900 hover:bg-primary-dark active:bg-neutral-900 text-white active:scale-[0.97]'
               }`}
             >
               {justContacted ? <Check className="w-3.5 h-3.5 animate-fade-in" /> : <MessageCircle className="w-3.5 h-3.5" />}

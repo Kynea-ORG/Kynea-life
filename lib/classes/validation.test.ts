@@ -382,6 +382,8 @@ function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
     platform: null,
     access_link: null,
     cover_image: null,
+    cover_image_position: null,
+    cover_image_zoom: null,
     gallery: null,
     video_url: null,
     footwear: null,

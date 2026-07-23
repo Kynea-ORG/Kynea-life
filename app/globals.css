@@ -138,7 +138,7 @@
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2
            font-semibold text-[15px]
-           px-7 py-[14px] rounded-btn border-2
+           px-7 py-[14px] rounded-btn border
            bg-primary border-neutral-900 text-white
            transition-[transform,background-color] duration-200 ease-out cursor-pointer
            hover:bg-primary-dark active:scale-[0.97];
@@ -147,7 +147,7 @@
   .btn-outline {
     @apply inline-flex items-center justify-center gap-2
            font-semibold text-[15px]
-           px-7 py-[14px] rounded-btn border-2
+           px-7 py-[14px] rounded-btn border
            bg-transparent border-neutral-900 text-neutral-900
            transition-[transform,background-color] duration-200 ease-out cursor-pointer
            hover:bg-neutral-50 active:scale-[0.97];
@@ -156,7 +156,7 @@
   .btn-dark {
     @apply inline-flex items-center justify-center gap-2
            font-semibold text-[15px]
-           px-7 py-[14px] rounded-btn border-2
+           px-7 py-[14px] rounded-btn border
            bg-neutral-900 border-neutral-900 text-white
            transition-[transform,background-color,border-color] duration-200 ease-out cursor-pointer
            hover:bg-neutral-800 hover:border-neutral-800 active:scale-[0.97];
@@ -194,25 +194,25 @@
   .tag {
     @apply inline-flex items-center text-sm font-medium
            px-4 py-1.5 rounded-full
-           border-2 border-neutral-900 bg-white text-neutral-700
-           cursor-pointer transition-[background-color] duration-150 ease-out
-           hover:bg-neutral-50;
+           border border-neutral-200 bg-white text-neutral-700
+           cursor-pointer transition-[background-color,border-color] duration-150 ease-out
+           hover:bg-neutral-100 hover:border-neutral-300;
   }
 
   .tag-active {
     @apply inline-flex items-center text-sm font-medium
            px-4 py-1.5 rounded-full
-           border-2 border-neutral-900 bg-primary text-white
+           border border-neutral-900 bg-neutral-900 text-white
            cursor-pointer transition-[background-color] duration-150 ease-out;
   }
 
   /* ══ INPUTS ══ */
   .input {
     @apply w-full text-[15px] text-neutral-900 bg-white
-           border-2 border-neutral-300 rounded-btn
+           border-2 border-neutral-200 rounded-btn
            px-4 py-3 outline-none transition-[border-color] duration-100 ease-out
            placeholder:text-neutral-400
-           hover:border-neutral-500
+           hover:border-neutral-900
            focus:border-primary;
   }
 

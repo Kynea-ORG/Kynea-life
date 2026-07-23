@@ -149,7 +149,7 @@ export default function RegistroPage() {
                         key={r.key}
                         type="button"
                         onClick={() => { setRole(r.key); shift(); }}
-                        className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-[border-color,background-color] active:scale-[0.98] ${
+                        className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-[border-color,background-color] active:scale-[0.98] ${
                           isSelected
                             ? 'border-primary bg-primary-bg'
                             : 'border-neutral-200 hover:border-neutral-400'
@@ -164,7 +164,7 @@ export default function RegistroPage() {
                           <p className="font-bold text-neutral-900 text-[15px]">{r.label}</p>
                           <p className="text-[13px] text-neutral-500">{r.description}</p>
                         </div>
-                        <div className={`w-5 h-5 rounded-full border-2 shrink-0 transition-[background-color,border-color] flex items-center justify-center ${
+                        <div className={`w-5 h-5 rounded-full border shrink-0 transition-[background-color,border-color] flex items-center justify-center ${
                           isSelected ? 'bg-primary border-primary' : 'border-neutral-300'
                         }`}>
                           {isSelected && (

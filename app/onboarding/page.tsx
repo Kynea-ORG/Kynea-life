@@ -2,9 +2,10 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ChevronRight, ChevronLeft, Upload, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Upload, Loader2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/profiles/actions';
+import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
 
 const STEPS = [
@@ -36,6 +37,8 @@ function OnboardingContent() {
   const [waNumber, setWaNumber] = useState('');
 
   const [photoUrl, setPhotoUrl] = useState('');
+  const [photoPosition, setPhotoPosition] = useState('50% 50%');
+  const [photoZoom, setPhotoZoom] = useState(1);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [availableStyles, setAvailableStyles] = useState<string[]>([]);
@@ -105,6 +108,8 @@ function OnboardingContent() {
       if (uploadErr) throw new Error(uploadErr.message);
       const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
       setPhotoUrl(publicUrl);
+      setPhotoPosition('50% 50%');
+      setPhotoZoom(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir la imagen');
     } finally {
@@ -162,6 +167,8 @@ function OnboardingContent() {
         style_names:      form.styles.length ? form.styles : undefined,
         years_experience: expKey ? yearsMap[expKey] : undefined,
         photo_url:        photoUrl || undefined,
+        photo_position:   photoUrl ? photoPosition : undefined,
+        photo_zoom:       photoUrl ? photoZoom : undefined,
       });
       router.push('/dashboard');
     } catch (err: unknown) {
@@ -206,7 +213,7 @@ function OnboardingContent() {
           </div>
         </div>
 
-        <div className="bg-white rounded-[20px] border-2 border-neutral-900 shadow-xl p-8">
+        <div className="bg-white rounded-[20px] border border-neutral-900 shadow-xl p-8">
           {/* Step 0: Public data */}
           {step === 0 && (
             <div className="animate-fade-in">
@@ -221,25 +228,58 @@ function OnboardingContent() {
                     className="hidden"
                     onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }}
                   />
+                  {photoUrl ? (
+                    <div className="relative">
+                      <ImagePositionPicker
+                        src={photoUrl}
+                        value={photoPosition}
+                        onChange={setPhotoPosition}
+                        zoom={photoZoom}
+                        onZoomChange={setPhotoZoom}
+                        frameClassName="w-20 h-20 rounded-full border-2 border-dashed border-neutral-300"
+                        sizes="80px"
+                        compact
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoUrl('');
+                          setPhotoPosition('50% 50%');
+                          setPhotoZoom(1);
+                          if (photoInputRef.current) photoInputRef.current.value = '';
+                        }}
+                        className="absolute top-0 right-0 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors active:scale-90 z-10"
+                        aria-label="Eliminar foto"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                      className="w-20 h-20 rounded-full overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors relative"
+                    >
+                      {uploadingPhoto ? (
+                        <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
+                        </div>
+                      ) : (
+                        <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
+                          <Upload className="w-6 h-6 text-neutral-400" />
+                        </div>
+                      )}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
                     disabled={uploadingPhoto}
-                    className="w-20 h-20 rounded-full overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors relative"
+                    className="text-xs font-semibold text-primary hover:text-primary-dark"
                   >
-                    {photoUrl ? (
-                      <Image src={photoUrl} alt="Foto de perfil" fill sizes="80px" className="object-cover" />
-                    ) : uploadingPhoto ? (
-                      <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
-                        <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
-                        <Upload className="w-6 h-6 text-neutral-400" />
-                      </div>
-                    )}
+                    {photoUrl ? 'Cambiar foto' : 'Subir foto o logo'}
                   </button>
-                  <p className="text-xs text-neutral-500">{photoUrl ? 'Cambiar foto' : 'Subir foto o logo'}</p>
                 </div>
                 {[
                   { key: 'publicName', label: role === 'academia' ? 'Nombre de la academia' : 'Nombre público', placeholder: role === 'academia' ? 'Ej. Studio Ritmo Latino' : 'Tu nombre completo', required: true },
@@ -257,7 +297,7 @@ function OnboardingContent() {
                         placeholder={field.placeholder}
                         value={(form as Record<string, unknown>)[field.key] as string}
                         onChange={e => set(field.key as keyof typeof form, e.target.value)}
-                        className="w-full border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary resize-none"
+                        className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary resize-none"
                       />
                     ) : (
                       <input
@@ -265,7 +305,7 @@ function OnboardingContent() {
                         placeholder={field.placeholder}
                         value={(form as Record<string, unknown>)[field.key] as string}
                         onChange={e => set(field.key as keyof typeof form, e.target.value)}
-                        className="w-full border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
+                        className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
                       />
                     )}
                   </div>
@@ -278,7 +318,7 @@ function OnboardingContent() {
                     <select
                       value={form.city}
                       onChange={e => { set('city', e.target.value); set('district', ''); }}
-                      className="w-full border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
+                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
                     >
                       <option value="">Seleccionar…</option>
                       {[...new Set(allDistricts.map(d => d.city))].sort().map(c => <option key={c} value={c}>{c}</option>)}
@@ -291,7 +331,7 @@ function OnboardingContent() {
                     <select
                       value={form.district}
                       onChange={e => set('district', e.target.value)}
-                      className="w-full border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
+                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
                     >
                       <option value="">Seleccionar…</option>
                       {allDistricts.filter(d => d.city === form.city).map(d => (
@@ -318,7 +358,7 @@ function OnboardingContent() {
                     <select
                       value={waCode}
                       onChange={e => setWaCode(e.target.value)}
-                      className="border-2 border-neutral-900 rounded-btn px-3 py-3 text-sm text-neutral-800 outline-none focus:border-primary bg-white shrink-0"
+                      className="border-2 border-neutral-200 rounded-btn px-3 py-3 text-sm text-neutral-800 outline-none focus:border-primary bg-white shrink-0"
                     >
                       <option value="+51">🇵🇪 +51</option>
                       <option value="+1">🇺🇸 +1</option>
@@ -335,7 +375,7 @@ function OnboardingContent() {
                       value={waNumber}
                       onChange={e => { setWaNumber(e.target.value.replace(/\D/g, '')); setError(''); }}
                       placeholder="999 999 999"
-                      className="flex-1 border-2 border-neutral-900 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
+                      className="flex-1 border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
                     />
                   </div>
                   <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales. Ej: 999999999</p>
@@ -377,7 +417,7 @@ function OnboardingContent() {
                   <button
                     key={s}
                     onClick={() => toggleStyle(s)}
-                    className={`text-xs px-3 py-1.5 rounded-full border-2 border-neutral-900 transition-colors active:scale-95 ${
+                    className={`text-xs px-3 py-1.5 rounded-full border border-neutral-900 transition-colors active:scale-95 ${
                       form.styles.includes(s)
                         ? 'bg-primary text-white'
                         : 'text-neutral-600 hover:bg-neutral-50'
@@ -440,7 +480,7 @@ function OnboardingContent() {
                   </div>
                 )}
               </div>
-              <label className="flex items-start gap-3 cursor-pointer p-4 border-2 border-neutral-900 rounded-xl mt-4">
+              <label className="flex items-start gap-3 cursor-pointer p-4 border-2 border-neutral-200 rounded-xl mt-4">
                 <input
                   type="checkbox"
                   checked={form.rulesAccepted}
@@ -466,7 +506,7 @@ function OnboardingContent() {
             {step > 0 && (
               <button
                 onClick={back}
-                className="flex items-center gap-2 px-5 py-3 border-2 border-neutral-900 rounded-btn text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors active:scale-[0.97]"
+                className="flex items-center gap-2 px-5 py-3 border border-neutral-900 rounded-btn text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors active:scale-[0.97]"
               >
                 <ChevronLeft className="w-4 h-4" /> Atrás
               </button>

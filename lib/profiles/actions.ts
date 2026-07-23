@@ -16,6 +16,8 @@ export async function updateProfile(updates: {
   website?: string;
   style_names?: string[];
   photo_url?: string;
+  photo_position?: string;
+  photo_zoom?: number;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -31,6 +33,8 @@ export async function updateProfile(updates: {
   if (updates.youtube          !== undefined) profileUpdate.youtube = updates.youtube;
   if (updates.website          !== undefined) profileUpdate.website = updates.website;
   if (updates.photo_url        !== undefined) profileUpdate.photo_url = updates.photo_url;
+  if (updates.photo_position   !== undefined) profileUpdate.photo_position = updates.photo_position;
+  if (updates.photo_zoom       !== undefined) profileUpdate.photo_zoom = updates.photo_zoom;
 
   if (updates.district_name && updates.district_city) {
     const distId = await lookupDistrictId(supabase, updates.district_name, updates.district_city);
