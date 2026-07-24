@@ -386,16 +386,21 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               </div>
             </div>
 
-            {/* Right — Photo + floating stats */}
+            {/* Right — Cutout photo + floating stats */}
             <div className="hidden lg:block relative h-[460px]">
-              <div className="absolute inset-y-0 left-5 right-10 rounded-[32px] overflow-hidden border-4 border-neutral-900">
+              {/* Glow behind the cutout */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-[420px] h-[420px] rounded-full bg-white/20 blur-3xl" />
+              </div>
+
+              <div className="absolute inset-0 flex items-end justify-center">
                 <Image
-                  src="/categorias/michael-afonso-z8Tul255kGg-unsplash.jpg"
-                  alt="Bailarín en movimiento"
-                  fill
-                  sizes="600px"
+                  src="/img-portada-kynea.png"
+                  alt="Bailarina en movimiento"
+                  width={640}
+                  height={452}
                   priority
-                  className="object-cover"
+                  className="relative w-auto h-full max-w-none object-contain"
                 />
               </div>
 
@@ -404,12 +409,12 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 <p className="text-[12px] text-neutral-500 mt-0.5">Clases disponibles</p>
               </div>
 
-              <div className="absolute bottom-10 right-2 bg-neutral-900 border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow-2">
+              <div className="absolute top-6 right-0 bg-neutral-900 border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow-2">
                 <p className="text-[26px] font-black tracking-tighter text-white leading-none">{stats.teachers}+</p>
                 <p className="text-[12px] text-neutral-400 mt-0.5">Profesores verificados</p>
               </div>
 
-              <div className="absolute top-1/2 right-5 bg-white border border-neutral-900 rounded-2xl px-4.5 py-3 shadow-xl animate-float-slow [animation-delay:1s]">
+              <div className="absolute bottom-8 right-6 bg-white border border-neutral-900 rounded-2xl px-4.5 py-3 shadow-xl animate-float-slow [animation-delay:1s]">
                 <p className="text-[22px] font-black tracking-tighter text-neutral-900 leading-none">{stats.styles}</p>
                 <p className="text-[12px] text-neutral-500 mt-0.5">Estilos de baile</p>
               </div>
