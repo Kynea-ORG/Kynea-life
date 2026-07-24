@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Globe, User, BookOpen, Loader2, Eye, EyeOff, Check, X } from 'lucide-react';
@@ -11,9 +11,10 @@ const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: 'Un número (0-9)',           test: pw => /[0-9]/.test(pw) },
   { label: 'Un carácter especial',      test: pw => /[^A-Za-z0-9]/.test(pw) },
 ];
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
+import { safeRedirectPath } from '@/lib/utils';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -36,8 +37,10 @@ const ROLES: { key: Role; icon: React.ElementType; label: string; description: s
   { key: 'profesor', icon: BookOpen,  label: 'Profesor', description: 'Doy clases de manera independiente' },
 ];
 
-export default function RegistroPage() {
+function RegistroPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
   const [role, setRole] = useState<Role | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [step, setStep] = useState<'role' | 'form'>('role');
@@ -50,8 +53,9 @@ export default function RegistroPage() {
 
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/dashboard');
+      if (session) router.replace(redirectTarget ?? '/dashboard');
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -63,8 +67,12 @@ export default function RegistroPage() {
     const supabase = createClient();
     // Every role goes through /onboarding on first signup — alumno gets a
     // short intro carousel (AlumnoWelcome), profesor/academia get the full
-    // data-collecting wizard. See app/onboarding/page.tsx.
-    const nextPath = '/onboarding?new=1';
+    // data-collecting wizard. See app/onboarding/page.tsx. redirectTarget
+    // (e.g. the class the user was trying to contact) rides along as its
+    // own param and gets picked up again once onboarding finishes.
+    const nextPath = redirectTarget
+      ? `/onboarding?new=1&redirect=${encodeURIComponent(redirectTarget)}`
+      : '/onboarding?new=1';
 
     const metadata: Record<string, string> = { name: form.name, role };
     if (role === 'academia' && form.representante) {
@@ -92,7 +100,8 @@ export default function RegistroPage() {
       router.refresh();
       router.push(nextPath);
     } else {
-      router.push(`/confirmar-email?email=${encodeURIComponent(form.email)}&role=${role}`);
+      const confirmDest = `/confirmar-email?email=${encodeURIComponent(form.email)}&role=${role}`;
+      router.push(redirectTarget ? `${confirmDest}&redirect=${encodeURIComponent(redirectTarget)}` : confirmDest);
     }
   }
 
@@ -100,10 +109,13 @@ export default function RegistroPage() {
     if (!role || !termsAccepted) return;
     setGoogleLoading(true);
     const supabase = createClient();
+    const callbackUrl = redirectTarget
+      ? `${window.location.origin}/auth/callback?role=${role}&redirect=${encodeURIComponent(redirectTarget)}`
+      : `${window.location.origin}/auth/callback?role=${role}`;
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?role=${role}`,
+        redirectTo: callbackUrl,
       },
     });
     if (oauthError) {
@@ -353,5 +365,17 @@ export default function RegistroPage() {
       </div>
       </div>
     </div>
+  );
+}
+
+export default function RegistroPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
+      </div>
+    }>
+      <RegistroPageContent />
+    </Suspense>
   );
 }

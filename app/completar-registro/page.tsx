@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import CompletarRegistroClient from './CompletarRegistroClient';
@@ -27,10 +28,12 @@ export default async function CompletarRegistroPage() {
   const userAvatar = (user.user_metadata?.avatar_url ?? '') as string;
 
   return (
-    <CompletarRegistroClient
-      userName={userName}
-      userEmail={userEmail}
-      userAvatar={userAvatar}
-    />
+    <Suspense>
+      <CompletarRegistroClient
+        userName={userName}
+        userEmail={userEmail}
+        userAvatar={userAvatar}
+      />
+    </Suspense>
   );
 }

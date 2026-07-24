@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, MessageCircle, Globe, Phone, Check } from 'lucide-react';
+import { X, MessageCircle, Phone, Check } from 'lucide-react';
 
 function IgIcon({ className }: { className?: string }) {
   return (
@@ -88,27 +88,24 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
             </div>
 
             <p className="text-[15px] text-neutral-600 mb-6 text-center leading-relaxed">
-              Crea una cuenta gratis para ver el contacto del profesor y coordinar directamente.
+              Crea una cuenta o inicia sesión para ver el contacto del profesor y coordinar directamente.
             </p>
 
             <div className="flex flex-col gap-3">
-              <button className="w-full flex items-center justify-center gap-2 btn-outline">
-                <Globe className="w-4 h-4" />
-                Continuar con Google
-              </button>
               <Link
                 href={`/registro?redirect=/clases/${cls.id}`}
+                className="w-full flex items-center justify-center btn-primary"
+                onClick={onClose}
+              >
+                Registrarme
+              </Link>
+              <Link
+                href={`/login?redirect=/clases/${cls.id}`}
                 className="w-full flex items-center justify-center btn-dark"
                 onClick={onClose}
               >
-                Registrarme con correo
+                Iniciar sesión
               </Link>
-              <p className="text-center text-[13px] text-neutral-400">
-                ¿Ya tienes cuenta?{' '}
-                <Link href="/login" className="text-neutral-900 font-semibold hover:underline" onClick={onClose}>
-                  Inicia sesión
-                </Link>
-              </p>
             </div>
           </div>
         ) : !hasContact ? (
