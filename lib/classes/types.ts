@@ -33,9 +33,9 @@ export interface ClassUpdatePayload {
   modality?:         Modality;
   platform?:         string | null;
   access_link?:      string | null;
-  footwear?:         string | null;
+  footwear?:         string[] | null;
   clothing?:         string | null;
-  requirements?:     string | null;
+  requirements?:     string[] | null;
   age_group?:        string | null;
   to_bring?:         string[];
   contact_mode?:     'whatsapp' | 'instagram' | 'both';
@@ -103,7 +103,7 @@ export interface DbClassRow {
   full_description: string | null;
   what_you_learn: string[] | null;
   for_whom: string | null;
-  requirements: string | null;
+  requirements: string[] | null;
   start_date: string | null;
   end_date: string | null;
   price_type: string;
@@ -121,7 +121,7 @@ export interface DbClassRow {
   cover_image_zoom: number | null;
   gallery: string[] | null;
   video_url: string | null;
-  footwear: string | null;
+  footwear: string[] | null;
   clothing: string | null;
   to_bring: string[] | null;
   age_group: string | null;

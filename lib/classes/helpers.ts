@@ -108,8 +108,8 @@ export function buildClassColumns(
   formData: FormData,
   { levelId, venueId }: { levelId: number | null; venueId: string | null }
 ): ClassUpdatePayload {
-  const toBring  = formData.get('toBring') as string;
-  const maxSpots = formData.get('maxSpots') as string | null;
+  const toBring     = formData.get('toBring') as string;
+  const maxSpots    = formData.get('maxSpots') as string | null;
 
   return {
     type:              formData.get('type') as ClassType,
@@ -129,9 +129,13 @@ export function buildClassColumns(
     modality:          formData.get('modality') as Modality,
     platform:          (formData.get('platform') as string) || null,
     access_link:       (formData.get('accessLink') as string) || null,
-    footwear:          (formData.get('footwear') as string) || null,
+    // footwear/requirements are omitted here on purpose: the wizard now
+    // sends them as JSON arrays (multi-select), but the `classes` table
+    // columns are still single-value `text` until migration 21 is applied —
+    // writing an array into those would fail the whole insert/update. Once
+    // the migration lands, parse formData.get('footwear')/('prerequisites')
+    // (JSON string arrays) and write them here.
     clothing:          (formData.get('clothing') as string) || null,
-    requirements:      (formData.get('prerequisites') as string) || null,
     age_group:         (formData.get('ageGroup') as string) || null,
     to_bring:          toBring ? JSON.parse(toBring) : [],
     contact_mode:      ((formData.get('contactMode') as string) || 'whatsapp') as 'whatsapp' | 'instagram' | 'both',

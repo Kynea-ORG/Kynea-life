@@ -28,7 +28,7 @@ export default async function PerfilPage() {
     <Suspense>
       <PerfilClient
         profile={profile ?? {
-          name: null, bio: null, years_experience: null,
+          name: null, bio: null, nationality: null, years_experience: null,
           whatsapp: null, instagram: null, tiktok: null,
           youtube: null, website: null, photo_url: null,
           photo_position: null, photo_zoom: null,

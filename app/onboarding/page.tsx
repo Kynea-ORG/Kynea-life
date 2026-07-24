@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/profiles/actions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
+import { NATIONALITIES } from '@/lib/nationalities';
+import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 
 const STEPS = [
   'Datos públicos',
@@ -22,8 +24,7 @@ function OnboardingContent() {
   const [form, setForm] = useState({
     publicName: '',
     representante: '',
-    city: '',
-    district: '',
+    nationality: '',
     bio: '',
     instagram: '',
     tiktok: '',
@@ -42,7 +43,6 @@ function OnboardingContent() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [availableStyles, setAvailableStyles] = useState<string[]>([]);
-  const [allDistricts, setAllDistricts] = useState<{ id: number; name: string; city: string }[]>([]);
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,13 +56,11 @@ function OnboardingContent() {
   useEffect(() => {
     async function init() {
       const supabase = createClient();
-      const [{ data: { user } }, stylesResult, districtsResult] = await Promise.all([
+      const [{ data: { user } }, stylesResult] = await Promise.all([
         supabase.auth.getUser(),
         supabase.from('dance_styles').select('name').order('ord'),
-        supabase.from('districts').select('id, name, city').order('city').order('name'),
       ]);
       setAvailableStyles((stylesResult.data ?? []).map(r => r.name));
-      setAllDistricts(districtsResult.data ?? []);
       if (!user) { setInitializing(false); return; }
       const { data: profile } = await supabase
         .from('profiles')
@@ -96,8 +94,18 @@ function OnboardingContent() {
 
   async function handlePhotoUpload(file: File) {
     if (file.size > 5 * 1024 * 1024) { setError('La imagen no puede superar 5MB.'); return; }
-    setUploadingPhoto(true);
     setError('');
+    try {
+      const { width, height } = await getImageDimensions(file);
+      if (Math.min(width, height) < MIN_IMAGE_DIMENSION) {
+        setError(`La imagen es muy pequeña (${width}×${height}px). Sube una de al menos ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION}px para que se vea bien.`);
+        return;
+      }
+    } catch {
+      setError('No se pudo leer la imagen. Intenta con otro archivo.');
+      return;
+    }
+    setUploadingPhoto(true);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -157,8 +165,7 @@ function OnboardingContent() {
       await updateProfile({
         name:             form.publicName || undefined,
         bio:              form.bio || undefined,
-        district_name:    form.district || undefined,
-        district_city:    form.city || undefined,
+        nationality:      form.nationality || undefined,
         whatsapp:         waNumber ? `${waCode}${waNumber}` : undefined,
         instagram:        form.instagram || undefined,
         tiktok:           form.tiktok || undefined,
@@ -310,35 +317,18 @@ function OnboardingContent() {
                     )}
                   </div>
                 ))}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                      Ciudad <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={form.city}
-                      onChange={e => { set('city', e.target.value); set('district', ''); }}
-                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
-                    >
-                      <option value="">Seleccionar…</option>
-                      {[...new Set(allDistricts.map(d => d.city))].sort().map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                      Distrito <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={form.district}
-                      onChange={e => set('district', e.target.value)}
-                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
-                    >
-                      <option value="">Seleccionar…</option>
-                      {allDistricts.filter(d => d.city === form.city).map(d => (
-                        <option key={d.id} value={d.name}>{d.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                    Nacionalidad <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.nationality}
+                    onChange={e => set('nationality', e.target.value)}
+                    className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
+                  >
+                    <option value="">Seleccionar…</option>
+                    {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -453,10 +443,10 @@ function OnboardingContent() {
                     <span className="font-semibold text-neutral-900">{form.publicName}</span>
                   </div>
                 )}
-                {form.city && (
+                {form.nationality && (
                   <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
-                    <span className="text-neutral-500">Ubicación</span>
-                    <span className="font-semibold text-neutral-900">{[form.district, form.city].filter(Boolean).join(', ')}</span>
+                    <span className="text-neutral-500">Nacionalidad</span>
+                    <span className="font-semibold text-neutral-900">{form.nationality}</span>
                   </div>
                 )}
                 {form.styles.length > 0 && (

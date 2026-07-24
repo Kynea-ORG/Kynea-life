@@ -9,7 +9,7 @@ export default async function Page() {
   const [classes, salsaClasses, teachers, academias, danceStyles, stats] = await Promise.all([
     fetchPublishedClasses(),
     fetchPublishedClasses({ styles: ['Salsa'] }),
-    fetchFeaturedProfiles('profesor'),
+    fetchFeaturedProfiles('profesor', 6),
     fetchFeaturedProfiles('academia'),
     fetchDanceStyles(),
     fetchHomeStats(),

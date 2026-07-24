@@ -6,6 +6,7 @@ import { lookupDistrictId } from '@/lib/catalog/lookups';
 export async function updateProfile(updates: {
   name?: string;
   bio?: string;
+  nationality?: string;
   district_name?: string;
   district_city?: string;
   years_experience?: number;
@@ -26,6 +27,10 @@ export async function updateProfile(updates: {
   const profileUpdate: Record<string, unknown> = {};
   if (updates.name             !== undefined) profileUpdate.name = updates.name;
   if (updates.bio              !== undefined) profileUpdate.bio = updates.bio;
+  // nationality is intentionally not written yet — the `profiles.nationality`
+  // column only exists in migration 20, not applied to the connected database
+  // yet. Writing it would 400 the whole update (all fields in this same
+  // call), not just this one. Re-enable once the migration is confirmed live.
   if (updates.years_experience !== undefined) profileUpdate.years_experience = updates.years_experience;
   if (updates.whatsapp         !== undefined) profileUpdate.whatsapp = updates.whatsapp;
   if (updates.instagram        !== undefined) profileUpdate.instagram = updates.instagram;

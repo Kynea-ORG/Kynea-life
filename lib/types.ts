@@ -56,7 +56,7 @@ export interface DanceClass {
   fullDescription: string;
   whatYouLearn?: string[];
   forWhom?: string;
-  requirements?: string;
+  requirements?: string[];
 
   startDate: string;
   endDate?: string;
@@ -89,7 +89,7 @@ export interface DanceClass {
   gallery?: string[];
   videoUrl?: string;
 
-  footwear?: string;
+  footwear?: string[];
   clothing?: string;
   toBring?: string[];
   ageGroup?: string;
