@@ -214,17 +214,21 @@ function OnboardingContent() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen relative overflow-hidden flex flex-col">
       <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
         <div key={revealId} style={revealStyle} />
       </div>
 
-      <div className="relative z-10 w-full max-w-xl animate-fade-in">
-        {/* Logo */}
-        <div className="flex items-center gap-2 justify-center mb-8">
+      <div className="relative z-10 flex flex-col flex-1">
+        {/* Solid white bar — the purple logo needs to stay legible regardless
+            of which hue the background is currently cycled to. */}
+        <header className="bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-center">
           <Image src="/logo.png" alt="Kynea" width={100} height={32} />
-        </div>
+        </header>
+
+        <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-xl animate-fade-in">
 
         {/* Progress */}
         <div className="mb-8">
@@ -537,6 +541,8 @@ function OnboardingContent() {
               {!loading && <ChevronRight className="w-4 h-4" />}
             </button>
           </div>
+        </div>
+        </div>
         </div>
       </div>
     </div>
