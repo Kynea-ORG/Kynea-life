@@ -57,7 +57,7 @@ interface GmpSelectEvent extends Event {
   placePrediction: { toPlace: () => GooglePlaceResult };
 }
 
-type PlaceAutocompleteElementInstance = HTMLElement;
+type PlaceAutocompleteElementInstance = HTMLElement & { value?: string };
 
 interface GoogleMapsPlacesLibrary {
   PlaceAutocompleteElement: new () => PlaceAutocompleteElementInstance;
@@ -121,6 +121,8 @@ function PlacesAddressField({
   useEffect(() => { onPlaceSelectRef.current = onPlaceSelect; }, [onPlaceSelect]);
   const placeholderRef = useRef(placeholder);
   useEffect(() => { placeholderRef.current = placeholder; }, [placeholder]);
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; }, [value]);
   const [initFailed, setInitFailed] = useState(false);
 
   useEffect(() => {
@@ -137,6 +139,12 @@ function PlacesAddressField({
         if (cancelled) return;
         element = new PlaceAutocompleteElement();
         element.setAttribute('placeholder', placeholderRef.current);
+        // Uncontrolled Web Component: unlike a plain <input>, it doesn't read
+        // React's `value` prop, so when editing an existing class its address
+        // rendered blank even though `form.address` still held the real value.
+        // Pre-fill the widget's own internal text with the value it had at
+        // mount (edit mode) so it doesn't look reset until the user searches.
+        if (valueRef.current) element.value = valueRef.current;
         // Google's own leading icon (#5e5e5e) is darker than the rest of the
         // app's inputs — projected via its `input-icon` slot, so swap it for
         // the same lucide "search" glyph + neutral-400 used everywhere else
@@ -197,13 +205,6 @@ const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 
 type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: string; endTime: string };
 
-// Same rule as dbRowToValidationInput (lib/classes/validation.ts): more than
-// one weekday, or more than one slot, means a recurring ("mensual") schedule.
-function deriveRecurrence(editClass: DanceClass): 'unica' | 'mensual' {
-  const totalDays = editClass.timeSlots?.reduce((sum, s) => sum + s.days.length, 0) ?? 0;
-  return totalDays > 1 || (editClass.timeSlots?.length ?? 0) > 1 ? 'mensual' : 'unica';
-}
-
 function buildInitialForm(editClass: DanceClass | null) {
   if (!editClass) {
     return {
@@ -252,7 +253,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     fullDesc: editClass.fullDescription ?? '',
     startDate: editClass.startDate ?? '',
     endDate: editClass.endDate ?? '',
-    recurrence: deriveRecurrence(editClass),
+    recurrence: editClass.recurrence ?? 'mensual',
     priceType: editClass.priceType ?? 'Mensual',
     price: editClass.price ? String(editClass.price) : '',
     offerPrice: editClass.offerPrice ? String(editClass.offerPrice) : '',
@@ -691,7 +692,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { value: 'personalizado', label: 'Personalizado', disabled: true, badge: 'Próximamente' },
           ].map(opt => (
             <Pill key={opt.value} active={form.recurrence === opt.value} disabled={opt.disabled} badge={opt.badge} onClick={() => {
-              if (opt.disabled) return;
+              if (opt.disabled || form.recurrence === opt.value) return;
               set('recurrence', opt.value);
               setSlots([{ days: [], startTime: '19:00', endTime: '20:30' }]);
             }}>

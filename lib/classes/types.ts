@@ -22,6 +22,7 @@ export interface ClassUpdatePayload {
   venue_id?:         string | null;
   short_description?: string | null;
   full_description?: string | null;
+  recurrence?:       string;
   start_date?:       string | null;
   end_date?:         string | null;
   price_type?:       PriceType;
@@ -104,6 +105,7 @@ export interface DbClassRow {
   what_you_learn: string[] | null;
   for_whom: string | null;
   requirements: string[] | null;
+  recurrence: string;
   start_date: string | null;
   end_date: string | null;
   price_type: string;

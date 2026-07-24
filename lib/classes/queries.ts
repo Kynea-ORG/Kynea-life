@@ -62,6 +62,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     requirements:     toStringArray(row.requirements),
     startDate:        row.start_date ?? '',
     endDate:          row.end_date ?? undefined,
+    recurrence:       row.recurrence ?? 'mensual',
     timeSlots:        schedulesToTimeSlots(row.class_schedules ?? []),
     priceType:        row.price_type as PriceType,
     price:            Number(row.price ?? 0),
