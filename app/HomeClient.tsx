@@ -27,14 +27,23 @@ const AVATAR_PALETTE = [
   { bg: 'bg-yellow-bg',      text: 'text-yellow-dark' },
 ];
 
-// Uploaded photos, assigned round-robin across categories for now.
-// TODO: map one specific photo per dance style once curated.
-const CATEGORY_IMAGES = [
+// One curated photo per dance style, keyed by slug — add an entry here as
+// more get uploaded to public/categorias/. Styles without an entry yet fall
+// back to FALLBACK_CATEGORY_IMAGES (round-robin) so nothing ever 404s.
+const STYLE_IMAGES: Record<string, string> = {
+  'salsa':         '/categorias/salsa.jpg',
+  'bachata':       '/categorias/bachata.jpg',
+  'reggaeton':     '/categorias/Reggaeton.jpg',
+  'hip-hop':       '/categorias/hiphop.jpeg',
+  'urbano':        '/categorias/urbano.jpg',
+  'contemporaneo': '/categorias/comtempo.jpeg',
+  'ballet':        '/categorias/ballet.jpg',
+  'jazz-funk':     '/categorias/jazzfunk.png',
+};
+
+const FALLBACK_CATEGORY_IMAGES = [
   '/categorias/rainier-ridao-GRDpPpKczdY-unsplash.jpg',
-  '/categorias/samantha-weisburg-hFTcxZFsG6g-unsplash.jpg',
-  '/categorias/ardian-lumi-6Woj_wozqmA-unsplash.jpg',
   '/categorias/barrett-smith-uB4cOqtOf90-unsplash.jpg',
-  '/categorias/michael-afonso-z8Tul255kGg-unsplash.jpg',
 ];
 
 // Fallback gradients shown behind the photo while it loads (also color variety across cards)
@@ -404,14 +413,14 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 href={`/clases?style=${encodeURIComponent(style.name)}`}
                 className="relative shrink-0 w-[168px] h-[152px] rounded-2xl border border-neutral-900 cursor-pointer group select-none block overflow-hidden"
               >
-                {/* Background: uploaded photos assigned round-robin for now — will map one per style later */}
+                {/* Background: curated photo per style, falls back to a generic one if not uploaded yet */}
                 <div className="absolute inset-0 scale-100 group-hover:scale-110 transition-transform duration-200 ease-out">
                   <div
                     className="absolute inset-0 -z-10"
                     style={{ background: CATEGORY_GRADIENTS[i % CATEGORY_GRADIENTS.length] }}
                   />
                   <Image
-                    src={CATEGORY_IMAGES[i % CATEGORY_IMAGES.length]}
+                    src={STYLE_IMAGES[style.slug] ?? FALLBACK_CATEGORY_IMAGES[i % FALLBACK_CATEGORY_IMAGES.length]}
                     alt=""
                     aria-hidden="true"
                     fill
