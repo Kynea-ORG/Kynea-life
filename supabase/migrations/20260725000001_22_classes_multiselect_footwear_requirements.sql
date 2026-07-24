@@ -1,4 +1,4 @@
--- 21. CLASSES — calzado recomendado y requisitos previos pasan a multi-select
+-- 22. CLASSES — calzado recomendado y requisitos previos pasan a multi-select
 -- footwear/requirements eran texto libre de opción única; el wizard ahora
 -- permite elegir varias opciones, así que la columna pasa a array. Las filas
 -- existentes con un solo valor se envuelven en un array de un elemento.

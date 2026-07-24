@@ -18,6 +18,25 @@ function storagePathFromUrl(url: string): string | null {
   return idx === -1 ? null : url.slice(idx + marker.length);
 }
 
+// Single source of truth for WhatsApp country codes — both the <select>
+// options and parseWa() read from this, so adding/removing a code can't
+// desync the two and silently reintroduce the number-truncation bug below.
+const WA_CODES = [
+  { code: '+51', flag: '🇵🇪' },
+  { code: '+1', flag: '🇺🇸' },
+  { code: '+34', flag: '🇪🇸' },
+  { code: '+57', flag: '🇨🇴' },
+  { code: '+56', flag: '🇨🇱' },
+  { code: '+54', flag: '🇦🇷' },
+  { code: '+52', flag: '🇲🇽' },
+  { code: '+58', flag: '🇻🇪' },
+  { code: '+593', flag: '🇪🇨' },
+] as const;
+// Longest code first: matching must try "+593" before "+51" etc., or a
+// shorter code that happens to be a prefix would match first and steal
+// leading digits from the actual phone number.
+const WA_CODES_BY_LENGTH = [...WA_CODES].sort((a, b) => b.code.length - a.code.length);
+
 interface ProfileStyleRow {
   style_id: number;
   dance_styles: { name: string } | null;
@@ -75,12 +94,14 @@ export default function PerfilClient({
   );
 
   const parseWa = (wa: string) => {
-    const CODES = ['+51', '+1', '+34', '+57', '+56', '+54', '+52', '+58', '+593'];
     if (!wa) return { code: '+51', number: '' };
-    const m = wa.match(/^(\+\d{1,3})(.*)/);
-    if (m) {
-      const code = CODES.find(c => c === m[1]) ?? '+51';
-      return { code, number: m[2].trim().replace(/\D/g, '') };
+    // Match against known codes (longest first) instead of a generic
+    // \d{1,3} regex — a greedy length-agnostic match would swallow the
+    // first digit of the phone number into the code group for any
+    // 2-digit code (e.g. "+51919960111" -> code "+519", dropping the "9").
+    const match = WA_CODES_BY_LENGTH.find(c => wa.startsWith(c.code));
+    if (match) {
+      return { code: match.code, number: wa.slice(match.code.length).replace(/\D/g, '') };
     }
     return { code: '+51', number: wa.replace(/\D/g, '') };
   };
@@ -377,15 +398,9 @@ export default function PerfilClient({
                 onChange={e => setWaCode(e.target.value)}
                 className="input appearance-none cursor-pointer w-auto shrink-0"
               >
-                <option value="+51">🇵🇪 +51</option>
-                <option value="+1">🇺🇸 +1</option>
-                <option value="+34">🇪🇸 +34</option>
-                <option value="+57">🇨🇴 +57</option>
-                <option value="+56">🇨🇱 +56</option>
-                <option value="+54">🇦🇷 +54</option>
-                <option value="+52">🇲🇽 +52</option>
-                <option value="+58">🇻🇪 +58</option>
-                <option value="+593">🇪🇨 +593</option>
+                {WA_CODES.map(({ code, flag }) => (
+                  <option key={code} value={code}>{flag} {code}</option>
+                ))}
               </select>
               <input
                 ref={waInputRef}
