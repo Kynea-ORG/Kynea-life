@@ -387,20 +387,25 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
             {/* Right — Cutout photo + floating stats */}
             <div className="hidden lg:block relative h-[460px]">
-              {/* Glow behind the cutout */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-[420px] h-[420px] rounded-full bg-white/20 blur-3xl" />
-              </div>
+              {/* Clipping scoped to just the glow + photo (max-w-none on the
+                  image lets it scale past its column's width) — kept off the
+                  whole hero-section so the search dropdown isn't cut off. */}
+              <div className="absolute inset-0 overflow-hidden">
+                {/* Glow behind the cutout */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-[420px] h-[420px] rounded-full bg-white/20 blur-3xl" />
+                </div>
 
-              <div className="absolute inset-0 flex items-end justify-center">
-                <Image
-                  src="/img-portada-kynea.png"
-                  alt="Bailarina en movimiento"
-                  width={640}
-                  height={452}
-                  priority
-                  className="relative w-auto h-full max-w-none object-contain"
-                />
+                <div className="absolute inset-0 flex items-end justify-center">
+                  <Image
+                    src="/img-portada-kynea.png"
+                    alt="Bailarina en movimiento"
+                    width={640}
+                    height={452}
+                    priority
+                    className="relative w-auto h-full max-w-none object-contain"
+                  />
+                </div>
               </div>
 
               <div className="absolute top-6 left-0 bg-white border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow">

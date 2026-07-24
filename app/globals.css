@@ -280,8 +280,15 @@
   }
 
   /* ══ HERO SECTIONS ══ */
-  .hero-section       { @apply bg-primary relative overflow-hidden; }
-  .hero-section-white { @apply bg-white relative overflow-hidden; }
+  /* No overflow-hidden here (on purpose): the search autocomplete dropdown
+     is an absolutely-positioned child that needs to extend past the hero's
+     bottom edge without being clipped. Per the CSS spec, overflow-x/-y can't
+     be "hidden on one axis, visible on the other" on the same box anyway —
+     any non-"visible" axis forces the other to "auto", which still clips.
+     Elements that need horizontal clipping (e.g. the hero photo) scope their
+     own overflow-hidden wrapper instead of relying on this section-wide one. */
+  .hero-section       { @apply bg-primary relative; }
+  .hero-section-white { @apply bg-white relative; }
 }
 
 /* ─── UTILS ─────────────────────────────────────────────────────── */
