@@ -81,7 +81,7 @@ export async function insertClassStyles(supabase: SupabaseClient, classId: strin
 
 export async function insertClassSchedules(
   supabase: SupabaseClient, classId: string, slots: FormSlot[], startDate?: string | null
-): Promise<void> {
+): Promise<{ day_of_week: number; start_time: string; end_time: string }[]> {
   // "Clase única" slots carry no `days` (single date, not a weekly recurrence) —
   // derive day_of_week from startDate so the schedule row still gets written.
   const fallbackDay = startDate ? (new Date(`${startDate}T12:00:00`).getDay() + 6) % 7 : null;
@@ -97,9 +97,16 @@ export async function insertClassSchedules(
       .map(day => ({ class_id: classId, day_of_week: DAY_MAP[day], start_time: slot.startTime, end_time: slot.endTime }));
   });
   if (rows.length) {
-    const { error } = await supabase.from('class_schedules').insert(rows);
+    // Upsert, not insert: class_schedules has a UNIQUE(class_id, day_of_week,
+    // start_time, end_time) constraint, so re-saving a class without changing
+    // its schedule would otherwise collide with the still-present old row
+    // (the stale-row cleanup below runs after this, not before).
+    const { error } = await supabase
+      .from('class_schedules')
+      .upsert(rows, { onConflict: 'class_id,day_of_week,start_time,end_time' });
     if (error) throw new Error(`No se pudo guardar el horario de la clase: ${error.message}`);
   }
+  return rows.map(({ day_of_week, start_time, end_time }) => ({ day_of_week, start_time, end_time }));
 }
 
 // Returns the ~22 columns shared between createClass and updateClassFromForm.

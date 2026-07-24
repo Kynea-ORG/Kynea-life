@@ -281,20 +281,23 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   // instead of losing them to a delete that already committed.
   const [{ data: oldStyleRows }, { data: oldScheduleRows }] = await Promise.all([
     supabase.from('class_styles').select('id, style_id').eq('class_id', classId),
-    supabase.from('class_schedules').select('id').eq('class_id', classId),
+    supabase.from('class_schedules').select('id, day_of_week, start_time, end_time').eq('class_id', classId),
   ]);
 
   const slots: FormSlot[] = timeSlots ? JSON.parse(timeSlots) : [];
-  await Promise.all([
+  const [, newScheduleKeys] = await Promise.all([
     insertClassStyles(supabase, classId, styleId),
     insertClassSchedules(supabase, classId, slots, cols.start_date),
   ]);
 
-  // insertClassStyles upserts on (class_id, style_id), so a row matching the
-  // new style_id was updated in place, not duplicated — only a stale style
-  // from before this edit (a different style_id) needs deleting.
+  // insertClassStyles/insertClassSchedules upsert on their unique columns, so
+  // a row matching a still-current style/slot was updated in place, not
+  // duplicated — only truly stale rows from before this edit need deleting.
   const oldStyleIds = (oldStyleRows ?? []).filter(r => r.style_id !== styleId).map(r => r.id);
-  const oldScheduleIds = (oldScheduleRows ?? []).map(r => r.id);
+  const newScheduleKeySet = new Set(newScheduleKeys.map(k => `${k.day_of_week}|${k.start_time}|${k.end_time}`));
+  const oldScheduleIds = (oldScheduleRows ?? [])
+    .filter(r => !newScheduleKeySet.has(`${r.day_of_week}|${r.start_time}|${r.end_time}`))
+    .map(r => r.id);
   await Promise.all([
     oldStyleIds.length ? supabase.from('class_styles').delete().in('id', oldStyleIds) : Promise.resolve(),
     oldScheduleIds.length ? supabase.from('class_schedules').delete().in('id', oldScheduleIds) : Promise.resolve(),
