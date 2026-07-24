@@ -57,13 +57,18 @@ interface Profile {
   profile_styles: ProfileStyleRow[] | null;
 }
 
+type Role = 'alumno' | 'profesor' | 'academia';
+
 export default function PerfilClient({
+  role,
   profile,
   danceStyles,
 }: {
+  role: Role;
   profile: Profile;
   danceStyles: string[];
 }) {
+  const isTeacher = role !== 'alumno';
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -205,7 +210,7 @@ export default function PerfilClient({
     setError('');
     setSaved(false);
     const whatsappFull = waNumber ? `${waCode}${waNumber}` : '';
-    if (!whatsappFull && !instagram) {
+    if (isTeacher && !whatsappFull && !instagram) {
       setError('Ingresa al menos tu WhatsApp o Instagram para que los alumnos puedan contactarte.');
       return;
     }
@@ -235,15 +240,19 @@ export default function PerfilClient({
     <div className="p-6 lg:p-8 max-w-3xl">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-neutral-900">Mi perfil</h1>
-        <p className="text-neutral-500 text-sm mt-1">Esto es lo que verán los alumnos en tu página pública</p>
+        <p className="text-neutral-500 text-sm mt-1">
+          {isTeacher ? 'Esto es lo que verán los alumnos en tu página pública' : 'Actualiza tu información personal'}
+        </p>
       </div>
 
       <div className="space-y-6">
         {/* Photo */}
         <div className="bg-white rounded-xl border border-neutral-900 p-6">
-          <h2 className="text-lg font-bold text-neutral-900">Foto / Logo</h2>
-          <p className="text-xs text-neutral-500 mt-0.5 mb-4">Esto es lo que verán los alumnos en tu perfil público</p>
-          <div className="flex flex-col sm:flex-row items-start gap-6">
+          <h2 className="text-lg font-bold text-neutral-900">{isTeacher ? 'Foto / Logo' : 'Foto de perfil'}</h2>
+          {isTeacher && (
+            <p className="text-xs text-neutral-500 mt-0.5 mb-4">Esto es lo que verán los alumnos en tu perfil público</p>
+          )}
+          <div className={`flex flex-col sm:flex-row items-start gap-6 ${isTeacher ? '' : 'mt-4'}`}>
             <input
               ref={photoInputRef}
               type="file"
@@ -331,88 +340,94 @@ export default function PerfilClient({
               {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Años de experiencia</label>
-            <input type="number" min="0" value={years} onChange={e => setYears(e.target.value)}
-              className="input" />
-          </div>
+          {isTeacher && (
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Años de experiencia</label>
+              <input type="number" min="0" value={years} onChange={e => setYears(e.target.value)}
+                className="input" />
+            </div>
+          )}
         </div>
 
         {/* Styles */}
-        <div className="bg-white rounded-xl border border-neutral-900 p-6">
-          <h2 className="text-lg font-bold text-neutral-900 mb-4">Estilos que enseñas</h2>
-          <div className="flex flex-wrap gap-2">
-            {danceStyles.map(s => (
-              <button key={s} onClick={() => toggleStyle(s)}
-                className={styles.includes(s) ? 'tag-active' : 'tag'}>
-                {s}
-              </button>
-            ))}
+        {isTeacher && (
+          <div className="bg-white rounded-xl border border-neutral-900 p-6">
+            <h2 className="text-lg font-bold text-neutral-900 mb-4">Estilos que enseñas</h2>
+            <div className="flex flex-wrap gap-2">
+              {danceStyles.map(s => (
+                <button key={s} onClick={() => toggleStyle(s)}
+                  className={styles.includes(s) ? 'tag-active' : 'tag'}>
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Contact & social */}
-        <div id="contacto" className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
-          <h2 className="text-lg font-bold text-neutral-900">Contacto y redes</h2>
-          <p className="text-xs text-neutral-400"><span className="text-red-500">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
+        {isTeacher && (
+          <div id="contacto" className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+            <h2 className="text-lg font-bold text-neutral-900">Contacto y redes</h2>
+            <p className="text-xs text-neutral-400"><span className="text-red-500">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
 
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp <span className="text-red-500">*</span></label>
-            <div className="flex gap-2">
-              <select
-                value={waCode}
-                onChange={e => setWaCode(e.target.value)}
-                className="input appearance-none cursor-pointer w-auto shrink-0"
-              >
-                {WA_CODES.map(({ code, flag }) => (
-                  <option key={code} value={code}>{flag} {code}</option>
-                ))}
-              </select>
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp <span className="text-red-500">*</span></label>
+              <div className="flex gap-2">
+                <select
+                  value={waCode}
+                  onChange={e => setWaCode(e.target.value)}
+                  className="input appearance-none cursor-pointer w-auto shrink-0"
+                >
+                  {WA_CODES.map(({ code, flag }) => (
+                    <option key={code} value={code}>{flag} {code}</option>
+                  ))}
+                </select>
+                <input
+                  ref={waInputRef}
+                  id="field-whatsapp"
+                  type="tel"
+                  value={waNumber}
+                  onChange={e => setWaNumber(e.target.value.replace(/\D/g, ''))}
+                  placeholder="999 999 999"
+                  className={`input flex-1 ${
+                    highlightField === 'whatsapp' ? '!border-amber-400 ring-2 ring-amber-200' : ''
+                  }`}
+                />
+              </div>
+              <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales ni guiones. Ej: 999999999</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                Instagram<span className="text-red-500 ml-0.5">*</span>
+              </label>
               <input
-                ref={waInputRef}
-                id="field-whatsapp"
-                type="tel"
-                value={waNumber}
-                onChange={e => setWaNumber(e.target.value.replace(/\D/g, ''))}
-                placeholder="999 999 999"
-                className={`input flex-1 ${
-                  highlightField === 'whatsapp' ? '!border-amber-400 ring-2 ring-amber-200' : ''
+                ref={instagramInputRef}
+                id="field-instagram"
+                type="text"
+                value={instagram}
+                onChange={e => setInstagram(e.target.value)}
+                placeholder="Tu instagram"
+                className={`input ${
+                  highlightField === 'instagram' ? '!border-amber-400 ring-2 ring-amber-200' : ''
                 }`}
               />
             </div>
-            <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales ni guiones. Ej: 999999999</p>
-          </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-              Instagram<span className="text-red-500 ml-0.5">*</span>
-            </label>
-            <input
-              ref={instagramInputRef}
-              id="field-instagram"
-              type="text"
-              value={instagram}
-              onChange={e => setInstagram(e.target.value)}
-              placeholder="Tu instagram"
-              className={`input ${
-                highlightField === 'instagram' ? '!border-amber-400 ring-2 ring-amber-200' : ''
-              }`}
-            />
+            {[
+              { label: 'TikTok', value: tiktok, set: setTiktok },
+              { label: 'YouTube', value: youtube, set: setYoutube },
+              { label: 'Sitio web', value: website, set: setWebsite },
+            ].map(f => (
+              <div key={f.label}>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{f.label}</label>
+                <input type="text" value={f.value} onChange={e => f.set(e.target.value)}
+                  placeholder={`Tu ${f.label.toLowerCase()}`}
+                  className="input" />
+              </div>
+            ))}
           </div>
-
-          {[
-            { label: 'TikTok', value: tiktok, set: setTiktok },
-            { label: 'YouTube', value: youtube, set: setYoutube },
-            { label: 'Sitio web', value: website, set: setWebsite },
-          ].map(f => (
-            <div key={f.label}>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{f.label}</label>
-              <input type="text" value={f.value} onChange={e => f.set(e.target.value)}
-                placeholder={`Tu ${f.label.toLowerCase()}`}
-                className="input" />
-            </div>
-          ))}
-        </div>
+        )}
 
         {error && (
           <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">{error}</div>

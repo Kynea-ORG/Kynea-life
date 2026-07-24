@@ -387,15 +387,20 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
             {/* Right — Cutout photo + floating stats */}
             <div className="hidden lg:block relative h-[460px]">
-              {/* Clipping scoped to just the glow + photo (max-w-none on the
-                  image lets it scale past its column's width) — kept off the
-                  whole hero-section so the search dropdown isn't cut off. */}
-              <div className="absolute inset-0 overflow-hidden">
-                {/* Glow behind the cutout */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-[420px] h-[420px] rounded-full bg-white/20 blur-3xl" />
-                </div>
+              {/* Glow behind the cutout — rendered outside the overflow-hidden
+                  wrapper below: the 420px circle only has ~20px of vertical
+                  clearance in this 460px-tall column, far less than the
+                  blur-3xl (64px) radius needs to fade out, so clipping it
+                  flattened the top/bottom into hard edges and made the glow
+                  look squarish instead of a soft circle. */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-[420px] h-[420px] rounded-full bg-white/20 blur-3xl" />
+              </div>
 
+              {/* Clipping scoped to just the photo (max-w-none lets it scale
+                  past its column's width) — kept off the whole hero-section
+                  so the search dropdown isn't cut off. */}
+              <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute inset-0 flex items-end justify-center">
                   <Image
                     src="/img-portada-kynea.png"
@@ -476,7 +481,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex items-end justify-between mb-6">
             <div>
-              <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases esta semana</h2>
+              <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases de baile para ti</h2>
               <p className="text-neutral-500 text-[15px] mt-1">Seleccionadas para ti</p>
             </div>
             <div className="hidden sm:flex items-center gap-3">

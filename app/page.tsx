@@ -5,7 +5,7 @@ import { fetchHomeStats } from '@/lib/stats/queries';
 import HomeClient from './HomeClient';
 import AuthErrorBanner from '@/components/AuthErrorBanner';
 
-// Style rows featured on Home below "Clases esta semana", in display order.
+// Style rows featured on Home below "Clases de baile para ti", in display order.
 // Picked for having several published classes from different teachers —
 // revisit this list as the catalog grows instead of hardcoding forever.
 const FEATURED_STYLES = ['Heels', 'Contemporáneo'];
@@ -15,7 +15,7 @@ export default async function Page() {
     fetchPublishedClasses(),
     Promise.all(FEATURED_STYLES.map(style => fetchPublishedClasses({ styles: [style] }))),
     fetchFeaturedProfiles('profesor', 6),
-    fetchFeaturedProfiles('academia'),
+    fetchFeaturedProfiles('academia', 4),
     fetchDanceStyles(),
     fetchHomeStats(),
   ]);
