@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Globe, User, BookOpen, Building2, Loader2, Eye, EyeOff, Check, X } from 'lucide-react';
+import { Globe, User, BookOpen, Loader2, Eye, EyeOff, Check, X } from 'lucide-react';
 
 const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: 'Mínimo 8 caracteres',       test: pw => pw.length >= 8 },
@@ -30,10 +30,10 @@ function getAuthErrorMessage(msg: string): string {
   return 'Ocurrió un error al crear la cuenta. Intenta de nuevo.';
 }
 
+// Registro de tipo "academia" desactivado temporalmente en la UI — ver TODO en CLAUDE.md.
 const ROLES: { key: Role; icon: React.ElementType; label: string; description: string }[] = [
   { key: 'alumno',   icon: User,      label: 'Alumno',   description: 'Quiero encontrar clases de baile' },
   { key: 'profesor', icon: BookOpen,  label: 'Profesor', description: 'Doy clases de manera independiente' },
-  { key: 'academia', icon: Building2, label: 'Academia', description: 'Gestiono un estudio o academia de danza' },
 ];
 
 export default function RegistroPage() {
