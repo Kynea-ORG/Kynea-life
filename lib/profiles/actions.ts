@@ -1,14 +1,11 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { lookupDistrictId } from '@/lib/catalog/lookups';
 
 export async function updateProfile(updates: {
   name?: string;
   bio?: string;
   nationality?: string;
-  district_name?: string;
-  district_city?: string;
   years_experience?: number;
   whatsapp?: string;
   instagram?: string;
@@ -37,11 +34,6 @@ export async function updateProfile(updates: {
   if (updates.photo_url        !== undefined) profileUpdate.photo_url = updates.photo_url;
   if (updates.photo_position   !== undefined) profileUpdate.photo_position = updates.photo_position;
   if (updates.photo_zoom       !== undefined) profileUpdate.photo_zoom = updates.photo_zoom;
-
-  if (updates.district_name && updates.district_city) {
-    const distId = await lookupDistrictId(supabase, updates.district_name, updates.district_city);
-    if (distId) profileUpdate.district_id = distId;
-  }
 
   if (Object.keys(profileUpdate).length > 0) {
     const { error } = await supabase.from('profiles').update(profileUpdate).eq('id', user.id);

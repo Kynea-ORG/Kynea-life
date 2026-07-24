@@ -2,7 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { lookupLevelId, lookupStyleId, lookupDistrictId } from '@/lib/catalog/lookups';
+import { lookupLevelId, lookupStyleId } from '@/lib/catalog/lookups';
 import {
   findOrCreateVenue, venueNeedsUpdate, insertClassStyles, insertClassSchedules, buildClassColumns,
 } from './helpers';
@@ -39,10 +39,9 @@ export async function createClass(formData: FormData) {
 
   const isPresencial = modality !== 'Online';
 
-  const [levelId, styleId, districtId] = await Promise.all([
+  const [levelId, styleId] = await Promise.all([
     lookupLevelId(supabase, levelName),
     lookupStyleId(supabase, styleName),
-    isPresencial ? lookupDistrictId(supabase, district, city) : Promise.resolve(null),
   ]);
 
   let venueId: string | null = null;
@@ -51,7 +50,7 @@ export async function createClass(formData: FormData) {
     // address as separate lines, so defaulting an unnamed venue's name to
     // its own address made that block print the address twice.
     const venueName = (formData.get('venueName') as string) || '';
-    venueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, districtId, placeId, lat, lng });
+    venueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, city, district, placeId, lat, lng });
   }
 
   const cols = buildClassColumns(formData, { levelId, venueId });
@@ -222,7 +221,7 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
 
   const { data: existing } = await supabase
     .from('classes')
-    .select('venue_id, venues(place_id, address, name)')
+    .select('venue_id, venues(place_id, address, name, city, district)')
     .eq('id', classId)
     .eq('teacher_id', user.id)
     .single();
@@ -231,15 +230,14 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
 
   const isPresencial = modality !== 'Online';
 
-  const [levelId, styleId, districtId] = await Promise.all([
+  const [levelId, styleId] = await Promise.all([
     lookupLevelId(supabase, levelName),
     lookupStyleId(supabase, styleName),
-    isPresencial ? lookupDistrictId(supabase, district, city) : Promise.resolve(null),
   ]);
 
   // `venues` is a to-one FK relation, but PostgREST types it as an array when
   // inferred loosely — normalize before reading.
-  const currentVenueRaw = existing.venues as { place_id: string | null; address: string | null; name: string | null } | Array<{ place_id: string | null; address: string | null; name: string | null }> | null;
+  const currentVenueRaw = existing.venues as { place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null } | Array<{ place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null }> | null;
   const currentVenue = Array.isArray(currentVenueRaw) ? (currentVenueRaw[0] ?? null) : currentVenueRaw;
 
   let venueId: string | null = existing.venue_id ?? null;
@@ -247,8 +245,8 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
     // See createClass: no fallback to `address` — an unnamed venue should
     // stay unnamed, not silently mirror the address into the name field.
     const venueName = (formData.get('venueName') as string) || '';
-    if (venueNeedsUpdate(currentVenue, { placeId, address, name: venueName })) {
-      const newVenueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, districtId, placeId, lat, lng });
+    if (venueNeedsUpdate(currentVenue, { placeId, address, name: venueName, city, district })) {
+      const newVenueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, city, district, placeId, lat, lng });
       if (newVenueId) venueId = newVenueId;
     }
   } else if (!isPresencial) {

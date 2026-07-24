@@ -9,11 +9,12 @@ export const DAY_MAP: Record<string, number> = {
 };
 
 export function venueNeedsUpdate(
-  current: { place_id: string | null; address: string | null; name: string | null } | null,
-  incoming: { placeId: string | null; address: string; name: string }
+  current: { place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null } | null,
+  incoming: { placeId: string | null; address: string; name: string; city: string; district: string }
 ): boolean {
   if (!current) return true;
   if (current.name !== incoming.name) return true;
+  if (current.city !== incoming.city || current.district !== incoming.district) return true;
   if (current.place_id && incoming.placeId) return current.place_id !== incoming.placeId;
   if (!incoming.placeId) return current.address !== incoming.address;
   return true;
@@ -23,7 +24,7 @@ export async function findOrCreateVenue(
   supabase: SupabaseClient,
   ownerId: string,
   opts: {
-    name: string; address: string; reference: string; districtId: number | null;
+    name: string; address: string; reference: string; city: string; district: string;
     placeId: string | null; lat: number | null; lng: number | null;
   }
 ): Promise<string | null> {
@@ -42,7 +43,7 @@ export async function findOrCreateVenue(
       // whatever they were the first time this place was saved.
       const { error: updateError } = await supabase
         .from('venues')
-        .update({ name: opts.name, reference: opts.reference, district_id: opts.districtId, lat: opts.lat, lng: opts.lng })
+        .update({ name: opts.name, reference: opts.reference, city: opts.city, district: opts.district, lat: opts.lat, lng: opts.lng })
         .eq('id', existing.id);
       if (updateError) console.error('[findOrCreateVenue] update', updateError.message);
       return existing.id;
@@ -56,7 +57,8 @@ export async function findOrCreateVenue(
       name: opts.name,
       address: opts.address,
       reference: opts.reference,
-      district_id: opts.districtId,
+      city: opts.city,
+      district: opts.district,
       place_id: opts.placeId,
       lat: opts.lat,
       lng: opts.lng,

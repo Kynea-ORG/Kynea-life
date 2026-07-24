@@ -66,7 +66,7 @@ Feature-sliced under `lib/`, not a single flat `queries`/`actions` pair:
 | `lib/supabase/client.ts` | Browser Supabase client (Client Components) |
 | `lib/types.ts` | Shared domain types |
 | `lib/auth/actions.ts`, `lib/auth/redirectByRole.ts` | `'use server'` auth mutations + post-login/onboarding redirect by profile role |
-| `lib/catalog/queries.ts`, `lib/catalog/lookups.ts` | Read queries + lookup helpers for `dance_styles` / `class_levels` / `districts` |
+| `lib/catalog/queries.ts`, `lib/catalog/lookups.ts` | Read queries + lookup helpers for `dance_styles` / `class_levels` |
 | `lib/classes/queries.ts`, `lib/classes/actions.ts`, `lib/classes/helpers.ts`, `lib/classes/types.ts` | Class read queries, `'use server'` mutations (create/update/delete), helpers, and class-specific types |
 | `lib/profiles/queries.ts`, `lib/profiles/actions.ts` | Profile read queries + `'use server'` mutations |
 | `lib/stats/queries.ts` | Dashboard/stats read queries |
@@ -89,7 +89,7 @@ OAuth/email confirm redirect: `app/auth/callback/route.ts`. After registration, 
 
 ### Supabase schema
 
-Ten tables: catalog reference data (`dance_styles`, `class_levels`, `districts`), `profiles` (extends `auth.users`) + `profile_styles`, `venues`, `classes` + `class_styles` + `class_schedules`, and `saved_classes` (bookmarks). RLS is enabled on all tables: published classes are publicly readable; teachers can only manage their own classes. Storage bucket `class-images` is public-read; upload path must be `<user-id>/...`.
+Nine tables: catalog reference data (`dance_styles`, `class_levels`), `profiles` (extends `auth.users`) + `profile_styles`, `venues`, `classes` + `class_styles` + `class_schedules`, and `saved_classes` (bookmarks). `venues.city`/`venues.district` are free text, populated from Google Places `addressComponents` when a teacher picks an address in Crear Clase — not a curated lookup table. RLS is enabled on all tables: published classes are publicly readable; teachers can only manage their own classes. Storage bucket `class-images` is public-read; upload path must be `<user-id>/...`.
 
 SQL schema: versioned migration files under `supabase/migrations/`, applied via `supabase db push` (Supabase CLI). Two projects exist: a disposable `kynea-dev` for testing migrations, and the shared production project. `npm run db:link:dev` / `db:link:prod` switch which one the CLI is linked to; `npm run db:push` applies pending migrations to whichever is currently linked. Pushing to production is also automated via CI on merge to `main`, gated behind a required-reviewer approval on the `supabase-production` GitHub Environment — never push to production directly unless that pipeline is down.
 

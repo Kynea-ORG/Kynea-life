@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/client';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
-import type { DbDistrict } from '@/lib/types';
 
 // Extracts the storage object path from a public Supabase Storage URL
 // (".../object/public/class-images/<path>" -> "<path>") so a replaced or
@@ -55,18 +54,15 @@ interface Profile {
   photo_url: string | null;
   photo_position: string | null;
   photo_zoom: number | null;
-  district: { name: string; city: string } | null;
   profile_styles: ProfileStyleRow[] | null;
 }
 
 export default function PerfilClient({
   profile,
   danceStyles,
-  allDistricts,
 }: {
   profile: Profile;
   danceStyles: string[];
-  allDistricts: DbDistrict[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -86,8 +82,6 @@ export default function PerfilClient({
   const [name, setName] = useState(profile.name ?? '');
   const [bio, setBio] = useState(profile.bio ?? '');
   const [nationality, setNationality] = useState(profile.nationality ?? '');
-  const [city, setCity] = useState(profile.district?.city ?? 'Lima');
-  const [district, setDistrict] = useState(profile.district?.name ?? '');
   const [years, setYears] = useState(String(profile.years_experience ?? ''));
   const [styles, setStyles] = useState<string[]>(
     (profile.profile_styles ?? []).map(ps => ps.dance_styles?.name ?? '').filter(Boolean)
@@ -116,9 +110,6 @@ export default function PerfilClient({
   const toggleStyle = (s: string) => {
     setStyles(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   };
-
-  const CITIES = [...new Set(allDistricts.map(d => d.city))].sort();
-  const districtsByCity = allDistricts.filter(d => d.city === city);
 
   const handlePhotoUpload = async (file: File) => {
     if (file.size > 2 * 1024 * 1024) { setError('La foto debe ser menor a 2MB'); return; }
@@ -224,8 +215,6 @@ export default function PerfilClient({
           name,
           bio,
           nationality,
-          district_name: district || undefined,
-          district_city: district ? city : undefined,
           years_experience: years ? parseInt(years) : undefined,
           whatsapp: waNumber ? `${waCode}${waNumber}` : '',
           instagram,
@@ -342,33 +331,10 @@ export default function PerfilClient({
               {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Ciudad</label>
-              <select
-                value={city}
-                onChange={e => { setCity(e.target.value); setDistrict(''); }}
-                className="input appearance-none cursor-pointer"
-              >
-                {CITIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Distrito</label>
-              <select
-                value={district}
-                onChange={e => setDistrict(e.target.value)}
-                className="input appearance-none cursor-pointer"
-              >
-                <option value="">Seleccionar distrito…</option>
-                {districtsByCity.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Años de experiencia</label>
-              <input type="number" min="0" value={years} onChange={e => setYears(e.target.value)}
-                className="input" />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Años de experiencia</label>
+            <input type="number" min="0" value={years} onChange={e => setYears(e.target.value)}
+              className="input" />
           </div>
         </div>
 
