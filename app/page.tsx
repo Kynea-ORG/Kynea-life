@@ -33,7 +33,7 @@ export default async function Page() {
         featuredCategories={featuredCategories}
         initialTeachers={teachers}
         initialAcademias={academias}
-        danceStyles={danceStyles.slice(0, 9)}
+        danceStyles={danceStyles}
         stats={stats}
       />
     </>
