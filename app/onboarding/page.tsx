@@ -78,8 +78,12 @@ function OnboardingContent() {
         // (registro, confirmar-email, completar-registro, auth/callback) —
         // proxy.ts's own redirect back here for an unfinished onboarding
         // never includes it, so this can't double-fire on a later revisit.
+        // Strip it from the URL right after firing — otherwise a refresh
+        // during the wizard/carousel (before onboarding_done is set) would
+        // re-fire sign_up on the exact same registration.
         if (searchParams.get('new') === '1') {
           trackSignUp({ role: profile.role, method: (user.app_metadata?.provider as string) ?? 'email' });
+          router.replace('/onboarding');
         }
         if (profile.role === 'alumno') {
           // Alumno's onboarding is a pure intro carousel (AlumnoWelcome) with
