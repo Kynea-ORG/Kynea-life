@@ -6,6 +6,7 @@ import { MapPin, Clock, MessageCircle, Bookmark, Users, Check } from 'lucide-rea
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { trackGenerateLead } from '@/lib/analytics';
 import ContactModal from './ContactModal';
 
 interface ClassCardProps {
@@ -36,6 +37,10 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     const mode = cls.contactMode ?? 'whatsapp';
     if ((mode === 'whatsapp' || mode === 'both') && cls.teacher.whatsapp) {
       window.open(buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp), '_blank');
+      trackGenerateLead({
+        channel: 'whatsapp', classId: cls.id, className: cls.title, classStyle: cls.style,
+        teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+      });
       setJustContacted(true);
       setTimeout(() => setJustContacted(false), 1200);
       return;
@@ -43,6 +48,10 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     if ((mode === 'instagram' || mode === 'both') && cls.teacher.instagram) {
       const handle = cls.teacher.instagram.replace(/^@/, '');
       window.open(`https://instagram.com/${handle}`, '_blank');
+      trackGenerateLead({
+        channel: 'instagram', classId: cls.id, className: cls.title, classStyle: cls.style,
+        teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+      });
       setJustContacted(true);
       setTimeout(() => setJustContacted(false), 1200);
       return;

@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import { formatPrice, formatTimeSlots, getTypeLabel } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
+import { trackGenerateLead } from '@/lib/analytics';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -189,6 +190,10 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                         href={`https://wa.me/${selectedClass.teacher.whatsapp}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => trackGenerateLead({
+                          channel: 'whatsapp', classId: selectedClass.id, className: selectedClass.title,
+                          classStyle: selectedClass.style, teacherId: selectedClass.teacher.id, teacherName: selectedClass.teacher.name,
+                        })}
                         className="flex-1 text-center text-sm font-semibold py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white transition-colors flex items-center justify-center gap-1"
                       >
                         <MessageCircle className="w-4 h-4" /> WhatsApp
