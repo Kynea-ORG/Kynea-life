@@ -1,8 +1,7 @@
 'use client';
 import { useState, useTransition, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Search, SlidersHorizontal, Map, List, X, Loader2 } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import FilterPanel, { Filters, EMPTY_FILTERS } from '@/components/FilterPanel';
@@ -180,10 +179,6 @@ export default function ClasesContent({
             Filtros {activeCount > 0 && `(${activeCount})`}
           </button>
 
-          <Link href="/mapa" className="hidden md:flex items-center gap-2 text-[15px] font-medium px-4 py-2.5 rounded-btn border-2 border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors">
-            <Map className="w-4 h-4" /> Mapa
-          </Link>
-
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
@@ -265,10 +260,6 @@ export default function ClasesContent({
                 : <><span className="font-bold text-neutral-900">{results.length}</span> clase{results.length !== 1 ? 's' : ''} disponible{results.length !== 1 ? 's' : ''}</>
               }
             </p>
-            <div className="flex gap-2">
-              <button className="p-2 rounded-md bg-neutral-900 text-white"><List className="w-4 h-4" /></button>
-              <Link href="/mapa" className="p-2 rounded-md hover:bg-neutral-100 text-neutral-400"><Map className="w-4 h-4" /></Link>
-            </div>
           </div>
 
           {results.length === 0 && !isPending ? (
