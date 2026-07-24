@@ -5,8 +5,8 @@ import Header from '@/components/Header';
 
 export default async function ProfesoresPage() {
   const [teachers, academias] = await Promise.all([
-    fetchFeaturedProfiles('profesor', 20),
-    fetchFeaturedProfiles('academia', 20),
+    fetchFeaturedProfiles('profesor'),
+    fetchFeaturedProfiles('academia'),
   ]);
 
   return (
