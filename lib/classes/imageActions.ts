@@ -23,7 +23,7 @@ export async function uploadClassImage(formData: FormData): Promise<{ url: strin
   }
 
   const buf = new Uint8Array(await file.arrayBuffer());
-  const result = validateImageFile({ type: file.type, size: file.size, head: buf.subarray(0, 16) });
+  const result = validateImageFile({ type: file.type, size: file.size, head: buf.subarray(0, 16), full: buf });
   if (!result.ok) {
     throw publishError({ code: 'INVALID_IMAGE', message: result.errors[0].message });
   }
