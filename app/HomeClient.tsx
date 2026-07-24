@@ -495,8 +495,8 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       </section>
 
       {/* ── CATEGORÍAS DESTACADAS (Heels, Contemporáneo, …) ── */}
-      {featuredCategories.map(cat => (
-        <FeaturedCategoryRow key={cat.style} style={cat.style} classes={cat.classes} />
+      {featuredCategories.map((cat, i) => (
+        <FeaturedCategoryRow key={`${cat.style}-${i}`} style={cat.style} classes={cat.classes} />
       ))}
 
       {/* ── PROFESORES DESTACADOS ── */}
