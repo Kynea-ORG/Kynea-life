@@ -12,7 +12,7 @@ export default async function PerfilPage() {
   const [profileResult, danceStyles] = await Promise.all([
     supabase
       .from('profiles')
-      .select('name, bio, nationality, years_experience, whatsapp, instagram, tiktok, youtube, website, photo_url, photo_position, photo_zoom, profile_styles(style_id, dance_styles(name))')
+      .select('role, name, bio, nationality, years_experience, whatsapp, instagram, tiktok, youtube, website, photo_url, photo_position, photo_zoom, profile_styles(style_id, dance_styles(name))')
       .eq('id', user.id)
       .single(),
     fetchDanceStyles(),
@@ -26,6 +26,7 @@ export default async function PerfilPage() {
     // deep-link landing), which requires a Suspense boundary.
     <Suspense>
       <PerfilClient
+        role={profile?.role ?? 'alumno'}
         profile={profile ?? {
           name: null, bio: null, nationality: null, years_experience: null,
           whatsapp: null, instagram: null, tiktok: null,
