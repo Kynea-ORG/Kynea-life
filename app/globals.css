@@ -114,9 +114,32 @@
      component reads `prefers-color-scheme` for its own shadow-DOM styles,
      which only `color-scheme` set directly on the host element overrides.
      Without this, a profesor's OS dark mode renders the address widget as
-     a solid black bar against Kynea's light UI. */
+     a solid black bar against Kynea's light UI.
+     Border/radius/background match `.input` (below) so the address field
+     doesn't stand out from the rest of the form — Google exposes these as
+     real CSS properties on the host element, plus `::part(input)` for the
+     text inside its shadow DOM, so no shadow-DOM hacks are needed. */
   gmp-place-autocomplete {
     color-scheme: light;
+    width: 100%;
+    background-color: #fff;
+    border: 2px solid var(--color-neutral-200);
+    border-radius: var(--radius-btn);
+    transition: border-color 100ms ease-out;
+  }
+
+  gmp-place-autocomplete:hover {
+    border-color: var(--color-neutral-900);
+  }
+
+  gmp-place-autocomplete:focus-within {
+    border-color: var(--color-primary);
+  }
+
+  gmp-place-autocomplete::part(input) {
+    font-size: 15px;
+    color: var(--color-neutral-900);
+    padding: 12px 16px;
   }
 
   h1 { font-size: 48px; font-weight: 900; letter-spacing: -0.035em; line-height: 1.05; }

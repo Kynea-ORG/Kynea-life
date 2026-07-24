@@ -119,6 +119,8 @@ function PlacesAddressField({
   const containerRef = useRef<HTMLDivElement>(null);
   const onPlaceSelectRef = useRef(onPlaceSelect);
   useEffect(() => { onPlaceSelectRef.current = onPlaceSelect; }, [onPlaceSelect]);
+  const placeholderRef = useRef(placeholder);
+  useEffect(() => { placeholderRef.current = placeholder; }, [placeholder]);
   const [initFailed, setInitFailed] = useState(false);
 
   useEffect(() => {
@@ -134,6 +136,7 @@ function PlacesAddressField({
         const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
         if (cancelled) return;
         element = new PlaceAutocompleteElement();
+        element.setAttribute('placeholder', placeholderRef.current);
         container.appendChild(element);
         element.addEventListener('gmp-select', (async (event: Event) => {
           const place = (event as GmpSelectEvent).placePrediction.toPlace();
