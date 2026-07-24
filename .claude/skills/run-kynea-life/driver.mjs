@@ -120,10 +120,10 @@ if (cmd === 'login') {
       await shot(page, '04-onboarding-step0-blocked');
     }
 
-    const selects = page.locator('select');
-    await selects.nth(0).selectOption({ index: 1 }); // Ciudad
-    await page.waitForTimeout(300);
-    await selects.nth(1).selectOption({ index: 1 }); // Distrito
+    // Step 0 (Datos públicos): publicName comes prefilled from signup;
+    // Nacionalidad is the only select on this step (no Ciudad/Distrito —
+    // location moved fully to Google Places on venues, not onboarding).
+    await page.locator('select').first().selectOption({ index: 1 });
     await page.click('button:has-text("Continuar")');
     await page.waitForTimeout(500);
 
@@ -133,6 +133,7 @@ if (cmd === 'login') {
       console.log('step1 empty-submit errors:', JSON.stringify(await page.locator('.text-red-600').allTextContents()));
       await shot(page, '05-onboarding-step1-blocked');
     }
+    // Step 1 (Contacto): requires WhatsApp OR Instagram (not both) — fill WhatsApp.
     await page.fill('input[placeholder="999 999 999"]', '987654321');
     await page.click('button:has-text("Continuar")');
     await page.waitForTimeout(500);
@@ -158,8 +159,14 @@ if (cmd === 'login') {
 } else if (cmd === 'crear-clase') {
   const [title, ...rest] = args;
   const noPhoto = rest.includes('--no-photo');
-  if (!title) { console.error('usage: crear-clase <title> [--no-photo]'); process.exit(1); }
+  // Blocks the Google Maps script so PlacesAddressField falls back to the
+  // plain-<input> path with manual Ciudad/Distrito fields — exercises the
+  // fallback UI (see CrearClaseForm.tsx addressFallback) instead of the
+  // live Google widget.
+  const noMaps = rest.includes('--no-maps');
+  if (!title) { console.error('usage: crear-clase <title> [--no-photo] [--no-maps]'); process.exit(1); }
   await withPage(async page => {
+    if (noMaps) await page.route('https://maps.googleapis.com/**', route => route.abort());
     await page.goto(`${BASE}/dashboard/crear-clase`, { waitUntil: 'networkidle' });
     await page.waitForSelector('text=Título de la clase', { timeout: 15000 });
 
@@ -169,26 +176,60 @@ if (cmd === 'login') {
     await s0.nth(1).selectOption({ index: 1 }); // nivel
 
     if (!noPhoto) {
-      await page.setInputFiles('input[type="file"]', path.join(DIR, '..', '..', '..', 'public', 'logo.png'));
-      await page.waitForTimeout(2000); // Supabase Storage upload
+      // logo.png is 351×118px — below the app's 400×400px minimum-cover-size
+      // validation. img-portada-kynea.png (3508×2480) clears it.
+      await page.setInputFiles('input[type="file"]', path.join(DIR, '..', '..', '..', 'public', 'img-portada-kynea.png'));
+      // Real ~1.2MB upload to Supabase Storage — wait for the "Subiendo
+      // imagen…" placeholder to appear, then disappear. waitForSelector
+      // with state:'hidden' alone races: if called before the placeholder
+      // ever mounts, 0 matches already satisfies "hidden" and resolves
+      // instantly while the upload is still in flight.
+      await page.waitForSelector('text=Subiendo imagen', { state: 'visible', timeout: 5000 }).catch(() => {});
+      await page.waitForSelector('text=Subiendo imagen', { state: 'hidden', timeout: 20000 });
     }
     await shot(page, '09-crear-clase-step0');
     await page.click('button:has-text("Continuar")');
     await page.waitForTimeout(500);
 
+    if (noPhoto) {
+      // Cover image is required — without it, Continuar should block on step 0.
+      console.log('step0 (no-photo) errors:', JSON.stringify(await page.locator('.text-red-600').allTextContents()));
+      await shot(page, '09b-crear-clase-no-photo-blocked');
+      return;
+    }
+
     await page.click('button:has-text("Clase única")');
     await page.fill('input[type="date"]', tomorrow());
-    await page.click('button:has-text("Presencial")');
-    await page.waitForTimeout(300);
-    // No NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in this env -> PlacesAddressField renders
-    // a plain <input> with this exact placeholder (see Gotchas).
-    await page.locator('input[placeholder="Av. Benavides 1234, piso 3"]').fill('Av. Benavides 1234, San Isidro');
-    for (const sel of await page.locator('select').all()) {
-      const opts = await sel.locator('option').allTextContents();
-      if (opts.some(o => o.includes('Lima') || o.includes('Arequipa'))) await sel.selectOption({ index: 0 });
+    // Presencial is the default modality already — no click needed.
+    if (noMaps) {
+      // Fallback forced via blocked script -> plain <input> + manual
+      // Ciudad/Distrito (addressFallback).
+      await page.locator('input[placeholder="Ej: Miraflores"]').waitFor({ state: 'visible', timeout: 10000 });
+      await page.locator('input[placeholder="Ej: Av. Benavides 1234, piso 3"]').fill('Av. Benavides 1234, San Isidro');
+      await page.locator('input[placeholder="Ej: Miraflores"]').fill('San Isidro');
+      // Ciudad already defaults to "Lima" (buildInitialForm) — leave as-is.
+    } else {
+      // This env has a real NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, so
+      // PlacesAddressField mounts the live Google PlaceAutocompleteElement
+      // (gmp-place-autocomplete). Its internal <input> lives in a CLOSED
+      // shadow root — Playwright's CSS piercing can't reach it, so click
+      // the host element to delegate focus, then drive it via keyboard.
+      // Publishing REQUIRES selecting a real prediction (city/district only
+      // come from Google's response) — typed-but-unselected text blocks at
+      // publish time with "No se pudo determinar la ciudad…". NOTE: if this
+      // key is referrer-restricted for the current domain (e.g. localhost
+      // in dev), every prediction request 403s and there's nothing to
+      // select — use `--no-maps` instead to test the fallback path, which
+      // is what PlacesAddressField itself falls back to via 'gmp-error' in
+      // that exact scenario.
+      await page.waitForTimeout(2500); // Google Maps script + custom element mount
+      await page.click('gmp-place-autocomplete');
+      await page.keyboard.type('Av. Benavides 1234, San Isidro, Lima', { delay: 50 });
+      await page.waitForTimeout(1500); // live predictions request
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(1000); // fetchFields() round-trip
     }
-    const districtSelect = page.locator('select').filter({ hasText: 'Seleccionar distrito' });
-    if (await districtSelect.count()) await districtSelect.selectOption({ index: 1 });
     await shot(page, '10-crear-clase-step1');
 
     await page.click('button:has-text("Continuar")');

@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Server Actions default to a 1MB body limit. uploadClassImage()
+    // (lib/classes/imageActions.ts) accepts raw files up to the client's
+    // 5MB check — without this, anything over 1MB 500s at the framework
+    // level before the action's own validation ever runs.
+    serverActions: {
+      bodySizeLimit: '6mb',
+    },
+  },
   images: {
     remotePatterns: [
       {
