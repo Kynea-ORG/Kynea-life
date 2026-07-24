@@ -33,7 +33,9 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
     try {
       await completeOAuthRegistration(selected);
       router.refresh();
-      router.push(selected === 'alumno' ? '/clases' : '/onboarding?new=1');
+      // Every role goes through /onboarding on first signup — alumno gets a
+      // short intro carousel, profesor/academia the full wizard.
+      router.push('/onboarding?new=1');
     } catch {
       setError('No pudimos guardar tu tipo de cuenta. Intenta de nuevo.');
       setLoading(false);

@@ -61,7 +61,10 @@ export default function RegistroPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const nextPath = role === 'alumno' ? '/clases' : '/onboarding?new=1';
+    // Every role goes through /onboarding on first signup — alumno gets a
+    // short intro carousel (AlumnoWelcome), profesor/academia get the full
+    // data-collecting wizard. See app/onboarding/page.tsx.
+    const nextPath = '/onboarding?new=1';
 
     const metadata: Record<string, string> = { name: form.name, role };
     if (role === 'academia' && form.representante) {

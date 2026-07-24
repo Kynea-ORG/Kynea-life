@@ -9,6 +9,7 @@ import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
+import AlumnoWelcome from './AlumnoWelcome';
 
 const STEPS = [
   'Datos públicos',
@@ -69,6 +70,18 @@ function OnboardingContent() {
         .single();
       if (profile?.role) {
         setRole(profile.role);
+        if (profile.role === 'alumno') {
+          // Alumno's onboarding is a pure intro carousel (AlumnoWelcome) with
+          // no fields to backfill or validate — the only thing worth checking
+          // is whether they've already seen it, to avoid replaying it on a
+          // direct visit to /onboarding after finishing.
+          if (user.user_metadata?.onboarding_done === true) {
+            router.replace('/clases');
+            return;
+          }
+          setInitializing(false);
+          return;
+        }
         // Always check: if the profile is already filled, onboarding is done
         if (profile.bio || profile.whatsapp || profile.years_experience) {
           // Backfill the metadata flag for users who completed onboarding before
@@ -190,6 +203,10 @@ function OnboardingContent() {
         <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
       </div>
     );
+  }
+
+  if (role === 'alumno') {
+    return <AlumnoWelcome />;
   }
 
   return (

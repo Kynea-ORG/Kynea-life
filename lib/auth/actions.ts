@@ -14,11 +14,5 @@ export async function completeOAuthRegistration(role: 'alumno' | 'profesor' | 'a
   if (error) throw new Error(error.message);
 
   // Sync role to user_metadata so proxy.ts can read it from the JWT without a DB query.
-  // Alumnos don't need onboarding — mark them done immediately.
-  await supabase.auth.updateUser({
-    data: {
-      role,
-      ...(role === 'alumno' ? { onboarding_done: true } : {}),
-    },
-  });
+  await supabase.auth.updateUser({ data: { role } });
 }

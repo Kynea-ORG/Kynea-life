@@ -86,10 +86,12 @@ function ConfirmarEmailContent() {
     await redirectByRole(supabase, {
       refresh: () => router.refresh(),
       expectedRole: role,
-      onSuccess: (path, notice) => {
-        // Alumnos van a /clases, profesores/academias pasan por onboarding
-        const dest = path === '/dashboard' ? '/onboarding?new=1' : path;
-        router.push(notice ? `${dest}${dest.includes('?') ? '&' : '?'}notice=${notice}` : dest);
+      onSuccess: (_path, notice) => {
+        // This page is only reached right after a fresh signup — every role
+        // goes through /onboarding first (alumno gets a short intro
+        // carousel, profesor/academia the full wizard).
+        const dest = '/onboarding?new=1';
+        router.push(notice ? `${dest}&notice=${notice}` : dest);
       },
       onError: (msg) => { setError(msg); setVerifying(false); },
     });
