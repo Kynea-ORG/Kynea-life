@@ -11,6 +11,7 @@ export interface DbLevel { id: number; name: string; }
 
 export interface Teacher {
   id: string;
+  slug: string;
   name: string;
   type: 'profesor' | 'academia';
   photo: string;
@@ -21,6 +22,7 @@ export interface Teacher {
   experience: number;
   styles: DanceStyle[];
   whatsapp: string;
+  showSpots: boolean;
   email: string;
   instagram?: string;
   tiktok?: string;

@@ -9,9 +9,15 @@ export default async function ConfiguracionPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, show_whatsapp, show_spots')
     .eq('id', user.id)
     .single();
 
-  return <ConfiguracionClient role={profile?.role ?? 'alumno'} />;
+  return (
+    <ConfiguracionClient
+      role={profile?.role ?? 'alumno'}
+      showWhatsapp={profile?.show_whatsapp ?? true}
+      showSpots={profile?.show_spots ?? true}
+    />
+  );
 }

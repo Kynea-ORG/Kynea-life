@@ -1,19 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Shield, Globe, Eye, EyeOff, Loader2, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { updateProfile } from '@/lib/profiles/actions';
+import { deleteAccount } from '@/lib/auth/actions';
+import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 
 type Role = 'alumno' | 'profesor' | 'academia';
-
-const TEACHER_VISIBILITY_SECTION = {
-  icon: Globe, title: 'Visibilidad', desc: 'Controla cómo apareces en el buscador',
-  settings: [
-    { label: 'Aparecer en búsquedas públicas', default: true },
-    { label: 'Mostrar mi número de WhatsApp', default: true },
-    { label: 'Mostrar número de cupos disponibles', default: true },
-    { label: 'Permitir compartir mis clases', default: true },
-  ],
-};
 
 function getPasswordErrorMessage(msg: string): string {
   const m = msg.toLowerCase();
@@ -175,45 +169,148 @@ function ChangePasswordForm() {
   );
 }
 
-export default function ConfiguracionClient({ role }: { role: Role }) {
+export default function ConfiguracionClient({
+  role,
+  showWhatsapp: initialShowWhatsapp,
+  showSpots: initialShowSpots,
+}: {
+  role: Role;
+  showWhatsapp: boolean;
+  showSpots: boolean;
+}) {
+  const router = useRouter();
   const isTeacher = role !== 'alumno';
-  const sections = isTeacher ? [TEACHER_VISIBILITY_SECTION] : [];
+  const [showWhatsapp, setShowWhatsapp] = useState(initialShowWhatsapp);
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
+  const [showSpots, setShowSpots] = useState(initialShowSpots);
+  const [savingSpots, setSavingSpots] = useState(false);
+
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [toastOpen, setToastOpen] = useState(false);
+  const shouldRenderToast = useDelayedUnmount(toastOpen, 200);
+
+  useEffect(() => {
+    if (!toastOpen) return;
+    const timer = setTimeout(() => setToastOpen(false), 3000);
+    return () => clearTimeout(timer);
+  }, [toastOpen]);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setToastOpen(true);
+  };
+
+  async function handleToggleWhatsapp(checked: boolean) {
+    const previous = showWhatsapp;
+    setShowWhatsapp(checked);
+    setSavingWhatsapp(true);
+    try {
+      await updateProfile({ show_whatsapp: checked });
+      showToast(
+        checked ? 'Tu WhatsApp ahora es visible en tu perfil público.' : 'Tu WhatsApp ya no aparece en tu perfil público.',
+        'success'
+      );
+    } catch (err) {
+      setShowWhatsapp(previous);
+      showToast(err instanceof Error ? err.message : 'No se pudo guardar el cambio.', 'error');
+    } finally {
+      setSavingWhatsapp(false);
+    }
+  }
+
+  async function handleToggleSpots(checked: boolean) {
+    const previous = showSpots;
+    setShowSpots(checked);
+    setSavingSpots(true);
+    try {
+      await updateProfile({ show_spots: checked });
+      showToast(
+        checked ? 'El número de cupos ahora es visible en tus clases.' : 'El número de cupos ya no aparece en tus clases.',
+        'success'
+      );
+    } catch (err) {
+      setShowSpots(previous);
+      showToast(err instanceof Error ? err.message : 'No se pudo guardar el cambio.', 'error');
+    } finally {
+      setSavingSpots(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeletingAccount(true);
+    try {
+      await deleteAccount();
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      setDeletingAccount(false);
+      setConfirmDeleteAccount(false);
+      showToast(err instanceof Error ? err.message : 'No se pudo eliminar la cuenta.', 'error');
+    }
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl">
+      {shouldRenderToast && toast && (
+        <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-[opacity,transform] duration-200 ease-out ${
+          toastOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+        } ${
+          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-neutral-900 text-white'
+        }`}>
+          <span>{toast.msg}</span>
+        </div>
+      )}
+
       <div className="mb-6">
         <h1 className="text-2xl font-black text-neutral-900">Configuración</h1>
         <p className="text-neutral-500 text-sm mt-1">Administra tus preferencias y seguridad</p>
       </div>
 
       <div className="space-y-6">
-        {sections.map(section => {
-          const Icon = section.icon;
-          return (
-            <div key={section.title} className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-neutral-900" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-neutral-900">{section.title}</h2>
-                  <p className="text-xs text-neutral-500">{section.desc}</p>
-                </div>
+        {isTeacher && (
+          <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center">
+                <Globe className="w-5 h-5 text-neutral-900" />
               </div>
-              <div className="space-y-4">
-                {section.settings.map(s => (
-                  <div key={s.label} className="flex items-center justify-between">
-                    <span className="text-sm text-neutral-700">{s.label}</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked={s.default} className="sr-only peer" />
-                      <div className="w-10 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-transform peer-checked:bg-neutral-900" />
-                    </label>
-                  </div>
-                ))}
+              <div>
+                <h2 className="font-bold text-neutral-900">Visibilidad</h2>
+                <p className="text-xs text-neutral-500">Controla cómo apareces en el buscador</p>
               </div>
             </div>
-          );
-        })}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-700">Mostrar mi número de WhatsApp</span>
+                <label className={`relative inline-flex items-center ${savingWhatsapp ? 'cursor-wait' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    checked={showWhatsapp}
+                    disabled={savingWhatsapp}
+                    onChange={e => handleToggleWhatsapp(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-transform peer-checked:bg-neutral-900 peer-disabled:opacity-60" />
+                </label>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-700">Mostrar número de cupos disponibles</span>
+                <label className={`relative inline-flex items-center ${savingSpots ? 'cursor-wait' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    checked={showSpots}
+                    disabled={savingSpots}
+                    onChange={e => handleToggleSpots(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-transform peer-checked:bg-neutral-900 peer-disabled:opacity-60" />
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6">
           <div className="flex items-center gap-3 mb-5">
@@ -243,17 +340,36 @@ export default function ConfiguracionClient({ role }: { role: Role }) {
         {/* Danger zone */}
         <div className="bg-red-50 rounded-xl border border-red-100 p-6">
           <h2 className="font-bold text-red-700 mb-2">Zona de peligro</h2>
-          <p className="text-sm text-red-600 mb-4">Estas acciones son irreversibles. Procede con cuidado.</p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            {isTeacher && (
-              <button className="text-sm font-semibold text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors active:scale-[0.97]">
-                Eliminar todas mis clases
-              </button>
-            )}
-            <button className="text-sm font-semibold text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl transition-colors active:scale-[0.97]">
+          <p className="text-sm text-red-600 mb-4">Esta acción es irreversible. Procede con cuidado.</p>
+          {confirmDeleteAccount ? (
+            <div className="flex items-center gap-3 flex-wrap animate-fade-in">
+              <span className="text-sm font-semibold text-red-700">¿Seguro que quieres eliminar tu cuenta? Se borrará todo tu contenido.</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount}
+                  className="text-sm font-semibold text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl transition-colors active:scale-[0.97] disabled:opacity-60 flex items-center gap-2"
+                >
+                  {deletingAccount && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {deletingAccount ? 'Eliminando…' : 'Sí, eliminar mi cuenta'}
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteAccount(false)}
+                  disabled={deletingAccount}
+                  className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 px-4 py-2 rounded-xl transition-colors active:scale-[0.97] disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDeleteAccount(true)}
+              className="text-sm font-semibold text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl transition-colors active:scale-[0.97]"
+            >
               Eliminar mi cuenta
             </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

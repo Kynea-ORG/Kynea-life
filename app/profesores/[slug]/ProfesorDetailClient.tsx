@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ChevronLeft, Star, MapPin, Camera, Video, Globe, MessageCircle } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
+import { trackGenerateLead } from '@/lib/analytics';
 import type { Teacher, DanceClass } from '@/lib/types';
 
 export default function ProfesorDetailClient({
@@ -146,6 +147,7 @@ export default function ProfesorDetailClient({
                   href={`https://wa.me/${teacher.whatsapp.replace(/\s+/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackGenerateLead({ channel: 'whatsapp', teacherId: teacher.id, teacherName: teacher.name })}
                   className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20BC5A] border border-neutral-900 text-white font-bold px-5 py-2.5 rounded-btn text-sm transition-colors active:scale-[0.97]"
                 >
                   <MessageCircle className="w-4 h-4" /> WhatsApp

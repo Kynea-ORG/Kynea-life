@@ -16,6 +16,7 @@ import ContactModal from '@/components/ContactModal';
 import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
+import { trackGenerateLead } from '@/lib/analytics';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [showContact, setShowContact] = useState(false);
@@ -71,6 +72,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
+      trackGenerateLead({
+        channel: 'whatsapp', classId: cls.id, className: cls.title, classStyle: cls.style,
+        teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+      });
       setJustContacted('whatsapp');
       setTimeout(() => setJustContacted(null), 1200);
       return;
@@ -88,6 +93,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
+      trackGenerateLead({
+        channel: 'instagram', classId: cls.id, className: cls.title, classStyle: cls.style,
+        teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+      });
       setJustContacted('instagram');
       setTimeout(() => setJustContacted(null), 1200);
       return;
@@ -170,7 +179,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   Nivel {cls.level}
                 </span>
                 <span>·</span>
-                <Link href={`/profesores/${cls.teacher.id}`} className="hover:text-neutral-900 font-medium transition-colors hover:underline">
+                <Link href={`/profesores/${cls.teacher.slug}`} className="hover:text-neutral-900 font-medium transition-colors hover:underline">
                   {cls.teacher.name}
                 </Link>
                 {cls.teacher.rating && (
@@ -270,7 +279,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             <div className="hidden lg:block border border-neutral-200 rounded-xl p-6">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
               <div className="flex items-start gap-4">
-                <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
+                <Link href={`/profesores/${cls.teacher.slug}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
                       <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
@@ -282,7 +291,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   )}
                 </Link>
                 <div className="flex-1">
-                  <Link href={`/profesores/${cls.teacher.id}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
+                  <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
                   <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {cls.teacher.experience} años de experiencia</p>
@@ -364,7 +373,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       <span>Inicia {new Date(`${cls.startDate}T12:00:00`).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     </div>
                   )}
-                  {spotsLeft !== undefined && spotsLeft > 0 && (
+                  {cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
                     <div className="flex items-center gap-2.5 text-[13px] text-neutral-600">
                       <Users className="w-4 h-4 text-neutral-400 shrink-0" />
                       <span>
@@ -442,7 +451,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             <div className="lg:hidden border border-neutral-200 rounded-xl p-6 mt-6">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
               <div className="flex items-start gap-4">
-                <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
+                <Link href={`/profesores/${cls.teacher.slug}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
                       <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
@@ -454,7 +463,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   )}
                 </Link>
                 <div className="flex-1">
-                  <Link href={`/profesores/${cls.teacher.id}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
+                  <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
                   <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {cls.teacher.experience} años de experiencia</p>

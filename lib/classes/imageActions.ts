@@ -1,5 +1,6 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
+import { assertRole } from '@/lib/auth/assertRole';
 import { validateImageFile, type AllowedImageMime } from './imageValidation';
 import { publishError } from './validation';
 
@@ -16,6 +17,7 @@ export async function uploadClassImage(formData: FormData): Promise<{ url: strin
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
+  await assertRole(supabase, user.id, ['profesor', 'academia']);
 
   const file = formData.get('file');
   if (!(file instanceof File)) {

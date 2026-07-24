@@ -6,6 +6,7 @@ import { MapPin, Clock, MessageCircle, Bookmark, Users, Check } from 'lucide-rea
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { trackGenerateLead } from '@/lib/analytics';
 import ContactModal from './ContactModal';
 
 interface ClassCardProps {
@@ -36,6 +37,10 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     const mode = cls.contactMode ?? 'whatsapp';
     if ((mode === 'whatsapp' || mode === 'both') && cls.teacher.whatsapp) {
       window.open(buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp), '_blank');
+      trackGenerateLead({
+        channel: 'whatsapp', classId: cls.id, className: cls.title, classStyle: cls.style,
+        teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+      });
       setJustContacted(true);
       setTimeout(() => setJustContacted(false), 1200);
       return;
@@ -43,6 +48,10 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
     if ((mode === 'instagram' || mode === 'both') && cls.teacher.instagram) {
       const handle = cls.teacher.instagram.replace(/^@/, '');
       window.open(`https://instagram.com/${handle}`, '_blank');
+      trackGenerateLead({
+        channel: 'instagram', classId: cls.id, className: cls.title, classStyle: cls.style,
+        teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+      });
       setJustContacted(true);
       setTimeout(() => setJustContacted(false), 1200);
       return;
@@ -121,7 +130,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
               <Clock className="w-3.5 h-3.5 text-neutral-400" />
               {formatTimeSlots(cls.timeSlots).split(' | ')[0]}
             </span>
-            {!compact && spotsLeft !== undefined && spotsLeft > 0 && (
+            {!compact && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
               <span className="flex items-center gap-1.5 text-[13px] text-neutral-500">
                 <Users className="w-3.5 h-3.5 text-neutral-400" />
                 {spotsLeft} cupos disponibles

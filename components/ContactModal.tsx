@@ -13,6 +13,7 @@ function IgIcon({ className }: { className?: string }) {
 }
 import { DanceClass } from '@/lib/types';
 import { buildWhatsAppMessage } from '@/lib/utils';
+import { trackGenerateLead } from '@/lib/analytics';
 
 interface ContactModalProps {
   cls: DanceClass;
@@ -41,6 +42,10 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
 
   const [confirmed, setConfirmed] = useState(false);
   const handleContactClick = () => {
+    trackGenerateLead({
+      channel: contactType, classId: cls.id, className: cls.title, classStyle: cls.style,
+      teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+    });
     setConfirmed(true);
     handleClose();
   };
