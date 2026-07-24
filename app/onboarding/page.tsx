@@ -69,8 +69,11 @@ function OnboardingContent() {
         .single();
       if (profile?.role) {
         setRole(profile.role);
+        // Alumnos never fill onboarding fields (bio/whatsapp/years_experience), so they
+        // can't rely on that check to self-heal like profesor/academia below — a role of
+        // 'alumno' alone means onboarding is complete and they should never see this wizard.
         // Always check: if the profile is already filled, onboarding is done
-        if (profile.bio || profile.whatsapp || profile.years_experience) {
+        if (profile.role === 'alumno' || profile.bio || profile.whatsapp || profile.years_experience) {
           // Backfill the metadata flag for users who completed onboarding before
           // this enforcement was added (self-healing one-time redirect)
           await supabase.auth.updateUser({ data: { onboarding_done: true } });
