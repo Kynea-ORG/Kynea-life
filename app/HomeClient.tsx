@@ -11,7 +11,7 @@ import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import { getTypeLabel } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
-import type { DanceClass, Teacher, DbDanceStyle } from '@/lib/types';
+import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
 import type { HomeStats } from '@/lib/stats/queries';
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -54,17 +54,77 @@ const HOW_IT_WORKS = [
 ];
 
 // ── Props ─────────────────────────────────────────────────────────────────
+interface FeaturedCategory {
+  style:   DanceStyle;
+  classes: DanceClass[];
+}
+
 interface Props {
-  initialClasses:   DanceClass[];
-  salsaClasses:     DanceClass[];
-  initialTeachers:  Teacher[];
-  initialAcademias: Teacher[];
-  danceStyles:      DbDanceStyle[];
-  stats:            HomeStats;
+  initialClasses:     DanceClass[];
+  featuredCategories: FeaturedCategory[];
+  initialTeachers:    Teacher[];
+  initialAcademias:   Teacher[];
+  danceStyles:        DbDanceStyle[];
+  stats:              HomeStats;
+}
+
+// ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
+// Each row owns its own scroll ref, so this can't be inlined in a .map() —
+// hooks can't be called a variable number of times in a loop body.
+// Exported for unit testing.
+export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  if (classes.length === 0) return null;
+
+  return (
+    <section className="bg-white py-16 border-t border-neutral-100">
+      <div className="max-w-[1200px] mx-auto px-6">
+        <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+          <div>
+            <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">{style}</h2>
+            <p className="text-neutral-500 text-[15px] mt-1">Las clases de {style} más populares</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href={`/clases?style=${encodeURIComponent(style)}`} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+              Ver todas →
+            </Link>
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                onClick={() => scrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                aria-label="Anterior"
+              >
+                <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
+              </button>
+              <button
+                onClick={() => scrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                aria-label="Siguiente"
+              >
+                <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto pb-3 pt-1"
+          style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+        >
+          {classes.map(cls => (
+            <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
+              <ClassCard cls={cls} compact />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ initialClasses, salsaClasses, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
+export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
 
@@ -118,9 +178,6 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
 
   // ── Teachers carousel ──
   const teachersScrollRef = useRef<HTMLDivElement>(null);
-
-  // ── Salsa category carousel ──
-  const salsaScrollRef = useRef<HTMLDivElement>(null);
 
   // ── Carousel auto-scroll ──
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -438,52 +495,10 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
         </div>
       </section>
 
-      {/* ── CATEGORÍA DESTACADA: SALSA ── */}
-      {salsaClasses.length > 0 && (
-        <section className="bg-white py-16 border-t border-neutral-100">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
-              <div>
-                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Salsa</h2>
-                <p className="text-neutral-500 text-[15px] mt-1">Las clases de salsa más populares</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Link href="/clases?style=Salsa" className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
-                  Ver todas →
-                </Link>
-                <div className="hidden sm:flex items-center gap-2">
-                  <button
-                    onClick={() => salsaScrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
-                    aria-label="Anterior"
-                  >
-                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
-                  </button>
-                  <button
-                    onClick={() => salsaScrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
-                    aria-label="Siguiente"
-                  >
-                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div
-              ref={salsaScrollRef}
-              className="flex gap-4 overflow-x-auto pb-3 pt-1"
-              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
-            >
-              {salsaClasses.map(cls => (
-                <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-                  <ClassCard cls={cls} compact />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* ── CATEGORÍAS DESTACADAS (Heels, Contemporáneo, …) ── */}
+      {featuredCategories.map((cat, i) => (
+        <FeaturedCategoryRow key={`${cat.style}-${i}`} style={cat.style} classes={cat.classes} />
+      ))}
 
       {/* ── PROFESORES DESTACADOS ── */}
       {initialTeachers.length > 0 && (
