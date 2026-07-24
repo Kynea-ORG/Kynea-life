@@ -35,13 +35,16 @@ export const PROFILE_SELECT = `
   profile_styles(style_id, dance_styles(name))
 `;
 
-export async function fetchFeaturedProfiles(role: 'profesor' | 'academia', limit = 4): Promise<Teacher[]> {
+export async function fetchFeaturedProfiles(role: 'profesor' | 'academia', limit?: number): Promise<Teacher[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('profiles')
     .select(PROFILE_SELECT)
-    .eq('role', role)
-    .limit(limit);
+    .eq('role', role);
+  // No limit = every profile with this role — used by the "/profesores"
+  // directory page, which must list everyone, not just a Home-page preview.
+  if (limit !== undefined) query = query.limit(limit);
+  const { data, error } = await query;
   if (error) {
     console.error('fetchFeaturedProfiles error:', error.message);
     return [];
