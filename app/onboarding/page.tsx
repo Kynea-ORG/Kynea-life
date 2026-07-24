@@ -9,6 +9,7 @@ import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
+import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import AlumnoWelcome from './AlumnoWelcome';
 
 const STEPS = [
@@ -47,6 +48,7 @@ function OnboardingContent() {
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
 
   const set = (key: keyof typeof form, val: unknown) => setForm(f => ({ ...f, [key]: val }));
 
@@ -146,9 +148,10 @@ function OnboardingContent() {
     }
     setError('');
     setStep(s => s + 1);
+    shift();
   }
 
-  const back = () => { setError(''); setStep(s => s - 1); };
+  const back = () => { setError(''); setStep(s => s - 1); shift(); };
 
   async function handleFinish() {
     for (let s = 0; s <= 2; s++) {
@@ -165,6 +168,7 @@ function OnboardingContent() {
     }
     setLoading(true);
     setError('');
+    shift();
     try {
       const supabase = createClient();
       // Persist representante in user metadata for academia accounts (no DB column needed)
@@ -210,8 +214,13 @@ function OnboardingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-xl animate-fade-in">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-12">
+      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
+        <div key={revealId} style={revealStyle} />
+      </div>
+
+      <div className="relative z-10 w-full max-w-xl animate-fade-in">
         {/* Logo */}
         <div className="flex items-center gap-2 justify-center mb-8">
           <Image src="/logo.png" alt="Kynea" width={100} height={32} />

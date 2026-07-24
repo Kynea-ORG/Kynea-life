@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Sparkles, Compass, MessageCircle, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 
 // Pure intro carousel — no data is collected here, just a quick tour of what
 // Kynea offers before dropping the student into /clases. See the profesor/
@@ -31,6 +32,7 @@ export default function AlumnoWelcome() {
   const [slide, setSlide] = useState(0);
   const [loading, setLoading] = useState(false);
   const isLast = slide === SLIDES.length - 1;
+  const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
 
   async function finish() {
     setLoading(true);
@@ -44,15 +46,20 @@ export default function AlumnoWelcome() {
   const { icon: Icon, title, description } = SLIDES[slide];
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md animate-fade-in">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-12">
+      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
+        <div key={revealId} style={revealStyle} />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md animate-fade-in">
         <div className="flex items-center justify-between mb-8">
           <Image src="/logo.png" alt="Kynea" width={90} height={29} />
           <button
             type="button"
-            onClick={finish}
+            onClick={() => { finish(); shift(); }}
             disabled={loading}
-            className="text-sm font-semibold text-neutral-400 hover:text-neutral-600 transition-colors disabled:opacity-50"
+            className="text-sm font-semibold text-neutral-700 hover:text-neutral-900 transition-colors disabled:opacity-50"
           >
             Omitir
           </button>
@@ -80,7 +87,7 @@ export default function AlumnoWelcome() {
 
           <button
             type="button"
-            onClick={() => (isLast ? finish() : setSlide(s => s + 1))}
+            onClick={() => { if (isLast) { finish(); } else { setSlide(s => s + 1); } shift(); }}
             disabled={loading}
             className="btn-dark w-full flex items-center justify-center gap-2 disabled:opacity-60"
           >
