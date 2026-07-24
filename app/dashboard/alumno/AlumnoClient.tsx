@@ -44,8 +44,8 @@ export default function AlumnoClient({
         <h2 className="text-[17px] font-bold text-neutral-900 mb-4">Clases guardadas</h2>
 
         {savedClasses.length === 0 ? (
-          <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-10 text-center">
-            <Bookmark className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
+          <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-10 text-center animate-fade-in">
+            <Bookmark className="w-10 h-10 text-neutral-300 mx-auto mb-3 animate-pop" />
             <p className="font-semibold text-neutral-700 mb-1">Sin clases guardadas aún</p>
             <p className="text-sm text-neutral-500 mb-5">
               Explora clases y presiona el botón &ldquo;Guardar clase&rdquo; para encontrarlas aquí.

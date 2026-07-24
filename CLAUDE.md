@@ -66,7 +66,7 @@ Feature-sliced under `lib/`, not a single flat `queries`/`actions` pair:
 | `lib/supabase/client.ts` | Browser Supabase client (Client Components) |
 | `lib/types.ts` | Shared domain types |
 | `lib/auth/actions.ts`, `lib/auth/redirectByRole.ts` | `'use server'` auth mutations + post-login/onboarding redirect by profile role |
-| `lib/catalog/queries.ts`, `lib/catalog/lookups.ts` | Read queries + lookup helpers for `dance_styles` / `class_levels` / `districts` |
+| `lib/catalog/queries.ts`, `lib/catalog/lookups.ts` | Read queries + lookup helpers for `dance_styles` / `class_levels` |
 | `lib/classes/queries.ts`, `lib/classes/actions.ts`, `lib/classes/helpers.ts`, `lib/classes/types.ts` | Class read queries, `'use server'` mutations (create/update/delete), helpers, and class-specific types |
 | `lib/profiles/queries.ts`, `lib/profiles/actions.ts` | Profile read queries + `'use server'` mutations |
 | `lib/stats/queries.ts` | Dashboard/stats read queries |
@@ -89,7 +89,7 @@ OAuth/email confirm redirect: `app/auth/callback/route.ts`. After registration, 
 
 ### Supabase schema
 
-Ten tables: catalog reference data (`dance_styles`, `class_levels`, `districts`), `profiles` (extends `auth.users`) + `profile_styles`, `venues`, `classes` + `class_styles` + `class_schedules`, and `saved_classes` (bookmarks). RLS is enabled on all tables: published classes are publicly readable; teachers can only manage their own classes. Storage bucket `class-images` is public-read; upload path must be `<user-id>/...`.
+Nine tables: catalog reference data (`dance_styles`, `class_levels`), `profiles` (extends `auth.users`) + `profile_styles`, `venues`, `classes` + `class_styles` + `class_schedules`, and `saved_classes` (bookmarks). `venues.city`/`venues.district` are free text, populated from Google Places `addressComponents` when a teacher picks an address in Crear Clase — not a curated lookup table. RLS is enabled on all tables: published classes are publicly readable; teachers can only manage their own classes. Storage bucket `class-images` is public-read; upload path must be `<user-id>/...`.
 
 SQL schema: versioned migration files under `supabase/migrations/`, applied via `supabase db push` (Supabase CLI). Two projects exist: a disposable `kynea-dev` for testing migrations, and the shared production project. `npm run db:link:dev` / `db:link:prod` switch which one the CLI is linked to; `npm run db:push` applies pending migrations to whichever is currently linked. Pushing to production is also automated via CI on merge to `main`, gated behind a required-reviewer approval on the `supabase-production` GitHub Environment — never push to production directly unless that pipeline is down.
 
@@ -112,3 +112,9 @@ Actualmente el onboarding de `profesor` y `academia` recoge exactamente los mism
 - **Número de profesores** — tamaño del equipo docente
 
 Implementación sugerida: en `app/onboarding/page.tsx`, detectar `form.profileType === 'academia'` (o leer el rol del perfil) y mostrar un paso extra o campos adicionales en el paso "Datos públicos". Guardar estos valores en columnas nuevas de `profiles` (requiere migración SQL) o en `raw_user_meta_data` como solución temporal sin migración.
+
+### TODO: Revisar `color-scheme: light` forzado cuando exista modo dark (u otros temas)
+
+`app/globals.css` fuerza `color-scheme: light` en `html` y específicamente en `gmp-place-autocomplete` (el widget de Google Places en Crear Clase). Se agregó porque Kynea hoy solo tiene tema claro — sin esto, un profesor con su SO/navegador en modo oscuro ve el widget de dirección como una barra negra rota, ya que el componente de Google evalúa `prefers-color-scheme` en su propio shadow DOM.
+
+Si Kynea llega a implementar modo dark (u otros temas) en el futuro, esto hay que revisitarlo: el `color-scheme: light` habría que hacerlo condicional al tema activo en vez de fijo, y el selector `gmp-place-autocomplete { color-scheme: light }` debería pasar a `color-scheme: light dark` (o el valor que corresponda) para que el widget de Google siga el tema real de la app en vez de quedar forzado a claro siempre.

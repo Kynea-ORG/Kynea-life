@@ -13,12 +13,25 @@ export type { ClassFilters };
 // day_of_week: 0 = Lunes ... 6 = Domingo (ISO/Peru convention)
 const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
+// footwear/requirements moved from single-value text to multi-select text[]
+// via migration 21 — normalizes either shape so reads never crash whether or
+// not that migration has been applied to the connected database yet.
+function toStringArray(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) return value.length ? value : undefined;
+  if (typeof value === 'string' && value) return [value];
+  return undefined;
+}
+
 function schedulesToTimeSlots(schedules: DbClassRow['class_schedules']): TimeSlot[] {
   const groups = new Map<string, { days: string[]; startTime: string; endTime: string }>();
   for (const s of (schedules ?? [])) {
     const key = `${s.start_time}|${s.end_time}`;
     if (!groups.has(key)) groups.set(key, { days: [], startTime: s.start_time, endTime: s.end_time });
-    groups.get(key)!.days.push(DAY_NAMES[s.day_of_week] ?? '');
+    const day = DAY_NAMES[s.day_of_week] ?? '';
+    // Duplicate class_schedules rows (same day + same time) can exist from
+    // legacy inserts — never surface the same day twice for a given slot.
+    const group = groups.get(key)!;
+    if (day && !group.days.includes(day)) group.days.push(day);
   }
   return Array.from(groups.values());
 }
@@ -46,9 +59,10 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     fullDescription:  row.full_description ?? '',
     whatYouLearn:     row.what_you_learn ?? [],
     forWhom:          row.for_whom ?? undefined,
-    requirements:     row.requirements ?? undefined,
+    requirements:     toStringArray(row.requirements),
     startDate:        row.start_date ?? '',
     endDate:          row.end_date ?? undefined,
+    recurrence:       row.recurrence ?? 'mensual',
     timeSlots:        schedulesToTimeSlots(row.class_schedules ?? []),
     priceType:        row.price_type as PriceType,
     price:            Number(row.price ?? 0),
@@ -58,8 +72,8 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     availableSpots:   row.available_spots ?? undefined,
     isTrialFree:      row.is_trial_free ?? undefined,
     modality:         row.modality as Modality,
-    city:             venue?.district?.city ?? '',
-    district:         venue?.district?.name ?? '',
+    city:             venue?.city ?? '',
+    district:         venue?.district ?? '',
     venueName:        venue?.name ?? undefined,
     address:          venue?.address ?? undefined,
     reference:        venue?.reference ?? undefined,
@@ -70,9 +84,11 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     platform:         row.platform ?? undefined,
     accessLink:       row.access_link ?? undefined,
     coverImage:       row.cover_image ?? '',
+    coverImagePosition: row.cover_image_position || '50% 50%',
+    coverImageZoom:   row.cover_image_zoom ?? 1,
     gallery:          row.gallery ?? [],
     videoUrl:         row.video_url ?? undefined,
-    footwear:         row.footwear ?? undefined,
+    footwear:         toStringArray(row.footwear),
     clothing:         row.clothing ?? undefined,
     toBring:          row.to_bring ?? [],
     ageGroup:         row.age_group ?? undefined,
@@ -96,11 +112,10 @@ export const CLASS_SELECT = `
   level:class_levels(id, name),
   class_styles(style_id, is_main, dance_styles(id, name)),
   class_schedules(id, day_of_week, start_time, end_time),
-  venue:venues(name, address, reference, maps_url, place_id, lat, lng, district:districts(name, city)),
+  venue:venues(name, address, reference, maps_url, place_id, lat, lng, city, district),
   teacher:profiles!teacher_id(
-    id, name, role, photo_url, bio, years_experience,
+    id, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
     whatsapp, instagram, tiktok, youtube, website,
-    district:districts(name, city),
     profile_styles(style_id, dance_styles(name))
   )
 `;
@@ -148,12 +163,8 @@ async function resolveCityVenueIds(
   city: string | undefined
 ): Promise<string[] | null> {
   if (!city) return null;
-  const { data: districtRows } = await supabase
-    .from('districts').select('id').eq('city', city);
-  const districtIds = (districtRows ?? []).map((r: { id: number }) => r.id);
-  if (!districtIds.length) return [];
   const { data } = await supabase
-    .from('venues').select('id').in('district_id', districtIds);
+    .from('venues').select('id').eq('city', city);
   return (data ?? []).map((r: { id: string }) => r.id);
 }
 

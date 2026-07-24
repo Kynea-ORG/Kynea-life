@@ -27,7 +27,7 @@ function AuthErrorBannerInner() {
   }
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-md">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-md animate-fade-in">
       <div className="bg-white border border-red-200 shadow-lg rounded-xl p-4 flex items-start gap-3">
         <div className="w-9 h-9 rounded-lg bg-red-bg flex items-center justify-center shrink-0">
           <AlertCircle className="w-5 h-5 text-red-600" />
@@ -52,7 +52,7 @@ function AuthErrorBannerInner() {
             </Link>
           </div>
         </div>
-        <button onClick={dismiss} className="p-1 text-neutral-400 hover:text-neutral-700 transition-colors shrink-0">
+        <button onClick={dismiss} className="p-1 text-neutral-400 hover:text-neutral-700 transition-colors active:scale-90 shrink-0">
           <X className="w-4 h-4" />
         </button>
       </div>

@@ -2,17 +2,18 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Save,
   Upload, MapPin, Monitor, Loader2, X,
 } from 'lucide-react';
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
 import { uploadClassImage } from '@/lib/classes/imageActions';
+import ImagePositionPicker from '@/components/ImagePositionPicker';
+import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import {
   MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
 } from '@/lib/classes/validation';
-import type { DanceClass, DbDistrict } from '@/lib/types';
+import type { DanceClass } from '@/lib/types';
 
 // Maps a validator field name to the wizard step where it's editable, so a
 // blocked publish attempt can jump the user straight to the offending step.
@@ -29,19 +30,34 @@ const FIELD_STEP: Record<string, number> = {
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+interface GoogleAddressComponent { longText?: string; shortText?: string; types: string[] }
+
 interface GooglePlaceResult {
   placeId?: string;
   formattedAddress?: string;
   displayName?: string;
   location?: { lat: () => number; lng: () => number } | null;
+  addressComponents?: GoogleAddressComponent[];
   fetchFields: (opts: { fields: string[] }) => Promise<void>;
+}
+
+// Peru's UBIGEO hierarchy doesn't map 1:1 to Google's generic admin-boundary
+// types, but this is the closest stable match: provincia ~ administrative_area_level_2
+// (falls back to level_1 — departamento — when Google has no finer data for a
+// place), distrito ~ locality (falls back to sublocality for edge cases where
+// Google files it one level down).
+function extractCityDistrict(components: GoogleAddressComponent[]): { city: string; district: string } {
+  const find = (type: string) => components.find(c => c.types.includes(type))?.longText ?? '';
+  const city = find('administrative_area_level_2') || find('administrative_area_level_1');
+  const district = find('locality') || find('sublocality') || find('sublocality_level_1');
+  return { city, district };
 }
 
 interface GmpSelectEvent extends Event {
   placePrediction: { toPlace: () => GooglePlaceResult };
 }
 
-type PlaceAutocompleteElementInstance = HTMLElement;
+type PlaceAutocompleteElementInstance = HTMLElement & { value?: string };
 
 interface GoogleMapsPlacesLibrary {
   PlaceAutocompleteElement: new () => PlaceAutocompleteElementInstance;
@@ -57,34 +73,68 @@ declare global {
 
 let mapsScriptPromise: Promise<void> | null = null;
 
+// `google.maps.importLibrary` isn't attached synchronously when the bootstrap
+// <script> fires `onload` — Google's loader defines `google.maps` as an empty
+// stub immediately, then loads a second internal script that attaches
+// `importLibrary` moments later. Waiting on `onload` alone races that second
+// load and reliably loses (~500ms), leaving `importLibrary` undefined even
+// though the script "loaded" successfully.
+function waitForImportLibrary(timeoutMs = 8000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      if (typeof window.google?.maps?.importLibrary === 'function') { resolve(); return; }
+      if (Date.now() - start > timeoutMs) { reject(new Error('Google Maps no terminó de cargar')); return; }
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
-  if (window.google?.maps) return Promise.resolve();
+  if (typeof window.google?.maps?.importLibrary === 'function') return Promise.resolve();
   if (mapsScriptPromise) return mapsScriptPromise;
   mapsScriptPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`;
     script.async = true;
-    script.onload = () => resolve();
+    script.onload = () => waitForImportLibrary().then(resolve, reject);
     script.onerror = () => reject(new Error('No se pudo cargar Google Maps'));
     document.head.appendChild(script);
   });
   return mapsScriptPromise;
 }
 
-interface PlaceSelection { address: string; placeId: string; lat: number; lng: number }
+interface PlaceSelection { address: string; placeId: string; lat: number; lng: number; city: string; district: string }
 
 function PlacesAddressField({
-  value, onManualChange, onPlaceSelect, placeholder,
+  value, onManualChange, onPlaceSelect, placeholder, onFallbackChange,
 }: {
   value: string;
   onManualChange: (v: string) => void;
   onPlaceSelect: (selection: PlaceSelection) => void;
   placeholder: string;
+  // Called with `true` once we know the address field is running in plain-
+  // <input> mode (no API key, or the script/widget failed to load) — the
+  // parent uses this to show manual Ciudad/Distrito inputs, since in that
+  // mode nothing else can populate them (see extractCityDistrict — those
+  // values normally only ever come from a selected Google prediction).
+  onFallbackChange?: (fallback: boolean) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onPlaceSelectRef = useRef(onPlaceSelect);
   useEffect(() => { onPlaceSelectRef.current = onPlaceSelect; }, [onPlaceSelect]);
+  const placeholderRef = useRef(placeholder);
+  useEffect(() => { placeholderRef.current = placeholder; }, [placeholder]);
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; }, [value]);
+  const [initFailed, setInitFailed] = useState(false);
+
+  useEffect(() => {
+    onFallbackChange?.(!GOOGLE_MAPS_API_KEY || initFailed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initFailed]);
 
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY) return;
@@ -99,19 +149,49 @@ function PlacesAddressField({
         const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
         if (cancelled) return;
         element = new PlaceAutocompleteElement();
+        element.setAttribute('placeholder', placeholderRef.current);
+        // Uncontrolled Web Component: unlike a plain <input>, it doesn't read
+        // React's `value` prop, so when editing an existing class its address
+        // rendered blank even though `form.address` still held the real value.
+        // Pre-fill the widget's own internal text with the value it had at
+        // mount (edit mode) so it doesn't look reset until the user searches.
+        if (valueRef.current) element.value = valueRef.current;
+        // Google's own leading icon (#5e5e5e) is darker than the rest of the
+        // app's inputs — projected via its `input-icon` slot, so swap it for
+        // the same lucide "search" glyph + neutral-400 used everywhere else
+        // an input has a leading search icon (see ClasesContent.tsx, HomeClient.tsx).
+        const icon = document.createElement('span');
+        icon.setAttribute('slot', 'input-icon');
+        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>';
+        icon.style.color = 'var(--color-neutral-400)';
+        icon.style.display = 'flex';
+        element.appendChild(icon);
         container.appendChild(element);
         element.addEventListener('gmp-select', (async (event: Event) => {
           const place = (event as GmpSelectEvent).placePrediction.toPlace();
-          await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+          await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'addressComponents'] });
+          const { city, district } = extractCityDistrict(place.addressComponents ?? []);
           onPlaceSelectRef.current({
             address: place.formattedAddress ?? '',
             placeId: place.placeId ?? '',
             lat: place.location ? place.location.lat() : 0,
             lng: place.location ? place.location.lng() : 0,
+            city,
+            district,
           });
         }) as EventListener);
+        // The script can load fine while every actual prediction request
+        // still fails at runtime (e.g. the API key's referrer restrictions
+        // don't cover the current domain) — that doesn't throw here or fire
+        // script.onerror, it just logs and emits 'gmp-error' per keystroke
+        // while silently never producing a selectable prediction. Treat it
+        // the same as a load failure: drop to the manual-input fallback.
+        element.addEventListener('gmp-error', () => {
+          if (!cancelled) setInitFailed(true);
+        });
       } catch (err) {
         console.error('[PlacesAddressField] Google Maps init failed', err);
+        if (!cancelled) setInitFailed(true);
       }
     })();
 
@@ -123,7 +203,7 @@ function PlacesAddressField({
     };
   }, []);
 
-  if (!GOOGLE_MAPS_API_KEY) {
+  if (!GOOGLE_MAPS_API_KEY || initFailed) {
     return (
       <input className="input" value={value} onChange={e => onManualChange(e.target.value)} placeholder={placeholder} />
     );
@@ -144,13 +224,6 @@ const STEPS = [
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: string; endTime: string };
-
-// Same rule as dbRowToValidationInput (lib/classes/validation.ts): more than
-// one weekday, or more than one slot, means a recurring ("mensual") schedule.
-function deriveRecurrence(editClass: DanceClass): 'unica' | 'mensual' {
-  const totalDays = editClass.timeSlots?.reduce((sum, s) => sum + s.days.length, 0) ?? 0;
-  return totalDays > 1 || (editClass.timeSlots?.length ?? 0) > 1 ? 'mensual' : 'unica';
-}
 
 function buildInitialForm(editClass: DanceClass | null) {
   if (!editClass) {
@@ -174,6 +247,7 @@ function buildInitialForm(editClass: DanceClass | null) {
       city: 'Lima',
       district: '',
       address: '',
+      venueName: '',
       reference: '',
       mapsUrl: '',
       placeId: '',
@@ -182,9 +256,9 @@ function buildInitialForm(editClass: DanceClass | null) {
       platform: '',
       accessLink: '',
       videoUrl: '',
-      footwear: '',
+      footwear: [] as string[],
       clothing: '',
-      prerequisites: '',
+      prerequisites: [] as string[],
       ageGroup: '',
       toBring: [] as string[],
       status: 'draft',
@@ -199,7 +273,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     fullDesc: editClass.fullDescription ?? '',
     startDate: editClass.startDate ?? '',
     endDate: editClass.endDate ?? '',
-    recurrence: deriveRecurrence(editClass),
+    recurrence: editClass.recurrence ?? 'mensual',
     priceType: editClass.priceType ?? 'Mensual',
     price: editClass.price ? String(editClass.price) : '',
     offerPrice: editClass.offerPrice ? String(editClass.offerPrice) : '',
@@ -210,6 +284,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     city: editClass.city ?? 'Lima',
     district: editClass.district ?? '',
     address: editClass.address ?? '',
+    venueName: editClass.venueName ?? '',
     reference: editClass.reference ?? '',
     mapsUrl: editClass.mapsUrl ?? '',
     placeId: editClass.placeId ?? '',
@@ -218,9 +293,9 @@ function buildInitialForm(editClass: DanceClass | null) {
     platform: editClass.platform ?? '',
     accessLink: editClass.accessLink ?? '',
     videoUrl: editClass.videoUrl ?? '',
-    footwear: editClass.footwear ?? '',
+    footwear: editClass.footwear ?? [],
     clothing: editClass.clothing ?? '',
-    prerequisites: editClass.requirements ?? '',
+    prerequisites: editClass.requirements ?? [],
     ageGroup: editClass.ageGroup ?? '',
     toBring: editClass.toBring ?? [],
     status: editClass.status ?? 'draft',
@@ -241,10 +316,8 @@ function SegmentedProgress({ step }: { step: number }) {
               i === step ? 'text-neutral-900' : i < step ? 'text-neutral-400' : 'text-neutral-300'
             }`}
           >
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 transition-all ${
-              i < step  ? 'bg-neutral-900 text-white' :
-              i === step ? 'bg-neutral-900 text-white' :
-              'bg-neutral-200 text-neutral-400'
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 transition-colors ${
+              i <= step ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-400'
             }`}>
               {i < step ? '✓' : i + 1}
             </span>
@@ -260,8 +333,8 @@ function SegmentedProgress({ step }: { step: number }) {
         {STEPS.map((_, i) => (
           <div
             key={i}
-            className={`flex-1 h-2 rounded-full transition-all duration-300 ${
-              i <= step ? 'bg-neutral-900' : 'bg-neutral-100'
+            className={`flex-1 h-2 rounded-full transition-colors duration-300 ${
+              i <= step ? 'bg-primary' : 'bg-neutral-100'
             }`}
           />
         ))}
@@ -278,12 +351,12 @@ function Pill({ active, onClick, disabled, badge, children }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full px-4 py-2 border-2 text-sm font-semibold transition-all inline-flex items-center gap-1.5 ${
+      className={`rounded-full px-4 py-2 border text-sm font-semibold transition-[background-color,color] inline-flex items-center gap-1.5 ${
         disabled
           ? 'border-neutral-100 text-neutral-300 cursor-not-allowed opacity-60'
           : active
-            ? 'bg-neutral-900 text-white border-neutral-900'
-            : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+            ? 'bg-primary text-white border-neutral-900'
+            : 'border-neutral-900 text-neutral-600 hover:bg-neutral-50'
       }`}
     >
       {children}
@@ -319,19 +392,24 @@ interface Props {
   editClass: DanceClass | null;
   danceStyles: string[];
   levels: string[];
-  allDistricts: DbDistrict[];
 }
 
-export default function CrearClaseForm({ classId, editClass, danceStyles, levels, allDistricts }: Props) {
+export default function CrearClaseForm({ classId, editClass, danceStyles, levels }: Props) {
   useRouter();
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [contactGateError, setContactGateError] = useState<{ message: string; href: string } | null>(null);
+  // Starts optimistic (assumes Google will load) — PlacesAddressField flips
+  // this via onFallbackChange as soon as it knows better (synchronously for
+  // "no API key", async for "script/widget failed to load").
+  const [addressFallback, setAddressFallback] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [coverImageUrl, setCoverImageUrl] = useState(() => editClass?.coverImage ?? '');
+  const [coverImagePosition, setCoverImagePosition] = useState(() => editClass?.coverImagePosition ?? '50% 50%');
+  const [coverImageZoom, setCoverImageZoom] = useState(() => editClass?.coverImageZoom ?? 1);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
@@ -347,21 +425,30 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   const set = (k: keyof typeof form, v: unknown) => setForm(f => ({ ...f, [k]: v }));
 
-  const CITIES = [...new Set(allDistricts.map(d => d.city))].sort();
-  const districtsByCity = allDistricts.filter(d => d.city === form.city);
-
   const handleFileSelect = async (file: File) => {
     if (!file) return;
     // Fast client-side UX hint only — the server is the authoritative check
     // (re-validates size + MIME + magic bytes independently).
     if (file.size > 5 * 1024 * 1024) { setUploadError('Imagen mayor a 5MB'); return; }
     setUploadError('');
+    try {
+      const { width, height } = await getImageDimensions(file);
+      if (Math.min(width, height) < MIN_IMAGE_DIMENSION) {
+        setUploadError(`La imagen es muy pequeña (${width}×${height}px). Sube una de al menos ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION}px para que se vea bien en las tarjetas.`);
+        return;
+      }
+    } catch {
+      setUploadError('No se pudo leer la imagen. Intenta con otro archivo.');
+      return;
+    }
     setUploadingImage(true);
     try {
       const fd = new FormData();
       fd.set('file', file);
       const { url } = await uploadClassImage(fd);
       setCoverImageUrl(url);
+      setCoverImagePosition('50% 50%');
+      setCoverImageZoom(1);
     } catch (err) {
       const payload = parsePublishError(err);
       if (payload?.code === 'INVALID_IMAGE') {
@@ -416,15 +503,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('city', form.city);
         fd.set('district', form.district);
         fd.set('address', form.address);
+        fd.set('venueName', form.venueName);
         fd.set('reference', form.reference);
         fd.set('placeId', form.placeId);
         fd.set('lat', form.lat);
         fd.set('lng', form.lng);
         fd.set('platform', form.platform);
         fd.set('accessLink', form.accessLink);
-        fd.set('footwear', form.footwear);
+        fd.set('footwear', JSON.stringify(form.footwear));
         fd.set('clothing', form.clothing);
-        fd.set('prerequisites', form.prerequisites);
+        fd.set('prerequisites', JSON.stringify(form.prerequisites));
         fd.set('ageGroup', form.ageGroup);
         fd.set('contactMode', form.contactMode);
         const finalToBring = form.toBring.map(x =>
@@ -433,6 +521,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('toBring', JSON.stringify(finalToBring));
         fd.set('timeSlots', JSON.stringify(slots));
         if (coverImageUrl) fd.set('coverImage', coverImageUrl);
+        if (coverImageUrl) fd.set('coverImagePosition', coverImagePosition);
+        if (coverImageUrl) fd.set('coverImageZoom', String(coverImageZoom));
 
         // Draft saves stay permissive — only publish attempts are gated.
         if (status === 'published') {
@@ -493,8 +583,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { value: 'evento', label: 'Evento', desc: 'Varios días seguidos', emoji: '🔥' },
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('type', opt.value)}
-              className={`text-left p-4 rounded-xl border-2 transition-all ${
-                form.type === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+              className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] ${
+                form.type === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
               }`}>
               <p className="text-xl mb-1">{opt.emoji}</p>
               <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
@@ -560,12 +650,25 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         />
 
         {coverImageUrl ? (
-          <div className="relative rounded-xl overflow-hidden border border-neutral-200 h-48">
-            <Image src={coverImageUrl} alt="Portada" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
+          <div className="relative rounded-xl overflow-hidden border border-neutral-200">
+            <ImagePositionPicker
+              src={coverImageUrl}
+              value={coverImagePosition}
+              onChange={setCoverImagePosition}
+              zoom={coverImageZoom}
+              onZoomChange={setCoverImageZoom}
+              frameClassName="w-full h-48"
+              sizes="(max-width: 768px) 100vw, 600px"
+            />
             <button
               type="button"
-              onClick={() => { setCoverImageUrl(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors"
+              onClick={() => {
+                setCoverImageUrl('');
+                setCoverImagePosition('50% 50%');
+                setCoverImageZoom(1);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors active:scale-90 z-10"
             >
               <X className="w-4 h-4" />
             </button>
@@ -587,8 +690,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </div>
         )}
 
-        {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
-        {fieldErrors.coverImage && <p className="text-xs text-red-600 mt-1">{fieldErrors.coverImage}</p>}
+        {uploadError && <p className="text-xs text-red-600 mt-1 animate-fade-in">{uploadError}</p>}
+        {fieldErrors.coverImage && <p className="text-xs text-red-600 mt-1 animate-fade-in">{fieldErrors.coverImage}</p>}
         <Hint>Recomendado: 1200×630 px, formato JPG o PNG</Hint>
       </div>
     </div>
@@ -613,7 +716,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { value: 'personalizado', label: 'Personalizado', disabled: true, badge: 'Próximamente' },
           ].map(opt => (
             <Pill key={opt.value} active={form.recurrence === opt.value} disabled={opt.disabled} badge={opt.badge} onClick={() => {
-              if (opt.disabled) return;
+              if (opt.disabled || form.recurrence === opt.value) return;
               set('recurrence', opt.value);
               setSlots([{ days: [], startTime: '19:00', endTime: '20:30' }]);
             }}>
@@ -630,7 +733,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <div>
               <FieldLabel>Fecha de la clase</FieldLabel>
               <input type="date" className="input" value={form.startDate}
-                onChange={e => { set('startDate', e.target.value); set('endDate', e.target.value); }} />
+                onChange={e => {
+                  set('startDate', e.target.value);
+                  set('endDate', e.target.value);
+                  // A "clase única" has no day picker — day_of_week is always
+                  // derived from this date server-side. But `slots[0].days` is
+                  // pre-populated from the class's existing schedule when
+                  // editing, so without clearing it here the server keeps
+                  // upserting the OLD weekday (only start/end time update).
+                  updateSlot(0, 'days', []);
+                }} />
               {fieldErrors.startDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.startDate}</p>}
             </div>
             <div>
@@ -678,39 +790,60 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               {fieldErrors.endDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.endDate}</p>}
             </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-neutral-500 mb-2">Días de la semana</p>
-            <div className="flex flex-wrap gap-1.5">
-              {DAYS.map(d => (
-                <button key={d} type="button" onClick={() => toggleSlotDay(0, d)}
-                  className={`text-xs px-2.5 py-1.5 rounded-full border-2 font-semibold transition-colors ${
-                    slots[0].days.includes(d) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
-                  }`}>
-                  {d.slice(0, 3)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Hora inicio</FieldLabel>
-              <input type="time" className="input" value={slots[0].startTime}
-                onChange={e => updateSlot(0, 'startTime', e.target.value)} />
-            </div>
-            <div>
-              <FieldLabel>Hora fin</FieldLabel>
-              <input type="time" className="input" value={slots[0].endTime}
-                onChange={e => updateSlot(0, 'endTime', e.target.value)} />
-            </div>
-          </div>
-          {(slots[0].days.length > 0 || form.startDate) && (
+          {(form.startDate || form.endDate) && (
             <div className="text-xs text-neutral-600 bg-white px-3 py-2.5 rounded-lg border border-neutral-200">
               Desde <span className="font-semibold">{form.startDate || '—'}</span> hasta{' '}
               <span className="font-semibold">{form.endDate || '—'}</span>
-              {slots[0].days.length > 0 && <>, los <span className="font-semibold">{slots[0].days.join(', ')}</span></>}
-              {' '}de {slots[0].startTime} a {slots[0].endTime}
             </div>
           )}
+          <div className="space-y-4">
+            {slots.map((slot, i) => (
+              <div key={i} className="border border-neutral-200 rounded-xl p-4 space-y-4 bg-neutral-50/50">
+                {slots.length > 1 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-neutral-700">Horario {i + 1}</p>
+                    <button type="button" onClick={() => removeSlot(i)} className="text-neutral-400 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-semibold text-neutral-500 mb-2">Días de la semana</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DAYS.map(d => (
+                      <button key={d} type="button" onClick={() => toggleSlotDay(i, d)}
+                        className={`text-xs px-2.5 py-1.5 rounded-full border-2 font-semibold transition-colors ${
+                          slot.days.includes(d) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                        }`}>
+                        {d.slice(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <FieldLabel>Hora inicio</FieldLabel>
+                    <input type="time" className="input" value={slot.startTime}
+                      onChange={e => updateSlot(i, 'startTime', e.target.value)} />
+                  </div>
+                  <div>
+                    <FieldLabel>Hora fin</FieldLabel>
+                    <input type="time" className="input" value={slot.endTime}
+                      onChange={e => updateSlot(i, 'endTime', e.target.value)} />
+                  </div>
+                </div>
+                {slot.days.length > 0 && (
+                  <p className="text-xs text-neutral-600 bg-white px-3 py-2.5 rounded-lg border border-neutral-200">
+                    Los <span className="font-semibold">{slot.days.join(', ')}</span> de {slot.startTime} a {slot.endTime}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={addSlot}
+            className="flex items-center gap-1.5 text-xs text-neutral-900 font-semibold hover:bg-neutral-100 px-3 py-1.5 rounded-lg transition-colors border border-neutral-200">
+            <Plus className="w-3.5 h-3.5" /> Agregar otro horario
+          </button>
         </>
       )}
 
@@ -772,8 +905,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                     <div className="flex flex-wrap gap-1.5">
                       {DAYS.map(d => (
                         <button key={d} type="button" onClick={() => toggleSlotDay(i, d)}
-                          className={`text-xs px-2.5 py-1.5 rounded-full border-2 font-semibold transition-colors ${
-                            slot.days.includes(d) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                          className={`text-xs px-2.5 py-1.5 rounded-full border border-neutral-900 font-semibold transition-colors ${
+                            slot.days.includes(d) ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'
                           }`}>
                           {d.slice(0, 3)}
                         </button>
@@ -815,10 +948,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { value: 'Online', label: 'Online', desc: 'Por videollamada', icon: Monitor },
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('modality', opt.value)}
-              className={`text-left p-4 rounded-xl border-2 transition-all flex items-start gap-3 ${
-                form.modality === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+              className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] flex items-start gap-3 ${
+                form.modality === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
               }`}>
-              <opt.icon className={`w-5 h-5 mt-0.5 shrink-0 ${form.modality === opt.value ? 'text-neutral-900' : 'text-neutral-400'}`} />
+              <opt.icon className={`w-5 h-5 mt-0.5 shrink-0 ${form.modality === opt.value ? 'text-primary' : 'text-neutral-400'}`} />
               <div>
                 <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
                 <p className="text-xs text-neutral-500">{opt.desc}</p>
@@ -833,10 +966,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         <div className="space-y-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50/50">
           <p className="text-xs font-bold text-neutral-700">Ubicación presencial</p>
           <div>
+            <FieldLabel>Nombre del local <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+            <input className="input" value={form.venueName} onChange={e => set('venueName', e.target.value)}
+              placeholder="Ej: Danxestudio" />
+            <Hint>Se muestra junto a la dirección. Déjalo vacío si no aplica.</Hint>
+          </div>
+          <div>
             <FieldLabel>Dirección</FieldLabel>
             <PlacesAddressField
               value={form.address}
-              placeholder="Av. Benavides 1234, piso 3"
+              placeholder="Ej: Av. Benavides 1234, piso 3"
               onManualChange={v => {
                 set('address', v);
                 set('placeId', '');
@@ -848,31 +987,42 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 set('placeId', selection.placeId);
                 set('lat', String(selection.lat));
                 set('lng', String(selection.lng));
+                // Google may not resolve a component for every address (rural
+                // places, some edge cases) — don't clobber an already-typed
+                // value with a blank on those.
+                if (selection.city) set('city', selection.city);
+                if (selection.district) set('district', selection.district);
               }}
+              onFallbackChange={setAddressFallback}
             />
             {fieldErrors.address && <p className="text-xs text-red-600 mt-1">{fieldErrors.address}</p>}
+            {!addressFallback && (fieldErrors.city || fieldErrors.district) && (
+              <p className="text-xs text-red-600 mt-1">No se pudo determinar la ciudad/distrito de esa dirección — elegí otra opción de la lista de Google.</p>
+            )}
           </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Ciudad</FieldLabel>
-              <NativeSelect value={form.city} onChange={e => { set('city', e.target.value); set('district', ''); }}>
-                {CITIES.map(c => <option key={c}>{c}</option>)}
-              </NativeSelect>
-              {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
+          {addressFallback && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Ciudad</FieldLabel>
+                <input className="input" value={form.city} onChange={e => set('city', e.target.value)}
+                  placeholder="Ej: Lima" />
+                {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
+              </div>
+              <div>
+                <FieldLabel>Distrito</FieldLabel>
+                <input className="input" value={form.district} onChange={e => set('district', e.target.value)}
+                  placeholder="Ej: Miraflores" />
+                {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
+              </div>
+              <p className="col-span-2 text-xs text-neutral-400">
+                No pudimos cargar el buscador de direcciones — completa ciudad y distrito manualmente.
+              </p>
             </div>
-            <div>
-              <FieldLabel>Distrito</FieldLabel>
-              <NativeSelect value={form.district} onChange={e => set('district', e.target.value)}>
-                <option value="">Seleccionar distrito…</option>
-                {districtsByCity.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-              </NativeSelect>
-              {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
-            </div>
-          </div>
+          )}
           <div>
             <FieldLabel>Referencia</FieldLabel>
             <input className="input" value={form.reference} onChange={e => set('reference', e.target.value)}
-              placeholder="Frente al parque Kennedy" />
+              placeholder="Ej: Frente al parque Kennedy" />
           </div>
         </div>
       )}
@@ -940,7 +1090,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               </div>
             </div>
             <div>
-              <FieldLabel>Precio de oferta <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+              <FieldLabel>Precio preventa <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500 font-bold pointer-events-none">
                   {form.currency === 'PEN' ? 'S/' : '$'}
@@ -968,12 +1118,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               { value: 'both', label: 'WhatsApp e Instagram', desc: 'Los alumnos pueden contactarte por ambos canales' },
             ].map(opt => (
               <label key={opt.value}
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  form.contactMode === opt.value ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
+                  form.contactMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
                 }`}>
                 <input type="radio" name="contactMode" value={opt.value}
                   checked={form.contactMode === opt.value} onChange={() => set('contactMode', opt.value)}
-                  className="mt-0.5 accent-neutral-900" />
+                  className="mt-0.5 accent-primary" />
                 <div>
                   <p className="text-sm font-semibold text-neutral-900">{opt.label}</p>
                   <p className="text-xs text-neutral-500 mt-0.5">{opt.desc}</p>
@@ -988,7 +1138,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           <FieldLabel>Calzado recomendado</FieldLabel>
           <div className="flex flex-wrap gap-2">
             {['Zapatillas', 'Tacos / heels', 'Medias', 'Zapatos de salsa', 'Zapatos de ballet', 'Otro'].map(opt => (
-              <Pill key={opt} active={form.footwear === opt} onClick={() => set('footwear', form.footwear === opt ? '' : opt)}>{opt}</Pill>
+              <Pill key={opt} active={form.footwear.includes(opt)} onClick={() => {
+                const list = form.footwear.includes(opt)
+                  ? form.footwear.filter(x => x !== opt)
+                  : [...form.footwear, opt];
+                set('footwear', list);
+              }}>{opt}</Pill>
             ))}
           </div>
         </div>
@@ -1003,7 +1158,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           <FieldLabel>Requisitos previos</FieldLabel>
           <div className="flex flex-wrap gap-2">
             {['Sin experiencia previa', 'Experiencia previa', 'Evaluación previa'].map(opt => (
-              <Pill key={opt} active={form.prerequisites === opt} onClick={() => set('prerequisites', form.prerequisites === opt ? '' : opt)}>{opt}</Pill>
+              <Pill key={opt} active={form.prerequisites.includes(opt)} onClick={() => {
+                const list = form.prerequisites.includes(opt)
+                  ? form.prerequisites.filter(x => x !== opt)
+                  : [...form.prerequisites, opt];
+                set('prerequisites', list);
+              }}>{opt}</Pill>
             ))}
           </div>
         </div>
@@ -1053,7 +1213,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
     const priceLabel = form.priceType === 'Gratis'
       ? 'Gratis'
       : form.price
-        ? `${currSymbol}${form.price} (${form.priceType})${form.offerPrice ? ` → oferta ${currSymbol}${form.offerPrice}` : ''}`
+        ? `${currSymbol}${form.price} (${form.priceType})${form.offerPrice ? ` → preventa ${currSymbol}${form.offerPrice}` : ''}`
         : '—';
     const locationLabel = form.modality !== 'Online'
       ? [form.address, form.district, form.city].filter(Boolean).join(', ') || '—'
@@ -1099,8 +1259,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         {coverImageUrl ? (
           <div>
             <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Imagen de portada</p>
-            <div className="relative w-full h-40 rounded-xl border border-neutral-200 overflow-hidden">
-              <Image src={coverImageUrl} alt="Portada" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
+            <div className="rounded-xl border border-neutral-200 overflow-hidden">
+              <ImagePositionPicker
+                src={coverImageUrl}
+                value={coverImagePosition}
+                onChange={setCoverImagePosition}
+                zoom={coverImageZoom}
+                onZoomChange={setCoverImageZoom}
+                frameClassName="w-full h-40"
+                sizes="(max-width: 768px) 100vw, 600px"
+              />
             </div>
           </div>
         ) : (
@@ -1133,7 +1301,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-neutral-100 p-6 mb-6 shadow-sm">
+      <div key={step} className="bg-white rounded-xl border border-neutral-900 p-6 mb-6 shadow-sm animate-fade-in">
         {step === 0 && renderStep0()}
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
@@ -1155,9 +1323,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </button>
         ) : (
           <div className="flex flex-col gap-3 items-end">
-            {submitError && <p className="text-[13px] text-red-600 font-medium">{submitError}</p>}
+            {submitError && <p className="text-[13px] text-red-600 font-medium animate-fade-in">{submitError}</p>}
             {contactGateError && (
-              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5">
+              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5 animate-fade-in">
                 {contactGateError.message}
                 <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
                   Completar perfil
@@ -1165,7 +1333,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               </p>
             )}
             <div className="flex gap-3">
-              <button type="button" onClick={() => handlePublish('draft')} disabled={isPending}
+              <button type="button" onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')} disabled={isPending}
                 className="btn-outline flex items-center gap-2 disabled:opacity-50">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {classId ? 'Guardar cambios' : 'Guardar borrador'}

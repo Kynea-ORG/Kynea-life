@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/classes/actions';
+import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { parsePublishError, profileFixHref } from '@/lib/classes/validation';
 import type { ClassStatus, DanceClass } from '@/lib/types';
 
@@ -22,9 +23,15 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [classes, setClasses] = useState<DanceClass[]>(initialClasses);
+  const [prevInitialClasses, setPrevInitialClasses] = useState(initialClasses);
+  if (initialClasses !== prevInitialClasses) {
+    setPrevInitialClasses(initialClasses);
+    setClasses(initialClasses);
+  }
   const [activeTab, setActiveTab] = useState<ClassStatus | 'all'>('all');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   // Publish success signal survives the server redirect via ?published=1
   // (set by createClass/updateClassFromForm) — read once via a lazy
   // initializer so the initial toast doesn't require a setState-in-effect.
@@ -33,12 +40,14 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
       ? { msg: 'Tu clase fue publicada correctamente.', type: 'success' }
       : null
   );
+  const [toastOpen, setToastOpen] = useState(() => searchParams.get('published') === '1');
+  const shouldRenderToast = useDelayedUnmount(toastOpen, 200);
 
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 3000);
+    if (!toastOpen) return;
+    const timer = setTimeout(() => setToastOpen(false), 3000);
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toastOpen]);
 
   // Clear the ?published=1 param so a refresh doesn't re-show the toast.
   useEffect(() => {
@@ -50,6 +59,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
 
   const showToast = (msg: string, type: 'success' | 'info' | 'error' = 'success', href?: string, actionLabel?: string) => {
     setToast({ msg, type, href, actionLabel });
+    setToastOpen(true);
   };
 
   const publishClass = (id: string) => {
@@ -87,9 +97,13 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
   };
 
   const handleDelete = (id: string) => {
-    setClasses(prev => prev.filter(c => c.id !== id));
     setConfirmDelete(null);
     setOpenMenu(null);
+    setRemovingId(id);
+    setTimeout(() => {
+      setClasses(prev => prev.filter(c => c.id !== id));
+      setRemovingId(null);
+    }, 150);
     showToast('Clase eliminada', 'error');
     startTransition(async () => {
       try {
@@ -118,8 +132,10 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
 
   return (
     <div className="p-6 lg:p-8">
-      {toast && (
-        <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-all duration-300 ${
+      {shouldRenderToast && toast && (
+        <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95 ${
+          toastOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+        } ${
           toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-neutral-900 text-white'
         }`}>
           <span>{toast.msg}</span>
@@ -170,123 +186,126 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
         </div>
       )}
 
-      {/* Desktop table */}
+      {/* Desktop table (CSS Grid — not a literal <table>, so each row can carry its own border/hover treatment) */}
       {filtered.length > 0 && (
-        <div className="hidden md:block bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-neutral-100 text-left">
-                <th className="px-6 py-4 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Clase</th>
-                <th className="px-4 py-4 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Tipo</th>
-                <th className="px-4 py-4 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Estado</th>
-                <th className="px-4 py-4 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Horario</th>
-                <th className="px-4 py-4 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Cupos</th>
-                <th className="px-4 py-4 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Precio</th>
-                <th className="px-4 py-4 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-50">
-              {filtered.map(cls => (
-                <tr key={cls.id} className="hover:bg-neutral-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {cls.coverImage ? (
-                        <div className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0">
-                          <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-12 h-10 rounded-lg bg-neutral-100 shrink-0" />
-                      )}
-                      <div>
-                        <p className="font-semibold text-neutral-900 text-sm">{cls.title}</p>
-                        <p className="text-xs text-neutral-500">{cls.style} · {cls.level}</p>
-                      </div>
+        <div role="table" aria-label="Mis clases" className="hidden md:block bg-white rounded-xl shadow-sm border border-neutral-900 overflow-hidden">
+          <div
+            role="row"
+            className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-500 uppercase tracking-wide"
+            style={{ gridTemplateColumns: '2.2fr 0.9fr 1fr 1.3fr 0.8fr 0.9fr 1.6fr' }}
+          >
+            <span role="columnheader">Clase</span>
+            <span role="columnheader">Tipo</span>
+            <span role="columnheader">Estado</span>
+            <span role="columnheader">Horario</span>
+            <span role="columnheader">Cupos</span>
+            <span role="columnheader">Precio</span>
+            <span role="columnheader">Acciones</span>
+          </div>
+          <div role="rowgroup" className="divide-y divide-neutral-50">
+            {filtered.map(cls => (
+              <div
+                key={cls.id}
+                role="row"
+                className={`grid gap-4 items-center px-6 py-4 hover:bg-neutral-50 ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}
+                style={{ gridTemplateColumns: '2.2fr 0.9fr 1fr 1.3fr 0.8fr 0.9fr 1.6fr' }}
+              >
+                <div role="cell" className="flex items-center gap-3 min-w-0">
+                  {cls.coverImage ? (
+                    <div className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0">
+                      <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
                     </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className="text-xs text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full">{getTypeLabel(cls.type)}</span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(cls.status)}`}>
-                      {getStatusLabel(cls.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-xs text-neutral-600 max-w-32">
-                    <span className="truncate block">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</span>
-                  </td>
-                  <td className="px-4 py-4 text-xs text-neutral-600">
-                    {cls.availableSpots ?? '—'}/{cls.maxSpots ?? '—'}
-                  </td>
-                  <td className="px-4 py-4 text-xs font-semibold text-neutral-900">
-                    {formatPrice(cls.priceType, cls.price, cls.currency)}
-                  </td>
-                  <td className="px-4 py-4">
-                    {confirmDelete === cls.id ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-neutral-600 whitespace-nowrap">¿Eliminar?</span>
-                        <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red-600 hover:text-red-700 whitespace-nowrap">
-                          Sí, eliminar
+                  ) : (
+                    <div className="w-12 h-10 rounded-lg bg-neutral-100 shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-semibold text-neutral-900 text-sm truncate">{cls.title}</p>
+                    <p className="text-xs text-neutral-500 truncate">{cls.style} · {cls.level}</p>
+                  </div>
+                </div>
+                <div role="cell">
+                  <span className="text-xs text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full">{getTypeLabel(cls.type)}</span>
+                </div>
+                <div role="cell">
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(cls.status)}`}>
+                    {getStatusLabel(cls.status)}
+                  </span>
+                </div>
+                <div role="cell" className="text-xs text-neutral-600 min-w-0">
+                  <span className="truncate block">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</span>
+                </div>
+                <div role="cell" className="text-xs text-neutral-600">
+                  {cls.availableSpots ?? '—'}/{cls.maxSpots ?? '—'}
+                </div>
+                <div role="cell" className="text-xs font-semibold text-neutral-900">
+                  {formatPrice(cls.priceType, cls.price, cls.currency)}
+                </div>
+                <div role="cell">
+                  {confirmDelete === cls.id ? (
+                    <div className="flex items-center gap-2 animate-fade-in">
+                      <span className="text-xs text-neutral-600 whitespace-nowrap">¿Eliminar?</span>
+                      <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red-600 hover:text-red-700 whitespace-nowrap">
+                        Sí, eliminar
+                      </button>
+                      <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-neutral-500 hover:text-neutral-700 whitespace-nowrap">
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 animate-fade-in">
+                      {cls.status === 'draft' && (
+                        <button onClick={() => publishClass(cls.id)} disabled={isPending}
+                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                          Publicar
                         </button>
-                        <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-neutral-500 hover:text-neutral-700 whitespace-nowrap">
-                          Cancelar
+                      )}
+                      {cls.status === 'published' && (
+                        <button onClick={() => hideClass(cls.id)} disabled={isPending}
+                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 text-neutral-700 font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-50">
+                          Ocultar
                         </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
-                        {cls.status === 'draft' && (
-                          <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                            className="text-xs px-3 py-1.5 rounded-btn bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
-                            Publicar
-                          </button>
-                        )}
-                        {cls.status === 'published' && (
-                          <button onClick={() => hideClass(cls.id)} disabled={isPending}
-                            className="text-xs px-3 py-1.5 rounded-btn border-2 border-neutral-200 text-neutral-600 font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-50">
-                            Ocultar
-                          </button>
-                        )}
-                        {cls.status === 'archived' && (
-                          <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                            className="text-xs px-3 py-1.5 rounded-btn bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
-                            Activar
-                          </button>
-                        )}
-                        <Link href={`/dashboard/crear-clase?edit=${cls.id}`} title="Editar"
-                          className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-700 transition-colors">
-                          <Edit2 className="w-4 h-4" />
+                      )}
+                      {cls.status === 'archived' && (
+                        <button onClick={() => publishClass(cls.id)} disabled={isPending}
+                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                          Activar
+                        </button>
+                      )}
+                      <Link href={`/dashboard/crear-clase?edit=${cls.id}`} title="Editar"
+                        className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-700 transition-colors active:scale-90">
+                        <Edit2 className="w-4 h-4" />
+                      </Link>
+                      <button title="Duplicar" onClick={() => handleDuplicate(cls.id)} disabled={isPending}
+                        className="p-1.5 hover:bg-blue-50 rounded-lg text-neutral-400 hover:text-blue-600 transition-colors active:scale-90 disabled:opacity-50">
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      {cls.status === 'published' && (
+                        <Link href={`/clases/${cls.id}`} title="Ver publicación" target="_blank"
+                          className="p-1.5 hover:bg-green-50 rounded-lg text-neutral-400 hover:text-green-600 transition-colors active:scale-90">
+                          <ExternalLink className="w-4 h-4" />
                         </Link>
-                        <button title="Duplicar" onClick={() => handleDuplicate(cls.id)} disabled={isPending}
-                          className="p-1.5 hover:bg-blue-50 rounded-lg text-neutral-400 hover:text-blue-600 transition-colors disabled:opacity-50">
-                          <Copy className="w-4 h-4" />
-                        </button>
-                        {cls.status === 'published' && (
-                          <Link href={`/clases/${cls.id}`} title="Ver publicación" target="_blank"
-                            className="p-1.5 hover:bg-green-50 rounded-lg text-neutral-400 hover:text-green-600 transition-colors">
-                            <ExternalLink className="w-4 h-4" />
-                          </Link>
-                        )}
-                        <button title="Eliminar" onClick={() => setConfirmDelete(cls.id)}
-                          className="p-1.5 hover:bg-red-50 rounded-lg text-neutral-400 hover:text-red-500 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      )}
+                      <button title="Eliminar" onClick={() => setConfirmDelete(cls.id)}
+                        className="p-1.5 hover:bg-red-50 rounded-lg text-neutral-400 hover:text-red-500 transition-colors active:scale-90">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {filtered.map(cls => (
-          <div key={cls.id} className="bg-white rounded-xl border border-neutral-200 p-4 shadow-sm">
+          <div key={cls.id} className={`bg-white rounded-xl border border-neutral-900 p-4 shadow-sm ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}>
             <div className="flex items-start gap-3">
               {cls.coverImage ? (
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
-                  <Image src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" />
+                  <Image src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
                 </div>
               ) : (
                 <div className="w-16 h-16 rounded-xl bg-neutral-100 shrink-0" />
@@ -312,23 +331,23 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
             </div>
 
             {openMenu === cls.id && (
-              <div className="mt-3 pt-3 border-t border-neutral-100 space-y-2">
+              <div className="mt-3 pt-3 border-t border-neutral-100 space-y-2 animate-fade-in">
                 <div className="flex gap-2">
                   {cls.status === 'draft' && (
                     <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-bold text-white flex items-center gap-1 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                      className="text-xs font-bold text-white flex items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
                       <Eye className="w-3 h-3" /> Publicar
                     </button>
                   )}
                   {cls.status === 'published' && (
                     <button onClick={() => { hideClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-semibold text-neutral-600 flex items-center gap-1 border-2 border-neutral-200 px-3 py-1.5 rounded-btn hover:bg-neutral-50 transition-colors disabled:opacity-50">
+                      className="text-xs font-semibold text-neutral-700 flex items-center gap-1 border border-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-50 transition-colors disabled:opacity-50">
                       <EyeOff className="w-3 h-3" /> Ocultar
                     </button>
                   )}
                   {cls.status === 'archived' && (
                     <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-bold text-white flex items-center gap-1 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                      className="text-xs font-bold text-white flex items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
                       <Eye className="w-3 h-3" /> Activar
                     </button>
                   )}
@@ -349,14 +368,14 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                     </Link>
                   )}
                   {confirmDelete === cls.id ? (
-                    <div className="flex items-center gap-2 w-full mt-1">
+                    <div className="flex items-center gap-2 w-full mt-1 animate-fade-in">
                       <span className="text-xs text-neutral-600">¿Eliminar esta clase?</span>
                       <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red-600">Sí</button>
                       <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-neutral-500">No</button>
                     </div>
                   ) : (
                     <button onClick={() => setConfirmDelete(cls.id)}
-                      className="text-xs font-medium text-red-600 flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-lg">
+                      className="text-xs font-medium text-red-600 flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-lg animate-fade-in">
                       <Trash2 className="w-3 h-3" /> Eliminar
                     </button>
                   )}

@@ -7,14 +7,14 @@ export function mapTeacher(t: any): Teacher {
   const styles = ((t.profile_styles ?? []) as any[])
     .map((ps) => ps.dance_styles?.name as DanceStyle)
     .filter(Boolean);
-  const dist = t.district as { name: string; city: string } | null;
   return {
     id:           t.id,
     name:         t.name,
     type:         t.role as 'profesor' | 'academia',
     photo:        t.photo_url ?? '',
-    city:         dist?.city ?? '',
-    district:     dist?.name ?? '',
+    photoPosition: t.photo_position || '50% 50%',
+    photoZoom:    t.photo_zoom ?? 1,
+    nationality:  t.nationality ?? undefined,
     bio:          t.bio ?? '',
     experience:   t.years_experience ?? 0,
     styles,
@@ -30,9 +30,8 @@ export function mapTeacher(t: any): Teacher {
 }
 
 export const PROFILE_SELECT = `
-  id, name, role, photo_url, bio, years_experience,
-  whatsapp, instagram, tiktok, youtube, website,
-  district:districts(name, city),
+  id, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
+  nationality, whatsapp, instagram, tiktok, youtube, website,
   profile_styles(style_id, dance_styles(name))
 `;
 

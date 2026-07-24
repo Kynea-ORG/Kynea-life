@@ -11,14 +11,13 @@ import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import { getTypeLabel } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
-import type { DanceClass, Teacher, DbDanceStyle } from '@/lib/types';
+import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
 import type { HomeStats } from '@/lib/stats/queries';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SearchClass   = { id: string; title: string; type: string; class_styles: any[] | null };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SearchProfile = { id: string; name: string; role: string; districts: any; photo_url: string | null };
+type SearchProfile = { id: string; name: string; role: string; photo_url: string | null };
 
 const AVATAR_PALETTE = [
   { bg: 'bg-primary-bg',     text: 'text-primary' },
@@ -27,14 +26,33 @@ const AVATAR_PALETTE = [
   { bg: 'bg-yellow-bg',      text: 'text-yellow-dark' },
 ];
 
-// Uploaded photos, assigned round-robin across categories for now.
-// TODO: map one specific photo per dance style once curated.
-const CATEGORY_IMAGES = [
+// One curated photo per dance style, keyed by slug — add an entry here as
+// more get uploaded to public/categorias/. Styles without an entry yet fall
+// back to FALLBACK_CATEGORY_IMAGES (round-robin) so nothing ever 404s.
+const STYLE_IMAGES: Record<string, string> = {
+  'salsa':         '/categorias/salsa.jpg',
+  'bachata':       '/categorias/bachata.jpg',
+  'heels':         '/categorias/hills.jpg',
+  'reggaeton':     '/categorias/Reggaeton.jpg',
+  'hip-hop':       '/categorias/hiphop.jpeg',
+  'urbano':        '/categorias/urbano.jpg',
+  'contemporaneo': '/categorias/comtempo.jpeg',
+  'ballet':        '/categorias/ballet.jpg',
+  'jazz-funk':     '/categorias/jazzfunk.png',
+};
+
+// Which styles show in the Home category strip, and in what order — purely
+// a display choice for this page, independent of dance_styles.ord (which
+// still governs the Crear Clase dropdown, filters, etc. elsewhere). Swap
+// entries here instead of touching the catalog's real ordering.
+const HOME_CATEGORY_SLUGS = [
+  'salsa', 'bachata', 'heels', 'reggaeton', 'hip-hop',
+  'urbano', 'contemporaneo', 'ballet', 'jazz-funk',
+];
+
+const FALLBACK_CATEGORY_IMAGES = [
   '/categorias/rainier-ridao-GRDpPpKczdY-unsplash.jpg',
-  '/categorias/samantha-weisburg-hFTcxZFsG6g-unsplash.jpg',
-  '/categorias/ardian-lumi-6Woj_wozqmA-unsplash.jpg',
   '/categorias/barrett-smith-uB4cOqtOf90-unsplash.jpg',
-  '/categorias/michael-afonso-z8Tul255kGg-unsplash.jpg',
 ];
 
 // Fallback gradients shown behind the photo while it loads (also color variety across cards)
@@ -53,66 +71,88 @@ const HOW_IT_WORKS = [
   { step: '3', Icon: MessageCircle, title: 'Contacta directo', desc: 'Escríbele por WhatsApp y reserva tu cupo.' },
 ];
 
-// ── Animated counter ──────────────────────────────────────────────────────
-function useCountUp(target: number, duration = 1500, start = false) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!start) return;
-    let startTime: number | null = null;
-    const numericTarget = parseInt(String(target).replace(/\D/g, ''));
-    const step = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      setCount(Math.floor(progress * numericTarget));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [start, target, duration]);
-  return count;
+// ── Props ─────────────────────────────────────────────────────────────────
+interface FeaturedCategory {
+  style:   DanceStyle;
+  classes: DanceClass[];
 }
 
-function StatCard({ stat, visible }: { stat: { target: number; suffix: string; label: string; dark: boolean }; visible: boolean }) {
-  const count = useCountUp(stat.target, 1500, visible);
+interface Props {
+  initialClasses:     DanceClass[];
+  featuredCategories: FeaturedCategory[];
+  initialTeachers:    Teacher[];
+  initialAcademias:   Teacher[];
+  danceStyles:        DbDanceStyle[];
+  stats:              HomeStats;
+}
+
+// ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
+// Each row owns its own scroll ref, so this can't be inlined in a .map() —
+// hooks can't be called a variable number of times in a loop body.
+// Exported for unit testing.
+export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  if (classes.length === 0) return null;
+
   return (
-    <div className={`rounded-xl p-6 shadow-sm border ${stat.dark ? 'bg-neutral-900 border-neutral-900 text-white' : 'bg-white border-white/70'}`}>
-      <p className={`text-[38px] font-black leading-none tracking-tighter mb-1 ${stat.dark ? 'text-white' : 'text-neutral-900'}`}>
-        {count}{stat.suffix}
-      </p>
-      <p className={`text-[13px] ${stat.dark ? 'text-neutral-400' : 'text-neutral-500'}`}>{stat.label}</p>
-    </div>
+    <section className="bg-white py-16 border-t border-neutral-100">
+      <div className="max-w-[1200px] mx-auto px-6">
+        <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+          <div>
+            <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">{style}</h2>
+            <p className="text-neutral-500 text-[15px] mt-1">Las clases de {style} más populares</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href={`/clases?style=${encodeURIComponent(style)}`} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+              Ver todas →
+            </Link>
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                onClick={() => scrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                aria-label="Anterior"
+              >
+                <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
+              </button>
+              <button
+                onClick={() => scrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                aria-label="Siguiente"
+              >
+                <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto pb-3 pt-1"
+          style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+        >
+          {classes.map(cls => (
+            <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
+              <ClassCard cls={cls} compact />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
-// ── Props ─────────────────────────────────────────────────────────────────
-interface Props {
-  initialClasses:   DanceClass[];
-  salsaClasses:     DanceClass[];
-  initialTeachers:  Teacher[];
-  initialAcademias: Teacher[];
-  danceStyles:      DbDanceStyle[];
-  stats:            HomeStats;
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ initialClasses, salsaClasses, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
+export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
-  const [city, setCity]           = useState('Lima');
-  const [activeTab, setActiveTab] = useState('Todas');
 
-  const STATS = [
-    { target: stats.classes,  suffix: '+', label: 'Clases disponibles',     dark: false },
-    { target: stats.teachers, suffix: '+', label: 'Profesores verificados', dark: true  },
-    { target: stats.styles,   suffix: '',  label: 'Estilos de baile',       dark: false },
-    { target: stats.cities,   suffix: '',  label: 'Ciudades en Latinoamérica', dark: false },
-  ];
-
-  const CLASS_TABS = [
-    'Todas',
-    ...Array.from(new Set(initialClasses.map(c => c.style)))
-      .filter(style => style !== 'Cumbia')
-      .slice(0, 3),
-  ];
+  // Home category strip: fixed display order (HOME_CATEGORY_SLUGS), not the
+  // catalog's own ord — falls back to the first 9 by ord if a slug isn't
+  // found (e.g. not seeded yet in this environment).
+  const homeCategories = HOME_CATEGORY_SLUGS
+    .map(slug => danceStyles.find(s => s.slug === slug))
+    .filter((s): s is DbDanceStyle => !!s);
+  const displayedCategories = homeCategories.length > 0 ? homeCategories : danceStyles.slice(0, 9);
 
   // ── Search autocomplete ──
   const [suggestions, setSuggestions]       = useState<{ classes: SearchClass[]; profiles: SearchProfile[] }>({ classes: [], profiles: [] });
@@ -138,7 +178,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
             .limit(4),
           supabase
             .from('profiles')
-            .select('id, name, role, districts(city), photo_url')
+            .select('id, name, role, photo_url')
             .in('role', ['profesor', 'academia'])
             .ilike('name', `%${q}%`)
             .limit(3),
@@ -162,30 +202,17 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  // ── Stats IntersectionObserver ──
-  const statsRef = useRef<HTMLDivElement>(null);
-  const [statsVisible, setStatsVisible] = useState(false);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setStatsVisible(true); },
-      { threshold: 0.3 }
-    );
-    if (statsRef.current) observer.observe(statsRef.current);
-    return () => observer.disconnect();
-  }, []);
-
   // ── Teachers carousel ──
   const teachersScrollRef = useRef<HTMLDivElement>(null);
 
-  // ── Salsa category carousel ──
-  const salsaScrollRef = useRef<HTMLDivElement>(null);
-
   // ── Carousel auto-scroll ──
   const carouselRef = useRef<HTMLDivElement>(null);
+  const carouselPausedRef = useRef(false);
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
     const interval = setInterval(() => {
+      if (carouselPausedRef.current) return;
       if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
         el.scrollTo({ left: 0, behavior: 'smooth' });
       } else {
@@ -198,7 +225,6 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
   const navigateSearch = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.set('q', query.trim());
-    if (city) params.set('city', city);
     router.push(`/clases?${params.toString()}`);
     setShowSuggestions(false);
   };
@@ -207,10 +233,6 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
     e.preventDefault();
     navigateSearch();
   };
-
-  const displayedClasses = activeTab === 'Todas'
-    ? initialClasses
-    : initialClasses.filter(c => c.style === activeTab);
 
   const hasSuggestions = query.trim().length >= 2 && (suggestions.classes.length > 0 || suggestions.profiles.length > 0);
 
@@ -244,9 +266,9 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
               <div className="relative max-w-xl mb-8" ref={searchRef}>
                 <form
                   onSubmit={handleSearch}
-                  className="bg-white rounded-xl shadow-md border border-neutral-200 p-2 flex gap-2"
+                  className="bg-white rounded-full shadow-md border border-neutral-900 pl-5 pr-1.5 py-1.5 flex items-center gap-2"
                 >
-                  <div className="flex-1 flex items-center gap-2.5 px-3 py-1">
+                  <div className="flex-1 flex items-center gap-2.5 min-w-0">
                     <Search className="w-4 h-4 text-neutral-400 shrink-0" />
                     <input
                       type="text"
@@ -256,21 +278,9 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                       onFocus={() => {
                         if (query.trim().length >= 2 && hasSuggestions) setShowSuggestions(true);
                       }}
-                      className="flex-1 text-[15px] text-neutral-800 placeholder:text-neutral-400 outline-none bg-transparent"
+                      className="flex-1 min-w-0 text-[15px] text-neutral-800 placeholder:text-neutral-400 outline-none bg-transparent"
                     />
                     {isSearching && <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0" />}
-                  </div>
-                  <div className="hidden sm:flex items-center gap-2 px-3 border-l border-neutral-200">
-                    <MapPin className="w-4 h-4 text-neutral-400 shrink-0" />
-                    <select
-                      value={city}
-                      onChange={e => setCity(e.target.value)}
-                      className="text-[15px] text-neutral-600 outline-none bg-transparent py-1 cursor-pointer"
-                    >
-                      {stats.cityNames.map(c => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
                   </div>
                   <button type="submit" className="btn-hero text-[15px] px-6 py-3">
                     Buscar
@@ -279,7 +289,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
 
                 {/* Autocomplete dropdown */}
                 {showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 overflow-hidden">
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 overflow-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95">
 
                     {isSearching && (
                       <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-neutral-400">
@@ -342,7 +352,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                             )}
                             <div className="min-w-0 flex-1">
                               <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}{p.districts?.city ? ` · ${p.districts.city}` : ''}</p>
+                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}</p>
                             </div>
                           </button>
                         ))}
@@ -375,11 +385,38 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
               </div>
             </div>
 
-            {/* Right — Stats */}
-            <div ref={statsRef} className="hidden lg:grid grid-cols-2 gap-4">
-              {STATS.map(stat => (
-                <StatCard key={stat.label} stat={stat} visible={statsVisible} />
-              ))}
+            {/* Right — Cutout photo + floating stats */}
+            <div className="hidden lg:block relative h-[460px]">
+              {/* Glow behind the cutout */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-[420px] h-[420px] rounded-full bg-white/20 blur-3xl" />
+              </div>
+
+              <div className="absolute inset-0 flex items-end justify-center">
+                <Image
+                  src="/img-portada-kynea.png"
+                  alt="Bailarina en movimiento"
+                  width={640}
+                  height={452}
+                  priority
+                  className="relative w-auto h-full max-w-none object-contain"
+                />
+              </div>
+
+              <div className="absolute top-6 left-0 bg-white border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow">
+                <p className="text-[26px] font-black tracking-tighter text-neutral-900 leading-none">{stats.classes}+</p>
+                <p className="text-[12px] text-neutral-500 mt-0.5">Clases disponibles</p>
+              </div>
+
+              <div className="absolute top-6 right-0 bg-neutral-900 border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow-2">
+                <p className="text-[26px] font-black tracking-tighter text-white leading-none">{stats.teachers}+</p>
+                <p className="text-[12px] text-neutral-400 mt-0.5">Profesores verificados</p>
+              </div>
+
+              <div className="absolute bottom-8 right-6 bg-white border border-neutral-900 rounded-2xl px-4.5 py-3 shadow-xl animate-float-slow [animation-delay:1s]">
+                <p className="text-[22px] font-black tracking-tighter text-neutral-900 leading-none">{stats.styles}</p>
+                <p className="text-[12px] text-neutral-500 mt-0.5">Estilos de baile</p>
+              </div>
             </div>
           </div>
         </div>
@@ -392,20 +429,20 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
             className="flex gap-3 overflow-x-auto pb-2"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
           >
-            {danceStyles.map((style, i) => (
+            {displayedCategories.map((style, i) => (
               <Link
                 key={style.id}
                 href={`/clases?style=${encodeURIComponent(style.name)}`}
-                className="relative shrink-0 w-[168px] h-[152px] rounded-2xl cursor-pointer group select-none block overflow-hidden"
+                className="relative shrink-0 w-[168px] h-[152px] rounded-2xl border border-neutral-900 cursor-pointer group select-none block overflow-hidden"
               >
-                {/* Background: uploaded photos assigned round-robin for now — will map one per style later */}
-                <div className="absolute inset-0 scale-100 group-hover:scale-110 transition-transform duration-500 ease-out">
+                {/* Background: curated photo per style, falls back to a generic one if not uploaded yet */}
+                <div className="absolute inset-0 scale-100 group-hover:scale-110 transition-transform duration-200 ease-out">
                   <div
                     className="absolute inset-0 -z-10"
                     style={{ background: CATEGORY_GRADIENTS[i % CATEGORY_GRADIENTS.length] }}
                   />
                   <Image
-                    src={CATEGORY_IMAGES[i % CATEGORY_IMAGES.length]}
+                    src={STYLE_IMAGES[style.slug] ?? FALLBACK_CATEGORY_IMAGES[i % FALLBACK_CATEGORY_IMAGES.length]}
                     alt=""
                     aria-hidden="true"
                     fill
@@ -415,10 +452,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 </div>
 
                 {/* Legibility + hover overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/0 transition-opacity duration-300 group-hover:from-black/60" />
-
-                {/* Border — only on hover */}
-                <div className="absolute inset-0 rounded-2xl border-[3px] border-transparent group-hover:border-white/70 transition-colors duration-200 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/0 transition-opacity duration-200 group-hover:from-black/60" />
 
                 {/* Content: name bottom-left */}
                 <div className="relative z-10 p-4 h-full flex flex-col justify-end">
@@ -432,6 +466,71 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
         </div>
       </section>
 
+      {/* ── CLASES ESTA SEMANA ── */}
+      <section className="bg-neutral-50 py-16">
+        <div className="max-w-[1200px] mx-auto px-6">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases esta semana</h2>
+              <p className="text-neutral-500 text-[15px] mt-1">Seleccionadas para ti</p>
+            </div>
+            <div className="hidden sm:flex items-center gap-3">
+              <Link href="/clases" className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
+                Ver todas <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+
+          {initialClasses.length === 0 ? (
+            <div className="text-center py-16 text-neutral-400">
+              <p className="text-[15px]">No hay clases disponibles en este momento.</p>
+              <p className="text-[13px] mt-1">¡Pronto habrá más!</p>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                onClick={() => carouselRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center hover:bg-neutral-50 transition-colors duration-150 ease-out active:scale-90 hidden sm:flex"
+                aria-label="Anterior"
+              >
+                <ChevronLeft className="w-5 h-5 text-neutral-600" />
+              </button>
+
+              <div
+                ref={carouselRef}
+                className="flex gap-4 overflow-x-auto pb-4"
+                style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+                onMouseEnter={() => { carouselPausedRef.current = true; }}
+                onMouseLeave={() => { carouselPausedRef.current = false; }}
+              >
+                {initialClasses.map(cls => (
+                  <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
+                    <ClassCard cls={cls} compact />
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => carouselRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center hover:bg-neutral-50 transition-colors duration-150 ease-out active:scale-90 hidden sm:flex"
+                aria-label="Siguiente"
+              >
+                <ChevronRight className="w-5 h-5 text-neutral-600" />
+              </button>
+            </div>
+          )}
+
+          <div className="mt-6 text-center sm:hidden">
+            <Link href="/clases" className="btn-outline">Ver todas las clases</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CATEGORÍAS DESTACADAS (Heels, Contemporáneo, …) ── */}
+      {featuredCategories.map((cat, i) => (
+        <FeaturedCategoryRow key={`${cat.style}-${i}`} style={cat.style} classes={cat.classes} />
+      ))}
+
       {/* ── PROFESORES DESTACADOS ── */}
       {initialTeachers.length > 0 && (
         <section className="bg-white py-16">
@@ -442,20 +541,20 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 <p className="text-neutral-500 text-[15px] mt-1">Los mejores instructores de Latinoamérica</p>
               </div>
               <div className="flex items-center gap-3">
-                <Link href="/profesores" className="text-[15px] font-semibold text-neutral-900 hover:text-primary transition-colors whitespace-nowrap">
+                <Link href="/profesores" className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
                   Ver todos →
                 </Link>
                 <div className="hidden sm:flex items-center gap-2">
                   <button
                     onClick={() => teachersScrollRef.current?.scrollBy({ left: -460, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
                     aria-label="Anterior"
                   >
                     <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
                   </button>
                   <button
                     onClick={() => teachersScrollRef.current?.scrollBy({ left: 460, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
                     aria-label="Siguiente"
                   >
                     <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
@@ -475,7 +574,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                   <Link
                     key={t.id}
                     href={`/profesores/${t.id}`}
-                    className="shrink-0 w-[210px] rounded-2xl border border-neutral-100 bg-white overflow-hidden transition-all duration-150 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5"
+                    className="shrink-0 w-[210px] rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
                     style={{ scrollSnapAlign: 'start' }}
                   >
                     <div className={`relative w-full aspect-square flex items-center justify-center ${avatar.bg}`}>
@@ -486,6 +585,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                           fill
                           sizes="210px"
                           className="object-cover"
+                          style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
                         />
                       ) : (
                         <span className={`text-[56px] font-extrabold ${avatar.text} select-none`}>
@@ -500,13 +600,13 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                     </div>
                     <div className="px-4 pt-3.5 pb-4">
                       <h3 className="font-bold text-neutral-900 text-[16px] leading-tight mb-0.5 truncate">{t.name}</h3>
-                      <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.city}</p>
+                      {t.nationality && <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.nationality}</p>}
                       <div className="flex flex-wrap gap-1.5 mb-3 min-h-[26px]">
                         {t.styles.slice(0, 2).map(s => (
                           <span key={s} className="badge-pink text-[11.5px] px-2.5 py-1">{s}</span>
                         ))}
                       </div>
-                      <span className="text-[13.5px] font-semibold text-neutral-900">Ver perfil →</span>
+                      <span className="text-[13.5px] font-semibold text-primary">Ver perfil →</span>
                     </div>
                   </Link>
                 );
@@ -515,127 +615,6 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
           </div>
         </section>
       )}
-
-      {/* ── CATEGORÍA DESTACADA: SALSA ── */}
-      {salsaClasses.length > 0 && (
-        <section className="bg-white py-16 border-t border-neutral-100">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
-              <div>
-                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Salsa</h2>
-                <p className="text-neutral-500 text-[15px] mt-1">Las clases de salsa más populares</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Link href="/clases?style=Salsa" className="text-[15px] font-semibold text-neutral-900 hover:text-primary transition-colors whitespace-nowrap">
-                  Ver todas →
-                </Link>
-                <div className="hidden sm:flex items-center gap-2">
-                  <button
-                    onClick={() => salsaScrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
-                    aria-label="Anterior"
-                  >
-                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
-                  </button>
-                  <button
-                    onClick={() => salsaScrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors"
-                    aria-label="Siguiente"
-                  >
-                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div
-              ref={salsaScrollRef}
-              className="flex gap-4 overflow-x-auto pb-3 pt-1"
-              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
-            >
-              {salsaClasses.map(cls => (
-                <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-                  <ClassCard cls={cls} compact />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── CLASES ESTA SEMANA ── */}
-      <section className="bg-neutral-50 py-16">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases esta semana</h2>
-              <p className="text-neutral-500 text-[15px] mt-1">Seleccionadas para ti en {city}</p>
-            </div>
-            <div className="hidden sm:flex items-center gap-3">
-              <Link href="/clases" className="flex items-center gap-1 text-[15px] text-neutral-900 font-semibold hover:underline">
-                Ver todas <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 mb-8 border-b border-neutral-200">
-            {CLASS_TABS.map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`text-[14px] font-semibold px-4 py-2.5 transition-all duration-150 border-b-2 -mb-px ${
-                  activeTab === tab
-                    ? 'border-neutral-900 text-neutral-900'
-                    : 'border-transparent text-neutral-400 hover:text-neutral-700'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {displayedClasses.length === 0 ? (
-            <div className="text-center py-16 text-neutral-400">
-              <p className="text-[15px]">No hay clases disponibles en este momento.</p>
-              <p className="text-[13px] mt-1">¡Pronto habrá más!</p>
-            </div>
-          ) : (
-            <div className="relative">
-              <button
-                onClick={() => carouselRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center hover:bg-neutral-50 transition-colors hidden sm:flex"
-                aria-label="Anterior"
-              >
-                <ChevronLeft className="w-5 h-5 text-neutral-600" />
-              </button>
-
-              <div
-                ref={carouselRef}
-                className="flex gap-4 overflow-x-auto pb-4"
-                style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
-              >
-                {displayedClasses.map(cls => (
-                  <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-                    <ClassCard cls={cls} compact />
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => carouselRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center hover:bg-neutral-50 transition-colors hidden sm:flex"
-                aria-label="Siguiente"
-              >
-                <ChevronRight className="w-5 h-5 text-neutral-600" />
-              </button>
-            </div>
-          )}
-
-          <div className="mt-6 text-center sm:hidden">
-            <Link href="/clases" className="btn-outline">Ver todas las clases</Link>
-          </div>
-        </div>
-      </section>
 
       {/* ── CÓMO FUNCIONA ── */}
       <section className="bg-white py-20">
@@ -682,7 +661,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                 <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Academias</h2>
                 <p className="text-neutral-500 text-[15px] mt-1">Espacios de danza en toda Latinoamérica</p>
               </div>
-              <Link href="/profesores?type=academia" className="hidden sm:flex items-center gap-1 text-[15px] text-neutral-900 font-semibold hover:underline">
+              <Link href="/profesores?type=academia" className="hidden sm:flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
                 Ver todas <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -694,14 +673,15 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                   href={`/profesores/${t.id}`}
                   className="card-hover flex items-start gap-4 group"
                 >
-                  <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200">
+                  <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 transition-transform duration-300 group-hover:scale-105">
                     {t.photo ? (
                       <Image
                         src={t.photo}
                         alt={t.name}
                         fill
                         sizes="80px"
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="object-cover"
+                        style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -721,10 +701,12 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                         </div>
                       )}
                     </div>
-                    <p className="text-[13px] text-neutral-500 mb-2">
-                      <MapPin className="w-3 h-3 inline mr-0.5 -mt-px" />
-                      {t.district}, {t.city}
-                    </p>
+                    {t.nationality && (
+                      <p className="text-[13px] text-neutral-500 mb-2">
+                        <MapPin className="w-3 h-3 inline mr-0.5 -mt-px" />
+                        {t.nationality}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-1 mb-2">
                       {t.styles.slice(0, 3).map(s => (
                         <span key={s} className="badge-pink text-[11px]">{s}</span>

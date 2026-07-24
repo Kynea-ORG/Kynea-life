@@ -44,7 +44,8 @@
   --color-red-bg: #FEF2F2;
 
   /* TIPOGRAFÍA ── */
-  --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans:    'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-figtree: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
 
   --text-xs:   11px;
   --text-sm:   13px;
@@ -95,6 +96,11 @@
 /* ─── BASE ──────────────────────────────────────────────────────── */
 @layer base {
   html {
+    /* Kynea only has a light theme today — without this, browsers in dark
+       mode render native controls (date/time pickers, scrollbars) and
+       color-scheme-aware web components (e.g. Google's Places autocomplete)
+       in dark styling, which clashes with the light UI around them. */
+    color-scheme: light;
     font-family: var(--font-hanken, var(--font-sans));
     -webkit-font-smoothing: antialiased;
     color: #0D0D0D;
@@ -104,13 +110,63 @@
     background: #ffffff;
   }
 
+  /* `color-scheme: light` on <html> alone doesn't reach this — the
+     component reads `prefers-color-scheme` for its own shadow-DOM styles,
+     which only `color-scheme` set directly on the host element overrides.
+     Without this, a profesor's OS dark mode renders the address widget as
+     a solid black bar against Kynea's light UI.
+     Border/radius/background match `.input` (below) so the address field
+     doesn't stand out from the rest of the form — Google exposes these as
+     real CSS properties on the host element, plus `::part(input)` for the
+     text inside its shadow DOM, so no shadow-DOM hacks are needed. */
+  gmp-place-autocomplete {
+    color-scheme: light;
+    width: 100%;
+    background-color: #fff;
+    border: 2px solid var(--color-neutral-200);
+    border-radius: var(--radius-btn);
+    transition: border-color 100ms ease-out;
+  }
+
+  gmp-place-autocomplete:hover {
+    border-color: var(--color-neutral-900);
+  }
+
+  gmp-place-autocomplete:focus-within {
+    border-color: var(--color-primary);
+  }
+
+  gmp-place-autocomplete::part(input) {
+    font-size: 15px;
+    color: var(--color-neutral-900);
+    /* Google already reserves space for the leading icon before this part
+       starts — a left padding here stacks on top of that and pushes the
+       text too far right. Only the right side needs `.input`'s 16px. */
+    padding: 12px 16px 12px 0;
+  }
+
+  /* Google's own focus indicator — a `part="focus-ring"` div with an inline
+     `border: 2px solid rgb(26,115,232)` — draws its blue ring on top of the
+     purple `:focus-within` border above, since our page CSS can't reach it
+     any other way (the rest of the component is a closed shadow root).
+     `!important` is required here because it's competing with that inline
+     style, not just source-order specificity. */
+  gmp-place-autocomplete::part(focus-ring) {
+    border: none !important;
+  }
+
+  gmp-place-autocomplete::part(input)::placeholder {
+    color: var(--color-neutral-400);
+    font-size: 15px;
+  }
+
   h1 { font-size: 48px; font-weight: 900; letter-spacing: -0.035em; line-height: 1.05; }
   h2 { font-size: 38px; font-weight: 800; letter-spacing: -0.03em;  line-height: 1.1; }
   h3 { font-size: 30px; font-weight: 700; line-height: 1.2; }
   h4 { font-size: 24px; font-weight: 700; line-height: 1.3; }
   h5 { font-size: 20px; font-weight: 600; line-height: 1.4; }
   h6 { font-size: 17px; font-weight: 600; line-height: 1.65; }
-  p  { font-size: 15px; line-height: 1.65; color: #2E2E2C; }
+  p  { font-family: var(--font-figtree-loaded, var(--font-figtree)); font-size: 15px; line-height: 1.65; color: #2E2E2C; }
 }
 
 /* ─── COMPONENTES ───────────────────────────────────────────────── */
@@ -121,44 +177,44 @@
     @apply inline-flex items-center gap-3
            bg-neutral-900 text-white font-bold
            px-9 py-[18px] rounded-full
-           transition-all duration-200 cursor-pointer border-none
-           hover:-translate-y-px hover:bg-neutral-800 active:translate-y-0;
+           transition-[transform,background-color] duration-200 ease-out cursor-pointer border-none
+           hover:-translate-y-px hover:bg-neutral-800 active:translate-y-0 active:scale-[0.97];
   }
 
   .btn-hero-white {
     @apply inline-flex items-center gap-3
            bg-white text-neutral-900 font-bold
            px-9 py-[18px] rounded-full
-           transition-all duration-200 cursor-pointer border-none
-           hover:-translate-y-px hover:bg-neutral-100 active:translate-y-0;
+           transition-[transform,background-color] duration-200 ease-out cursor-pointer border-none
+           hover:-translate-y-px hover:bg-neutral-100 active:translate-y-0 active:scale-[0.97];
   }
 
   /* ══ BOTONES: FAMILIA B — Corporativo (sobre fondo blanco) ══ */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2
            font-semibold text-[15px]
-           px-7 py-[14px] rounded-btn border-2
-           bg-primary border-primary text-white
-           transition-all duration-200 cursor-pointer
-           hover:bg-primary-dark hover:border-primary-dark;
+           px-7 py-[14px] rounded-btn border
+           bg-primary border-neutral-900 text-white
+           transition-[transform,background-color] duration-200 ease-out cursor-pointer
+           hover:bg-primary-dark active:scale-[0.97];
   }
 
   .btn-outline {
     @apply inline-flex items-center justify-center gap-2
            font-semibold text-[15px]
-           px-7 py-[14px] rounded-btn border-2
-           bg-transparent border-neutral-300 text-neutral-900
-           transition-all duration-200 cursor-pointer
-           hover:border-neutral-900 hover:bg-neutral-50;
+           px-7 py-[14px] rounded-btn border
+           bg-transparent border-neutral-900 text-neutral-900
+           transition-[transform,background-color] duration-200 ease-out cursor-pointer
+           hover:bg-neutral-50 active:scale-[0.97];
   }
 
   .btn-dark {
     @apply inline-flex items-center justify-center gap-2
            font-semibold text-[15px]
-           px-7 py-[14px] rounded-btn border-2
+           px-7 py-[14px] rounded-btn border
            bg-neutral-900 border-neutral-900 text-white
-           transition-all duration-200 cursor-pointer
-           hover:bg-neutral-800 hover:border-neutral-800;
+           transition-[transform,background-color,border-color] duration-200 ease-out cursor-pointer
+           hover:bg-neutral-800 hover:border-neutral-800 active:scale-[0.97];
   }
 
   .btn-sm {
@@ -167,11 +223,11 @@
 
   /* ══ CARDS ══ */
   .card {
-    @apply bg-white border border-neutral-200 rounded-xl p-6 transition-all duration-200;
+    @apply bg-white border border-neutral-200 rounded-xl p-6 transition-[box-shadow,border-color,transform] duration-200 ease-out;
   }
 
   .card-hover {
-    @apply bg-white border border-neutral-200 rounded-xl p-6 transition-all duration-200
+    @apply bg-white border border-neutral-200 rounded-xl p-6 transition-[box-shadow,border-color,transform] duration-200 ease-out
            hover:shadow-lg hover:border-neutral-300 hover:-translate-y-0.5;
   }
 
@@ -194,32 +250,33 @@
     @apply inline-flex items-center text-sm font-medium
            px-4 py-1.5 rounded-full
            border border-neutral-200 bg-white text-neutral-700
-           cursor-pointer transition-all duration-150
-           hover:border-neutral-400;
+           cursor-pointer transition-[background-color,border-color] duration-150 ease-out
+           hover:bg-neutral-100 hover:border-neutral-300;
   }
 
   .tag-active {
     @apply inline-flex items-center text-sm font-medium
            px-4 py-1.5 rounded-full
            border border-neutral-900 bg-neutral-900 text-white
-           cursor-pointer transition-all duration-150;
+           cursor-pointer transition-[background-color] duration-150 ease-out;
   }
 
   /* ══ INPUTS ══ */
   .input {
     @apply w-full text-[15px] text-neutral-900 bg-white
-           border-[1.5px] border-neutral-300 rounded-lg
-           px-4 py-3 outline-none transition-all duration-100
+           border-2 border-neutral-200 rounded-btn
+           px-4 py-3 outline-none transition-[border-color] duration-100 ease-out
            placeholder:text-neutral-400
-           hover:border-neutral-500
-           focus:border-neutral-900;
+           hover:border-neutral-900
+           focus:border-primary;
   }
 
   /* ══ NAV LINKS ══ */
   .nav-link {
     @apply text-[15px] font-medium text-neutral-600
-           px-3.5 py-1.5 rounded-md transition-all duration-100
-           hover:text-neutral-900 hover:bg-neutral-100;
+           px-3.5 py-1.5 rounded-md transition-[background-color,color] duration-100 ease-out
+           hover:text-neutral-900 hover:bg-neutral-100
+           active:opacity-70;
   }
 
   /* ══ HERO SECTIONS ══ */
@@ -245,3 +302,77 @@
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: #F2F1EE; }
 ::-webkit-scrollbar-thumb { background: #CCCBC6; border-radius: 10px; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 200ms ease-out;
+}
+
+/* Playful overshoot pop for save/like-style toggles — used sparingly, only on
+   emotionally-charged one-tap actions (bookmark), not on utilitarian buttons. */
+@keyframes pop {
+  0%   { transform: scale(0.6); }
+  55%  { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+.animate-pop {
+  animation: pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Soft breathing pulse for map pins / badges that need a low-key "happening now" cue. */
+@keyframes pulseSoft {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(23, 23, 23, 0.25); }
+  50%      { box-shadow: 0 0 0 6px rgba(23, 23, 23, 0); }
+}
+.animate-pulse-soft {
+  animation: pulseSoft 2s ease-out infinite;
+}
+
+/* Staggered drop-in for map pins on first render. */
+@keyframes pinIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.6); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-pin-in {
+  animation: pinIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Circular/diagonal wipe reveal for the login/register full-bleed background,
+   replayed (alternating style) on every color shift (see useFunFocusBackground). */
+@keyframes circleReveal {
+  0%   { clip-path: circle(0% at 50% 50%); }
+  100% { clip-path: circle(150% at 50% 50%); }
+}
+@keyframes diagonalSweep {
+  0%   { transform: skewX(-12deg) translateX(-140%); }
+  100% { transform: skewX(-12deg) translateX(0%); }
+}
+
+/* Gentle idle drift for floating stat badges over the hero photo. */
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-14px) rotate(2deg); }
+}
+.animate-float-slow {
+  animation: floatSlow 7s ease-in-out infinite;
+}
+
+@keyframes floatSlow2 {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(12px); }
+}
+.animate-float-slow-2 {
+  animation: floatSlow2 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

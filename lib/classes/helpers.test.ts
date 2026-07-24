@@ -45,35 +45,57 @@ describe('buildClassColumns — contact_mode', () => {
 
 describe('venueNeedsUpdate', () => {
   it('returns true when current venue is null (no venue linked yet)', () => {
-    expect(venueNeedsUpdate(null, { placeId: 'place-1', address: 'Av. Test 123' })).toBe(true);
+    expect(venueNeedsUpdate(null, { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' })).toBe(true);
   });
 
   it('returns true when both place_id/placeId are non-null and differ', () => {
     expect(venueNeedsUpdate(
-      { place_id: 'place-1', address: 'Av. Test 123' },
-      { placeId: 'place-2', address: 'Av. Test 123' }
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-2', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' }
     )).toBe(true);
   });
 
   it('returns false when both place_id/placeId are non-null and equal', () => {
     expect(venueNeedsUpdate(
-      { place_id: 'place-1', address: 'Av. Test 123' },
-      { placeId: 'place-1', address: 'Av. Test 123' }
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' }
     )).toBe(false);
   });
 
   it('returns true when incoming placeId is null and address differs from current', () => {
     expect(venueNeedsUpdate(
-      { place_id: null, address: 'Av. Old 111' },
-      { placeId: null, address: 'Av. New 222' }
+      { place_id: null, address: 'Av. Old 111', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: null, address: 'Av. New 222', name: '', city: 'Lima', district: 'Miraflores' }
     )).toBe(true);
   });
 
   it('returns false when incoming placeId is null and address equals current', () => {
     expect(venueNeedsUpdate(
-      { place_id: null, address: 'Av. Test 123' },
-      { placeId: null, address: 'Av. Test 123' }
+      { place_id: null, address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: null, address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' }
     )).toBe(false);
+  });
+
+  it('returns true when only the name differs (place_id and address unchanged)', () => {
+    expect(venueNeedsUpdate(
+      { place_id: 'place-1', address: 'Av. Test 123', name: 'Old Studio', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: 'New Studio', city: 'Lima', district: 'Miraflores' }
+    )).toBe(true);
+  });
+
+  // Regression: findOrCreateVenue is the only place that writes city/district
+  // (extracted from Google's addressComponents) — if this comparison ignores
+  // them, editing only the district on an unchanged address silently drops
+  // the new value, since findOrCreateVenue never gets called.
+  it('returns true when only city or district differs (place_id/address/name unchanged)', () => {
+    expect(venueNeedsUpdate(
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Barranco' }
+    )).toBe(true);
+    expect(venueNeedsUpdate(
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Callao', district: 'Miraflores' }
+    )).toBe(true);
   });
 });
 
@@ -83,14 +105,16 @@ describe('venueNeedsUpdate', () => {
 //   .from('venues').select('id').eq('owner_id', x).eq('place_id', y).maybeSingle()
 //   .from('venues').insert({...}).select('id').single()
 
-type MockCall = { table: string; op: 'select' | 'insert'; args: unknown[] };
+type MockCall = { table: string; op: 'select' | 'insert' | 'update'; args: unknown[] };
 
 function buildSupabaseMock(opts: {
   maybeSingleResult?: { data: { id: string } | null; error: unknown };
   singleResult?: { data: { id: string } | null; error: unknown };
+  updateResult?: { error: unknown };
 }) {
   const calls: MockCall[] = [];
   const insertMock = vi.fn();
+  const updateMock = vi.fn();
 
   const from = vi.fn((table: string) => {
     const chain = {
@@ -116,13 +140,21 @@ function buildSupabaseMock(opts: {
           })),
         };
       }),
+      update: vi.fn((...updateArgs: unknown[]) => {
+        updateMock(...updateArgs);
+        calls.push({ table, op: 'update', args: updateArgs });
+        return {
+          eq: vi.fn(async () => opts.updateResult ?? { error: null }),
+        };
+      }),
     };
     return chain;
   });
 
-  return { from, calls, insertMock } as unknown as SupabaseClient & {
+  return { from, calls, insertMock, updateMock } as unknown as SupabaseClient & {
     calls: MockCall[];
     insertMock: typeof insertMock;
+    updateMock: typeof updateMock;
   };
 }
 
@@ -131,10 +163,11 @@ describe('findOrCreateVenue', () => {
     name: 'Estudio Test',
     address: 'Av. Test 123',
     reference: 'Frente al parque',
-    districtId: 5,
+    city: 'Lima',
+    district: 'Miraflores',
   };
 
-  it('returns the existing venue id when placeId matches an owner-scoped row (no insert)', async () => {
+  it('returns the existing venue id when placeId matches an owner-scoped row (no insert, but refreshes name/reference)', async () => {
     const supabase = buildSupabaseMock({
       maybeSingleResult: { data: { id: 'venue-existing' }, error: null },
     });
@@ -145,6 +178,8 @@ describe('findOrCreateVenue', () => {
 
     expect(id).toBe('venue-existing');
     expect(supabase.insertMock).not.toHaveBeenCalled();
+    expect(supabase.updateMock).toHaveBeenCalledTimes(1);
+    expect(supabase.updateMock.mock.calls[0][0]).toMatchObject({ name: 'Estudio Test', reference: 'Frente al parque' });
   });
 
   it('inserts a new venue (with place_id/lat/lng) when placeId is provided but no match is found', async () => {

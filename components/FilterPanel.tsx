@@ -10,10 +10,12 @@ export interface Filters {
   days: string[];
   timesOfDay: string[];
   modalities: string[];
-  priceRanges: string[];
+  priceMax: number | null;
   types: string[];
   withSpots: boolean;
 }
+
+export const MAX_PRICE = 300;
 
 interface FilterPanelProps {
   filters: Filters;
@@ -25,12 +27,11 @@ interface FilterPanelProps {
 
 export const EMPTY_FILTERS: Filters = {
   city: '', district: '', styles: [], levels: [], days: [],
-  timesOfDay: [], modalities: [], priceRanges: [], types: [], withSpots: false,
+  timesOfDay: [], modalities: [], priceMax: null, types: [], withSpots: false,
 };
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const TIMES_OF_DAY = ['Mañana (6–12)', 'Tarde (12–18)', 'Noche (18–23)'];
-const PRICE_RANGES = ['Gratis', 'Hasta S/50', 'S/50–S/150', 'S/150+'];
 const MODALITIES = ['Presencial', 'Online'];
 // value matches ClassType from crear-clase; label matches the form options
 const TYPES: { value: string; label: string }[] = [
@@ -51,13 +52,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div className="border-b border-neutral-100 pb-4 mb-4">
       <button
-        className="flex items-center justify-between w-full text-[13px] font-semibold text-neutral-800 mb-3"
+        className="flex items-center justify-between w-full text-[13px] font-semibold text-neutral-800 mb-3 active:opacity-70"
         onClick={() => setOpen(!open)}
       >
         {title}
-        <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ease-out ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && children}
+      <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden">{children}</div>
+      </div>
     </div>
   );
 }
@@ -65,7 +68,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function FilterPanel({ filters, onChange, className = '', danceStyles = [], levels = [] }: FilterPanelProps) {
   const set = (key: keyof Filters, value: unknown) => onChange({ ...filters, [key]: value });
 
-  const toggleIn = (key: 'styles' | 'levels' | 'days' | 'timesOfDay' | 'modalities' | 'priceRanges' | 'types', v: string) => {
+  const toggleIn = (key: 'styles' | 'levels' | 'days' | 'timesOfDay' | 'modalities' | 'types', v: string) => {
     const arr = filters[key].includes(v)
       ? filters[key].filter(x => x !== v)
       : [...filters[key], v];
@@ -74,7 +77,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
 
   const activeCount =
     filters.styles.length + filters.levels.length + filters.days.length +
-    filters.timesOfDay.length + filters.modalities.length + filters.priceRanges.length +
+    filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
     filters.types.length + (filters.withSpots ? 1 : 0) +
     [filters.city, filters.district].filter(Boolean).length;
 
@@ -163,17 +166,27 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
       </Section>
 
       <Section title="Precio">
-        {PRICE_RANGES.map(p => (
-          <label key={p} className="flex items-center gap-2 cursor-pointer mb-2">
-            <input
-              type="checkbox"
-              checked={filters.priceRanges.includes(p)}
-              onChange={() => toggleIn('priceRanges', p)}
-              className="accent-neutral-900 w-4 h-4"
-            />
-            <span className="text-[13px] text-neutral-700">{p}</span>
-          </label>
-        ))}
+        <div className="px-0.5">
+          <input
+            type="range"
+            min={0}
+            max={MAX_PRICE}
+            step={10}
+            value={filters.priceMax ?? MAX_PRICE}
+            onChange={e => {
+              const v = Number(e.target.value);
+              set('priceMax', v >= MAX_PRICE ? null : v);
+            }}
+            className="w-full accent-primary cursor-pointer"
+          />
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-[11px] text-neutral-400">S/0</span>
+            <span className="text-[13px] font-semibold text-neutral-900">
+              {filters.priceMax === null ? 'Cualquier precio' : `Hasta S/${filters.priceMax}`}
+            </span>
+            <span className="text-[11px] text-neutral-400">S/{MAX_PRICE}+</span>
+          </div>
+        </div>
       </Section>
 
       <Section title="Tipo de clase">

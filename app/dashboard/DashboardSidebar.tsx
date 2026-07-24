@@ -33,7 +33,7 @@ const NAV_BY_ROLE = {
     { href: '/dashboard',              label: 'Inicio',         icon: LayoutDashboard },
     { href: '/dashboard/mis-clases',   label: 'Mis clases',     icon: BookOpen },
     { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
-    { href: '/dashboard/importar-csv', label: 'Importar CSV',   icon: Upload },
+    { href: '/dashboard/importar-csv', label: 'Subir clases masivas', icon: Upload },
     { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
     { href: '/dashboard/configuracion',label: 'Configuración',  icon: Settings },
   ],
@@ -42,7 +42,7 @@ const NAV_BY_ROLE = {
     { href: '/dashboard/mis-clases',   label: 'Mis clases',     icon: BookOpen },
     { href: '/dashboard/profesores',   label: 'Profesores',     icon: Users },
     { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
-    { href: '/dashboard/importar-csv', label: 'Importar CSV',   icon: Upload },
+    { href: '/dashboard/importar-csv', label: 'Subir clases masivas', icon: Upload },
     { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
     { href: '/dashboard/configuracion',label: 'Configuración',  icon: Settings },
   ],
@@ -120,8 +120,8 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-neutral-200 shrink-0">
-        <div className="p-6 border-b border-neutral-200">
+      <aside className="hidden md:flex flex-col w-64 bg-white shrink-0">
+        <div className="p-6 border-b border-neutral-900">
           <Link href="/" className="flex items-center">
             <Image src="/logo.png" alt="Kynea" width={100} height={32} priority />
           </Link>

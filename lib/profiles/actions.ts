@@ -1,13 +1,11 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { lookupDistrictId } from '@/lib/catalog/lookups';
 
 export async function updateProfile(updates: {
   name?: string;
   bio?: string;
-  district_name?: string;
-  district_city?: string;
+  nationality?: string;
   years_experience?: number;
   whatsapp?: string;
   instagram?: string;
@@ -16,6 +14,8 @@ export async function updateProfile(updates: {
   website?: string;
   style_names?: string[];
   photo_url?: string;
+  photo_position?: string;
+  photo_zoom?: number;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,6 +24,7 @@ export async function updateProfile(updates: {
   const profileUpdate: Record<string, unknown> = {};
   if (updates.name             !== undefined) profileUpdate.name = updates.name;
   if (updates.bio              !== undefined) profileUpdate.bio = updates.bio;
+  if (updates.nationality      !== undefined) profileUpdate.nationality = updates.nationality;
   if (updates.years_experience !== undefined) profileUpdate.years_experience = updates.years_experience;
   if (updates.whatsapp         !== undefined) profileUpdate.whatsapp = updates.whatsapp;
   if (updates.instagram        !== undefined) profileUpdate.instagram = updates.instagram;
@@ -31,11 +32,8 @@ export async function updateProfile(updates: {
   if (updates.youtube          !== undefined) profileUpdate.youtube = updates.youtube;
   if (updates.website          !== undefined) profileUpdate.website = updates.website;
   if (updates.photo_url        !== undefined) profileUpdate.photo_url = updates.photo_url;
-
-  if (updates.district_name && updates.district_city) {
-    const distId = await lookupDistrictId(supabase, updates.district_name, updates.district_city);
-    if (distId) profileUpdate.district_id = distId;
-  }
+  if (updates.photo_position   !== undefined) profileUpdate.photo_position = updates.photo_position;
+  if (updates.photo_zoom       !== undefined) profileUpdate.photo_zoom = updates.photo_zoom;
 
   if (Object.keys(profileUpdate).length > 0) {
     const { error } = await supabase.from('profiles').update(profileUpdate).eq('id', user.id);
@@ -60,5 +58,9 @@ export async function updateProfile(updates: {
   }
 
   revalidatePath('/dashboard/perfil');
-  revalidatePath('/dashboard');
+  // 'layout' so the shared dashboard sidebar (name/photo, fetched in
+  // app/dashboard/layout.tsx) revalidates too — it stays mounted across
+  // client-side nav within /dashboard/*, so a plain 'page' revalidation
+  // of '/dashboard' alone wouldn't refresh it.
+  revalidatePath('/dashboard', 'layout');
 }

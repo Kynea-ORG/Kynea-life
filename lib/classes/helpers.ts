@@ -9,10 +9,12 @@ export const DAY_MAP: Record<string, number> = {
 };
 
 export function venueNeedsUpdate(
-  current: { place_id: string | null; address: string | null } | null,
-  incoming: { placeId: string | null; address: string }
+  current: { place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null } | null,
+  incoming: { placeId: string | null; address: string; name: string; city: string; district: string }
 ): boolean {
   if (!current) return true;
+  if (current.name !== incoming.name) return true;
+  if (current.city !== incoming.city || current.district !== incoming.district) return true;
   if (current.place_id && incoming.placeId) return current.place_id !== incoming.placeId;
   if (!incoming.placeId) return current.address !== incoming.address;
   return true;
@@ -22,7 +24,7 @@ export async function findOrCreateVenue(
   supabase: SupabaseClient,
   ownerId: string,
   opts: {
-    name: string; address: string; reference: string; districtId: number | null;
+    name: string; address: string; reference: string; city: string; district: string;
     placeId: string | null; lat: number | null; lng: number | null;
   }
 ): Promise<string | null> {
@@ -34,7 +36,18 @@ export async function findOrCreateVenue(
       .eq('place_id', opts.placeId)
       .maybeSingle();
     if (lookupError) console.error('[findOrCreateVenue] lookup', lookupError.message);
-    if (existing?.id) return existing.id;
+    if (existing?.id) {
+      // Venues are reused across classes at the same place (see table
+      // comment), so keep the shared row's editable fields in sync with
+      // whatever the teacher just typed instead of leaving them frozen at
+      // whatever they were the first time this place was saved.
+      const { error: updateError } = await supabase
+        .from('venues')
+        .update({ name: opts.name, reference: opts.reference, city: opts.city, district: opts.district, lat: opts.lat, lng: opts.lng })
+        .eq('id', existing.id);
+      if (updateError) console.error('[findOrCreateVenue] update', updateError.message);
+      return existing.id;
+    }
   }
 
   const { data, error } = await supabase
@@ -44,7 +57,8 @@ export async function findOrCreateVenue(
       name: opts.name,
       address: opts.address,
       reference: opts.reference,
-      district_id: opts.districtId,
+      city: opts.city,
+      district: opts.district,
       place_id: opts.placeId,
       lat: opts.lat,
       lng: opts.lng,
@@ -57,13 +71,19 @@ export async function findOrCreateVenue(
 
 export async function insertClassStyles(supabase: SupabaseClient, classId: string, styleId: number | null): Promise<void> {
   if (!styleId) return;
-  const { error } = await supabase.from('class_styles').insert({ class_id: classId, style_id: styleId, is_main: true });
+  // Upsert, not insert: class_styles has PRIMARY KEY (class_id, style_id), so
+  // editing a class without changing its style would otherwise violate that
+  // key on every save — aborting the update before it reaches the schedule
+  // cleanup step below and leaking a duplicate class_schedules row per retry.
+  const { error } = await supabase
+    .from('class_styles')
+    .upsert({ class_id: classId, style_id: styleId, is_main: true }, { onConflict: 'class_id,style_id' });
   if (error) throw new Error(`No se pudo guardar el estilo de la clase: ${error.message}`);
 }
 
 export async function insertClassSchedules(
   supabase: SupabaseClient, classId: string, slots: FormSlot[], startDate?: string | null
-): Promise<void> {
+): Promise<{ day_of_week: number; start_time: string; end_time: string }[]> {
   // "Clase única" slots carry no `days` (single date, not a weekly recurrence) —
   // derive day_of_week from startDate so the schedule row still gets written.
   const fallbackDay = startDate ? (new Date(`${startDate}T12:00:00`).getDay() + 6) % 7 : null;
@@ -79,9 +99,16 @@ export async function insertClassSchedules(
       .map(day => ({ class_id: classId, day_of_week: DAY_MAP[day], start_time: slot.startTime, end_time: slot.endTime }));
   });
   if (rows.length) {
-    const { error } = await supabase.from('class_schedules').insert(rows);
+    // Upsert, not insert: class_schedules has a UNIQUE(class_id, day_of_week,
+    // start_time, end_time) constraint, so re-saving a class without changing
+    // its schedule would otherwise collide with the still-present old row
+    // (the stale-row cleanup below runs after this, not before).
+    const { error } = await supabase
+      .from('class_schedules')
+      .upsert(rows, { onConflict: 'class_id,day_of_week,start_time,end_time' });
     if (error) throw new Error(`No se pudo guardar el horario de la clase: ${error.message}`);
   }
+  return rows.map(({ day_of_week, start_time, end_time }) => ({ day_of_week, start_time, end_time }));
 }
 
 // Returns the ~22 columns shared between createClass and updateClassFromForm.
@@ -90,8 +117,10 @@ export function buildClassColumns(
   formData: FormData,
   { levelId, venueId }: { levelId: number | null; venueId: string | null }
 ): ClassUpdatePayload {
-  const toBring  = formData.get('toBring') as string;
-  const maxSpots = formData.get('maxSpots') as string | null;
+  const toBring      = formData.get('toBring') as string;
+  const maxSpots     = formData.get('maxSpots') as string | null;
+  const footwear     = formData.get('footwear') as string | null;
+  const prerequisites = formData.get('prerequisites') as string | null;
 
   return {
     type:              formData.get('type') as ClassType,
@@ -100,6 +129,7 @@ export function buildClassColumns(
     venue_id:          venueId,
     short_description: (formData.get('shortDesc') as string) || null,
     full_description:  (formData.get('fullDesc') as string) || null,
+    recurrence:        (formData.get('recurrence') as string) || 'mensual',
     start_date:        (formData.get('startDate') as string) || null,
     end_date:          (formData.get('endDate') as string) || null,
     price_type:        formData.get('priceType') as PriceType,
@@ -111,9 +141,9 @@ export function buildClassColumns(
     modality:          formData.get('modality') as Modality,
     platform:          (formData.get('platform') as string) || null,
     access_link:       (formData.get('accessLink') as string) || null,
-    footwear:          (formData.get('footwear') as string) || null,
+    footwear:          footwear ? JSON.parse(footwear) : [],
+    requirements:      prerequisites ? JSON.parse(prerequisites) : [],
     clothing:          (formData.get('clothing') as string) || null,
-    requirements:      (formData.get('prerequisites') as string) || null,
     age_group:         (formData.get('ageGroup') as string) || null,
     to_bring:          toBring ? JSON.parse(toBring) : [],
     contact_mode:      ((formData.get('contactMode') as string) || 'whatsapp') as 'whatsapp' | 'instagram' | 'both',

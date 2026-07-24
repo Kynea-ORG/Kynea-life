@@ -5,25 +5,35 @@ import { fetchHomeStats } from '@/lib/stats/queries';
 import HomeClient from './HomeClient';
 import AuthErrorBanner from '@/components/AuthErrorBanner';
 
+// Style rows featured on Home below "Clases esta semana", in display order.
+// Picked for having several published classes from different teachers —
+// revisit this list as the catalog grows instead of hardcoding forever.
+const FEATURED_STYLES = ['Heels', 'Contemporáneo'];
+
 export default async function Page() {
-  const [classes, salsaClasses, teachers, academias, danceStyles, stats] = await Promise.all([
+  const [classes, featuredStyleClasses, teachers, academias, danceStyles, stats] = await Promise.all([
     fetchPublishedClasses(),
-    fetchPublishedClasses({ styles: ['Salsa'] }),
-    fetchFeaturedProfiles('profesor'),
+    Promise.all(FEATURED_STYLES.map(style => fetchPublishedClasses({ styles: [style] }))),
+    fetchFeaturedProfiles('profesor', 6),
     fetchFeaturedProfiles('academia'),
     fetchDanceStyles(),
     fetchHomeStats(),
   ]);
+
+  const featuredCategories = FEATURED_STYLES.map((style, i) => ({
+    style,
+    classes: featuredStyleClasses[i],
+  }));
 
   return (
     <>
       <AuthErrorBanner />
       <HomeClient
         initialClasses={classes}
-        salsaClasses={salsaClasses}
+        featuredCategories={featuredCategories}
         initialTeachers={teachers}
         initialAcademias={academias}
-        danceStyles={danceStyles.slice(0, 9)}
+        danceStyles={danceStyles}
         stats={stats}
       />
     </>

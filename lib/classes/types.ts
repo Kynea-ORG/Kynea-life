@@ -22,6 +22,7 @@ export interface ClassUpdatePayload {
   venue_id?:         string | null;
   short_description?: string | null;
   full_description?: string | null;
+  recurrence?:       string;
   start_date?:       string | null;
   end_date?:         string | null;
   price_type?:       PriceType;
@@ -33,13 +34,15 @@ export interface ClassUpdatePayload {
   modality?:         Modality;
   platform?:         string | null;
   access_link?:      string | null;
-  footwear?:         string | null;
+  footwear?:         string[] | null;
   clothing?:         string | null;
-  requirements?:     string | null;
+  requirements?:     string[] | null;
   age_group?:        string | null;
   to_bring?:         string[];
   contact_mode?:     'whatsapp' | 'instagram' | 'both';
   cover_image?:      string | null;
+  cover_image_position?: string;
+  cover_image_zoom?: number;
 }
 
 // Shape returned by CLASS_SELECT (DB columns + joined relations)
@@ -65,7 +68,8 @@ export interface DbVenue {
   place_id: string | null;
   lat: number | null;
   lng: number | null;
-  district: { name: string; city: string } | null;
+  city: string | null;
+  district: string | null;
 }
 
 export interface DbTeacherProfile {
@@ -73,6 +77,8 @@ export interface DbTeacherProfile {
   name: string;
   role: string;
   photo_url: string | null;
+  photo_position?: string | null;
+  photo_zoom?: number | null;
   bio: string | null;
   years_experience: number | null;
   whatsapp: string | null;
@@ -80,7 +86,6 @@ export interface DbTeacherProfile {
   tiktok: string | null;
   youtube: string | null;
   website: string | null;
-  district: { name: string; city: string } | null;
   profile_styles: Array<{ style_id: number; dance_styles: { name: string } | null }>;
   rating?: number | null;
   total_classes?: number | null;
@@ -99,7 +104,8 @@ export interface DbClassRow {
   full_description: string | null;
   what_you_learn: string[] | null;
   for_whom: string | null;
-  requirements: string | null;
+  requirements: string[] | null;
+  recurrence: string;
   start_date: string | null;
   end_date: string | null;
   price_type: string;
@@ -113,9 +119,11 @@ export interface DbClassRow {
   platform: string | null;
   access_link: string | null;
   cover_image: string | null;
+  cover_image_position: string | null;
+  cover_image_zoom: number | null;
   gallery: string[] | null;
   video_url: string | null;
-  footwear: string | null;
+  footwear: string[] | null;
   clothing: string | null;
   to_bring: string[] | null;
   age_group: string | null;

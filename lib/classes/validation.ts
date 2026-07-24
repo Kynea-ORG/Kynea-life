@@ -212,7 +212,7 @@ export function dbRowToValidationInput(row: DbClassRow, schedules: DbClassSchedu
     .filter((d): d is string => Boolean(d));
   const startTime = schedules[0]?.start_time ?? '';
   const endTime = schedules[0]?.end_time ?? '';
-  const recurrence = days.length > 1 || schedules.length > 1 ? 'mensual' : 'unica';
+  const recurrence = row.recurrence;
   const slots: ValidationSlot[] = schedules.length ? [{ days, startTime, endTime }] : [];
 
   const mainStyle = row.class_styles?.find(s => s.is_main) ?? row.class_styles?.[0];
@@ -231,8 +231,8 @@ export function dbRowToValidationInput(row: DbClassRow, schedules: DbClassSchedu
     price: row.price,
     offerPrice: row.offer_price,
     modality: row.modality,
-    city: row.venue?.district?.city ?? '',
-    district: row.venue?.district?.name ?? '',
+    city: row.venue?.city ?? '',
+    district: row.venue?.district ?? '',
     address: row.venue?.address ?? '',
     accessLink: row.access_link ?? '',
     coverImage: row.cover_image ?? '',

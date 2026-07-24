@@ -152,7 +152,7 @@ function ConfirmarEmailContent() {
             )}
 
             {error && (
-              <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 mb-4 text-left">
+              <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 mb-4 text-left animate-fade-in">
                 {error}
               </div>
             )}
@@ -187,14 +187,15 @@ function ConfirmarEmailContent() {
             </form>
 
             {resent ? (
-              <div className="bg-green-bg border border-green-dark/20 text-green-text text-[13px] font-semibold px-4 py-3 rounded-lg mb-4">
+              <div key="resent" className="bg-green-bg border border-green-dark/20 text-green-text text-[13px] font-semibold px-4 py-3 rounded-lg mb-4 animate-fade-in">
                 ¡Código reenviado! Revisa tu bandeja de entrada.
               </div>
             ) : (
               <button
+                key="resend-btn"
                 onClick={handleResend}
                 disabled={resending}
-                className="w-full btn-outline flex items-center justify-center gap-2 mb-4 disabled:opacity-60"
+                className="w-full btn-outline flex items-center justify-center gap-2 mb-4 disabled:opacity-60 animate-fade-in"
               >
                 {resending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                 {resending ? 'Enviando…' : 'Reenviar código'}

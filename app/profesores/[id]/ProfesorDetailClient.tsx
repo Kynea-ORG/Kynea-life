@@ -20,87 +20,90 @@ export default function ProfesorDetailClient({
     <div className="min-h-screen bg-white">
       <Header />
 
-      <div className="max-w-5xl mx-auto px-5 lg:px-8 py-8">
-        <Link href="/clases" className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 mb-6 transition-colors">
-          <ChevronLeft className="w-4 h-4" /> Volver a clases
-        </Link>
+      {/* Artistic profile banner */}
+      <div className="relative bg-primary overflow-hidden pt-10 px-5 lg:px-8 pb-[88px]">
+        <div className="relative z-10 max-w-5xl mx-auto">
+          <Link href="/clases" className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white mb-6 transition-colors">
+            <ChevronLeft className="w-4 h-4" /> Volver a clases
+          </Link>
 
-        {/* Profile header */}
-        <div className="flex flex-col sm:flex-row items-start gap-6 mb-8 p-6 bg-neutral-50 rounded-xl border border-neutral-200">
-          {teacher.photo ? (
-            <div className="relative w-24 h-24 rounded-xl overflow-hidden shrink-0">
-              <Image src={teacher.photo} alt={teacher.name} fill sizes="96px" className="object-cover" />
+          <div className="flex flex-wrap items-start gap-6">
+            <div className="relative w-40 h-40 rounded-full overflow-hidden shrink-0 bg-neutral-900 flex items-center justify-center">
+              {teacher.photo ? (
+                <Image src={teacher.photo} alt={teacher.name} fill sizes="160px" className="object-cover" style={{ objectPosition: teacher.photoPosition || '50% 50%', transform: `scale(${teacher.photoZoom || 1})` }} />
+              ) : (
+                <span className="text-[56px] font-black text-white">{teacher.name.charAt(0)}</span>
+              )}
             </div>
-          ) : (
-            <div className="w-24 h-24 rounded-xl bg-neutral-200 flex items-center justify-center text-3xl font-black text-neutral-500 shrink-0">
-              {teacher.name.charAt(0)}
-            </div>
-          )}
-          <div className="flex-1">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-black text-neutral-900">{teacher.name}</h1>
-                <p className="text-sm text-neutral-500 mt-0.5 capitalize">{teacher.type} de danza</p>
+
+            <div className="flex-1 min-w-[260px] pt-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-[30px] font-black text-white tracking-tight">{teacher.name}</h1>
+                  <p className="font-figtree text-[14px] text-white/75 mt-1 capitalize">{teacher.type} de danza</p>
+                </div>
+                {teacher.rating && (
+                  <div className="flex items-center gap-1.5 bg-white border border-neutral-900 px-3.5 py-2 rounded-full animate-float-slow-2">
+                    <Star className="w-[15px] h-[15px] text-yellow-dark fill-yellow-dark" />
+                    <span className="font-bold text-neutral-900 text-sm">{teacher.rating}</span>
+                  </div>
+                )}
               </div>
-              {teacher.rating && (
-                <div className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-100 px-3 py-1.5 rounded-full">
-                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                  <span className="font-bold text-neutral-800 text-sm">{teacher.rating}</span>
+
+              <div className="flex flex-wrap gap-2.5 mt-3.5 text-[13px] text-white/75">
+                {teacher.nationality && (
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {teacher.nationality}
+                  </span>
+                )}
+                {teacher.experience > 0 && (
+                  <>
+                    <span>·</span>
+                    <span>{teacher.experience} años de experiencia</span>
+                  </>
+                )}
+                {teacher.totalClasses && (
+                  <>
+                    <span>·</span>
+                    <span>{teacher.totalClasses} clases publicadas</span>
+                  </>
+                )}
+              </div>
+
+              {teacher.styles.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3.5">
+                  {teacher.styles.map(s => (
+                    <span key={s} className="text-xs font-bold bg-white text-primary-dark border border-neutral-900 px-3.5 py-1.5 rounded-full">
+                      {s}
+                    </span>
+                  ))}
                 </div>
               )}
-            </div>
 
-            <div className="flex flex-wrap gap-3 mt-3 text-sm text-neutral-500">
-              {(teacher.district || teacher.city) && (
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-neutral-400" />
-                  {[teacher.district, teacher.city].filter(Boolean).join(', ')}
-                </span>
-              )}
-              {teacher.experience > 0 && (
-                <>
-                  <span className="text-neutral-300">·</span>
-                  <span>{teacher.experience} años de experiencia</span>
-                </>
-              )}
-              {teacher.totalClasses && (
-                <>
-                  <span className="text-neutral-300">·</span>
-                  <span>{teacher.totalClasses} clases publicadas</span>
-                </>
-              )}
-            </div>
-
-            {teacher.styles.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {teacher.styles.map(s => (
-                  <span key={s} className="text-xs font-semibold bg-pink-50 text-pink-600 border border-pink-100 px-2.5 py-1 rounded-full">
-                    {s}
+              <div className="flex flex-wrap gap-4 mt-3.5">
+                {teacher.instagram && (
+                  <span className="text-[12.5px] text-white/80 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5" /> {teacher.instagram}
                   </span>
-                ))}
+                )}
+                {teacher.tiktok && (
+                  <span className="text-[12.5px] text-white/80 flex items-center gap-1.5">
+                    <Video className="w-3.5 h-3.5" /> {teacher.tiktok}
+                  </span>
+                )}
+                {teacher.website && (
+                  <a href={teacher.website} target="_blank" rel="noopener noreferrer" className="text-[12.5px] text-white flex items-center gap-1.5 hover:underline font-bold">
+                    <Globe className="w-3.5 h-3.5" /> Sitio web
+                  </a>
+                )}
               </div>
-            )}
-
-            <div className="flex flex-wrap gap-3 mt-3">
-              {teacher.instagram && (
-                <span className="text-xs text-neutral-500 flex items-center gap-1">
-                  <Camera className="w-3.5 h-3.5" /> {teacher.instagram}
-                </span>
-              )}
-              {teacher.tiktok && (
-                <span className="text-xs text-neutral-500 flex items-center gap-1">
-                  <Video className="w-3.5 h-3.5" /> {teacher.tiktok}
-                </span>
-              )}
-              {teacher.website && (
-                <a href={teacher.website} target="_blank" rel="noopener noreferrer" className="text-xs text-neutral-900 flex items-center gap-1 hover:underline font-medium">
-                  <Globe className="w-3.5 h-3.5" /> Sitio web
-                </a>
-              )}
             </div>
           </div>
         </div>
+      </div>
 
+      <div className="max-w-5xl mx-auto px-5 lg:px-8 py-8">
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-neutral-100 rounded-xl p-1 w-fit">
           {[
@@ -110,7 +113,7 @@ export default function ProfesorDetailClient({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-[background-color,color,box-shadow] active:scale-[0.97] ${
                 activeTab === tab.key ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
               }`}
             >
@@ -134,16 +137,16 @@ export default function ProfesorDetailClient({
           <div className="max-w-2xl">
             <p className="text-neutral-600 leading-relaxed mb-6">{teacher.bio || 'Sin biografía aún.'}</p>
             {teacher.whatsapp && (
-              <div className="bg-neutral-50 rounded-xl border border-neutral-200 p-5">
-                <h3 className="font-bold text-neutral-900 mb-3">Contacto</h3>
-                <p className="text-sm text-neutral-600 mb-4">
+              <div className="bg-neutral-50 rounded-2xl border border-neutral-900 p-6">
+                <h3 className="font-extrabold text-neutral-900 mb-2.5">Contacto</h3>
+                <p className="font-figtree text-[13.5px] text-neutral-500 mb-4">
                   Para coordinar clases privadas o consultas, contacta directamente:
                 </p>
                 <a
                   href={`https://wa.me/${teacher.whatsapp.replace(/\s+/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20BC5A] text-white font-bold px-5 py-2.5 rounded-btn text-sm transition-colors"
+                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20BC5A] border border-neutral-900 text-white font-bold px-5 py-2.5 rounded-btn text-sm transition-colors active:scale-[0.97]"
                 >
                   <MessageCircle className="w-4 h-4" /> WhatsApp
                 </a>

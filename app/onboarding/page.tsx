@@ -2,10 +2,13 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ChevronRight, ChevronLeft, Upload, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Upload, Loader2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/profiles/actions';
+import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
+import { NATIONALITIES } from '@/lib/nationalities';
+import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 
 const STEPS = [
   'Datos públicos',
@@ -21,8 +24,7 @@ function OnboardingContent() {
   const [form, setForm] = useState({
     publicName: '',
     representante: '',
-    city: '',
-    district: '',
+    nationality: '',
     bio: '',
     instagram: '',
     tiktok: '',
@@ -36,10 +38,11 @@ function OnboardingContent() {
   const [waNumber, setWaNumber] = useState('');
 
   const [photoUrl, setPhotoUrl] = useState('');
+  const [photoPosition, setPhotoPosition] = useState('50% 50%');
+  const [photoZoom, setPhotoZoom] = useState(1);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [availableStyles, setAvailableStyles] = useState<string[]>([]);
-  const [allDistricts, setAllDistricts] = useState<{ id: number; name: string; city: string }[]>([]);
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,13 +56,11 @@ function OnboardingContent() {
   useEffect(() => {
     async function init() {
       const supabase = createClient();
-      const [{ data: { user } }, stylesResult, districtsResult] = await Promise.all([
+      const [{ data: { user } }, stylesResult] = await Promise.all([
         supabase.auth.getUser(),
         supabase.from('dance_styles').select('name').order('ord'),
-        supabase.from('districts').select('id, name, city').order('city').order('name'),
       ]);
       setAvailableStyles((stylesResult.data ?? []).map(r => r.name));
-      setAllDistricts(districtsResult.data ?? []);
       if (!user) { setInitializing(false); return; }
       const { data: profile } = await supabase
         .from('profiles')
@@ -93,8 +94,18 @@ function OnboardingContent() {
 
   async function handlePhotoUpload(file: File) {
     if (file.size > 5 * 1024 * 1024) { setError('La imagen no puede superar 5MB.'); return; }
-    setUploadingPhoto(true);
     setError('');
+    try {
+      const { width, height } = await getImageDimensions(file);
+      if (Math.min(width, height) < MIN_IMAGE_DIMENSION) {
+        setError(`La imagen es muy pequeña (${width}×${height}px). Sube una de al menos ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION}px para que se vea bien.`);
+        return;
+      }
+    } catch {
+      setError('No se pudo leer la imagen. Intenta con otro archivo.');
+      return;
+    }
+    setUploadingPhoto(true);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -105,6 +116,8 @@ function OnboardingContent() {
       if (uploadErr) throw new Error(uploadErr.message);
       const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
       setPhotoUrl(publicUrl);
+      setPhotoPosition('50% 50%');
+      setPhotoZoom(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir la imagen');
     } finally {
@@ -152,8 +165,7 @@ function OnboardingContent() {
       await updateProfile({
         name:             form.publicName || undefined,
         bio:              form.bio || undefined,
-        district_name:    form.district || undefined,
-        district_city:    form.city || undefined,
+        nationality:      form.nationality || undefined,
         whatsapp:         waNumber ? `${waCode}${waNumber}` : undefined,
         instagram:        form.instagram || undefined,
         tiktok:           form.tiktok || undefined,
@@ -162,6 +174,8 @@ function OnboardingContent() {
         style_names:      form.styles.length ? form.styles : undefined,
         years_experience: expKey ? yearsMap[expKey] : undefined,
         photo_url:        photoUrl || undefined,
+        photo_position:   photoUrl ? photoPosition : undefined,
+        photo_zoom:       photoUrl ? photoZoom : undefined,
       });
       router.push('/dashboard');
     } catch (err: unknown) {
@@ -180,7 +194,7 @@ function OnboardingContent() {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-xl">
+      <div className="w-full max-w-xl animate-fade-in">
         {/* Logo */}
         <div className="flex items-center gap-2 justify-center mb-8">
           <Image src="/logo.png" alt="Kynea" width={100} height={32} />
@@ -199,17 +213,17 @@ function OnboardingContent() {
               <div
                 key={i}
                 className={`h-1.5 flex-1 rounded-full transition-colors ${
-                  i <= step ? 'bg-neutral-900' : 'bg-neutral-200'
+                  i <= step ? 'bg-primary' : 'bg-neutral-200'
                 }`}
               />
             ))}
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl p-8">
+        <div className="bg-white rounded-[20px] border border-neutral-900 shadow-xl p-8">
           {/* Step 0: Public data */}
           {step === 0 && (
-            <div>
+            <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Tus datos públicos</h2>
               <p className="text-sm text-neutral-500 mb-6">Esto es lo que verán los alumnos en tu perfil</p>
               <div className="space-y-4">
@@ -221,25 +235,58 @@ function OnboardingContent() {
                     className="hidden"
                     onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }}
                   />
+                  {photoUrl ? (
+                    <div className="relative">
+                      <ImagePositionPicker
+                        src={photoUrl}
+                        value={photoPosition}
+                        onChange={setPhotoPosition}
+                        zoom={photoZoom}
+                        onZoomChange={setPhotoZoom}
+                        frameClassName="w-20 h-20 rounded-full border-2 border-dashed border-neutral-300"
+                        sizes="80px"
+                        compact
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoUrl('');
+                          setPhotoPosition('50% 50%');
+                          setPhotoZoom(1);
+                          if (photoInputRef.current) photoInputRef.current.value = '';
+                        }}
+                        className="absolute top-0 right-0 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors active:scale-90 z-10"
+                        aria-label="Eliminar foto"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                      className="w-20 h-20 rounded-full overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors relative"
+                    >
+                      {uploadingPhoto ? (
+                        <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
+                        </div>
+                      ) : (
+                        <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
+                          <Upload className="w-6 h-6 text-neutral-400" />
+                        </div>
+                      )}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
                     disabled={uploadingPhoto}
-                    className="w-20 h-20 rounded-xl overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors relative"
+                    className="text-xs font-semibold text-primary hover:text-primary-dark"
                   >
-                    {photoUrl ? (
-                      <Image src={photoUrl} alt="Foto de perfil" fill sizes="80px" className="object-cover" />
-                    ) : uploadingPhoto ? (
-                      <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
-                        <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
-                        <Upload className="w-6 h-6 text-neutral-400" />
-                      </div>
-                    )}
+                    {photoUrl ? 'Cambiar foto' : 'Subir foto o logo'}
                   </button>
-                  <p className="text-xs text-neutral-500">{photoUrl ? 'Cambiar foto' : 'Subir foto o logo'}</p>
                 </div>
                 {[
                   { key: 'publicName', label: role === 'academia' ? 'Nombre de la academia' : 'Nombre público', placeholder: role === 'academia' ? 'Ej. Studio Ritmo Latino' : 'Tu nombre completo', required: true },
@@ -257,7 +304,7 @@ function OnboardingContent() {
                         placeholder={field.placeholder}
                         value={(form as Record<string, unknown>)[field.key] as string}
                         onChange={e => set(field.key as keyof typeof form, e.target.value)}
-                        className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 resize-none"
+                        className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary resize-none"
                       />
                     ) : (
                       <input
@@ -265,40 +312,23 @@ function OnboardingContent() {
                         placeholder={field.placeholder}
                         value={(form as Record<string, unknown>)[field.key] as string}
                         onChange={e => set(field.key as keyof typeof form, e.target.value)}
-                        className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900"
+                        className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
                       />
                     )}
                   </div>
                 ))}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                      Ciudad <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={form.city}
-                      onChange={e => { set('city', e.target.value); set('district', ''); }}
-                      className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
-                    >
-                      <option value="">Seleccionar…</option>
-                      {[...new Set(allDistricts.map(d => d.city))].sort().map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                      Distrito <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={form.district}
-                      onChange={e => set('district', e.target.value)}
-                      className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
-                    >
-                      <option value="">Seleccionar…</option>
-                      {allDistricts.filter(d => d.city === form.city).map(d => (
-                        <option key={d.id} value={d.name}>{d.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                    Nacionalidad <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.nationality}
+                    onChange={e => set('nationality', e.target.value)}
+                    className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
+                  >
+                    <option value="">Seleccionar…</option>
+                    {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -306,7 +336,7 @@ function OnboardingContent() {
 
           {/* Step 1: Contact */}
           {step === 1 && (
-            <div>
+            <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Contacto y redes</h2>
               <p className="text-sm text-neutral-500 mb-6">Los alumnos te contactarán por estos canales</p>
               <div className="space-y-4">
@@ -318,7 +348,7 @@ function OnboardingContent() {
                     <select
                       value={waCode}
                       onChange={e => setWaCode(e.target.value)}
-                      className="border border-neutral-200 rounded-xl px-3 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900 bg-white shrink-0"
+                      className="border-2 border-neutral-200 rounded-btn px-3 py-3 text-sm text-neutral-800 outline-none focus:border-primary bg-white shrink-0"
                     >
                       <option value="+51">🇵🇪 +51</option>
                       <option value="+1">🇺🇸 +1</option>
@@ -335,7 +365,7 @@ function OnboardingContent() {
                       value={waNumber}
                       onChange={e => { setWaNumber(e.target.value.replace(/\D/g, '')); setError(''); }}
                       placeholder="999 999 999"
-                      className="flex-1 border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900"
+                      className="flex-1 border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
                     />
                   </div>
                   <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales. Ej: 999999999</p>
@@ -367,7 +397,7 @@ function OnboardingContent() {
 
           {/* Step 2: Specialty */}
           {step === 2 && (
-            <div>
+            <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Tu especialidad</h2>
               <p className="text-sm text-neutral-500 mb-4">
                 ¿Qué estilos enseñas? <span className="text-red-500">*</span>
@@ -377,10 +407,10 @@ function OnboardingContent() {
                   <button
                     key={s}
                     onClick={() => toggleStyle(s)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    className={`text-xs px-3 py-1.5 rounded-full border border-neutral-900 transition-colors active:scale-95 ${
                       form.styles.includes(s)
-                        ? 'bg-neutral-900 text-white border-neutral-900'
-                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                        ? 'bg-primary text-white'
+                        : 'text-neutral-600 hover:bg-neutral-50'
                     }`}
                   >
                     {s}
@@ -403,7 +433,7 @@ function OnboardingContent() {
 
           {/* Step 3: Confirmation */}
           {step === 3 && (
-            <div>
+            <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Confirmar y guardar</h2>
               <p className="text-sm text-neutral-500 mb-6">Revisa tu información antes de guardar</p>
               <div className="space-y-3">
@@ -413,10 +443,10 @@ function OnboardingContent() {
                     <span className="font-semibold text-neutral-900">{form.publicName}</span>
                   </div>
                 )}
-                {form.city && (
+                {form.nationality && (
                   <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
-                    <span className="text-neutral-500">Ubicación</span>
-                    <span className="font-semibold text-neutral-900">{[form.district, form.city].filter(Boolean).join(', ')}</span>
+                    <span className="text-neutral-500">Nacionalidad</span>
+                    <span className="font-semibold text-neutral-900">{form.nationality}</span>
                   </div>
                 )}
                 {form.styles.length > 0 && (
@@ -431,8 +461,16 @@ function OnboardingContent() {
                     <span className="font-semibold text-neutral-900">{waCode} {waNumber}</span>
                   </div>
                 )}
+                {(form.instagram || form.tiktok || form.youtube) && (
+                  <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
+                    <span className="text-neutral-500">Redes</span>
+                    <span className="font-semibold text-neutral-900">
+                      {[form.instagram, form.tiktok, form.youtube].filter(Boolean).join(' · ')}
+                    </span>
+                  </div>
+                )}
               </div>
-              <label className="flex items-start gap-3 cursor-pointer p-4 border border-neutral-200 rounded-xl mt-4">
+              <label className="flex items-start gap-3 cursor-pointer p-4 border-2 border-neutral-200 rounded-xl mt-4">
                 <input
                   type="checkbox"
                   checked={form.rulesAccepted}
@@ -443,22 +481,22 @@ function OnboardingContent() {
                   Acepto las <a href="/terminos-publicacion" target="_blank" rel="noopener noreferrer" className="text-neutral-900 underline hover:text-neutral-700">reglas de publicación</a> de Kynea y me comprometo a mantener mis clases actualizadas.
                 </span>
               </label>
-              <div className="mt-4 p-4 bg-neutral-50 rounded-xl">
-                <p className="text-sm font-semibold text-neutral-900 mb-1">🎉 ¡Ya casi!</p>
-                <p className="text-xs text-neutral-600">Al guardar tu perfil podrás publicar tu primera clase.</p>
+              <div className="mt-4 p-4 bg-primary-bg rounded-xl">
+                <p className="text-sm font-semibold text-primary-dark mb-1">🎉 ¡Ya casi!</p>
+                <p className="text-xs text-primary-dark/80">Al guardar tu perfil podrás publicar tu primera clase.</p>
               </div>
             </div>
           )}
 
           {/* Navigation */}
           {error && (
-            <p className="mt-6 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>
+            <p className="mt-6 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3 animate-fade-in">{error}</p>
           )}
           <div className="flex gap-3 mt-4">
             {step > 0 && (
               <button
                 onClick={back}
-                className="flex items-center gap-2 px-5 py-3 border border-neutral-200 rounded-btn text-sm font-semibold text-neutral-600 hover:border-neutral-900 transition-colors"
+                className="flex items-center gap-2 px-5 py-3 border border-neutral-900 rounded-btn text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors active:scale-[0.97]"
               >
                 <ChevronLeft className="w-4 h-4" /> Atrás
               </button>
@@ -466,7 +504,7 @@ function OnboardingContent() {
             <button
               onClick={step === STEPS.length - 1 ? handleFinish : handleNext}
               disabled={loading}
-              className="flex-1 flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-700 text-white font-bold py-3 rounded-btn transition-colors disabled:opacity-60"
+              className="btn-dark flex-1 disabled:opacity-60"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Guardando…' : step === STEPS.length - 1 ? 'Guardar y entrar' : 'Continuar'}

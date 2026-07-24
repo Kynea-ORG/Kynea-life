@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video } from 'lucide-react';
+import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
 
 function IgIcon({ className }: { className?: string }) {
   return (
@@ -13,7 +13,7 @@ function IgIcon({ className }: { className?: string }) {
 }
 import Header from '@/components/Header';
 import ContactModal from '@/components/ContactModal';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 
@@ -24,6 +24,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [saving, setSaving] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
+  const [justContacted, setJustContacted] = useState<'whatsapp' | 'instagram' | null>(null);
 
   const contactMode = cls.contactMode ?? 'whatsapp';
   const showWa = contactMode === 'whatsapp' || contactMode === 'both';
@@ -50,12 +51,13 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     if (!session) { window.location.href = '/login'; return; }
     setSaving(true);
     if (saved) {
-      await supabase.from('saved_classes').delete()
+      const { error } = await supabase.from('saved_classes').delete()
         .eq('user_id', session.user.id).eq('class_id', cls.id);
-      setSaved(false);
+      if (!error) setSaved(false);
     } else {
-      await supabase.from('saved_classes').insert({ user_id: session.user.id, class_id: cls.id });
-      setSaved(true);
+      const { error } = await supabase.from('saved_classes').insert({ user_id: session.user.id, class_id: cls.id });
+      // 23505 = already saved (stale local state, e.g. another tab) — treat as success.
+      if (!error || error.code === '23505') setSaved(true);
     }
     setSaving(false);
   };
@@ -69,6 +71,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
+      setJustContacted('whatsapp');
+      setTimeout(() => setJustContacted(null), 1200);
       return;
     }
     setContactType('whatsapp');
@@ -84,6 +88,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
+      setJustContacted('instagram');
+      setTimeout(() => setJustContacted(null), 1200);
       return;
     }
     setContactType('instagram');
@@ -93,6 +99,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const images = [cls.coverImage, ...(cls.gallery || [])].filter(Boolean);
   const spotsLeft = cls.availableSpots;
   const isFullyBooked = spotsLeft === 0;
+  const mapsHref = buildGoogleMapsUrl({ placeId: cls.placeId, lat: cls.lat, lng: cls.lng, address: cls.address });
 
   const priceDisplay = cls.priceType === 'Gratis' ? 'Gratis' : (
     cls.offerPrice ? (
@@ -128,6 +135,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   sizes="(max-width: 1024px) 100vw, 800px"
                   priority
                   className="object-cover"
+                  style={activeImg === 0 ? { objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` } : undefined}
                 />
               )}
               <div className="absolute top-4 left-4 flex gap-2">
@@ -142,8 +150,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <button
                       key={i}
                       onClick={() => setActiveImg(i)}
-                      className={`h-2 rounded-full transition-all ${i === activeImg ? 'bg-white w-5' : 'bg-white/60 w-2'}`}
-                    />
+                      className="relative h-2 w-5 flex items-center"
+                    >
+                      <span
+                        className={`block h-2 w-5 rounded-full origin-left transition-[transform,background-color] duration-200 ease-out ${
+                          i === activeImg ? 'bg-white scale-x-100' : 'bg-white/60 scale-x-[0.4]'
+                        }`}
+                      />
+                    </button>
                   ))}
                 </div>
               )}
@@ -177,51 +191,76 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
             {cls.whatYouLearn && cls.whatYouLearn.length > 0 && (
               <div className="mb-8">
-                <h2 className="font-bold text-neutral-900 text-[17px] mb-4">¿Qué aprenderás?</h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                    <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <h2 className="font-bold text-neutral-900 text-[17px]">¿Qué aprenderás?</h2>
+                </div>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {cls.whatYouLearn.map(item => (
-                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3">
-                      <span className="text-primary font-bold text-[15px] mt-0.5 shrink-0">✓</span>
-                      <span className="text-[13px] text-neutral-700">{item}</span>
+                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                      <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <span className="text-[13px] text-neutral-700 font-figtree">{item}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {cls.forWhom && (
-              <div className="mb-8">
-                <h2 className="font-bold text-neutral-900 text-[17px] mb-3">¿Para quién es?</h2>
-                <p className="text-[15px] text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg p-4 leading-relaxed">{cls.forWhom}</p>
+            {(cls.forWhom || (cls.requirements && cls.requirements.length > 0)) && (
+              <div className="mb-8 grid sm:grid-cols-2 gap-3">
+                {cls.forWhom && (
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                        <UserCheck className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <h2 className="font-bold text-neutral-900 text-[15px]">¿Para quién es?</h2>
+                    </div>
+                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree">{cls.forWhom}</p>
+                  </div>
+                )}
+
+                {cls.requirements && cls.requirements.length > 0 && (
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                        <ClipboardCheck className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <h2 className="font-bold text-neutral-900 text-[15px]">Requisitos</h2>
+                    </div>
+                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree">{cls.requirements.join(', ')}</p>
+                  </div>
+                )}
               </div>
             )}
 
-            {cls.requirements && (
+            {((cls.footwear && cls.footwear.length > 0) || cls.clothing || (cls.toBring && cls.toBring.length > 0)) && (
               <div className="mb-8">
-                <h2 className="font-bold text-neutral-900 text-[17px] mb-3">Requisitos</h2>
-                <p className="text-[15px] text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg p-4">{cls.requirements}</p>
-              </div>
-            )}
-
-            {(cls.footwear || cls.clothing || (cls.toBring && cls.toBring.length > 0)) && (
-              <div className="mb-8">
-                <h2 className="font-bold text-neutral-900 text-[17px] mb-4">¿Qué traer?</h2>
-                <div className="flex flex-col gap-2">
-                  {cls.footwear && (
-                    <div className="flex items-center gap-3 text-[15px] text-neutral-600">
-                      <span className="text-lg">👟</span>
-                      <span><strong className="text-neutral-900">Calzado:</strong> {cls.footwear}</span>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                    <Backpack className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <h2 className="font-bold text-neutral-900 text-[17px]">¿Qué traer?</h2>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {cls.footwear && cls.footwear.length > 0 && (
+                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                      <Footprints className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <span className="text-[13px] text-neutral-700 font-figtree"><strong className="font-sans text-neutral-900">Calzado:</strong> {cls.footwear.join(', ')}</span>
                     </div>
                   )}
                   {cls.clothing && (
-                    <div className="flex items-center gap-3 text-[15px] text-neutral-600">
-                      <span className="text-lg">👕</span>
-                      <span><strong className="text-neutral-900">Ropa:</strong> {cls.clothing}</span>
+                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                      <Shirt className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <span className="text-[13px] text-neutral-700 font-figtree"><strong className="font-sans text-neutral-900">Ropa:</strong> {cls.clothing}</span>
                     </div>
                   )}
                   {cls.toBring?.map(item => (
-                    <div key={item} className="flex items-center gap-3 text-[15px] text-neutral-600">
-                      <span className="text-neutral-300">—</span> {item}
+                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                      <Package className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <span className="text-[13px] text-neutral-700 font-figtree">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -234,7 +273,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" />
+                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
@@ -281,8 +320,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
           {/* RIGHT COLUMN */}
           <div>
-            <div className="sticky top-24">
-              <div className="border-2 border-neutral-200 rounded-xl p-6 shadow-sm">
+            <div className="lg:sticky lg:top-24">
+              <div className="border-2 border-neutral-200 rounded-lg p-6 shadow-sm">
                 <div className="flex items-baseline justify-between mb-5">
                   <div>
                     {typeof priceDisplay === 'string' ? (
@@ -304,7 +343,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <div>
                       {cls.venueName && <p className="font-semibold text-neutral-900">{cls.venueName}</p>}
                       <p>{cls.district}, {cls.city}</p>
-                      {cls.address && <p className="text-neutral-400 mt-0.5">{cls.address}</p>}
+                      {/* Older venues had their name defaulted to their own address
+                          (no "nombre del local" field existed yet) — skip the address
+                          line when it would just repeat the name above it. */}
+                      {cls.address && cls.address !== cls.venueName && (
+                        mapsHref ? (
+                          <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="text-neutral-400 mt-0.5 hover:text-neutral-900 hover:underline block">
+                            {cls.address}
+                          </a>
+                        ) : (
+                          <p className="text-neutral-400 mt-0.5">{cls.address}</p>
+                        )
+                      )}
                       {cls.reference && <p className="text-neutral-400">{cls.reference}</p>}
                     </div>
                   </div>
@@ -336,14 +386,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <button
                       onClick={handleWhatsAppClick}
                       disabled={isFullyBooked}
-                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-all text-[15px] border-2 ${
+                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
                         isFullyBooked
                           ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                           : 'bg-[#25D366] border-[#25D366] hover:bg-[#20BC5A] hover:border-[#20BC5A] text-white'
                       }`}
                     >
-                      <MessageCircle className="w-4 h-4" />
-                      {isFullyBooked ? 'Sin cupos' : 'WhatsApp'}
+                      {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
+                      {isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}
                     </button>
                   )}
 
@@ -351,34 +401,34 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <button
                       onClick={handleInstagramClick}
                       disabled={isFullyBooked}
-                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-all text-[15px] border-2 ${
+                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
                         isFullyBooked
                           ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                           : 'bg-[#E1306C] border-[#E1306C] hover:bg-[#c9225a] hover:border-[#c9225a] text-white'
                       }`}
                     >
-                      <IgIcon className="w-4 h-4" />
-                      {isFullyBooked ? 'Sin cupos' : 'Instagram'}
+                      {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <IgIcon className="w-4 h-4" />}
+                      {isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
                     </button>
                   )}
 
                   <button
                     onClick={toggleSave}
                     disabled={saving}
-                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border-2 transition-all disabled:opacity-60 ${
+                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border border-neutral-900 transition-[background-color,color] active:scale-[0.97] disabled:opacity-60 ${
                       saved
-                        ? 'bg-neutral-900 text-white border-neutral-900'
-                        : 'border-neutral-300 text-neutral-700 hover:border-neutral-900 hover:bg-neutral-50'
+                        ? 'bg-neutral-900 text-white'
+                        : 'text-neutral-700 hover:bg-neutral-50'
                     }`}
                   >
-                    <Bookmark className={`w-4 h-4 ${saved ? 'fill-white' : ''}`} />
+                    <Bookmark className={`w-4 h-4 ${saved ? 'fill-white animate-pop' : ''}`} />
                     {saved ? 'Guardado' : 'Guardar clase'}
                   </button>
                 </div>
 
-                {cls.mapsUrl && (
+                {mapsHref && (
                   <a
-                    href={cls.mapsUrl}
+                    href={mapsHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 w-full flex items-center justify-center gap-2 text-[13px] text-neutral-500 hover:text-neutral-900 transition-colors"
@@ -395,7 +445,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 <Link href={`/profesores/${cls.teacher.id}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" />
+                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
@@ -459,24 +509,24 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             <button
               onClick={handleWhatsAppClick}
               disabled={isFullyBooked}
-              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-all ${
+              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-[#25D366] hover:bg-[#20BC5A] text-white'
               }`}
             >
-              <MessageCircle className="w-4 h-4" />
-              {!showIg && (isFullyBooked ? 'Sin cupos' : 'Contactar')}
+              {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
+              {!showIg && (isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'Contactar')}
             </button>
           )}
           {showIg && (
             <button
               onClick={handleInstagramClick}
               disabled={isFullyBooked}
-              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-all ${
+              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-[#E1306C] hover:bg-[#c9225a] text-white'
               }`}
             >
-              <IgIcon className="w-4 h-4" />
-              {!showWa && (isFullyBooked ? 'Sin cupos' : 'Contactar')}
+              {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <IgIcon className="w-4 h-4" />}
+              {!showWa && (isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Contactar')}
             </button>
           )}
         </div>

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Globe, Loader2, Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
+import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 
 function errorMessageFromParam(errorParam: string | null): string {
   if (errorParam === 'cuenta_incompleta') {
@@ -32,6 +33,8 @@ function LoginPageContent() {
   const [resetError, setResetError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
 
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) => {
@@ -105,7 +108,13 @@ function LoginPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col">
+    <div className="min-h-screen relative overflow-hidden flex flex-col">
+      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
+        <div key={revealId} style={revealStyle} />
+      </div>
+
+      <div className="relative z-10 flex flex-col flex-1">
       <header className="bg-white border-b border-neutral-200 px-6 py-4">
         <Link href="/">
           <Image src="/logo.png" alt="Kynea" width={90} height={30} priority />
@@ -114,30 +123,30 @@ function LoginPageContent() {
 
       <div className="flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
+          <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-8">
             <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-1">Iniciar sesión</h1>
             <p className="text-[15px] text-neutral-500 mb-6">Bienvenido de vuelta a Kynea</p>
 
             {forgotMode ? (
               resetSent ? (
-                <div className="flex flex-col items-center gap-4 py-4">
+                <div key="reset-sent" className="flex flex-col items-center gap-4 py-4 animate-fade-in">
                   <p className="text-[15px] font-semibold text-neutral-900 text-center">Revisa tu correo</p>
                   <p className="text-[13px] text-neutral-500 text-center">
                     Te enviamos un enlace a <span className="font-semibold text-neutral-700">{resetEmail}</span> para restablecer tu contraseña.
                   </p>
                   <button
                     type="button"
-                    onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(''); }}
+                    onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(''); shift(); }}
                     className="text-[13px] text-neutral-900 font-semibold hover:underline"
                   >
                     Volver al inicio de sesión
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+                <form key="reset-form" onSubmit={handleResetPassword} className="flex flex-col gap-4 animate-fade-in">
                   <p className="text-[15px] text-neutral-500">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
                   {resetError && (
-                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">
+                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">
                       {resetError}
                     </div>
                   )}
@@ -147,18 +156,19 @@ function LoginPageContent() {
                       type="email"
                       value={resetEmail}
                       onChange={e => setResetEmail(e.target.value)}
+                      onFocus={shift}
                       placeholder="tu@correo.com"
                       required
                       className="input"
                     />
                   </div>
-                  <button type="submit" disabled={resetLoading} className="btn-dark w-full flex items-center justify-center gap-2">
+                  <button type="submit" disabled={resetLoading} onClick={shift} className="btn-dark w-full flex items-center justify-center gap-2">
                     {resetLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                     {resetLoading ? 'Enviando…' : 'Enviar enlace'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setForgotMode(false)}
+                    onClick={() => { setForgotMode(false); shift(); }}
                     className="text-[13px] text-neutral-500 hover:text-neutral-700 text-center"
                   >
                     ← Volver
@@ -166,8 +176,8 @@ function LoginPageContent() {
                 </form>
               )
             ) : (
-              <>
-                <button type="button" onClick={handleGoogle} disabled={googleLoading} className="w-full btn-outline mb-4 flex items-center justify-center gap-2 disabled:opacity-50">
+              <div key="login-form" className="animate-fade-in">
+                <button type="button" onClick={() => { handleGoogle(); shift(); }} disabled={googleLoading} className="w-full btn-outline mb-4 flex items-center justify-center gap-2 disabled:opacity-50">
                   {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
                   Continuar con Google
                 </button>
@@ -180,7 +190,7 @@ function LoginPageContent() {
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                   {error && (
-                    <div>
+                    <div className="animate-fade-in">
                       <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">
                         {error}
                       </div>
@@ -197,6 +207,7 @@ function LoginPageContent() {
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
+                      onFocus={shift}
                       placeholder="tu@correo.com"
                       required
                       className="input"
@@ -207,7 +218,7 @@ function LoginPageContent() {
                       <label className="text-[13px] font-semibold text-neutral-700">Contraseña</label>
                       <button
                         type="button"
-                        onClick={() => setForgotMode(true)}
+                        onClick={() => { setForgotMode(true); shift(); }}
                         className="text-[13px] text-neutral-900 font-semibold hover:underline"
                       >
                         ¿Olvidaste tu contraseña?
@@ -218,6 +229,7 @@ function LoginPageContent() {
                         type={showPass ? 'text' : 'password'}
                         value={password}
                         onChange={e => setPassword(e.target.value)}
+                        onFocus={shift}
                         placeholder="Tu contraseña"
                         required
                         className="input pr-11"
@@ -232,7 +244,17 @@ function LoginPageContent() {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={loading} className="btn-dark w-full mt-1 flex items-center justify-center gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer select-none -mt-1">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={e => { setRememberMe(e.target.checked); shift(); }}
+                      className="w-4 h-4 accent-primary shrink-0"
+                    />
+                    <span className="text-[13px] text-neutral-500">Recuérdame en este dispositivo</span>
+                  </label>
+
+                  <button type="submit" disabled={loading} onClick={shift} className="btn-primary w-full mt-1 flex items-center justify-center gap-2">
                     {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                     {loading ? 'Ingresando…' : 'Iniciar sesión'}
                   </button>
@@ -240,14 +262,15 @@ function LoginPageContent() {
 
                 <p className="text-center text-[13px] text-neutral-400 mt-5">
                   ¿No tienes cuenta?{' '}
-                  <Link href="/registro" className="text-neutral-900 font-semibold hover:underline">
+                  <Link href="/registro" onClick={shift} className="text-neutral-900 font-semibold hover:underline">
                     Regístrate gratis
                   </Link>
                 </p>
-              </>
+              </div>
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

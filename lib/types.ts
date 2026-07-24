@@ -8,15 +8,15 @@ export type PriceType = 'Gratis' | 'Por clase' | 'Mensual' | 'Paquete';
 // Catalog types returned by fetch functions (DB tables)
 export interface DbDanceStyle { id: number; name: string; slug: string; emoji: string; }
 export interface DbLevel { id: number; name: string; }
-export interface DbDistrict { id: number; name: string; city: string; }
 
 export interface Teacher {
   id: string;
   name: string;
   type: 'profesor' | 'academia';
   photo: string;
-  city: string;
-  district: string;
+  photoPosition: string;
+  photoZoom: number;
+  nationality?: string;
   bio: string;
   experience: number;
   styles: DanceStyle[];
@@ -54,10 +54,11 @@ export interface DanceClass {
   fullDescription: string;
   whatYouLearn?: string[];
   forWhom?: string;
-  requirements?: string;
+  requirements?: string[];
 
   startDate: string;
   endDate?: string;
+  recurrence: string;
   timeSlots: TimeSlot[];
 
   priceType: PriceType;
@@ -82,10 +83,12 @@ export interface DanceClass {
   accessLink?: string;
 
   coverImage: string;
+  coverImagePosition: string;
+  coverImageZoom: number;
   gallery?: string[];
   videoUrl?: string;
 
-  footwear?: string;
+  footwear?: string[];
   clothing?: string;
   toBring?: string[];
   ageGroup?: string;

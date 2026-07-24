@@ -1,5 +1,5 @@
 import { fetchClassById } from '@/lib/classes/queries';
-import { fetchDanceStyles, fetchClassLevels, fetchDistricts } from '@/lib/catalog/queries';
+import { fetchDanceStyles, fetchClassLevels } from '@/lib/catalog/queries';
 import { requireRole } from '@/lib/auth/requireRole';
 import CrearClaseForm from './CrearClaseForm';
 import type { DanceClass } from '@/lib/types';
@@ -13,10 +13,9 @@ export default async function CrearClasePage({ searchParams }: PageProps) {
 
   const params = await searchParams;
 
-  const [danceStyles, levels, allDistricts, editClass] = await Promise.all([
+  const [danceStyles, levels, editClass] = await Promise.all([
     fetchDanceStyles(),
     fetchClassLevels(),
-    fetchDistricts(),
     params.edit ? fetchClassById(params.edit) : Promise.resolve(null),
   ]);
 
@@ -27,7 +26,6 @@ export default async function CrearClasePage({ searchParams }: PageProps) {
       editClass={editClass as DanceClass | null}
       danceStyles={danceStyles.map(s => s.name)}
       levels={levels.map(l => l.name)}
-      allDistricts={allDistricts}
     />
   );
 }

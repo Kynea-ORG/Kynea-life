@@ -13,6 +13,7 @@ const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
 ];
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -45,6 +46,7 @@ export default function RegistroPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
 
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) => {
@@ -114,7 +116,13 @@ export default function RegistroPage() {
   const passwordValid  = passwordChecks.every(c => c.ok);
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col">
+    <div className="min-h-screen relative overflow-hidden flex flex-col">
+      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
+        <div key={revealId} style={revealStyle} />
+      </div>
+
+      <div className="relative z-10 flex flex-col flex-1">
       <header className="bg-white border-b border-neutral-200 px-6 py-4">
         <Link href="/">
           <Image src="/logo.png" alt="Kynea" width={90} height={30} priority style={{ height: 'auto' }} />
@@ -123,10 +131,10 @@ export default function RegistroPage() {
 
       <div className="flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
+          <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-8">
 
             {step === 'role' ? (
-              <>
+              <div key="role-step" className="animate-fade-in">
                 <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-1">Crear cuenta</h1>
                 <p className="text-[15px] text-neutral-500 mb-6">
                   Elige cómo quieres usar Kynea para continuar.
@@ -140,15 +148,15 @@ export default function RegistroPage() {
                       <button
                         key={r.key}
                         type="button"
-                        onClick={() => setRole(r.key)}
-                        className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                        onClick={() => { setRole(r.key); shift(); }}
+                        className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-[border-color,background-color] active:scale-[0.98] ${
                           isSelected
-                            ? 'border-neutral-900 bg-neutral-50'
+                            ? 'border-primary bg-primary-bg'
                             : 'border-neutral-200 hover:border-neutral-400'
                         }`}
                       >
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
+                          isSelected ? 'bg-primary text-white' : 'bg-neutral-100 text-neutral-500'
                         }`}>
                           <Icon className="w-5 h-5" />
                         </div>
@@ -156,8 +164,8 @@ export default function RegistroPage() {
                           <p className="font-bold text-neutral-900 text-[15px]">{r.label}</p>
                           <p className="text-[13px] text-neutral-500">{r.description}</p>
                         </div>
-                        <div className={`w-5 h-5 rounded-full border-2 shrink-0 transition-all flex items-center justify-center ${
-                          isSelected ? 'bg-neutral-900 border-neutral-900' : 'border-neutral-300'
+                        <div className={`w-5 h-5 rounded-full border shrink-0 transition-[background-color,border-color] flex items-center justify-center ${
+                          isSelected ? 'bg-primary border-primary' : 'border-neutral-300'
                         }`}>
                           {isSelected && (
                             <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -175,7 +183,7 @@ export default function RegistroPage() {
                   <input
                     type="checkbox"
                     checked={termsAccepted}
-                    onChange={e => setTermsAccepted(e.target.checked)}
+                    onChange={e => { setTermsAccepted(e.target.checked); shift(); }}
                     className="mt-0.5 w-4 h-4 accent-neutral-900 shrink-0"
                   />
                   <span className="text-[13px] text-neutral-500 leading-relaxed">
@@ -189,7 +197,7 @@ export default function RegistroPage() {
 
                 <button
                   type="button"
-                  onClick={() => canContinue && setStep('form')}
+                  onClick={() => { if (canContinue) { setStep('form'); shift(); } }}
                   disabled={!canContinue}
                   className="btn-dark w-full mb-3 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -198,7 +206,7 @@ export default function RegistroPage() {
 
                 <button
                   type="button"
-                  onClick={handleGoogle}
+                  onClick={() => { handleGoogle(); shift(); }}
                   disabled={!canContinue || googleLoading}
                   className="w-full btn-outline disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
@@ -211,16 +219,16 @@ export default function RegistroPage() {
 
                 <p className="text-center text-[13px] text-neutral-400 mt-5">
                   ¿Ya tienes cuenta?{' '}
-                  <Link href="/login" className="text-neutral-900 font-semibold hover:underline">
+                  <Link href="/login" onClick={shift} className="text-neutral-900 font-semibold hover:underline">
                     Inicia sesión
                   </Link>
                 </p>
-              </>
+              </div>
             ) : (
-              <>
+              <div key="form-step" className="animate-fade-in">
                 <button
                   type="button"
-                  onClick={() => setStep('role')}
+                  onClick={() => { setStep('role'); shift(); }}
                   className="text-[13px] text-neutral-400 hover:text-neutral-600 mb-5 transition-colors"
                 >
                   ← Cambiar tipo de cuenta
@@ -233,7 +241,7 @@ export default function RegistroPage() {
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                   {error && (
-                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">
+                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">
                       {error}
                     </div>
                   )}
@@ -247,6 +255,7 @@ export default function RegistroPage() {
                       type="text"
                       value={form.name}
                       onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      onFocus={shift}
                       placeholder={role === 'academia' ? 'Ej. Studio Ritmo Latino' : 'Tu nombre'}
                       required
                       className="input"
@@ -263,6 +272,7 @@ export default function RegistroPage() {
                         type="text"
                         value={form.representante}
                         onChange={e => setForm(f => ({ ...f, representante: e.target.value }))}
+                        onFocus={shift}
                         placeholder="Nombre de quien gestiona la cuenta"
                         required
                         className="input"
@@ -276,6 +286,7 @@ export default function RegistroPage() {
                       type="email"
                       value={form.email}
                       onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                      onFocus={shift}
                       placeholder="tu@correo.com"
                       required
                       className="input"
@@ -289,6 +300,7 @@ export default function RegistroPage() {
                         type={showPass ? 'text' : 'password'}
                         value={form.password}
                         onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                        onFocus={shift}
                         placeholder="Mínimo 8 caracteres"
                         minLength={8}
                         required
@@ -303,9 +315,9 @@ export default function RegistroPage() {
                       </button>
                     </div>
                     {form.password.length > 0 && (
-                      <ul className="flex flex-col gap-1 mt-2">
+                      <ul className="flex flex-col gap-1 mt-2 animate-fade-in">
                         {passwordChecks.map(c => (
-                          <li key={c.label} className={`flex items-center gap-2 text-[12px] ${c.ok ? 'text-green-600' : 'text-neutral-400'}`}>
+                          <li key={c.label} className={`flex items-center gap-2 text-[12px] font-figtree ${c.ok ? 'text-green-600' : 'text-neutral-400'}`}>
                             {c.ok
                               ? <Check className="w-3.5 h-3.5 shrink-0" />
                               : <X className="w-3.5 h-3.5 shrink-0" />
@@ -320,16 +332,18 @@ export default function RegistroPage() {
                   <button
                     type="submit"
                     disabled={loading || !passwordValid}
-                    className="btn-dark w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={shift}
+                    className="btn-primary w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                     {loading ? 'Creando cuenta…' : 'Crear cuenta'}
                   </button>
                 </form>
-              </>
+              </div>
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

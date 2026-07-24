@@ -5,8 +5,7 @@ export type ValidationResult = { ok: boolean; errors: FieldError[] };
 
 export interface OnboardingForm {
   publicName: string;
-  city: string;
-  district: string;
+  nationality: string;
   instagram: string;
   styles: string[];
   // Other onboarding form fields (bio, representante, tiktok, etc.) are
@@ -31,11 +30,8 @@ export function validateStep(
       if (!form.publicName || !form.publicName.trim()) {
         errors.push({ field: 'publicName', message: 'El nombre público es obligatorio.' });
       }
-      if (!form.city || !form.city.trim()) {
-        errors.push({ field: 'city', message: 'La ciudad es obligatoria.' });
-      }
-      if (!form.district || !form.district.trim()) {
-        errors.push({ field: 'district', message: 'El distrito es obligatorio.' });
+      if (!form.nationality || !form.nationality.trim()) {
+        errors.push({ field: 'nationality', message: 'La nacionalidad es obligatoria.' });
       }
       break;
 

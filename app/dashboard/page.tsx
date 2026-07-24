@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { PlusCircle, Upload, BookOpen, TrendingUp, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
+import { PlusCircle, Upload, BookOpen, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
-import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots, getConversionRate } from '@/lib/utils';
+import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -23,14 +23,11 @@ export default async function DashboardPage() {
   const publishedClasses = classes.filter(c => c.status === 'published');
   const draftClasses = classes.filter(c => c.status === 'draft');
   const totalViews = publishedClasses.reduce((acc, c) => acc + c.metrics.views, 0);
-  const totalContacts = publishedClasses.reduce((acc, c) => acc + c.metrics.contacts, 0);
   const recentClasses = publishedClasses.slice(0, 3);
 
   const METRICS = [
-    { label: 'Visualizaciones', value: totalViews,                              icon: Eye,           bg: 'bg-blue-pastel-bg', text: 'text-blue-700',    iconBg: 'bg-blue-pastel/30' },
-    { label: 'Inscripciones',   value: totalContacts,                           icon: MessageCircle, bg: 'bg-pink-50',        text: 'text-pink-600',   iconBg: 'bg-pink-100' },
-    { label: 'Tasa conv.',      value: getConversionRate(totalViews, totalContacts), icon: TrendingUp,    bg: 'bg-green-bg',       text: 'text-green-text', iconBg: 'bg-green-bg' },
-    { label: 'Publicadas',      value: publishedClasses.length,                 icon: BookOpen,      bg: 'bg-neutral-50',     text: 'text-neutral-700',iconBg: 'bg-neutral-200' },
+    { label: 'Visualizaciones', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-700',    iconBg: 'bg-blue-pastel/30' },
+    { label: 'Publicadas',      value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
     ...(profile?.role === 'academia' ? [{ label: 'Profesores', value: 0, icon: Users, bg: 'bg-pink-50', text: 'text-pink-600', iconBg: 'bg-pink-100' }] : []),
   ];
 
@@ -45,7 +42,7 @@ export default async function DashboardPage() {
         </div>
         <div className="hidden sm:flex gap-3">
           <Link href="/dashboard/importar-csv" className="btn-outline btn-sm flex items-center gap-2">
-            <Upload className="w-4 h-4" /> Importar CSV
+            <Upload className="w-4 h-4" /> Subir clases masivas
           </Link>
           <Link href="/dashboard/crear-clase" className="btn-dark btn-sm flex items-center gap-2">
             <PlusCircle className="w-4 h-4" /> Crear clase
@@ -54,11 +51,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+      <div className={`grid ${METRICS.length === 3 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-8`}>
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
-            <div key={m.label} className={`${m.bg} rounded-xl p-5 border border-neutral-200`}>
+            <div key={m.label} className={`${m.bg} rounded-xl p-5 border border-neutral-900`}>
               <div className={`w-9 h-9 ${m.iconBg} rounded-lg flex items-center justify-center mb-3`}>
                 <Icon className={`w-4 h-4 ${m.text}`} />
               </div>
@@ -83,7 +80,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Recent published classes */}
-      <div className="bg-white rounded-xl border border-neutral-200 mb-6">
+      <div className="bg-white rounded-xl border border-neutral-900 mb-6">
         <div className="flex items-center justify-between p-6 border-b border-neutral-100">
           <h2 className="font-bold text-neutral-900 text-[17px]">Clases publicadas</h2>
           <Link href="/dashboard/mis-clases" className="text-[13px] text-neutral-600 font-medium flex items-center gap-1 hover:text-neutral-900">
@@ -97,7 +94,7 @@ export default async function DashboardPage() {
             <div key={cls.id} className="flex items-center gap-4 p-4 hover:bg-neutral-50 transition-colors">
               {cls.coverImage ? (
                 <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0">
-                  <Image src={cls.coverImage} alt={cls.title} fill sizes="56px" className="object-cover" />
+                  <Image src={cls.coverImage} alt={cls.title} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
                 </div>
               ) : (
                 <div className="w-14 h-14 rounded-lg bg-neutral-100 shrink-0" />
@@ -132,8 +129,8 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid sm:grid-cols-3 gap-4">
-        <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors">
+      <div className={`grid ${profile?.role === 'academia' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
+        <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 border border-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors active:scale-[0.98]">
           <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
             <PlusCircle className="w-6 h-6" />
           </div>
@@ -143,18 +140,18 @@ export default async function DashboardPage() {
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>
-        <Link href="/dashboard/importar-csv" className="flex items-center gap-4 p-5 bg-white border-2 border-neutral-200 rounded-xl text-neutral-900 hover:border-neutral-900 transition-colors">
+        <Link href="/dashboard/importar-csv" className="flex items-center gap-4 p-5 bg-white border border-neutral-900 rounded-xl text-neutral-900 hover:bg-neutral-50 transition-colors active:scale-[0.98]">
           <div className="w-12 h-12 bg-neutral-50 rounded-lg flex items-center justify-center">
             <Upload className="w-6 h-6 text-neutral-600" />
           </div>
           <div>
-            <p className="font-bold text-[15px]">Importar CSV</p>
-            <p className="text-[13px] text-neutral-500">Sube varias clases a la vez</p>
+            <p className="font-bold text-[15px]">Subir clases masivas</p>
+            <p className="text-[13px] text-neutral-500">Desde un archivo CSV</p>
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>
         {profile?.role === 'academia' && (
-          <Link href="/dashboard/profesores" className="flex items-center gap-4 p-5 bg-pink-50 border-2 border-pink-100 rounded-xl text-neutral-900 hover:border-pink-400 transition-colors">
+          <Link href="/dashboard/profesores" className="flex items-center gap-4 p-5 bg-pink-50 border border-neutral-900 rounded-xl text-neutral-900 transition-transform active:scale-[0.98]">
             <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
               <Users className="w-6 h-6 text-pink-600" />
             </div>
