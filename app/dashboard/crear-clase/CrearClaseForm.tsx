@@ -109,12 +109,18 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
 interface PlaceSelection { address: string; placeId: string; lat: number; lng: number; city: string; district: string }
 
 function PlacesAddressField({
-  value, onManualChange, onPlaceSelect, placeholder,
+  value, onManualChange, onPlaceSelect, placeholder, onFallbackChange,
 }: {
   value: string;
   onManualChange: (v: string) => void;
   onPlaceSelect: (selection: PlaceSelection) => void;
   placeholder: string;
+  // Called with `true` once we know the address field is running in plain-
+  // <input> mode (no API key, or the script/widget failed to load) — the
+  // parent uses this to show manual Ciudad/Distrito inputs, since in that
+  // mode nothing else can populate them (see extractCityDistrict — those
+  // values normally only ever come from a selected Google prediction).
+  onFallbackChange?: (fallback: boolean) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onPlaceSelectRef = useRef(onPlaceSelect);
@@ -124,6 +130,11 @@ function PlacesAddressField({
   const valueRef = useRef(value);
   useEffect(() => { valueRef.current = value; }, [value]);
   const [initFailed, setInitFailed] = useState(false);
+
+  useEffect(() => {
+    onFallbackChange?.(!GOOGLE_MAPS_API_KEY || initFailed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initFailed]);
 
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY) return;
@@ -169,6 +180,15 @@ function PlacesAddressField({
             district,
           });
         }) as EventListener);
+        // The script can load fine while every actual prediction request
+        // still fails at runtime (e.g. the API key's referrer restrictions
+        // don't cover the current domain) — that doesn't throw here or fire
+        // script.onerror, it just logs and emits 'gmp-error' per keystroke
+        // while silently never producing a selectable prediction. Treat it
+        // the same as a load failure: drop to the manual-input fallback.
+        element.addEventListener('gmp-error', () => {
+          if (!cancelled) setInitFailed(true);
+        });
       } catch (err) {
         console.error('[PlacesAddressField] Google Maps init failed', err);
         if (!cancelled) setInitFailed(true);
@@ -381,6 +401,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [contactGateError, setContactGateError] = useState<{ message: string; href: string } | null>(null);
+  // Starts optimistic (assumes Google will load) — PlacesAddressField flips
+  // this via onFallbackChange as soon as it knows better (synchronously for
+  // "no API key", async for "script/widget failed to load").
+  const [addressFallback, setAddressFallback] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [coverImageUrl, setCoverImageUrl] = useState(() => editClass?.coverImage ?? '');
@@ -969,12 +993,32 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 if (selection.city) set('city', selection.city);
                 if (selection.district) set('district', selection.district);
               }}
+              onFallbackChange={setAddressFallback}
             />
             {fieldErrors.address && <p className="text-xs text-red-600 mt-1">{fieldErrors.address}</p>}
-            {(fieldErrors.city || fieldErrors.district) && (
+            {!addressFallback && (fieldErrors.city || fieldErrors.district) && (
               <p className="text-xs text-red-600 mt-1">No se pudo determinar la ciudad/distrito de esa dirección — elegí otra opción de la lista de Google.</p>
             )}
           </div>
+          {addressFallback && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Ciudad</FieldLabel>
+                <input className="input" value={form.city} onChange={e => set('city', e.target.value)}
+                  placeholder="Ej: Lima" />
+                {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
+              </div>
+              <div>
+                <FieldLabel>Distrito</FieldLabel>
+                <input className="input" value={form.district} onChange={e => set('district', e.target.value)}
+                  placeholder="Ej: Miraflores" />
+                {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
+              </div>
+              <p className="col-span-2 text-xs text-neutral-400">
+                No pudimos cargar el buscador de direcciones — completa ciudad y distrito manualmente.
+              </p>
+            </div>
+          )}
           <div>
             <FieldLabel>Referencia</FieldLabel>
             <input className="input" value={form.reference} onChange={e => set('reference', e.target.value)}
