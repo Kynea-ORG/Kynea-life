@@ -49,6 +49,22 @@ export function buildWhatsAppMessage(style: string, startDate: string, teacherPh
   return `https://wa.me/${teacherPhone.replace(/\s+/g, '')}?text=${text}`;
 }
 
+// `venues.maps_url` exists in the schema but nothing writes to it — venues
+// are saved from Google Places `placeId`/`lat`/`lng`, so build the Maps link
+// from those instead of a column that's always empty in practice.
+export function buildGoogleMapsUrl(opts: { placeId?: string; lat?: number; lng?: number; address?: string }): string | undefined {
+  const { placeId, lat, lng, address } = opts;
+  if (lat != null && lng != null) {
+    const params = new URLSearchParams({ api: '1', query: `${lat},${lng}` });
+    if (placeId) params.set('query_place_id', placeId);
+    return `https://www.google.com/maps/search/?${params.toString()}`;
+  }
+  if (address) {
+    return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query: address }).toString()}`;
+  }
+  return undefined;
+}
+
 export function getConversionRate(views: number, contacts: number): string {
   if (views === 0) return '0%';
   return `${Math.round((contacts / views) * 100)}%`;
