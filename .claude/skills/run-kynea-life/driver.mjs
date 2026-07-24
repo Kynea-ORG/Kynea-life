@@ -344,6 +344,29 @@ if (cmd === 'login') {
     console.log('Class visible:', (await page.locator(`text=${title}`).count()) > 0);
   });
 
+} else if (cmd === 'cambiar-password') {
+  // usage: cambiar-password <current> <new> [--wrong-current]
+  // --wrong-current asserts the re-authentication gate rejects a bad
+  // current password instead of completing the change.
+  const [current, newPassword, ...rest] = args;
+  const wrongCurrent = rest.includes('--wrong-current');
+  if (!current || !newPassword) { console.error('usage: cambiar-password <current> <new> [--wrong-current]'); process.exit(1); }
+  await withPage(async page => {
+    await page.goto(`${BASE}/dashboard/configuracion`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('text=Privacidad y seguridad', { timeout: 15000 });
+
+    const inputs = page.locator('input[type="password"], input[type="text"]').filter({ hasNot: page.locator('[type="checkbox"]') });
+    // Order in the DOM: Contraseña actual, Nueva contraseña, Confirmar nueva contraseña.
+    const [currentInput, newInput, confirmInput] = await inputs.all();
+    await currentInput.fill(wrongCurrent ? 'DefinitelyWrongPassword1!' : current);
+    await newInput.fill(newPassword);
+    await confirmInput.fill(newPassword);
+    await page.click('button:has-text("Cambiar contraseña")');
+    await page.waitForTimeout(1500); // signInWithPassword + updateUser round-trip
+    await shot(page, wrongCurrent ? '14-cambiar-password-wrong-current' : '14-cambiar-password-done');
+    console.log('result text:', JSON.stringify(await page.locator('.text-red-700, .text-green-text').allTextContents()));
+  });
+
 } else if (cmd === 'goto') {
   const [urlPath, name] = args;
   await withPage(async page => {
