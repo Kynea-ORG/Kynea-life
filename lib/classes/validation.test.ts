@@ -369,6 +369,7 @@ function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
     what_you_learn: null,
     for_whom: null,
     requirements: null,
+    recurrence: 'unica',
     start_date: '2026-08-01',
     end_date: '2026-08-31',
     price_type: 'Mensual',
@@ -431,14 +432,23 @@ describe('dbRowToValidationInput', () => {
     expect(input.slots).toEqual([{ days: ['Lunes'], startTime: '19:00', endTime: '20:00' }]);
   });
 
-  it('infers recurrence "mensual" when multiple schedules are present', () => {
+  it('reads recurrence "mensual" from the stored row regardless of schedule count', () => {
     const schedules: DbClassSchedule[] = [
       { id: 's1', day_of_week: 0, start_time: '19:00', end_time: '20:00' },
       { id: 's2', day_of_week: 2, start_time: '19:00', end_time: '20:00' },
     ];
-    const input = dbRowToValidationInput(makeDbRow(), schedules);
+    const input = dbRowToValidationInput(makeDbRow({ recurrence: 'mensual' }), schedules);
     expect(input.recurrence).toBe('mensual');
     expect(input.slots[0].days).toEqual(['Lunes', 'Miércoles']);
+  });
+
+  it('reads recurrence "mensual" from the stored row even with a single weekday schedule', () => {
+    // Regression: a weekly class meeting on exactly one weekday produces the
+    // same single class_schedules row as a one-off "unica" class — recurrence
+    // must come from the stored column, not be re-derived from schedule count.
+    const schedules: DbClassSchedule[] = [{ id: 's1', day_of_week: 0, start_time: '19:00', end_time: '20:00' }];
+    const input = dbRowToValidationInput(makeDbRow({ recurrence: 'mensual' }), schedules);
+    expect(input.recurrence).toBe('mensual');
   });
 
   it('produces a valid input that passes validateForPublish when the row is complete', () => {

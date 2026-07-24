@@ -129,6 +129,7 @@ export function buildClassColumns(
     venue_id:          venueId,
     short_description: (formData.get('shortDesc') as string) || null,
     full_description:  (formData.get('fullDesc') as string) || null,
+    recurrence:        (formData.get('recurrence') as string) || 'mensual',
     start_date:        (formData.get('startDate') as string) || null,
     end_date:          (formData.get('endDate') as string) || null,
     price_type:        formData.get('priceType') as PriceType,
