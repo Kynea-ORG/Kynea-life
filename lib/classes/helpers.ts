@@ -115,8 +115,10 @@ export function buildClassColumns(
   formData: FormData,
   { levelId, venueId }: { levelId: number | null; venueId: string | null }
 ): ClassUpdatePayload {
-  const toBring  = formData.get('toBring') as string;
-  const maxSpots = formData.get('maxSpots') as string | null;
+  const toBring      = formData.get('toBring') as string;
+  const maxSpots     = formData.get('maxSpots') as string | null;
+  const footwear     = formData.get('footwear') as string | null;
+  const prerequisites = formData.get('prerequisites') as string | null;
 
   return {
     type:              formData.get('type') as ClassType,
@@ -136,9 +138,9 @@ export function buildClassColumns(
     modality:          formData.get('modality') as Modality,
     platform:          (formData.get('platform') as string) || null,
     access_link:       (formData.get('accessLink') as string) || null,
-    footwear:          (formData.get('footwear') as string) || null,
+    footwear:          footwear ? JSON.parse(footwear) : [],
+    requirements:      prerequisites ? JSON.parse(prerequisites) : [],
     clothing:          (formData.get('clothing') as string) || null,
-    requirements:      (formData.get('prerequisites') as string) || null,
     age_group:         (formData.get('ageGroup') as string) || null,
     to_bring:          toBring ? JSON.parse(toBring) : [],
     contact_mode:      ((formData.get('contactMode') as string) || 'whatsapp') as 'whatsapp' | 'instagram' | 'both',

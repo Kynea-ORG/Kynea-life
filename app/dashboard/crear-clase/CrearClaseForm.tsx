@@ -9,6 +9,7 @@ import {
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
 import { uploadClassImage } from '@/lib/classes/imageActions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
+import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import {
   MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
 } from '@/lib/classes/validation';
@@ -183,9 +184,9 @@ function buildInitialForm(editClass: DanceClass | null) {
       platform: '',
       accessLink: '',
       videoUrl: '',
-      footwear: '',
+      footwear: [] as string[],
       clothing: '',
-      prerequisites: '',
+      prerequisites: [] as string[],
       ageGroup: '',
       toBring: [] as string[],
       status: 'draft',
@@ -220,9 +221,9 @@ function buildInitialForm(editClass: DanceClass | null) {
     platform: editClass.platform ?? '',
     accessLink: editClass.accessLink ?? '',
     videoUrl: editClass.videoUrl ?? '',
-    footwear: editClass.footwear ?? '',
+    footwear: editClass.footwear ?? [],
     clothing: editClass.clothing ?? '',
-    prerequisites: editClass.requirements ?? '',
+    prerequisites: editClass.requirements ?? [],
     ageGroup: editClass.ageGroup ?? '',
     toBring: editClass.toBring ?? [],
     status: editClass.status ?? 'draft',
@@ -333,7 +334,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [coverImageUrl, setCoverImageUrl] = useState(() => editClass?.coverImage ?? '');
   const [coverImagePosition, setCoverImagePosition] = useState(() => editClass?.coverImagePosition ?? '50% 50%');
-  const [coverImageZoom, setCoverImageZoom] = useState(1);
+  const [coverImageZoom, setCoverImageZoom] = useState(() => editClass?.coverImageZoom ?? 1);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
@@ -358,6 +359,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
     // (re-validates size + MIME + magic bytes independently).
     if (file.size > 5 * 1024 * 1024) { setUploadError('Imagen mayor a 5MB'); return; }
     setUploadError('');
+    try {
+      const { width, height } = await getImageDimensions(file);
+      if (Math.min(width, height) < MIN_IMAGE_DIMENSION) {
+        setUploadError(`La imagen es muy pequeña (${width}×${height}px). Sube una de al menos ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION}px para que se vea bien en las tarjetas.`);
+        return;
+      }
+    } catch {
+      setUploadError('No se pudo leer la imagen. Intenta con otro archivo.');
+      return;
+    }
     setUploadingImage(true);
     try {
       const fd = new FormData();
@@ -427,9 +438,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('lng', form.lng);
         fd.set('platform', form.platform);
         fd.set('accessLink', form.accessLink);
-        fd.set('footwear', form.footwear);
+        fd.set('footwear', JSON.stringify(form.footwear));
         fd.set('clothing', form.clothing);
-        fd.set('prerequisites', form.prerequisites);
+        fd.set('prerequisites', JSON.stringify(form.prerequisites));
         fd.set('ageGroup', form.ageGroup);
         fd.set('contactMode', form.contactMode);
         const finalToBring = form.toBring.map(x =>
@@ -987,7 +998,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               </div>
             </div>
             <div>
-              <FieldLabel>Precio de oferta <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+              <FieldLabel>Precio preventa <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500 font-bold pointer-events-none">
                   {form.currency === 'PEN' ? 'S/' : '$'}
@@ -1035,7 +1046,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           <FieldLabel>Calzado recomendado</FieldLabel>
           <div className="flex flex-wrap gap-2">
             {['Zapatillas', 'Tacos / heels', 'Medias', 'Zapatos de salsa', 'Zapatos de ballet', 'Otro'].map(opt => (
-              <Pill key={opt} active={form.footwear === opt} onClick={() => set('footwear', form.footwear === opt ? '' : opt)}>{opt}</Pill>
+              <Pill key={opt} active={form.footwear.includes(opt)} onClick={() => {
+                const list = form.footwear.includes(opt)
+                  ? form.footwear.filter(x => x !== opt)
+                  : [...form.footwear, opt];
+                set('footwear', list);
+              }}>{opt}</Pill>
             ))}
           </div>
         </div>
@@ -1050,7 +1066,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           <FieldLabel>Requisitos previos</FieldLabel>
           <div className="flex flex-wrap gap-2">
             {['Sin experiencia previa', 'Experiencia previa', 'Evaluación previa'].map(opt => (
-              <Pill key={opt} active={form.prerequisites === opt} onClick={() => set('prerequisites', form.prerequisites === opt ? '' : opt)}>{opt}</Pill>
+              <Pill key={opt} active={form.prerequisites.includes(opt)} onClick={() => {
+                const list = form.prerequisites.includes(opt)
+                  ? form.prerequisites.filter(x => x !== opt)
+                  : [...form.prerequisites, opt];
+                set('prerequisites', list);
+              }}>{opt}</Pill>
             ))}
           </div>
         </div>
@@ -1100,7 +1121,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
     const priceLabel = form.priceType === 'Gratis'
       ? 'Gratis'
       : form.price
-        ? `${currSymbol}${form.price} (${form.priceType})${form.offerPrice ? ` → oferta ${currSymbol}${form.offerPrice}` : ''}`
+        ? `${currSymbol}${form.price} (${form.priceType})${form.offerPrice ? ` → preventa ${currSymbol}${form.offerPrice}` : ''}`
         : '—';
     const locationLabel = form.modality !== 'Online'
       ? [form.address, form.district, form.city].filter(Boolean).join(', ') || '—'

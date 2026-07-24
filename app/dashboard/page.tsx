@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { PlusCircle, Upload, BookOpen, TrendingUp, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
+import { PlusCircle, Upload, BookOpen, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
-import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots, getConversionRate } from '@/lib/utils';
+import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -23,14 +23,11 @@ export default async function DashboardPage() {
   const publishedClasses = classes.filter(c => c.status === 'published');
   const draftClasses = classes.filter(c => c.status === 'draft');
   const totalViews = publishedClasses.reduce((acc, c) => acc + c.metrics.views, 0);
-  const totalContacts = publishedClasses.reduce((acc, c) => acc + c.metrics.contacts, 0);
   const recentClasses = publishedClasses.slice(0, 3);
 
   const METRICS = [
-    { label: 'Visualizaciones', value: totalViews,                              icon: Eye,           bg: 'bg-blue-pastel-bg', text: 'text-blue-700',    iconBg: 'bg-blue-pastel/30' },
-    { label: 'Inscripciones',   value: totalContacts,                           icon: MessageCircle, bg: 'bg-pink-50',        text: 'text-pink-600',   iconBg: 'bg-pink-100' },
-    { label: 'Tasa conv.',      value: getConversionRate(totalViews, totalContacts), icon: TrendingUp,    bg: 'bg-green-bg',       text: 'text-green-text', iconBg: 'bg-green-bg' },
-    { label: 'Publicadas',      value: publishedClasses.length,                 icon: BookOpen,      bg: 'bg-neutral-50',     text: 'text-neutral-700',iconBg: 'bg-neutral-200' },
+    { label: 'Visualizaciones', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-700',    iconBg: 'bg-blue-pastel/30' },
+    { label: 'Publicadas',      value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
     ...(profile?.role === 'academia' ? [{ label: 'Profesores', value: 0, icon: Users, bg: 'bg-pink-50', text: 'text-pink-600', iconBg: 'bg-pink-100' }] : []),
   ];
 
@@ -45,7 +42,7 @@ export default async function DashboardPage() {
         </div>
         <div className="hidden sm:flex gap-3">
           <Link href="/dashboard/importar-csv" className="btn-outline btn-sm flex items-center gap-2">
-            <Upload className="w-4 h-4" /> Importar CSV
+            <Upload className="w-4 h-4" /> Subir clases masivas
           </Link>
           <Link href="/dashboard/crear-clase" className="btn-dark btn-sm flex items-center gap-2">
             <PlusCircle className="w-4 h-4" /> Crear clase
@@ -54,7 +51,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+      <div className={`grid ${METRICS.length === 3 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-8`}>
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
@@ -132,7 +129,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className={`grid ${profile?.role === 'academia' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
         <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 border border-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors active:scale-[0.98]">
           <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
             <PlusCircle className="w-6 h-6" />
@@ -148,8 +145,8 @@ export default async function DashboardPage() {
             <Upload className="w-6 h-6 text-neutral-600" />
           </div>
           <div>
-            <p className="font-bold text-[15px]">Importar CSV</p>
-            <p className="text-[13px] text-neutral-500">Sube varias clases a la vez</p>
+            <p className="font-bold text-[15px]">Subir clases masivas</p>
+            <p className="text-[13px] text-neutral-500">Desde un archivo CSV</p>
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>

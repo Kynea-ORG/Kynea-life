@@ -207,7 +207,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               </div>
             )}
 
-            {(cls.forWhom || cls.requirements) && (
+            {(cls.forWhom || (cls.requirements && cls.requirements.length > 0)) && (
               <div className="mb-8 grid sm:grid-cols-2 gap-3">
                 {cls.forWhom && (
                   <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
@@ -221,7 +221,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   </div>
                 )}
 
-                {cls.requirements && (
+                {cls.requirements && cls.requirements.length > 0 && (
                   <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
@@ -229,13 +229,13 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       </div>
                       <h2 className="font-bold text-neutral-900 text-[15px]">Requisitos</h2>
                     </div>
-                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree">{cls.requirements}</p>
+                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree">{cls.requirements.join(', ')}</p>
                   </div>
                 )}
               </div>
             )}
 
-            {(cls.footwear || cls.clothing || (cls.toBring && cls.toBring.length > 0)) && (
+            {((cls.footwear && cls.footwear.length > 0) || cls.clothing || (cls.toBring && cls.toBring.length > 0)) && (
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
@@ -244,10 +244,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <h2 className="font-bold text-neutral-900 text-[17px]">¿Qué traer?</h2>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
-                  {cls.footwear && (
+                  {cls.footwear && cls.footwear.length > 0 && (
                     <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
                       <Footprints className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree"><strong className="font-sans text-neutral-900">Calzado:</strong> {cls.footwear}</span>
+                      <span className="text-[13px] text-neutral-700 font-figtree"><strong className="font-sans text-neutral-900">Calzado:</strong> {cls.footwear.join(', ')}</span>
                     </div>
                   )}
                   {cls.clothing && (

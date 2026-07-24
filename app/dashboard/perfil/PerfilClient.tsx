@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { updateProfile } from '@/lib/profiles/actions';
 import { createClient } from '@/lib/supabase/client';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
+import { NATIONALITIES } from '@/lib/nationalities';
+import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import type { DbDistrict } from '@/lib/types';
 
 // Extracts the storage object path from a public Supabase Storage URL
@@ -43,6 +45,7 @@ interface ProfileStyleRow {
 interface Profile {
   name: string | null;
   bio: string | null;
+  nationality: string | null;
   years_experience: number | null;
   whatsapp: string | null;
   instagram: string | null;
@@ -82,6 +85,7 @@ export default function PerfilClient({
 
   const [name, setName] = useState(profile.name ?? '');
   const [bio, setBio] = useState(profile.bio ?? '');
+  const [nationality, setNationality] = useState(profile.nationality ?? '');
   const [city, setCity] = useState(profile.district?.city ?? 'Lima');
   const [district, setDistrict] = useState(profile.district?.name ?? '');
   const [years, setYears] = useState(String(profile.years_experience ?? ''));
@@ -118,6 +122,16 @@ export default function PerfilClient({
 
   const handlePhotoUpload = async (file: File) => {
     if (file.size > 2 * 1024 * 1024) { setError('La foto debe ser menor a 2MB'); return; }
+    try {
+      const { width, height } = await getImageDimensions(file);
+      if (Math.min(width, height) < MIN_IMAGE_DIMENSION) {
+        setError(`La imagen es muy pequeña (${width}×${height}px). Sube una de al menos ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION}px para que se vea bien en las tarjetas.`);
+        return;
+      }
+    } catch {
+      setError('No se pudo leer la imagen. Intenta con otro archivo.');
+      return;
+    }
     setUploadingPhoto(true);
     try {
       const supabase = createClient();
@@ -209,6 +223,7 @@ export default function PerfilClient({
         await updateProfile({
           name,
           bio,
+          nationality,
           district_name: district || undefined,
           district_city: district ? city : undefined,
           years_experience: years ? parseInt(years) : undefined,
@@ -315,6 +330,17 @@ export default function PerfilClient({
             <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Bio corta</label>
             <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)}
               className="input resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Nacionalidad</label>
+            <select
+              value={nationality}
+              onChange={e => setNationality(e.target.value)}
+              className="input appearance-none cursor-pointer"
+            >
+              <option value="">Seleccionar…</option>
+              {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>

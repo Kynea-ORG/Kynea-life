@@ -13,6 +13,15 @@ export type { ClassFilters };
 // day_of_week: 0 = Lunes ... 6 = Domingo (ISO/Peru convention)
 const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
+// footwear/requirements moved from single-value text to multi-select text[]
+// via migration 21 — normalizes either shape so reads never crash whether or
+// not that migration has been applied to the connected database yet.
+function toStringArray(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) return value.length ? value : undefined;
+  if (typeof value === 'string' && value) return [value];
+  return undefined;
+}
+
 function schedulesToTimeSlots(schedules: DbClassRow['class_schedules']): TimeSlot[] {
   const groups = new Map<string, { days: string[]; startTime: string; endTime: string }>();
   for (const s of (schedules ?? [])) {
@@ -50,7 +59,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     fullDescription:  row.full_description ?? '',
     whatYouLearn:     row.what_you_learn ?? [],
     forWhom:          row.for_whom ?? undefined,
-    requirements:     row.requirements ?? undefined,
+    requirements:     toStringArray(row.requirements),
     startDate:        row.start_date ?? '',
     endDate:          row.end_date ?? undefined,
     timeSlots:        schedulesToTimeSlots(row.class_schedules ?? []),
@@ -78,7 +87,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     coverImageZoom:   row.cover_image_zoom ?? 1,
     gallery:          row.gallery ?? [],
     videoUrl:         row.video_url ?? undefined,
-    footwear:         row.footwear ?? undefined,
+    footwear:         toStringArray(row.footwear),
     clothing:         row.clothing ?? undefined,
     toBring:          row.to_bring ?? [],
     ageGroup:         row.age_group ?? undefined,

@@ -6,6 +6,7 @@ import { lookupDistrictId } from '@/lib/catalog/lookups';
 export async function updateProfile(updates: {
   name?: string;
   bio?: string;
+  nationality?: string;
   district_name?: string;
   district_city?: string;
   years_experience?: number;
@@ -26,6 +27,7 @@ export async function updateProfile(updates: {
   const profileUpdate: Record<string, unknown> = {};
   if (updates.name             !== undefined) profileUpdate.name = updates.name;
   if (updates.bio              !== undefined) profileUpdate.bio = updates.bio;
+  if (updates.nationality      !== undefined) profileUpdate.nationality = updates.nationality;
   if (updates.years_experience !== undefined) profileUpdate.years_experience = updates.years_experience;
   if (updates.whatsapp         !== undefined) profileUpdate.whatsapp = updates.whatsapp;
   if (updates.instagram        !== undefined) profileUpdate.instagram = updates.instagram;

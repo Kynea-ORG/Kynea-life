@@ -6,8 +6,7 @@ import { validateStep, type OnboardingForm } from './validation';
 function validForm(overrides: Partial<OnboardingForm> = {}): OnboardingForm {
   return {
     publicName: 'Ana Pérez',
-    city: 'Lima',
-    district: 'Miraflores',
+    nationality: 'Perú',
     instagram: '',
     styles: ['Salsa'],
     ...overrides,
@@ -21,7 +20,7 @@ function validContact(overrides: Partial<{ waNumber: string }> = {}): { waNumber
 // ─── Step 0: Datos públicos ─────────────────────────────────────────────────
 
 describe('validateStep — step 0 (Datos públicos)', () => {
-  it('passes when publicName, city and district are all set', () => {
+  it('passes when publicName and nationality are set', () => {
     const result = validateStep(0, validForm(), validContact());
     expect(result).toEqual({ ok: true, errors: [] });
   });
@@ -38,28 +37,16 @@ describe('validateStep — step 0 (Datos públicos)', () => {
     expect(result.errors.some(e => e.field === 'publicName')).toBe(true);
   });
 
-  it('rejects empty city', () => {
-    const result = validateStep(0, validForm({ city: '' }), validContact());
+  it('rejects empty nationality', () => {
+    const result = validateStep(0, validForm({ nationality: '' }), validContact());
     expect(result.ok).toBe(false);
-    expect(result.errors.some(e => e.field === 'city')).toBe(true);
+    expect(result.errors.some(e => e.field === 'nationality')).toBe(true);
   });
 
-  it('rejects whitespace-only city', () => {
-    const result = validateStep(0, validForm({ city: '   ' }), validContact());
+  it('rejects whitespace-only nationality', () => {
+    const result = validateStep(0, validForm({ nationality: '   ' }), validContact());
     expect(result.ok).toBe(false);
-    expect(result.errors.some(e => e.field === 'city')).toBe(true);
-  });
-
-  it('rejects empty district', () => {
-    const result = validateStep(0, validForm({ district: '' }), validContact());
-    expect(result.ok).toBe(false);
-    expect(result.errors.some(e => e.field === 'district')).toBe(true);
-  });
-
-  it('rejects whitespace-only district', () => {
-    const result = validateStep(0, validForm({ district: '   ' }), validContact());
-    expect(result.ok).toBe(false);
-    expect(result.errors.some(e => e.field === 'district')).toBe(true);
+    expect(result.errors.some(e => e.field === 'nationality')).toBe(true);
   });
 });
 
@@ -111,7 +98,7 @@ describe('validateStep — step 2 (Especialidad)', () => {
 
 describe('validateStep — step 3 / unknown steps', () => {
   it('always passes for step 3 regardless of form content', () => {
-    const result = validateStep(3, validForm({ publicName: '', city: '', district: '', styles: [] }), validContact({ waNumber: '' }));
+    const result = validateStep(3, validForm({ publicName: '', nationality: '', styles: [] }), validContact({ waNumber: '' }));
     expect(result).toEqual({ ok: true, errors: [] });
   });
 
