@@ -661,7 +661,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <div>
               <FieldLabel>Fecha de la clase</FieldLabel>
               <input type="date" className="input" value={form.startDate}
-                onChange={e => { set('startDate', e.target.value); set('endDate', e.target.value); }} />
+                onChange={e => {
+                  set('startDate', e.target.value);
+                  set('endDate', e.target.value);
+                  // A "clase única" has no day picker — day_of_week is always
+                  // derived from this date server-side. But `slots[0].days` is
+                  // pre-populated from the class's existing schedule when
+                  // editing, so without clearing it here the server keeps
+                  // upserting the OLD weekday (only start/end time update).
+                  updateSlot(0, 'days', []);
+                }} />
               {fieldErrors.startDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.startDate}</p>}
             </div>
             <div>
