@@ -9,6 +9,8 @@ import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
+import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
+import AlumnoWelcome from './AlumnoWelcome';
 
 const STEPS = [
   'Datos públicos',
@@ -46,6 +48,7 @@ function OnboardingContent() {
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
 
   const set = (key: keyof typeof form, val: unknown) => setForm(f => ({ ...f, [key]: val }));
 
@@ -69,11 +72,20 @@ function OnboardingContent() {
         .single();
       if (profile?.role) {
         setRole(profile.role);
-        // Alumnos never fill onboarding fields (bio/whatsapp/years_experience), so they
-        // can't rely on that check to self-heal like profesor/academia below — a role of
-        // 'alumno' alone means onboarding is complete and they should never see this wizard.
+        if (profile.role === 'alumno') {
+          // Alumno's onboarding is a pure intro carousel (AlumnoWelcome) with
+          // no fields to backfill or validate — the only thing worth checking
+          // is whether they've already seen it, to avoid replaying it on a
+          // direct visit to /onboarding after finishing.
+          if (user.user_metadata?.onboarding_done === true) {
+            router.replace('/clases');
+            return;
+          }
+          setInitializing(false);
+          return;
+        }
         // Always check: if the profile is already filled, onboarding is done
-        if (profile.role === 'alumno' || profile.bio || profile.whatsapp || profile.years_experience) {
+        if (profile.bio || profile.whatsapp || profile.years_experience) {
           // Backfill the metadata flag for users who completed onboarding before
           // this enforcement was added (self-healing one-time redirect)
           await supabase.auth.updateUser({ data: { onboarding_done: true } });
@@ -136,9 +148,10 @@ function OnboardingContent() {
     }
     setError('');
     setStep(s => s + 1);
+    shift();
   }
 
-  const back = () => { setError(''); setStep(s => s - 1); };
+  const back = () => { setError(''); setStep(s => s - 1); shift(); };
 
   async function handleFinish() {
     for (let s = 0; s <= 2; s++) {
@@ -155,6 +168,7 @@ function OnboardingContent() {
     }
     setLoading(true);
     setError('');
+    shift();
     try {
       const supabase = createClient();
       // Persist representante in user metadata for academia accounts (no DB column needed)
@@ -195,13 +209,26 @@ function OnboardingContent() {
     );
   }
 
+  if (role === 'alumno') {
+    return <AlumnoWelcome />;
+  }
+
   return (
-    <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-xl animate-fade-in">
-        {/* Logo */}
-        <div className="flex items-center gap-2 justify-center mb-8">
+    <div className="min-h-screen relative overflow-hidden flex flex-col">
+      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
+        <div key={revealId} style={revealStyle} />
+      </div>
+
+      <div className="relative z-10 flex flex-col flex-1">
+        {/* Solid white bar — the purple logo needs to stay legible regardless
+            of which hue the background is currently cycled to. */}
+        <header className="bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-center">
           <Image src="/logo.png" alt="Kynea" width={100} height={32} />
-        </div>
+        </header>
+
+        <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-xl animate-fade-in">
 
         {/* Progress */}
         <div className="mb-8">
@@ -514,6 +541,8 @@ function OnboardingContent() {
               {!loading && <ChevronRight className="w-4 h-4" />}
             </button>
           </div>
+        </div>
+        </div>
         </div>
       </div>
     </div>
