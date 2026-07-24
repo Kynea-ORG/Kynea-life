@@ -52,17 +52,20 @@ export function buildWhatsAppMessage(style: string, startDate: string, teacherPh
 // `venues.maps_url` exists in the schema but nothing writes to it — venues
 // are saved from Google Places `placeId`/`lat`/`lng`, so build the Maps link
 // from those instead of a column that's always empty in practice.
+//
+// `query` is what Google renders as the place label in the resulting URL —
+// `query_place_id` only anchors the pin, it doesn't change that label. Use
+// the address text as `query` (falling back to raw coordinates only when no
+// address is available) so the link reads "Bolognesi 180, Miraflores…"
+// instead of a lat/lng string.
 export function buildGoogleMapsUrl(opts: { placeId?: string; lat?: number; lng?: number; address?: string }): string | undefined {
   const { placeId, lat, lng, address } = opts;
-  if (lat != null && lng != null) {
-    const params = new URLSearchParams({ api: '1', query: `${lat},${lng}` });
-    if (placeId) params.set('query_place_id', placeId);
-    return `https://www.google.com/maps/search/?${params.toString()}`;
-  }
-  if (address) {
-    return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query: address }).toString()}`;
-  }
-  return undefined;
+  const query = address || (lat != null && lng != null ? `${lat},${lng}` : undefined);
+  if (!query) return undefined;
+
+  const params = new URLSearchParams({ api: '1', query });
+  if (placeId) params.set('query_place_id', placeId);
+  return `https://www.google.com/maps/search/?${params.toString()}`;
 }
 
 export function getConversionRate(views: number, contacts: number): string {
