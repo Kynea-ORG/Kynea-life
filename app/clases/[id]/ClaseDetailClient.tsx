@@ -16,6 +16,7 @@ import ContactModal from '@/components/ContactModal';
 import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
+import { trackGenerateLead } from '@/lib/analytics';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [showContact, setShowContact] = useState(false);
@@ -71,6 +72,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
+      trackGenerateLead({
+        channel: 'whatsapp', classId: cls.id, className: cls.title, classStyle: cls.style,
+        teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+      });
       setJustContacted('whatsapp');
       setTimeout(() => setJustContacted(null), 1200);
       return;
@@ -88,6 +93,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
+      trackGenerateLead({
+        channel: 'instagram', classId: cls.id, className: cls.title, classStyle: cls.style,
+        teacherId: cls.teacher.id, teacherName: cls.teacher.name,
+      });
       setJustContacted('instagram');
       setTimeout(() => setJustContacted(null), 1200);
       return;
