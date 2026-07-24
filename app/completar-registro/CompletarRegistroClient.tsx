@@ -1,10 +1,11 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { User, BookOpen, Loader2, Check } from 'lucide-react';
 import { completeOAuthRegistration } from '@/lib/auth/actions';
+import { safeRedirectPath } from '@/lib/utils';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -22,6 +23,8 @@ interface Props {
 
 export default function CompletarRegistroClient({ userName, userEmail, userAvatar }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
   const [selected, setSelected] = useState<Role | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,8 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
       router.refresh();
       // Every role goes through /onboarding on first signup — alumno gets a
       // short intro carousel, profesor/academia the full wizard.
-      router.push('/onboarding?new=1');
+      // redirectTarget (e.g. the class the user was trying to contact) rides along.
+      router.push(redirectTarget ? `/onboarding?new=1&redirect=${encodeURIComponent(redirectTarget)}` : '/onboarding?new=1');
     } catch {
       setError('No pudimos guardar tu tipo de cuenta. Intenta de nuevo.');
       setLoading(false);

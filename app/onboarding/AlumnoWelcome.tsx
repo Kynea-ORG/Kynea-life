@@ -27,7 +27,7 @@ const SLIDES = [
   },
 ];
 
-export default function AlumnoWelcome() {
+export default function AlumnoWelcome({ redirectTo = '/clases' }: { redirectTo?: string }) {
   const router = useRouter();
   const [slide, setSlide] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ export default function AlumnoWelcome() {
     // Mark onboarding as done so proxy.ts allows full navigation — same flag
     // the profesor/academia wizard sets, just without any form data behind it.
     await supabase.auth.updateUser({ data: { onboarding_done: true } });
-    router.push('/clases');
+    router.push(redirectTo);
   }
 
   const { icon: Icon, title, description } = SLIDES[slide];

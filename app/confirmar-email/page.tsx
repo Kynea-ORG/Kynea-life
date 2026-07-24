@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Mail, Loader2, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
+import { safeRedirectPath } from '@/lib/utils';
 
 const CODE_LENGTH = 6;
 const VALID_ROLES = new Set(['alumno', 'profesor', 'academia']);
@@ -17,6 +18,7 @@ function ConfirmarEmailContent() {
   const roleParam = searchParams.get('role') ?? '';
   // Only accept known roles — ignore anything else (mirrors auth/callback/route.ts's VALID_ROLES guard)
   const role = VALID_ROLES.has(roleParam) ? roleParam : null;
+  const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
 
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -89,9 +91,12 @@ function ConfirmarEmailContent() {
       onSuccess: (_path, notice) => {
         // This page is only reached right after a fresh signup — every role
         // goes through /onboarding first (alumno gets a short intro
-        // carousel, profesor/academia the full wizard).
-        const dest = '/onboarding?new=1';
-        router.push(notice ? `${dest}&notice=${notice}` : dest);
+        // carousel, profesor/academia the full wizard). redirectTarget (e.g.
+        // the class the user was trying to contact) rides along.
+        let dest = '/onboarding?new=1';
+        if (redirectTarget) dest += `&redirect=${encodeURIComponent(redirectTarget)}`;
+        if (notice) dest += `&notice=${notice}`;
+        router.push(dest);
       },
       onError: (msg) => { setError(msg); setVerifying(false); },
     });

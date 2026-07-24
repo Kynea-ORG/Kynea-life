@@ -7,6 +7,7 @@ import { Globe, Loader2, Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
+import { safeRedirectPath } from '@/lib/utils';
 
 function errorMessageFromParam(errorParam: string | null): string {
   if (errorParam === 'cuenta_incompleta') {
@@ -21,6 +22,7 @@ function errorMessageFromParam(errorParam: string | null): string {
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -38,16 +40,20 @@ function LoginPageContent() {
 
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/dashboard');
+      if (session) router.replace(redirectTarget ?? '/dashboard');
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   async function handleGoogle() {
     setGoogleLoading(true);
     const supabase = createClient();
+    const callbackUrl = redirectTarget
+      ? `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTarget)}`
+      : `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: callbackUrl },
     });
     if (error) {
       setError('No se pudo iniciar sesión con Google. Intenta de nuevo.');
@@ -102,7 +108,7 @@ function LoginPageContent() {
 
     await redirectByRole(supabase, {
       refresh: () => router.refresh(),
-      onSuccess: (path) => router.push(path),
+      onSuccess: (path) => router.push(redirectTarget ?? path),
       onError: (msg) => { setError(msg); setLoading(false); },
     });
   }

@@ -100,7 +100,7 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
                 Registrarme
               </Link>
               <Link
-                href="/login"
+                href={`/login?redirect=/clases/${cls.id}`}
                 className="w-full flex items-center justify-center btn-dark"
                 onClick={onClose}
               >
