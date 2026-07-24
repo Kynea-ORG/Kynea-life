@@ -8,6 +8,9 @@
 //   SOURCE_SUPABASE_URL=... SOURCE_SERVICE_ROLE_KEY=... \
 //   TARGET_SUPABASE_URL=... TARGET_SERVICE_ROLE_KEY=... \
 //   node scripts/migrate-storage.mjs [--bucket class-images] [--execute] [--overwrite]
+//     [--exclude-prefix <user-id>] (repeatable) — skip a user's folder entirely,
+//     e.g. to keep test/internal accounts excluded from the DB migration out
+//     of the storage copy too.
 //
 // Defaults to a dry run (lists what WOULD be copied, copies nothing) unless
 // --execute is passed — this writes into the target project's real storage,
@@ -29,6 +32,9 @@ const opt = (name, fallback) => {
 const BUCKET = opt('bucket', 'class-images');
 const EXECUTE = flag('execute');
 const OVERWRITE = flag('overwrite');
+const EXCLUDE_PREFIXES = args
+  .flatMap((a, i) => (a === '--exclude-prefix' ? [args[i + 1]] : []))
+  .filter(Boolean);
 
 const {
   SOURCE_SUPABASE_URL, SOURCE_SERVICE_ROLE_KEY,
@@ -71,8 +77,14 @@ async function listAllPaths(client, prefix = '') {
 
 async function main() {
   console.log(`Listing objects in "${BUCKET}" on source...`);
-  const sourcePaths = await listAllPaths(source);
+  let sourcePaths = await listAllPaths(source);
   console.log(`Found ${sourcePaths.length} object(s) in source.`);
+
+  if (EXCLUDE_PREFIXES.length) {
+    const before = sourcePaths.length;
+    sourcePaths = sourcePaths.filter(p => !EXCLUDE_PREFIXES.some(prefix => p === prefix || p.startsWith(`${prefix}/`)));
+    console.log(`Excluded ${before - sourcePaths.length} object(s) under prefixes: ${EXCLUDE_PREFIXES.join(', ')}`);
+  }
 
   if (!EXECUTE) {
     console.log('\nDRY RUN (pass --execute to actually copy). Would copy:');
