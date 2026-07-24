@@ -139,7 +139,25 @@
   gmp-place-autocomplete::part(input) {
     font-size: 15px;
     color: var(--color-neutral-900);
-    padding: 12px 16px;
+    /* Google already reserves space for the leading icon before this part
+       starts — a left padding here stacks on top of that and pushes the
+       text too far right. Only the right side needs `.input`'s 16px. */
+    padding: 12px 16px 12px 0;
+  }
+
+  /* Google's own focus indicator — a `part="focus-ring"` div with an inline
+     `border: 2px solid rgb(26,115,232)` — draws its blue ring on top of the
+     purple `:focus-within` border above, since our page CSS can't reach it
+     any other way (the rest of the component is a closed shadow root).
+     `!important` is required here because it's competing with that inline
+     style, not just source-order specificity. */
+  gmp-place-autocomplete::part(focus-ring) {
+    border: none !important;
+  }
+
+  gmp-place-autocomplete::part(input)::placeholder {
+    color: var(--color-neutral-400);
+    font-size: 15px;
   }
 
   h1 { font-size: 48px; font-weight: 900; letter-spacing: -0.035em; line-height: 1.05; }

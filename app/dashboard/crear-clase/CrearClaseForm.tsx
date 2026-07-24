@@ -137,6 +137,16 @@ function PlacesAddressField({
         if (cancelled) return;
         element = new PlaceAutocompleteElement();
         element.setAttribute('placeholder', placeholderRef.current);
+        // Google's own leading icon (#5e5e5e) is darker than the rest of the
+        // app's inputs — projected via its `input-icon` slot, so swap it for
+        // the same lucide "search" glyph + neutral-400 used everywhere else
+        // an input has a leading search icon (see ClasesContent.tsx, HomeClient.tsx).
+        const icon = document.createElement('span');
+        icon.setAttribute('slot', 'input-icon');
+        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>';
+        icon.style.color = 'var(--color-neutral-400)';
+        icon.style.display = 'flex';
+        element.appendChild(icon);
         container.appendChild(element);
         element.addEventListener('gmp-select', (async (event: Event) => {
           const place = (event as GmpSelectEvent).placePrediction.toPlace();
@@ -940,7 +950,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <FieldLabel>Dirección</FieldLabel>
             <PlacesAddressField
               value={form.address}
-              placeholder="Av. Benavides 1234, piso 3"
+              placeholder="Ej: Av. Benavides 1234, piso 3"
               onManualChange={v => {
                 set('address', v);
                 set('placeId', '');
@@ -967,7 +977,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           <div>
             <FieldLabel>Referencia</FieldLabel>
             <input className="input" value={form.reference} onChange={e => set('reference', e.target.value)}
-              placeholder="Frente al parque Kennedy" />
+              placeholder="Ej: Frente al parque Kennedy" />
           </div>
         </div>
       )}
