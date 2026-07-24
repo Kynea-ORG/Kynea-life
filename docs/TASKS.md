@@ -86,8 +86,8 @@ están implementados** en el código actual:
 | `lib/profiles/actions.ts` | `updateProfile` |
 | `lib/auth/actions.ts` | `completeOAuthRegistration` |
 | `lib/auth/redirectByRole.ts` | Helper de redirección por rol tras login |
-| `lib/catalog/queries.ts` | `fetchDanceStyles`, `fetchClassLevels`, `fetchDistricts` |
-| `lib/catalog/lookups.ts` | `lookupLevelId`, `lookupStyleId`, `lookupDistrictId` |
+| `lib/catalog/queries.ts` | `fetchDanceStyles`, `fetchClassLevels` |
+| `lib/catalog/lookups.ts` | `lookupLevelId`, `lookupStyleId` |
 | `lib/stats/queries.ts` | `HomeStats`, `fetchHomeStats` |
 | `lib/types.ts` | Tipos TypeScript del proyecto (`DanceClass`, `Teacher`, etc.) |
 | `supabase/migrations/*.sql` | Schema versionado (14 migraciones: 00_reset … 13_grants) |

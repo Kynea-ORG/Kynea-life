@@ -71,8 +71,8 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     availableSpots:   row.available_spots ?? undefined,
     isTrialFree:      row.is_trial_free ?? undefined,
     modality:         row.modality as Modality,
-    city:             venue?.district?.city ?? '',
-    district:         venue?.district?.name ?? '',
+    city:             venue?.city ?? '',
+    district:         venue?.district ?? '',
     venueName:        venue?.name ?? undefined,
     address:          venue?.address ?? undefined,
     reference:        venue?.reference ?? undefined,
@@ -111,11 +111,10 @@ export const CLASS_SELECT = `
   level:class_levels(id, name),
   class_styles(style_id, is_main, dance_styles(id, name)),
   class_schedules(id, day_of_week, start_time, end_time),
-  venue:venues(name, address, reference, maps_url, place_id, lat, lng, district:districts(name, city)),
+  venue:venues(name, address, reference, maps_url, place_id, lat, lng, city, district),
   teacher:profiles!teacher_id(
     id, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
     whatsapp, instagram, tiktok, youtube, website,
-    district:districts(name, city),
     profile_styles(style_id, dance_styles(name))
   )
 `;
@@ -163,12 +162,8 @@ async function resolveCityVenueIds(
   city: string | undefined
 ): Promise<string[] | null> {
   if (!city) return null;
-  const { data: districtRows } = await supabase
-    .from('districts').select('id').eq('city', city);
-  const districtIds = (districtRows ?? []).map((r: { id: number }) => r.id);
-  if (!districtIds.length) return [];
   const { data } = await supabase
-    .from('venues').select('id').in('district_id', districtIds);
+    .from('venues').select('id').eq('city', city);
   return (data ?? []).map((r: { id: string }) => r.id);
 }
 

@@ -67,7 +67,8 @@ export interface DbVenue {
   place_id: string | null;
   lat: number | null;
   lng: number | null;
-  district: { name: string; city: string } | null;
+  city: string | null;
+  district: string | null;
 }
 
 export interface DbTeacherProfile {
@@ -84,7 +85,6 @@ export interface DbTeacherProfile {
   tiktok: string | null;
   youtube: string | null;
   website: string | null;
-  district: { name: string; city: string } | null;
   profile_styles: Array<{ style_id: number; dance_styles: { name: string } | null }>;
   rating?: number | null;
   total_classes?: number | null;

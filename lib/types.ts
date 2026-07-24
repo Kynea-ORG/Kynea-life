@@ -8,7 +8,6 @@ export type PriceType = 'Gratis' | 'Por clase' | 'Mensual' | 'Paquete';
 // Catalog types returned by fetch functions (DB tables)
 export interface DbDanceStyle { id: number; name: string; slug: string; emoji: string; }
 export interface DbLevel { id: number; name: string; }
-export interface DbDistrict { id: number; name: string; city: string; }
 
 export interface Teacher {
   id: string;
@@ -17,8 +16,6 @@ export interface Teacher {
   photo: string;
   photoPosition: string;
   photoZoom: number;
-  city: string;
-  district: string;
   nationality?: string;
   bio: string;
   experience: number;
