@@ -114,8 +114,8 @@ export const CLASS_SELECT = `
   class_schedules(id, day_of_week, start_time, end_time),
   venue:venues(name, address, reference, maps_url, place_id, lat, lng, city, district),
   teacher:profiles!teacher_id(
-    id, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
-    whatsapp, instagram, tiktok, youtube, website,
+    id, slug, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
+    whatsapp, show_spots, instagram, tiktok, youtube, website,
     profile_styles(style_id, dance_styles(name))
   )
 `;

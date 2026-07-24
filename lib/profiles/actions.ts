@@ -8,6 +8,8 @@ export async function updateProfile(updates: {
   nationality?: string;
   years_experience?: number;
   whatsapp?: string;
+  show_whatsapp?: boolean;
+  show_spots?: boolean;
   instagram?: string;
   tiktok?: string;
   youtube?: string;
@@ -27,6 +29,8 @@ export async function updateProfile(updates: {
   if (updates.nationality      !== undefined) profileUpdate.nationality = updates.nationality;
   if (updates.years_experience !== undefined) profileUpdate.years_experience = updates.years_experience;
   if (updates.whatsapp         !== undefined) profileUpdate.whatsapp = updates.whatsapp;
+  if (updates.show_whatsapp    !== undefined) profileUpdate.show_whatsapp = updates.show_whatsapp;
+  if (updates.show_spots       !== undefined) profileUpdate.show_spots = updates.show_spots;
   if (updates.instagram        !== undefined) profileUpdate.instagram = updates.instagram;
   if (updates.tiktok           !== undefined) profileUpdate.tiktok = updates.tiktok;
   if (updates.youtube          !== undefined) profileUpdate.youtube = updates.youtube;
@@ -58,6 +62,7 @@ export async function updateProfile(updates: {
   }
 
   revalidatePath('/dashboard/perfil');
+  revalidatePath('/dashboard/configuracion');
   // 'layout' so the shared dashboard sidebar (name/photo, fetched in
   // app/dashboard/layout.tsx) revalidates too — it stays mounted across
   // client-side nav within /dashboard/*, so a plain 'page' revalidation
