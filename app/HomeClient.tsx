@@ -554,7 +554,7 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                     </div>
                     <div className="px-4 pt-3.5 pb-4">
                       <h3 className="font-bold text-neutral-900 text-[16px] leading-tight mb-0.5 truncate">{t.name}</h3>
-                      <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.city}</p>
+                      {t.nationality && <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.nationality}</p>}
                       <div className="flex flex-wrap gap-1.5 mb-3 min-h-[26px]">
                         {t.styles.slice(0, 2).map(s => (
                           <span key={s} className="badge-pink text-[11.5px] px-2.5 py-1">{s}</span>
@@ -655,10 +655,12 @@ export default function HomeClient({ initialClasses, salsaClasses, initialTeache
                         </div>
                       )}
                     </div>
-                    <p className="text-[13px] text-neutral-500 mb-2">
-                      <MapPin className="w-3 h-3 inline mr-0.5 -mt-px" />
-                      {t.district}, {t.city}
-                    </p>
+                    {t.nationality && (
+                      <p className="text-[13px] text-neutral-500 mb-2">
+                        <MapPin className="w-3 h-3 inline mr-0.5 -mt-px" />
+                        {t.nationality}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-1 mb-2">
                       {t.styles.slice(0, 3).map(s => (
                         <span key={s} className="badge-pink text-[11px]">{s}</span>

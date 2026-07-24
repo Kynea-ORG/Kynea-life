@@ -42,6 +42,7 @@ export default async function ProfesoresPage() {
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold text-neutral-900 text-[15px] leading-tight">{t.name}</h3>
+                    {t.nationality && <p className="text-[12px] text-neutral-400 mt-0.5">{t.nationality}</p>}
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {t.styles.slice(0, 2).map(s => (
                         <span key={s} className="badge-pink text-[11px] px-2 py-0.5">{s}</span>
@@ -74,6 +75,7 @@ export default async function ProfesoresPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-neutral-900 text-[15px]">{t.name}</h3>
+                    {t.nationality && <p className="text-[12px] text-neutral-400 mt-0.5">{t.nationality}</p>}
                     <div className="flex flex-wrap gap-1 mt-1">
                       {t.styles.slice(0, 3).map(s => (
                         <span key={s} className="badge-pink text-[11px] px-2 py-0.5">{s}</span>

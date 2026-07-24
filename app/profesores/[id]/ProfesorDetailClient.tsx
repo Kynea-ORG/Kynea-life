@@ -51,10 +51,10 @@ export default function ProfesorDetailClient({
               </div>
 
               <div className="flex flex-wrap gap-2.5 mt-3.5 text-[13px] text-white/75">
-                {(teacher.district || teacher.city) && (
+                {teacher.nationality && (
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5" />
-                    {[teacher.district, teacher.city].filter(Boolean).join(', ')}
+                    {teacher.nationality}
                   </span>
                 )}
                 {teacher.experience > 0 && (

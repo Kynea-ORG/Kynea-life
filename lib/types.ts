@@ -19,6 +19,7 @@ export interface Teacher {
   photoZoom: number;
   city: string;
   district: string;
+  nationality?: string;
   bio: string;
   experience: number;
   styles: DanceStyle[];

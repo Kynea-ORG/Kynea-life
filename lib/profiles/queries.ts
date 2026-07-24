@@ -17,6 +17,10 @@ export function mapTeacher(t: any): Teacher {
     photoZoom:    t.photo_zoom ?? 1,
     city:         dist?.city ?? '',
     district:     dist?.name ?? '',
+    // `nationality` deliberately not in PROFILE_SELECT yet — that column only
+    // exists in migration 20, not applied to the connected database. Add it
+    // to the select string below once that migration is confirmed live.
+    nationality:  t.nationality ?? undefined,
     bio:          t.bio ?? '',
     experience:   t.years_experience ?? 0,
     styles,
