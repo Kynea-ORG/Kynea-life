@@ -1,4 +1,4 @@
--- 26. DANCE_STYLES — nuevas categorías (Preparación física, Flexibilidad,
+-- 27. DANCE_STYLES — nuevas categorías (Preparación física, Flexibilidad,
 -- Jazz Lírico, Street Dance) + reordena TODO el catálogo alfabéticamente.
 --
 -- A diferencia del reordenamiento visual del home (puramente en código, ver

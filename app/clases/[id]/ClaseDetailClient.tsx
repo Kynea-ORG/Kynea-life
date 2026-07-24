@@ -13,7 +13,7 @@ function IgIcon({ className }: { className?: string }) {
 }
 import Header from '@/components/Header';
 import ContactModal from '@/components/ContactModal';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 
@@ -99,6 +99,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const images = [cls.coverImage, ...(cls.gallery || [])].filter(Boolean);
   const spotsLeft = cls.availableSpots;
   const isFullyBooked = spotsLeft === 0;
+  const mapsHref = buildGoogleMapsUrl({ placeId: cls.placeId, lat: cls.lat, lng: cls.lng, address: cls.address });
 
   const priceDisplay = cls.priceType === 'Gratis' ? 'Gratis' : (
     cls.offerPrice ? (
@@ -345,7 +346,15 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       {/* Older venues had their name defaulted to their own address
                           (no "nombre del local" field existed yet) — skip the address
                           line when it would just repeat the name above it. */}
-                      {cls.address && cls.address !== cls.venueName && <p className="text-neutral-400 mt-0.5">{cls.address}</p>}
+                      {cls.address && cls.address !== cls.venueName && (
+                        mapsHref ? (
+                          <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="text-neutral-400 mt-0.5 hover:text-neutral-900 hover:underline block">
+                            {cls.address}
+                          </a>
+                        ) : (
+                          <p className="text-neutral-400 mt-0.5">{cls.address}</p>
+                        )
+                      )}
                       {cls.reference && <p className="text-neutral-400">{cls.reference}</p>}
                     </div>
                   </div>
@@ -417,9 +426,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   </button>
                 </div>
 
-                {cls.mapsUrl && (
+                {mapsHref && (
                   <a
-                    href={cls.mapsUrl}
+                    href={mapsHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 w-full flex items-center justify-center gap-2 text-[13px] text-neutral-500 hover:text-neutral-900 transition-colors"

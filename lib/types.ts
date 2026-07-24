@@ -58,6 +58,7 @@ export interface DanceClass {
 
   startDate: string;
   endDate?: string;
+  recurrence: string;
   timeSlots: TimeSlot[];
 
   priceType: PriceType;

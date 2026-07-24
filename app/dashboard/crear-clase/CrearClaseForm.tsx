@@ -57,7 +57,7 @@ interface GmpSelectEvent extends Event {
   placePrediction: { toPlace: () => GooglePlaceResult };
 }
 
-type PlaceAutocompleteElementInstance = HTMLElement;
+type PlaceAutocompleteElementInstance = HTMLElement & { value?: string };
 
 interface GoogleMapsPlacesLibrary {
   PlaceAutocompleteElement: new () => PlaceAutocompleteElementInstance;
@@ -109,17 +109,32 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
 interface PlaceSelection { address: string; placeId: string; lat: number; lng: number; city: string; district: string }
 
 function PlacesAddressField({
-  value, onManualChange, onPlaceSelect, placeholder,
+  value, onManualChange, onPlaceSelect, placeholder, onFallbackChange,
 }: {
   value: string;
   onManualChange: (v: string) => void;
   onPlaceSelect: (selection: PlaceSelection) => void;
   placeholder: string;
+  // Called with `true` once we know the address field is running in plain-
+  // <input> mode (no API key, or the script/widget failed to load) — the
+  // parent uses this to show manual Ciudad/Distrito inputs, since in that
+  // mode nothing else can populate them (see extractCityDistrict — those
+  // values normally only ever come from a selected Google prediction).
+  onFallbackChange?: (fallback: boolean) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onPlaceSelectRef = useRef(onPlaceSelect);
   useEffect(() => { onPlaceSelectRef.current = onPlaceSelect; }, [onPlaceSelect]);
+  const placeholderRef = useRef(placeholder);
+  useEffect(() => { placeholderRef.current = placeholder; }, [placeholder]);
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; }, [value]);
   const [initFailed, setInitFailed] = useState(false);
+
+  useEffect(() => {
+    onFallbackChange?.(!GOOGLE_MAPS_API_KEY || initFailed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initFailed]);
 
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY) return;
@@ -134,6 +149,23 @@ function PlacesAddressField({
         const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
         if (cancelled) return;
         element = new PlaceAutocompleteElement();
+        element.setAttribute('placeholder', placeholderRef.current);
+        // Uncontrolled Web Component: unlike a plain <input>, it doesn't read
+        // React's `value` prop, so when editing an existing class its address
+        // rendered blank even though `form.address` still held the real value.
+        // Pre-fill the widget's own internal text with the value it had at
+        // mount (edit mode) so it doesn't look reset until the user searches.
+        if (valueRef.current) element.value = valueRef.current;
+        // Google's own leading icon (#5e5e5e) is darker than the rest of the
+        // app's inputs — projected via its `input-icon` slot, so swap it for
+        // the same lucide "search" glyph + neutral-400 used everywhere else
+        // an input has a leading search icon (see ClasesContent.tsx, HomeClient.tsx).
+        const icon = document.createElement('span');
+        icon.setAttribute('slot', 'input-icon');
+        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>';
+        icon.style.color = 'var(--color-neutral-400)';
+        icon.style.display = 'flex';
+        element.appendChild(icon);
         container.appendChild(element);
         element.addEventListener('gmp-select', (async (event: Event) => {
           const place = (event as GmpSelectEvent).placePrediction.toPlace();
@@ -148,6 +180,15 @@ function PlacesAddressField({
             district,
           });
         }) as EventListener);
+        // The script can load fine while every actual prediction request
+        // still fails at runtime (e.g. the API key's referrer restrictions
+        // don't cover the current domain) — that doesn't throw here or fire
+        // script.onerror, it just logs and emits 'gmp-error' per keystroke
+        // while silently never producing a selectable prediction. Treat it
+        // the same as a load failure: drop to the manual-input fallback.
+        element.addEventListener('gmp-error', () => {
+          if (!cancelled) setInitFailed(true);
+        });
       } catch (err) {
         console.error('[PlacesAddressField] Google Maps init failed', err);
         if (!cancelled) setInitFailed(true);
@@ -183,18 +224,6 @@ const STEPS = [
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: string; endTime: string };
-
-// Same rule as dbRowToValidationInput (lib/classes/validation.ts): a stored
-// end_date past start_date, more than one weekday, or more than one slot,
-// means a recurring ("mensual") schedule. The end_date check must come
-// first — a class recurring on a single weekday (e.g. "every Monday", very
-// common) has exactly 1 day and 1 slot just like a true one-off class, so
-// the day/slot count alone can't tell them apart; only the date range can.
-function deriveRecurrence(editClass: DanceClass): 'unica' | 'mensual' {
-  if (editClass.endDate && editClass.endDate !== editClass.startDate) return 'mensual';
-  const totalDays = editClass.timeSlots?.reduce((sum, s) => sum + s.days.length, 0) ?? 0;
-  return totalDays > 1 || (editClass.timeSlots?.length ?? 0) > 1 ? 'mensual' : 'unica';
-}
 
 function buildInitialForm(editClass: DanceClass | null) {
   if (!editClass) {
@@ -244,7 +273,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     fullDesc: editClass.fullDescription ?? '',
     startDate: editClass.startDate ?? '',
     endDate: editClass.endDate ?? '',
-    recurrence: deriveRecurrence(editClass),
+    recurrence: editClass.recurrence ?? 'mensual',
     priceType: editClass.priceType ?? 'Mensual',
     price: editClass.price ? String(editClass.price) : '',
     offerPrice: editClass.offerPrice ? String(editClass.offerPrice) : '',
@@ -372,6 +401,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [contactGateError, setContactGateError] = useState<{ message: string; href: string } | null>(null);
+  // Starts optimistic (assumes Google will load) — PlacesAddressField flips
+  // this via onFallbackChange as soon as it knows better (synchronously for
+  // "no API key", async for "script/widget failed to load").
+  const [addressFallback, setAddressFallback] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [coverImageUrl, setCoverImageUrl] = useState(() => editClass?.coverImage ?? '');
@@ -683,7 +716,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { value: 'personalizado', label: 'Personalizado', disabled: true, badge: 'Próximamente' },
           ].map(opt => (
             <Pill key={opt.value} active={form.recurrence === opt.value} disabled={opt.disabled} badge={opt.badge} onClick={() => {
-              if (opt.disabled) return;
+              if (opt.disabled || form.recurrence === opt.value) return;
               set('recurrence', opt.value);
               setSlots([{ days: [], startTime: '19:00', endTime: '20:30' }]);
             }}>
@@ -942,7 +975,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <FieldLabel>Dirección</FieldLabel>
             <PlacesAddressField
               value={form.address}
-              placeholder="Av. Benavides 1234, piso 3"
+              placeholder="Ej: Av. Benavides 1234, piso 3"
               onManualChange={v => {
                 set('address', v);
                 set('placeId', '');
@@ -960,28 +993,36 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 if (selection.city) set('city', selection.city);
                 if (selection.district) set('district', selection.district);
               }}
+              onFallbackChange={setAddressFallback}
             />
             {fieldErrors.address && <p className="text-xs text-red-600 mt-1">{fieldErrors.address}</p>}
+            {!addressFallback && (fieldErrors.city || fieldErrors.district) && (
+              <p className="text-xs text-red-600 mt-1">No se pudo determinar la ciudad/distrito de esa dirección — elegí otra opción de la lista de Google.</p>
+            )}
           </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Ciudad</FieldLabel>
-              <input className="input" value={form.city} onChange={e => set('city', e.target.value)}
-                placeholder="Se completa al elegir la dirección" />
-              {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
+          {addressFallback && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Ciudad</FieldLabel>
+                <input className="input" value={form.city} onChange={e => set('city', e.target.value)}
+                  placeholder="Ej: Lima" />
+                {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
+              </div>
+              <div>
+                <FieldLabel>Distrito</FieldLabel>
+                <input className="input" value={form.district} onChange={e => set('district', e.target.value)}
+                  placeholder="Ej: Miraflores" />
+                {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
+              </div>
+              <p className="col-span-2 text-xs text-neutral-400">
+                No pudimos cargar el buscador de direcciones — completa ciudad y distrito manualmente.
+              </p>
             </div>
-            <div>
-              <FieldLabel>Distrito</FieldLabel>
-              <input className="input" value={form.district} onChange={e => set('district', e.target.value)}
-                placeholder="Se completa al elegir la dirección" />
-              {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
-            </div>
-          </div>
-          <Hint>Ciudad y distrito se completan solos al elegir la dirección. Podés corregirlos a mano si Google no acierta.</Hint>
+          )}
           <div>
             <FieldLabel>Referencia</FieldLabel>
             <input className="input" value={form.reference} onChange={e => set('reference', e.target.value)}
-              placeholder="Frente al parque Kennedy" />
+              placeholder="Ej: Frente al parque Kennedy" />
           </div>
         </div>
       )}

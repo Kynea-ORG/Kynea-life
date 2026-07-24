@@ -4,6 +4,17 @@ import { NextResponse, type NextRequest } from 'next/server';
 // Next.js 16: middleware.ts is deprecated and renamed to proxy.ts.
 // The exported function must be named `proxy`.
 export async function proxy(request: NextRequest) {
+  // Landing "próximamente" gate: only set COMING_SOON_MODE=true in Vercel's
+  // Production env scope (kynea.life). Leaving it unset in dev/preview keeps
+  // those environments fully open. Toggle off in Vercel to launch for real.
+  if (process.env.COMING_SOON_MODE === 'true') {
+    const path = request.nextUrl.pathname;
+    if (path !== '/coming-soon') {
+      return NextResponse.rewrite(new URL('/coming-soon', request.url));
+    }
+    return NextResponse.next({ request });
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

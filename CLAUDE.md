@@ -112,3 +112,9 @@ Actualmente el onboarding de `profesor` y `academia` recoge exactamente los mism
 - **Número de profesores** — tamaño del equipo docente
 
 Implementación sugerida: en `app/onboarding/page.tsx`, detectar `form.profileType === 'academia'` (o leer el rol del perfil) y mostrar un paso extra o campos adicionales en el paso "Datos públicos". Guardar estos valores en columnas nuevas de `profiles` (requiere migración SQL) o en `raw_user_meta_data` como solución temporal sin migración.
+
+### TODO: Revisar `color-scheme: light` forzado cuando exista modo dark (u otros temas)
+
+`app/globals.css` fuerza `color-scheme: light` en `html` y específicamente en `gmp-place-autocomplete` (el widget de Google Places en Crear Clase). Se agregó porque Kynea hoy solo tiene tema claro — sin esto, un profesor con su SO/navegador en modo oscuro ve el widget de dirección como una barra negra rota, ya que el componente de Google evalúa `prefers-color-scheme` en su propio shadow DOM.
+
+Si Kynea llega a implementar modo dark (u otros temas) en el futuro, esto hay que revisitarlo: el `color-scheme: light` habría que hacerlo condicional al tema activo en vez de fijo, y el selector `gmp-place-autocomplete { color-scheme: light }` debería pasar a `color-scheme: light dark` (o el valor que corresponda) para que el widget de Google siga el tema real de la app en vez de quedar forzado a claro siempre.
