@@ -9,6 +9,7 @@ export function mapTeacher(t: any): Teacher {
     .filter(Boolean);
   return {
     id:           t.id,
+    slug:         t.slug ?? t.id,
     name:         t.name,
     type:         t.role as 'profesor' | 'academia',
     photo:        t.photo_url ?? '',
@@ -18,7 +19,15 @@ export function mapTeacher(t: any): Teacher {
     bio:          t.bio ?? '',
     experience:   t.years_experience ?? 0,
     styles,
-    whatsapp:     t.whatsapp ?? '',
+    // t.show_whatsapp is only present when the caller's SELECT includes it
+    // (PROFILE_SELECT does, the teacher sub-select in CLASS_SELECT doesn't —
+    // a class's own contact_mode is a separate, explicit choice the teacher
+    // makes per listing, so hiding the number from the public profile page
+    // shouldn't silently break a class already configured to contact via WhatsApp).
+    whatsapp:     t.show_whatsapp === false ? '' : (t.whatsapp ?? ''),
+    // Same "only when selected" caveat as show_whatsapp above — defaults to
+    // visible when the caller's SELECT doesn't include the column.
+    showSpots:    t.show_spots !== false,
     email:        '',
     instagram:    t.instagram,
     tiktok:       t.tiktok,
@@ -30,8 +39,8 @@ export function mapTeacher(t: any): Teacher {
 }
 
 export const PROFILE_SELECT = `
-  id, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
-  nationality, whatsapp, instagram, tiktok, youtube, website,
+  id, slug, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
+  nationality, whatsapp, show_whatsapp, instagram, tiktok, youtube, website,
   profile_styles(style_id, dance_styles(name))
 `;
 
@@ -52,12 +61,12 @@ export async function fetchFeaturedProfiles(role: 'profesor' | 'academia', limit
   return (data ?? []).map(mapTeacher);
 }
 
-export async function fetchTeacherById(id: string): Promise<Teacher | null> {
+export async function fetchTeacherBySlug(slug: string): Promise<Teacher | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('profiles')
     .select(PROFILE_SELECT)
-    .eq('id', id)
+    .eq('slug', slug)
     .single();
   if (error || !data) return null;
   return mapTeacher(data);

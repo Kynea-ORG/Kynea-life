@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { assertRole } from '@/lib/auth/assertRole';
 import { lookupLevelId, lookupStyleId } from '@/lib/catalog/lookups';
 import {
   findOrCreateVenue, venueNeedsUpdate, insertClassStyles, insertClassSchedules, buildClassColumns,
@@ -17,6 +18,7 @@ export async function createClass(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
+  await assertRole(supabase, user.id, ['profesor', 'academia']);
 
   if (formData.get('status') === 'published') {
     const result = validateForPublish(formDataToValidationInput(formData));
@@ -100,6 +102,7 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload) 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
+  await assertRole(supabase, user.id, ['profesor', 'academia']);
 
   const payload: ClassUpdatePayload = { ...updates };
 
@@ -145,6 +148,7 @@ export async function deleteClass(classId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
+  await assertRole(supabase, user.id, ['profesor', 'academia']);
 
   const { error } = await supabase
     .from('classes')
@@ -162,6 +166,7 @@ export async function duplicateClass(classId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
+  await assertRole(supabase, user.id, ['profesor', 'academia']);
 
   const [originalResult, stylesResult, schedulesResult] = await Promise.all([
     supabase.from('classes').select('*').eq('id', classId).eq('teacher_id', user.id).single(),
@@ -198,6 +203,7 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
+  await assertRole(supabase, user.id, ['profesor', 'academia']);
 
   if (formData.get('status') === 'published') {
     const result = validateForPublish(formDataToValidationInput(formData));
