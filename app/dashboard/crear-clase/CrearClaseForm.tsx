@@ -1220,7 +1220,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               </p>
             )}
             <div className="flex gap-3">
-              <button type="button" onClick={() => handlePublish('draft')} disabled={isPending}
+              <button type="button" onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')} disabled={isPending}
                 className="btn-outline flex items-center gap-2 disabled:opacity-50">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {classId ? 'Guardar cambios' : 'Guardar borrador'}
