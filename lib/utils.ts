@@ -72,3 +72,12 @@ export function getConversionRate(views: number, contacts: number): string {
   if (views === 0) return '0%';
   return `${Math.round((contacts / views) * 100)}%`;
 }
+
+// Validates a `?redirect=` target is a same-origin relative path before it's
+// carried through the auth/registro/onboarding chain — same rule
+// app/auth/callback/route.ts already applies to its own `next` param.
+// Prevents an open redirect (e.g. `?redirect=https://evil.com`).
+export function safeRedirectPath(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.startsWith('/') && !value.startsWith('//') ? value : null;
+}

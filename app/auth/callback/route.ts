@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { roleMismatchNotice } from '@/lib/auth/redirectByRole';
+import { safeRedirectPath } from '@/lib/utils';
 import { NextResponse } from 'next/server';
 
 const VALID_ROLES = new Set(['alumno', 'profesor', 'academia']);
@@ -10,8 +11,12 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '';
   const roleParam = searchParams.get('role') ?? '';
 
-  // Only allow same-origin relative paths to prevent open redirect attacks
-  const safePath = next.startsWith('/') && !next.startsWith('//') ? next : null;
+  // `next` bypasses role resolution entirely (email confirm / password reset
+  // flows, below) — `redirect` is a DIFFERENT param: where to land AFTER the
+  // normal role-resolution logic finishes (e.g. the class a user was trying
+  // to contact when the login/registro gate sent them here via Google).
+  const safePath = safeRedirectPath(next);
+  const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
   // Only accept known roles — ignore anything else
   const incomingRole = VALID_ROLES.has(roleParam) ? roleParam : null;
 
@@ -49,15 +54,24 @@ export async function GET(request: Request) {
 
             // Every role goes through /onboarding on first signup — alumno gets
             // a short intro carousel, profesor/academia the full wizard.
-            return NextResponse.redirect(`${origin}/onboarding?new=1`);
+            // redirectTarget (e.g. the class the user was trying to contact) rides along.
+            const onboardingUrl = redirectTarget
+              ? `${origin}/onboarding?new=1&redirect=${encodeURIComponent(redirectTarget)}`
+              : `${origin}/onboarding?new=1`;
+            return NextResponse.redirect(onboardingUrl);
           }
 
           // New user came from /login (no role) — must choose role first
-          return NextResponse.redirect(`${origin}/completar-registro`);
+          const completarUrl = redirectTarget
+            ? `${origin}/completar-registro?redirect=${encodeURIComponent(redirectTarget)}`
+            : `${origin}/completar-registro`;
+          return NextResponse.redirect(completarUrl);
         }
 
-        // Existing user with a role — redirect to their area
-        const dest = profile.role === 'alumno' ? '/clases' : '/dashboard';
+        // Existing user with a role — redirect to their area, or back to
+        // whatever they were trying to do (e.g. the login gate on a class
+        // contact modal) when a redirectTarget is present.
+        const dest = redirectTarget ?? (profile.role === 'alumno' ? '/clases' : '/dashboard');
         // If they came from /registro with a different role, warn them they already have an account
         const notice = roleMismatchNotice(incomingRole, profile.role);
         const url = notice ? `${origin}${dest}?notice=${notice}` : `${origin}${dest}`;

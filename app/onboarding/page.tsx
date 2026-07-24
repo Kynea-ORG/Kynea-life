@@ -11,6 +11,7 @@ import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { trackSignUp } from '@/lib/analytics';
+import { safeRedirectPath } from '@/lib/utils';
 import AlumnoWelcome from './AlumnoWelcome';
 
 const STEPS = [
@@ -23,6 +24,7 @@ const STEPS = [
 function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
   const [step, setStep] = useState(0);
   const [role, setRole] = useState('');
   const [form, setForm] = useState({
@@ -83,7 +85,10 @@ function OnboardingContent() {
         // re-fire sign_up on the exact same registration.
         if (searchParams.get('new') === '1') {
           trackSignUp({ role: profile.role, method: (user.app_metadata?.provider as string) ?? 'email' });
-          router.replace('/onboarding');
+          // Preserve redirectTarget when stripping `new` — otherwise a
+          // refresh right after this replace would lose track of where
+          // AlumnoWelcome should send the user once they finish.
+          router.replace(redirectTarget ? `/onboarding?redirect=${encodeURIComponent(redirectTarget)}` : '/onboarding');
         }
         if (profile.role === 'alumno') {
           // Alumno's onboarding is a pure intro carousel (AlumnoWelcome) with
@@ -91,7 +96,7 @@ function OnboardingContent() {
           // is whether they've already seen it, to avoid replaying it on a
           // direct visit to /onboarding after finishing.
           if (user.user_metadata?.onboarding_done === true) {
-            router.replace('/clases');
+            router.replace(redirectTarget ?? '/clases');
             return;
           }
           setInitializing(false);
@@ -223,7 +228,7 @@ function OnboardingContent() {
   }
 
   if (role === 'alumno') {
-    return <AlumnoWelcome />;
+    return <AlumnoWelcome redirectTo={redirectTarget ?? '/clases'} />;
   }
 
   return (
