@@ -20,8 +20,8 @@ export default function TerminosPage() {
           </p>
           <h2 className="text-[18px] font-bold text-neutral-900">Privacidad</h2>
           <p>
-            Los datos de contacto (WhatsApp, Instagram) son visibles únicamente para usuarios registrados.
-            No compartimos tu información con terceros sin tu consentimiento.
+            El tratamiento de tus datos personales se rige por nuestra{' '}
+            <a href="/privacidad" className="underline text-neutral-900">Política de privacidad y tratamiento de datos personales</a>.
           </p>
           <h2 className="text-[18px] font-bold text-neutral-900">Contacto</h2>
           <p>

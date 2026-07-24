@@ -23,11 +23,12 @@ interface Props {
 export default function CompletarRegistroClient({ userName, userEmail, userAvatar }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Role | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleContinue() {
-    if (!selected || loading) return;
+    if (!selected || !termsAccepted || loading) return;
     setLoading(true);
     setError('');
     try {
@@ -113,6 +114,27 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
               })}
             </div>
 
+            {/* Terms checkbox */}
+            <label className="flex items-start gap-3 cursor-pointer mb-5 select-none">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={e => setTermsAccepted(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-neutral-900 shrink-0"
+              />
+              <span className="text-[13px] text-neutral-500 leading-relaxed">
+                Acepto los{' '}
+                <a href="/terminos" target="_blank" rel="noopener noreferrer" className="text-neutral-900 font-semibold hover:underline">
+                  Términos y condiciones
+                </a>{' '}
+                y la{' '}
+                <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="text-neutral-900 font-semibold hover:underline">
+                  Política de privacidad y tratamiento de datos personales
+                </a>{' '}
+                de Kynea
+              </span>
+            </label>
+
             {error && (
               <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 mb-4 animate-fade-in">
                 {error}
@@ -122,7 +144,7 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
             <button
               type="button"
               onClick={handleContinue}
-              disabled={!selected || loading}
+              disabled={!selected || !termsAccepted || loading}
               className="btn-dark w-full flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}

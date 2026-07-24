@@ -194,6 +194,10 @@ export default function RegistroPage() {
                     <a href="/terminos" target="_blank" rel="noopener noreferrer" className="text-neutral-900 font-semibold hover:underline">
                       Términos y condiciones
                     </a>{' '}
+                    y la{' '}
+                    <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="text-neutral-900 font-semibold hover:underline">
+                      Política de privacidad y tratamiento de datos personales
+                    </a>{' '}
                     de Kynea
                   </span>
                 </label>

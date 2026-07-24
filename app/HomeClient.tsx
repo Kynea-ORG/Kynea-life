@@ -758,8 +758,12 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             <Image src="/logo.png" alt="Kynea" width={90} height={30} />
             <p className="text-[13px] text-neutral-400">© 2026 Kynea. La primera plataforma integral de danza en Latinoamérica.</p>
             <div className="flex gap-6 text-[13px] text-neutral-400">
-              {['Términos', 'Privacidad', 'Contacto'].map(l => (
-                <Link key={l} href="#" className="hover:text-neutral-700 transition-colors">{l}</Link>
+              {[
+                { label: 'Términos', href: '/terminos' },
+                { label: 'Privacidad', href: '/privacidad' },
+                { label: 'Contacto', href: 'mailto:hola@kynea.pe' },
+              ].map(l => (
+                <Link key={l.label} href={l.href} className="hover:text-neutral-700 transition-colors">{l.label}</Link>
               ))}
             </div>
           </div>
