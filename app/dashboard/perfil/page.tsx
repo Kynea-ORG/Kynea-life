@@ -12,7 +12,7 @@ export default async function PerfilPage() {
   const [profileResult, danceStyles, allDistricts] = await Promise.all([
     supabase
       .from('profiles')
-      .select('name, bio, years_experience, whatsapp, instagram, tiktok, youtube, website, photo_url, photo_position, photo_zoom, district:districts(name, city), profile_styles(style_id, dance_styles(name))')
+      .select('name, bio, nationality, years_experience, whatsapp, instagram, tiktok, youtube, website, photo_url, photo_position, photo_zoom, district:districts(name, city), profile_styles(style_id, dance_styles(name))')
       .eq('id', user.id)
       .single(),
     fetchDanceStyles(),
