@@ -64,5 +64,9 @@ export async function updateProfile(updates: {
   }
 
   revalidatePath('/dashboard/perfil');
-  revalidatePath('/dashboard');
+  // 'layout' so the shared dashboard sidebar (name/photo, fetched in
+  // app/dashboard/layout.tsx) revalidates too — it stays mounted across
+  // client-side nav within /dashboard/*, so a plain 'page' revalidation
+  // of '/dashboard' alone wouldn't refresh it.
+  revalidatePath('/dashboard', 'layout');
 }
