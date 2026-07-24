@@ -58,15 +58,6 @@ Tablas de solo lectura desde el cliente (escritura solo vía SQL admin).
 | `name` | text | Nombre único (ej. "Principiante") |
 | `ord` | smallint | Orden de listado |
 
-#### `districts`
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| `id` | smallserial | PK |
-| `name` | text | Nombre del distrito |
-| `city` | text | Ciudad (default `'Lima'`) |
-
-La ciudad se obtiene vía JOIN con `districts`, nunca se duplica como columna en `profiles`, `venues` o `classes`.
-
 ### `profiles`
 Extiende `auth.users`. Se crea automáticamente vía trigger `handle_new_user` al registrarse.
 
@@ -77,7 +68,6 @@ Extiende `auth.users`. Se crea automáticamente vía trigger `handle_new_user` a
 | `name` | text | Nombre público |
 | `photo_url` | text | URL de foto de perfil |
 | `bio` | text | Descripción pública |
-| `district_id` | smallint | FK → `districts` |
 | `years_experience` | integer | Años de experiencia |
 | `whatsapp` | text | Número de contacto |
 | `instagram` | text | Handle de Instagram |
@@ -100,7 +90,8 @@ Locales físicos reutilizables — un profesor puede tener varios y asignarlos a
 | `name` | text | Nombre del local (NOT NULL) |
 | `address` | text | Dirección |
 | `reference` | text | Referencia de ubicación |
-| `district_id` | smallint | FK → `districts` |
+| `city` | text | Provincia/ciudad — texto libre, extraído de Google Places `addressComponents` al elegir la dirección en Crear Clase |
+| `district` | text | Distrito — texto libre, mismo origen que `city` |
 | `maps_url` | text | Link de Google Maps |
 | `lat` / `lng` | double precision | Coordenadas geográficas |
 | `created_at` / `updated_at` | timestamptz | — |
@@ -289,7 +280,7 @@ Organizada por feature slice bajo `lib/`, no como un par plano `queries`/`action
 | `lib/supabase/client.ts` | Cliente Supabase para Client Components |
 | `lib/types.ts` | Tipos de dominio compartidos |
 | `lib/auth/actions.ts`, `lib/auth/redirectByRole.ts` | Mutaciones `'use server'` de auth + redirect post-login/onboarding según rol |
-| `lib/catalog/queries.ts`, `lib/catalog/lookups.ts` | Queries de lectura + helpers de lookup para `dance_styles` / `class_levels` / `districts` |
+| `lib/catalog/queries.ts`, `lib/catalog/lookups.ts` | Queries de lectura + helpers de lookup para `dance_styles` / `class_levels` |
 | `lib/classes/queries.ts`, `lib/classes/actions.ts`, `lib/classes/helpers.ts`, `lib/classes/types.ts` | Queries de lectura de clases, mutaciones `'use server'` (crear/actualizar/eliminar), helpers y tipos propios de clases |
 | `lib/profiles/queries.ts`, `lib/profiles/actions.ts` | Queries de lectura de perfiles + mutaciones `'use server'` |
 | `lib/stats/queries.ts` | Queries de lectura para dashboard/estadísticas |

@@ -45,41 +45,56 @@ describe('buildClassColumns — contact_mode', () => {
 
 describe('venueNeedsUpdate', () => {
   it('returns true when current venue is null (no venue linked yet)', () => {
-    expect(venueNeedsUpdate(null, { placeId: 'place-1', address: 'Av. Test 123', name: '' })).toBe(true);
+    expect(venueNeedsUpdate(null, { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' })).toBe(true);
   });
 
   it('returns true when both place_id/placeId are non-null and differ', () => {
     expect(venueNeedsUpdate(
-      { place_id: 'place-1', address: 'Av. Test 123', name: '' },
-      { placeId: 'place-2', address: 'Av. Test 123', name: '' }
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-2', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' }
     )).toBe(true);
   });
 
   it('returns false when both place_id/placeId are non-null and equal', () => {
     expect(venueNeedsUpdate(
-      { place_id: 'place-1', address: 'Av. Test 123', name: '' },
-      { placeId: 'place-1', address: 'Av. Test 123', name: '' }
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' }
     )).toBe(false);
   });
 
   it('returns true when incoming placeId is null and address differs from current', () => {
     expect(venueNeedsUpdate(
-      { place_id: null, address: 'Av. Old 111', name: '' },
-      { placeId: null, address: 'Av. New 222', name: '' }
+      { place_id: null, address: 'Av. Old 111', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: null, address: 'Av. New 222', name: '', city: 'Lima', district: 'Miraflores' }
     )).toBe(true);
   });
 
   it('returns false when incoming placeId is null and address equals current', () => {
     expect(venueNeedsUpdate(
-      { place_id: null, address: 'Av. Test 123', name: '' },
-      { placeId: null, address: 'Av. Test 123', name: '' }
+      { place_id: null, address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: null, address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' }
     )).toBe(false);
   });
 
   it('returns true when only the name differs (place_id and address unchanged)', () => {
     expect(venueNeedsUpdate(
-      { place_id: 'place-1', address: 'Av. Test 123', name: 'Old Studio' },
-      { placeId: 'place-1', address: 'Av. Test 123', name: 'New Studio' }
+      { place_id: 'place-1', address: 'Av. Test 123', name: 'Old Studio', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: 'New Studio', city: 'Lima', district: 'Miraflores' }
+    )).toBe(true);
+  });
+
+  // Regression: findOrCreateVenue is the only place that writes city/district
+  // (extracted from Google's addressComponents) — if this comparison ignores
+  // them, editing only the district on an unchanged address silently drops
+  // the new value, since findOrCreateVenue never gets called.
+  it('returns true when only city or district differs (place_id/address/name unchanged)', () => {
+    expect(venueNeedsUpdate(
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Barranco' }
+    )).toBe(true);
+    expect(venueNeedsUpdate(
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Callao', district: 'Miraflores' }
     )).toBe(true);
   });
 });
@@ -148,7 +163,8 @@ describe('findOrCreateVenue', () => {
     name: 'Estudio Test',
     address: 'Av. Test 123',
     reference: 'Frente al parque',
-    districtId: 5,
+    city: 'Lima',
+    district: 'Miraflores',
   };
 
   it('returns the existing venue id when placeId matches an owner-scoped row (no insert, but refreshes name/reference)', async () => {

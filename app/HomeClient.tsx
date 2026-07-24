@@ -17,8 +17,7 @@ import type { HomeStats } from '@/lib/stats/queries';
 // ── Types ─────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SearchClass   = { id: string; title: string; type: string; class_styles: any[] | null };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SearchProfile = { id: string; name: string; role: string; districts: any; photo_url: string | null };
+type SearchProfile = { id: string; name: string; role: string; photo_url: string | null };
 
 const AVATAR_PALETTE = [
   { bg: 'bg-primary-bg',     text: 'text-primary' },
@@ -179,7 +178,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             .limit(4),
           supabase
             .from('profiles')
-            .select('id, name, role, districts(city), photo_url')
+            .select('id, name, role, photo_url')
             .in('role', ['profesor', 'academia'])
             .ilike('name', `%${q}%`)
             .limit(3),
@@ -353,7 +352,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                             )}
                             <div className="min-w-0 flex-1">
                               <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}{p.districts?.city ? ` · ${p.districts.city}` : ''}</p>
+                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}</p>
                             </div>
                           </button>
                         ))}

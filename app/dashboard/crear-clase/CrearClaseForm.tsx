@@ -13,7 +13,7 @@ import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import {
   MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
 } from '@/lib/classes/validation';
-import type { DanceClass, DbDistrict } from '@/lib/types';
+import type { DanceClass } from '@/lib/types';
 
 // Maps a validator field name to the wizard step where it's editable, so a
 // blocked publish attempt can jump the user straight to the offending step.
@@ -30,12 +30,27 @@ const FIELD_STEP: Record<string, number> = {
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+interface GoogleAddressComponent { longText?: string; shortText?: string; types: string[] }
+
 interface GooglePlaceResult {
   placeId?: string;
   formattedAddress?: string;
   displayName?: string;
   location?: { lat: () => number; lng: () => number } | null;
+  addressComponents?: GoogleAddressComponent[];
   fetchFields: (opts: { fields: string[] }) => Promise<void>;
+}
+
+// Peru's UBIGEO hierarchy doesn't map 1:1 to Google's generic admin-boundary
+// types, but this is the closest stable match: provincia ~ administrative_area_level_2
+// (falls back to level_1 — departamento — when Google has no finer data for a
+// place), distrito ~ locality (falls back to sublocality for edge cases where
+// Google files it one level down).
+function extractCityDistrict(components: GoogleAddressComponent[]): { city: string; district: string } {
+  const find = (type: string) => components.find(c => c.types.includes(type))?.longText ?? '';
+  const city = find('administrative_area_level_2') || find('administrative_area_level_1');
+  const district = find('locality') || find('sublocality') || find('sublocality_level_1');
+  return { city, district };
 }
 
 interface GmpSelectEvent extends Event {
@@ -58,22 +73,40 @@ declare global {
 
 let mapsScriptPromise: Promise<void> | null = null;
 
+// `google.maps.importLibrary` isn't attached synchronously when the bootstrap
+// <script> fires `onload` — Google's loader defines `google.maps` as an empty
+// stub immediately, then loads a second internal script that attaches
+// `importLibrary` moments later. Waiting on `onload` alone races that second
+// load and reliably loses (~500ms), leaving `importLibrary` undefined even
+// though the script "loaded" successfully.
+function waitForImportLibrary(timeoutMs = 8000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      if (typeof window.google?.maps?.importLibrary === 'function') { resolve(); return; }
+      if (Date.now() - start > timeoutMs) { reject(new Error('Google Maps no terminó de cargar')); return; }
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
-  if (window.google?.maps) return Promise.resolve();
+  if (typeof window.google?.maps?.importLibrary === 'function') return Promise.resolve();
   if (mapsScriptPromise) return mapsScriptPromise;
   mapsScriptPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`;
     script.async = true;
-    script.onload = () => resolve();
+    script.onload = () => waitForImportLibrary().then(resolve, reject);
     script.onerror = () => reject(new Error('No se pudo cargar Google Maps'));
     document.head.appendChild(script);
   });
   return mapsScriptPromise;
 }
 
-interface PlaceSelection { address: string; placeId: string; lat: number; lng: number }
+interface PlaceSelection { address: string; placeId: string; lat: number; lng: number; city: string; district: string }
 
 function PlacesAddressField({
   value, onManualChange, onPlaceSelect, placeholder,
@@ -86,6 +119,7 @@ function PlacesAddressField({
   const containerRef = useRef<HTMLDivElement>(null);
   const onPlaceSelectRef = useRef(onPlaceSelect);
   useEffect(() => { onPlaceSelectRef.current = onPlaceSelect; }, [onPlaceSelect]);
+  const [initFailed, setInitFailed] = useState(false);
 
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY) return;
@@ -103,16 +137,20 @@ function PlacesAddressField({
         container.appendChild(element);
         element.addEventListener('gmp-select', (async (event: Event) => {
           const place = (event as GmpSelectEvent).placePrediction.toPlace();
-          await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+          await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'addressComponents'] });
+          const { city, district } = extractCityDistrict(place.addressComponents ?? []);
           onPlaceSelectRef.current({
             address: place.formattedAddress ?? '',
             placeId: place.placeId ?? '',
             lat: place.location ? place.location.lat() : 0,
             lng: place.location ? place.location.lng() : 0,
+            city,
+            district,
           });
         }) as EventListener);
       } catch (err) {
         console.error('[PlacesAddressField] Google Maps init failed', err);
+        if (!cancelled) setInitFailed(true);
       }
     })();
 
@@ -124,7 +162,7 @@ function PlacesAddressField({
     };
   }, []);
 
-  if (!GOOGLE_MAPS_API_KEY) {
+  if (!GOOGLE_MAPS_API_KEY || initFailed) {
     return (
       <input className="input" value={value} onChange={e => onManualChange(e.target.value)} placeholder={placeholder} />
     );
@@ -320,10 +358,9 @@ interface Props {
   editClass: DanceClass | null;
   danceStyles: string[];
   levels: string[];
-  allDistricts: DbDistrict[];
 }
 
-export default function CrearClaseForm({ classId, editClass, danceStyles, levels, allDistricts }: Props) {
+export default function CrearClaseForm({ classId, editClass, danceStyles, levels }: Props) {
   useRouter();
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -349,9 +386,6 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const [form, setForm] = useState(() => buildInitialForm(editClass));
 
   const set = (k: keyof typeof form, v: unknown) => setForm(f => ({ ...f, [k]: v }));
-
-  const CITIES = [...new Set(allDistricts.map(d => d.city))].sort();
-  const districtsByCity = allDistricts.filter(d => d.city === form.city);
 
   const handleFileSelect = async (file: File) => {
     if (!file) return;
@@ -915,6 +949,11 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 set('placeId', selection.placeId);
                 set('lat', String(selection.lat));
                 set('lng', String(selection.lng));
+                // Google may not resolve a component for every address (rural
+                // places, some edge cases) — don't clobber an already-typed
+                // value with a blank on those.
+                if (selection.city) set('city', selection.city);
+                if (selection.district) set('district', selection.district);
               }}
             />
             {fieldErrors.address && <p className="text-xs text-red-600 mt-1">{fieldErrors.address}</p>}
@@ -922,20 +961,18 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel>Ciudad</FieldLabel>
-              <NativeSelect value={form.city} onChange={e => { set('city', e.target.value); set('district', ''); }}>
-                {CITIES.map(c => <option key={c}>{c}</option>)}
-              </NativeSelect>
+              <input className="input" value={form.city} onChange={e => set('city', e.target.value)}
+                placeholder="Se completa al elegir la dirección" />
               {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
             </div>
             <div>
               <FieldLabel>Distrito</FieldLabel>
-              <NativeSelect value={form.district} onChange={e => set('district', e.target.value)}>
-                <option value="">Seleccionar distrito…</option>
-                {districtsByCity.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-              </NativeSelect>
+              <input className="input" value={form.district} onChange={e => set('district', e.target.value)}
+                placeholder="Se completa al elegir la dirección" />
               {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
             </div>
           </div>
+          <Hint>Ciudad y distrito se completan solos al elegir la dirección. Podés corregirlos a mano si Google no acierta.</Hint>
           <div>
             <FieldLabel>Referencia</FieldLabel>
             <input className="input" value={form.reference} onChange={e => set('reference', e.target.value)}
