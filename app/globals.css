@@ -96,6 +96,11 @@
 /* ─── BASE ──────────────────────────────────────────────────────── */
 @layer base {
   html {
+    /* Kynea only has a light theme today — without this, browsers in dark
+       mode render native controls (date/time pickers, scrollbars) and
+       color-scheme-aware web components (e.g. Google's Places autocomplete)
+       in dark styling, which clashes with the light UI around them. */
+    color-scheme: light;
     font-family: var(--font-hanken, var(--font-sans));
     -webkit-font-smoothing: antialiased;
     color: #0D0D0D;
@@ -103,6 +108,15 @@
 
   body {
     background: #ffffff;
+  }
+
+  /* `color-scheme: light` on <html> alone doesn't reach this — the
+     component reads `prefers-color-scheme` for its own shadow-DOM styles,
+     which only `color-scheme` set directly on the host element overrides.
+     Without this, a profesor's OS dark mode renders the address widget as
+     a solid black bar against Kynea's light UI. */
+  gmp-place-autocomplete {
+    color-scheme: light;
   }
 
   h1 { font-size: 48px; font-weight: 900; letter-spacing: -0.035em; line-height: 1.05; }

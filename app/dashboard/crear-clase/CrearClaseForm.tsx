@@ -957,22 +957,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               }}
             />
             {fieldErrors.address && <p className="text-xs text-red-600 mt-1">{fieldErrors.address}</p>}
+            {(fieldErrors.city || fieldErrors.district) && (
+              <p className="text-xs text-red-600 mt-1">No se pudo determinar la ciudad/distrito de esa dirección — elegí otra opción de la lista de Google.</p>
+            )}
           </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Ciudad</FieldLabel>
-              <input className="input" value={form.city} onChange={e => set('city', e.target.value)}
-                placeholder="Se completa al elegir la dirección" />
-              {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
-            </div>
-            <div>
-              <FieldLabel>Distrito</FieldLabel>
-              <input className="input" value={form.district} onChange={e => set('district', e.target.value)}
-                placeholder="Se completa al elegir la dirección" />
-              {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
-            </div>
-          </div>
-          <Hint>Ciudad y distrito se completan solos al elegir la dirección. Podés corregirlos a mano si Google no acierta.</Hint>
           <div>
             <FieldLabel>Referencia</FieldLabel>
             <input className="input" value={form.reference} onChange={e => set('reference', e.target.value)}
