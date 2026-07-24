@@ -55,7 +55,7 @@ const MOCK_ACADEMY_TEACHERS: AcademyTeacher[] = [
     apellido: 'Paredes',
     email: 'diego@ritmolatino.pe',
     telefono: '+51 999 555 666',
-    estilos: ['Hip Hop', 'Breakdance'],
+    estilos: ['Hip Hop', 'Breaking'],
     bio: 'Freestyler urbano con experiencia en competencias nacionales.',
     foto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80',
     estado: 'inactivo',
@@ -64,7 +64,7 @@ const MOCK_ACADEMY_TEACHERS: AcademyTeacher[] = [
   },
 ];
 
-const ALL_ESTILOS = ['Salsa', 'Bachata', 'Heels', 'Jazz Funk', 'Hip Hop', 'Breakdance'];
+const ALL_ESTILOS = ['Salsa', 'Bachata', 'Heels', 'Jazz Funk', 'Hip Hop', 'Breaking'];
 
 const EMPTY_FORM = {
   nombre: '',
