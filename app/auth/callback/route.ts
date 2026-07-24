@@ -45,16 +45,11 @@ export async function GET(request: Request) {
               .eq('id', user.id);
 
             // Sync role to user_metadata so proxy.ts can read it without a DB query.
-            // Alumnos don't need onboarding — mark them as done immediately.
-            await supabase.auth.updateUser({
-              data: {
-                role: incomingRole,
-                ...(incomingRole === 'alumno' ? { onboarding_done: true } : {}),
-              },
-            });
+            await supabase.auth.updateUser({ data: { role: incomingRole } });
 
-            const dest = incomingRole === 'alumno' ? '/clases' : '/onboarding?new=1';
-            return NextResponse.redirect(`${origin}${dest}`);
+            // Every role goes through /onboarding on first signup — alumno gets
+            // a short intro carousel, profesor/academia the full wizard.
+            return NextResponse.redirect(`${origin}/onboarding?new=1`);
           }
 
           // New user came from /login (no role) — must choose role first

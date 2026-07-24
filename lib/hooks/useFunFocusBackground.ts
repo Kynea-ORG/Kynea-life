@@ -23,7 +23,9 @@ type State = { hue: number; prevHue: number; revealId: number; animStyle: 'circl
  * next trigger's base color (captured as `prevHue` = the hue visible right
  * before this shift) never causes a visible gap or flash.
  */
-export function useFunFocusBackground(initialHue = 260) {
+// 300: warm purple/magenta, matching Kynea's brand primary (#8a11bc ≈ hue 312)
+// instead of the old 260 default, which landed in a washed-out pale blue.
+export function useFunFocusBackground(initialHue = 300) {
   const [state, setState] = useState<State>({ hue: initialHue, prevHue: initialHue, revealId: 0, animStyle: 'circle' });
 
   const shift = useCallback(() => {

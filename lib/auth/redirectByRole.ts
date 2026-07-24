@@ -31,10 +31,11 @@ export async function redirectByRole(
   // If profile is missing (trigger failed), fall back to /clases to avoid dashboard loop
   const dest = profile?.role === 'alumno' ? '/clases' : profile ? '/dashboard' : '/clases';
 
-  // Alumnos don't go through onboarding — mark them done so proxy.ts allows full navigation.
-  if (profile?.role === 'alumno') {
-    await supabase.auth.updateUser({ data: { onboarding_done: true } });
-  }
+  // No auto-marking onboarding_done here anymore: alumno now goes through
+  // AlumnoWelcome like every other role. If they haven't finished it yet,
+  // proxy.ts's own onboarding_done check redirects them to /onboarding
+  // regardless of what `dest` says here — this function doesn't need to
+  // special-case it.
 
   const notice = options.expectedRole !== undefined
     ? roleMismatchNotice(options.expectedRole, profile?.role ?? null)
