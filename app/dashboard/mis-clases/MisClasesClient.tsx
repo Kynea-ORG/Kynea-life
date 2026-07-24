@@ -23,6 +23,11 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [classes, setClasses] = useState<DanceClass[]>(initialClasses);
+  const [prevInitialClasses, setPrevInitialClasses] = useState(initialClasses);
+  if (initialClasses !== prevInitialClasses) {
+    setPrevInitialClasses(initialClasses);
+    setClasses(initialClasses);
+  }
   const [activeTab, setActiveTab] = useState<ClassStatus | 'all'>('all');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
