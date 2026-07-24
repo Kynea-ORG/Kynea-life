@@ -17,7 +17,7 @@ import type { HomeStats } from '@/lib/stats/queries';
 // ── Types ─────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SearchClass   = { id: string; title: string; type: string; class_styles: any[] | null };
-type SearchProfile = { id: string; name: string; role: string; photo_url: string | null };
+type SearchProfile = { id: string; slug: string; name: string; role: string; photo_url: string | null };
 
 const AVATAR_PALETTE = [
   { bg: 'bg-primary-bg',     text: 'text-primary' },
@@ -178,7 +178,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             .limit(4),
           supabase
             .from('profiles')
-            .select('id, name, role, photo_url')
+            .select('id, slug, name, role, photo_url')
             .in('role', ['profesor', 'academia'])
             .ilike('name', `%${q}%`)
             .limit(3),
@@ -338,7 +338,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                           <button
                             key={p.id}
                             type="button"
-                            onClick={() => { router.push(`/profesores/${p.id}`); setShowSuggestions(false); }}
+                            onClick={() => { router.push(`/profesores/${p.slug}`); setShowSuggestions(false); }}
                             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
                           >
                             {p.photo_url ? (
@@ -583,7 +583,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 return (
                   <Link
                     key={t.id}
-                    href={`/profesores/${t.id}`}
+                    href={`/profesores/${t.slug}`}
                     className="shrink-0 w-[210px] rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
                     style={{ scrollSnapAlign: 'start' }}
                   >
@@ -680,7 +680,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               {initialAcademias.map(t => (
                 <Link
                   key={t.id}
-                  href={`/profesores/${t.id}`}
+                  href={`/profesores/${t.slug}`}
                   className="card-hover flex items-start gap-4 group"
                 >
                   <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 transition-transform duration-300 group-hover:scale-105">

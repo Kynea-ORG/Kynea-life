@@ -121,7 +121,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
               <Clock className="w-3.5 h-3.5 text-neutral-400" />
               {formatTimeSlots(cls.timeSlots).split(' | ')[0]}
             </span>
-            {!compact && spotsLeft !== undefined && spotsLeft > 0 && (
+            {!compact && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
               <span className="flex items-center gap-1.5 text-[13px] text-neutral-500">
                 <Users className="w-3.5 h-3.5 text-neutral-400" />
                 {spotsLeft} cupos disponibles
