@@ -418,8 +418,10 @@ function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
 
 describe('dbRowToValidationInput', () => {
   it('maps a stored row + single schedule into a ClassValidationInput with recurrence "unica"', () => {
+    // A true one-off class stores start_date === end_date (see CrearClaseForm's
+    // "Clase única" date field, which always mirrors endDate to startDate).
     const schedules: DbClassSchedule[] = [{ id: 's1', day_of_week: 0, start_time: '19:00', end_time: '20:00' }];
-    const input = dbRowToValidationInput(makeDbRow(), schedules);
+    const input = dbRowToValidationInput(makeDbRow({ start_date: '2026-08-01', end_date: '2026-08-01' }), schedules);
 
     expect(input.title).toBe('Salsa Avanzado');
     expect(input.style).toBe('Salsa');
@@ -429,6 +431,17 @@ describe('dbRowToValidationInput', () => {
     expect(input.address).toBe('Av. Test 99');
     expect(input.recurrence).toBe('unica');
     expect(input.slots).toEqual([{ days: ['Lunes'], startTime: '19:00', endTime: '20:00' }]);
+  });
+
+  it('infers recurrence "mensual" for a single weekly schedule spanning a date range', () => {
+    // A class recurring every Monday for a month has the same 1-day/1-schedule
+    // shape as a one-off class — only the stored date range tells them apart.
+    // This is the exact case that used to be misclassified as "unica",
+    // silently collapsing the class's end_date down to start_date on save.
+    const schedules: DbClassSchedule[] = [{ id: 's1', day_of_week: 0, start_time: '19:00', end_time: '20:00' }];
+    const input = dbRowToValidationInput(makeDbRow({ start_date: '2026-08-01', end_date: '2026-08-31' }), schedules);
+
+    expect(input.recurrence).toBe('mensual');
   });
 
   it('infers recurrence "mensual" when multiple schedules are present', () => {

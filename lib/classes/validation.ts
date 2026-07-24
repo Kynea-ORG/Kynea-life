@@ -212,7 +212,11 @@ export function dbRowToValidationInput(row: DbClassRow, schedules: DbClassSchedu
     .filter((d): d is string => Boolean(d));
   const startTime = schedules[0]?.start_time ?? '';
   const endTime = schedules[0]?.end_time ?? '';
-  const recurrence = days.length > 1 || schedules.length > 1 ? 'mensual' : 'unica';
+  // See CrearClaseForm's deriveRecurrence: a single-weekday recurring class
+  // (e.g. "every Monday") looks identical to a true one-off by day/slot count
+  // alone, so check the stored date range first.
+  const recurrence = (row.end_date && row.end_date !== row.start_date) || days.length > 1 || schedules.length > 1
+    ? 'mensual' : 'unica';
   const slots: ValidationSlot[] = schedules.length ? [{ days, startTime, endTime }] : [];
 
   const mainStyle = row.class_styles?.find(s => s.is_main) ?? row.class_styles?.[0];

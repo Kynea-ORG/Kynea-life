@@ -184,9 +184,14 @@ const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 
 type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: string; endTime: string };
 
-// Same rule as dbRowToValidationInput (lib/classes/validation.ts): more than
-// one weekday, or more than one slot, means a recurring ("mensual") schedule.
+// Same rule as dbRowToValidationInput (lib/classes/validation.ts): a stored
+// end_date past start_date, more than one weekday, or more than one slot,
+// means a recurring ("mensual") schedule. The end_date check must come
+// first — a class recurring on a single weekday (e.g. "every Monday", very
+// common) has exactly 1 day and 1 slot just like a true one-off class, so
+// the day/slot count alone can't tell them apart; only the date range can.
 function deriveRecurrence(editClass: DanceClass): 'unica' | 'mensual' {
+  if (editClass.endDate && editClass.endDate !== editClass.startDate) return 'mensual';
   const totalDays = editClass.timeSlots?.reduce((sum, s) => sum + s.days.length, 0) ?? 0;
   return totalDays > 1 || (editClass.timeSlots?.length ?? 0) > 1 ? 'mensual' : 'unica';
 }
