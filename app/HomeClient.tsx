@@ -71,7 +71,8 @@ interface Props {
 // ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
 // Each row owns its own scroll ref, so this can't be inlined in a .map() —
 // hooks can't be called a variable number of times in a loop body.
-function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
+// Exported for unit testing.
+export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
   const scrollRef = useRef<HTMLDivElement>(null);
   if (classes.length === 0) return null;
 
