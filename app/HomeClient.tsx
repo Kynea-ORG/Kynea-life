@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
+import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
 import { getTypeLabel } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
@@ -238,6 +239,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
   return (
     <div className="min-h-screen bg-white">
+      <TopAnnouncementRibbon />
 
       {/* ── HERO ── */}
       <div className="hero-section">
@@ -769,6 +771,8 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
           </div>
         </div>
       </footer>
+
+      <BottomSignupRibbon />
     </div>
   );
 }
