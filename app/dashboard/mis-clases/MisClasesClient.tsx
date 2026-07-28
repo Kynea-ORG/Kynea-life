@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
@@ -213,7 +213,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                 <div role="cell" className="flex items-center gap-3 min-w-0">
                   {cls.coverImage ? (
                     <div className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0">
-                      <Image src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
+                      <SmartImage src={cls.coverImage} alt={cls.title} fill sizes="48px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
                     </div>
                   ) : (
                     <div className="w-12 h-10 rounded-lg bg-neutral-100 shrink-0" />
@@ -305,7 +305,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
             <div className="flex items-start gap-3">
               {cls.coverImage ? (
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
-                  <Image src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
+                  <SmartImage src={cls.coverImage} alt={cls.title} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
                 </div>
               ) : (
                 <div className="w-16 h-16 rounded-xl bg-neutral-100 shrink-0" />

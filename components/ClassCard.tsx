@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
@@ -69,7 +69,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
             zoom — an inline style would silently override any transform
             utility class placed on the same element. */}
         <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
-          <Image
+          <SmartImage
             src={cls.coverImage || '/logo.png'}
             alt={cls.title}
             fill

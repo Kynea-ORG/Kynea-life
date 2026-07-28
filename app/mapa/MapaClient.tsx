@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { List, MapPin, X, MessageCircle, Clock, ChevronRight } from 'lucide-react';
 import Header from '@/components/Header';
 import { formatPrice, formatTimeSlots, getTypeLabel } from '@/lib/utils';
@@ -78,7 +78,7 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                 }`}
               >
                 <div className="relative w-20 h-16 rounded-xl overflow-hidden shrink-0">
-                  <Image src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="80px" className="object-cover" />
+                  <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="80px" className="object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-neutral-900 font-semibold">{cls.style} · {getTypeLabel(cls.type)}</p>
@@ -155,7 +155,7 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
             >
               <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
                 <div className="relative h-36">
-                  <Image src={selectedClass.coverImage || '/logo.png'} alt={selectedClass.title} fill sizes="384px" className="object-cover" />
+                  <SmartImage src={selectedClass.coverImage || '/logo.png'} alt={selectedClass.title} fill sizes="384px" className="object-cover" />
                   <button
                     onClick={() => setIsOpen(false)}
                     className="absolute top-3 right-3 w-7 h-7 bg-black/40 rounded-full flex items-center justify-center text-white hover:bg-black/60 transition-colors active:scale-90"
@@ -217,7 +217,7 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                   className="shrink-0 w-48 text-left bg-neutral-50 rounded-xl overflow-hidden"
                 >
                   <div className="relative w-full h-24">
-                    <Image src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="192px" className="object-cover" />
+                    <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="192px" className="object-cover" />
                   </div>
                   <div className="p-2">
                     <p className="text-xs font-bold text-neutral-900 truncate">{cls.title}</p>

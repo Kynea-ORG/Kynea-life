@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { Plus, Edit2, Star, BookOpen, Users, Activity, UserX, Upload, X, Download, Search, ChevronDown } from 'lucide-react';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 
@@ -275,7 +275,7 @@ export default function ProfesoresClient() {
             <div key={teacher.id} className="bg-white border border-neutral-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow">
               {/* Photo */}
               <div className="relative w-full h-40">
-                <Image
+                <SmartImage
                   src={teacher.foto || '/logo.png'}
                   alt={`${teacher.nombre} ${teacher.apellido}`}
                   fill
