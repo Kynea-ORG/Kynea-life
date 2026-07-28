@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { Move, ZoomIn, ZoomOut } from 'lucide-react';
 
 interface ImagePositionPickerProps {
@@ -90,7 +90,7 @@ export default function ImagePositionPicker({
         onPointerUp={handlePointerUp}
         className={`relative overflow-hidden touch-none select-none ${dragging ? 'cursor-grabbing' : 'cursor-grab'} ${frameClassName}`}
       >
-        <Image
+        <SmartImage
           src={src}
           alt="Vista previa"
           fill
