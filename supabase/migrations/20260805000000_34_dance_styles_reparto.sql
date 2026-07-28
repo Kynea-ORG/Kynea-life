@@ -1,4 +1,4 @@
--- 33. DANCE_STYLES — nuevo estilo "Reparto", insertado en su posición
+-- 34. DANCE_STYLES — nuevo estilo "Reparto", insertado en su posición
 -- alfabética correcta (entre Reggaetón y Rock and Roll), renumerando el
 -- resto del catálogo para mantener el orden alfabético establecido en la
 -- migración 27.
