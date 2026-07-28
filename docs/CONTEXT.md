@@ -75,6 +75,7 @@ Extiende `auth.users`. Se crea automáticamente vía trigger `handle_new_user` a
 | `youtube` | text | Canal de YouTube |
 | `website` | text | URL de sitio web |
 | `is_admin` | boolean | `NOT NULL DEFAULT false` — solo escribible vía conexión directa a la DB (`postgres`/`service_role`/`supabase_admin`), ver Funciones / Triggers |
+| `created_by` | uuid | `NULL` — FK → `auth.users`, `ON DELETE SET NULL`. `NULL` = se registró solo; no-`NULL` = uuid del admin que creó la cuenta desde `/dashboard/admin`. Advisory: no es un control de seguridad, ver Funciones / Triggers |
 | `created_at` | timestamptz | — |
 | `updated_at` | timestamptz | Se actualiza en cada mutación (trigger) |
 
@@ -159,13 +160,14 @@ Todas las tablas tienen Row Level Security activado:
 - `saved_classes`: cada usuario solo ve y modifica los suyos
 
 ### Funciones / Triggers
-- `handle_new_user()` — trigger `AFTER INSERT` en `auth.users`, crea el profile automáticamente (`role` puede quedar `NULL` en el flujo OAuth desde `/login`)
+- `handle_new_user()` — trigger `AFTER INSERT` en `auth.users`, crea el profile automáticamente (`role` puede quedar `NULL` en el flujo OAuth desde `/login`). Desde la migración 32 también lee `raw_user_meta_data->>'created_by'` y lo valida contra `is_admin` (solo se acepta si el uuid pertenece a un admin real) antes de guardarlo en `profiles.created_by` — **`created_by` es procedencia informativa, no un control de seguridad**, ya que `raw_user_meta_data` lo controla el cliente y los uuids de admins son enumerables (`profiles_select` es `USING (true)`)
 - `class_slug_on_insert` — trigger `BEFORE INSERT` en `classes`, asigna el `slug` vía `set_class_slug()`
 - `set_updated_at_*` — triggers `BEFORE UPDATE` en `profiles`, `classes` y `venues`
 - `increment_class_contacts(target_class_id)` — RPC `SECURITY DEFINER`, incrementa `contacts_count` sin race condition (solo si `status = 'published'`)
 - `email_signup_provider(p_email)` — RPC `SECURITY DEFINER`, devuelve `'email'` \| `'google'` \| `'none'` según el/los proveedor(es) de auth vinculados a un email (prioriza `'email'` si ambos existen)
 - `protect_profile_is_admin()` — trigger `BEFORE INSERT` y `BEFORE UPDATE OF is_admin` en `profiles` (SECURITY INVOKER — nunca SECURITY DEFINER, ver comentario en la migración `31_profiles_is_admin.sql`). Rechaza la escritura (`RAISE EXCEPTION`) salvo que `current_user` sea `postgres`, `service_role` o `supabase_admin`. El predicado usa `current_user`, no `auth.role()` (devuelve `NULL` en psql/CLI directo) ni `session_user` (siempre `authenticator` vía PostgREST, no distingue roles)
 - `is_admin()` — RPC `SECURITY DEFINER STABLE`, devuelve `is_admin` del perfil de `auth.uid()` (`false` si no hay sesión o fila). Aún no está aplicada a ninguna policy de RLS existente — helper listo para uso futuro
+- `admin_list_created_users(p_page, p_page_size)` — RPC `SECURITY DEFINER`, `SET search_path = pg_catalog, public, auth`. Devuelve una página de cuentas creadas desde el módulo admin (`profiles.created_by IS NOT NULL`), ordenada `created_at DESC, id DESC`, uniendo `auth.users` para el email (no accesible al rol `authenticated` vía PostgREST) y auto-uniendo `profiles` (LEFT JOIN) para el nombre del admin creador. Cada fila repite el conteo total en `total_count` vía `count(*) OVER ()`, así una página y su total llegan en un solo round-trip. **El chequeo de autorización vive DENTRO de la función** (`IF NOT public.is_admin() THEN RAISE EXCEPTION`), reutilizando el helper de la migración 31 — no es defensa en profundidad, es la única defensa: `SECURITY DEFINER` se salta RLS por completo, y `EXECUTE` se otorga a `PUBLIC` por defecto en toda función nueva de Postgres (de ahí el `REVOKE ... FROM PUBLIC` explícito antes de otorgarlo a `authenticated`). Mover o debilitar esa primera línea expone el email de toda cuenta creada por un admin. `lib/admin/queries.ts:fetchAdminCreatedUsers` deliberadamente NO re-verifica `is_admin` en código de app — a diferencia de `createUserAsAdmin()`, que usa el cliente service-role y por eso no tiene ningún gate propio en la base de datos
 
 > `increment_class_views` **no existe todavía** como RPC — es trabajo pendiente, ver `docs/TASKS.md` §6.2. No lo trates como implementado.
 

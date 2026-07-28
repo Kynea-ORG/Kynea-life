@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
 
 function IgIcon({ className }: { className?: string }) {
@@ -137,7 +137,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
           <div>
             <div className="relative rounded-xl overflow-hidden mb-6 h-80 lg:h-[420px]">
               {images[activeImg] && (
-                <Image
+                <SmartImage
                   src={images[activeImg]}
                   alt={cls.title}
                   fill
@@ -282,7 +282,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 <Link href={`/profesores/${cls.teacher.slug}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+                      <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
@@ -454,7 +454,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 <Link href={`/profesores/${cls.teacher.slug}`} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+                      <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">

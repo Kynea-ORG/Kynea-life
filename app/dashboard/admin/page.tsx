@@ -1,8 +1,25 @@
-export default function AdminPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-xl font-bold text-neutral-900">Admin</h1>
-      <p className="text-sm text-neutral-500 mt-2">Próximamente.</p>
-    </div>
-  );
+import { redirect } from 'next/navigation';
+import { fetchAdminCreatedUsers } from '@/lib/admin/queries';
+import UsuariosClient from './UsuariosClient';
+
+function parsePage(raw: string | undefined): number {
+  const parsed = Number.parseInt(raw ?? '', 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+}
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: rawPage } = await searchParams;
+  const page = parsePage(rawPage);
+
+  const data = await fetchAdminCreatedUsers(page);
+
+  if (data.users.length === 0 && page > 1) {
+    redirect('/dashboard/admin');
+  }
+
+  return <UsuariosClient {...data} />;
 }

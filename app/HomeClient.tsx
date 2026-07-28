@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -346,7 +347,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                           >
                             {p.photo_url ? (
                               <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
-                                <Image src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
+                                <SmartImage src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
                               </div>
                             ) : (
                               <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-500 shrink-0">
@@ -592,7 +593,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   >
                     <div className={`relative w-full aspect-square overflow-hidden flex items-center justify-center ${avatar.bg}`}>
                       {t.photo ? (
-                        <Image
+                        <SmartImage
                           src={t.photo}
                           alt={t.name}
                           fill
@@ -688,7 +689,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 >
                   <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 transition-transform duration-300 group-hover:scale-105">
                     {t.photo ? (
-                      <Image
+                      <SmartImage
                         src={t.photo}
                         alt={t.name}
                         fill

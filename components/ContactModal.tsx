@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { X, MessageCircle, Phone, Check } from 'lucide-react';
 
 function IgIcon({ className }: { className?: string }) {
@@ -74,7 +74,7 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
             <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 mb-6 flex items-start gap-3">
               <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0">
                 {cls.teacher.photo ? (
-                  <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="40px" className="object-cover" />
+                  <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="40px" className="object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-lg bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-500">
                     {cls.teacher.name.charAt(0)}
@@ -114,7 +114,7 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
             <div className="flex items-center gap-3 mb-6 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
               {cls.teacher.photo ? (
                 <div className="relative w-12 h-12 rounded-full overflow-hidden shrink-0">
-                  <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
+                  <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-500">
@@ -144,7 +144,7 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
             <div className="flex items-center gap-3 mb-6 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
               {cls.teacher.photo ? (
                 <div className="relative w-12 h-12 rounded-full overflow-hidden shrink-0">
-                  <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
+                  <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-500">
