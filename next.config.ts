@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // Custom loader: sirve las imágenes vía wsrv.nl/ImageKit en vez del
+    // optimizador built-in de Vercel (402 por cuota agotada en plan Hobby).
+    // Ver image-loader.ts y "Optimización de imágenes" en el README.
+    loader: 'custom',
+    loaderFile: './image-loader.ts',
     remotePatterns: [
       {
         protocol: 'https',

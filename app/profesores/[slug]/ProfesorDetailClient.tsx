@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { ChevronLeft, Star, MapPin, Globe, MessageCircle } from 'lucide-react';
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
@@ -33,7 +33,7 @@ export default function ProfesorDetailClient({
           <div className="flex flex-wrap items-start gap-6">
             <div className="relative w-40 h-40 rounded-full overflow-hidden shrink-0 bg-neutral-900 flex items-center justify-center">
               {teacher.photo ? (
-                <Image src={teacher.photo} alt={teacher.name} fill sizes="160px" className="object-cover" style={{ objectPosition: teacher.photoPosition || '50% 50%', transform: `scale(${teacher.photoZoom || 1})` }} />
+                <SmartImage src={teacher.photo} alt={teacher.name} fill sizes="160px" className="object-cover" style={{ objectPosition: teacher.photoPosition || '50% 50%', transform: `scale(${teacher.photoZoom || 1})` }} />
               ) : (
                 <span className="text-[56px] font-black text-white">{teacher.name.charAt(0)}</span>
               )}

@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
@@ -113,7 +114,7 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
         </Link>
         {profile.photo_url ? (
           <div className="relative w-8 h-8 rounded-full overflow-hidden border border-neutral-200 shrink-0">
-            <Image src={profile.photo_url} alt="Profile" fill sizes="32px" className="object-cover" />
+            <SmartImage src={profile.photo_url} alt="Profile" fill sizes="32px" className="object-cover" />
           </div>
         ) : (
           <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
@@ -134,7 +135,7 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
           <div className="flex items-center gap-3">
             {profile.photo_url ? (
               <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0">
-                <Image src={profile.photo_url} alt="Profile" fill sizes="40px" className="object-cover" />
+                <SmartImage src={profile.photo_url} alt="Profile" fill sizes="40px" className="object-cover" />
               </div>
             ) : (
               <div className="w-10 h-10 rounded-xl bg-neutral-900 text-white flex items-center justify-center text-sm font-bold shrink-0">

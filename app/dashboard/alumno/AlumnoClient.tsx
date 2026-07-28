@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { Bookmark, BookOpen, MapPin, Clock, ArrowRight } from 'lucide-react';
 import { formatPrice, formatTimeSlots } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
@@ -64,7 +64,7 @@ export default function AlumnoClient({
               >
                 {cls.coverImage ? (
                   <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0">
-                    <Image src={cls.coverImage} alt={cls.title} fill sizes="80px" className="object-cover" />
+                    <SmartImage src={cls.coverImage} alt={cls.title} fill sizes="80px" className="object-cover" />
                   </div>
                 ) : (
                   <div className="w-20 h-20 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0">

@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -50,7 +51,7 @@ function Avatar({
   if (photoUrl) {
     return (
       <div className={`relative ${sizeClass} rounded-full overflow-hidden shrink-0 ${className}`}>
-        <Image src={photoUrl} alt={name ?? ''} fill sizes="48px" className="object-cover" style={{ objectPosition: photoPosition || '50% 50%', transform: `scale(${photoZoom || 1})` }} />
+        <SmartImage src={photoUrl} alt={name ?? ''} fill sizes="48px" className="object-cover" style={{ objectPosition: photoPosition || '50% 50%', transform: `scale(${photoZoom || 1})` }} />
       </div>
     );
   }

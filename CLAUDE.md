@@ -33,9 +33,10 @@ This applies to every `gh pr create` call, regardless of session, memory, or pri
 npm run dev      # start dev server at localhost:3000
 npm run build    # production build
 npm run lint     # ESLint (Next.js core-web-vitals + TypeScript rules)
+npm run test     # Vitest (Strict TDD mode active — see lib/admin/*.test.ts for the current pattern)
 ```
 
-No test suite is configured.
+Vitest covers unit-testable app/lib code (e.g. `lib/admin/`). Database migrations, RLS policies, and SQL functions/triggers have no automated coverage — those are validated manually against `kynea-dev`.
 
 ## Environment
 

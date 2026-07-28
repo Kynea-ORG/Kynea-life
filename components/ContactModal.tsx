@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { X, MessageCircle, Phone, Check, ShieldCheck } from 'lucide-react';
 import { InstagramIcon } from '@/components/icons/SocialIcons';
 import { DanceClass } from '@/lib/types';
@@ -58,7 +58,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
             <div className="flex items-center gap-3.5 bg-[#F9F8F6] border border-[#E5E4E0] rounded-xl px-4 py-3.5 mb-7 max-w-[380px]">
               <div className="relative w-14 h-14 rounded-[14px] overflow-hidden shrink-0 bg-neutral-900 flex items-center justify-center">
                 {cls.teacher.photo ? (
-                  <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" />
+                  <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" />
                 ) : (
                   <span className="text-white font-black text-lg">{cls.teacher.name.charAt(0)}</span>
                 )}
@@ -88,7 +88,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
           </div>
 
           <div className="flex-1 relative bg-pink-100 overflow-hidden">
-            <Image src="/contactar-illustration.png" alt="" fill sizes="450px" className="object-cover object-center" />
+            <SmartImage src="/contactar-illustration.png" alt="" fill sizes="450px" className="object-cover object-center" />
           </div>
         </div>
       </div>
@@ -100,7 +100,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
         }`}
       >
         <div className="absolute left-0 right-0 bottom-8 w-full h-[62%] pointer-events-none">
-          <Image src="/contactar-illustration.png" alt="" fill sizes="100vw" className="object-contain object-bottom" />
+          <SmartImage src="/contactar-illustration.png" alt="" fill sizes="100vw" className="object-contain object-bottom" />
         </div>
 
         <div className="relative h-full flex flex-col px-5 pt-5 pb-7 overflow-y-auto">
@@ -124,7 +124,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
           <div className="flex items-center gap-3.5 bg-white/55 backdrop-blur-[10px] rounded-xl px-4 py-3.5 mb-5">
             <div className="relative w-20 h-20 rounded-[14px] overflow-hidden shrink-0 bg-neutral-900 flex items-center justify-center">
               {cls.teacher.photo ? (
-                <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="80px" className="object-cover" />
+                <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="80px" className="object-cover" />
               ) : (
                 <span className="text-white font-black text-xl">{cls.teacher.name.charAt(0)}</span>
               )}
@@ -249,7 +249,7 @@ function ExistingGate({
             <div className="flex items-center gap-3 mb-6 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
               {cls.teacher.photo ? (
                 <div className="relative w-12 h-12 rounded-full overflow-hidden shrink-0">
-                  <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
+                  <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-500">
@@ -279,7 +279,7 @@ function ExistingGate({
             <div className="flex items-center gap-3 mb-6 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
               {cls.teacher.photo ? (
                 <div className="relative w-12 h-12 rounded-full overflow-hidden shrink-0">
-                  <Image src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
+                  <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-500">

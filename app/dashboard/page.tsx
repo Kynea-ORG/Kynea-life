@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { PlusCircle, Upload, BookOpen, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
@@ -94,7 +94,7 @@ export default async function DashboardPage() {
             <div key={cls.id} className="flex items-center gap-4 p-4 hover:bg-neutral-50 transition-colors">
               {cls.coverImage ? (
                 <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0">
-                  <Image src={cls.coverImage} alt={cls.title} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
+                  <SmartImage src={cls.coverImage} alt={cls.title} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }} />
                 </div>
               ) : (
                 <div className="w-14 h-14 rounded-lg bg-neutral-100 shrink-0" />
