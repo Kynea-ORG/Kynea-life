@@ -11,12 +11,14 @@ export interface HomeStats {
 export async function fetchHomeStats(): Promise<HomeStats> {
   const supabase = await createClient();
   const [c, t, s, v] = await Promise.all([
-    supabase.from('classes').select('*', { count: 'exact', head: true }).eq('status', 'published'),
+    supabase.from('classes').select('*', { count: 'exact', head: true }).eq('status', 'published')
+      .or('end_date.is.null,end_date.gte.today'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['profesor', 'academia']),
     supabase.from('dance_styles').select('*', { count: 'exact', head: true }),
     // City count reflects where classes actually are (venues.city), not a
     // pre-seeded catalog — see migration 25.
-    supabase.from('classes').select('venue:venues(city)').eq('status', 'published'),
+    supabase.from('classes').select('venue:venues(city)').eq('status', 'published')
+      .or('end_date.is.null,end_date.gte.today'),
   ]);
   const cityNames = [...new Set(
     (v.data ?? [])
