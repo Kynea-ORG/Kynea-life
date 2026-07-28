@@ -74,6 +74,7 @@ Extiende `auth.users`. Se crea automáticamente vía trigger `handle_new_user` a
 | `tiktok` | text | Handle de TikTok |
 | `youtube` | text | Canal de YouTube |
 | `website` | text | URL de sitio web |
+| `is_admin` | boolean | `NOT NULL DEFAULT false` — solo escribible vía conexión directa a la DB (`postgres`/`service_role`/`supabase_admin`), ver Funciones / Triggers |
 | `created_at` | timestamptz | — |
 | `updated_at` | timestamptz | Se actualiza en cada mutación (trigger) |
 
@@ -163,6 +164,8 @@ Todas las tablas tienen Row Level Security activado:
 - `set_updated_at_*` — triggers `BEFORE UPDATE` en `profiles`, `classes` y `venues`
 - `increment_class_contacts(target_class_id)` — RPC `SECURITY DEFINER`, incrementa `contacts_count` sin race condition (solo si `status = 'published'`)
 - `email_signup_provider(p_email)` — RPC `SECURITY DEFINER`, devuelve `'email'` \| `'google'` \| `'none'` según el/los proveedor(es) de auth vinculados a un email (prioriza `'email'` si ambos existen)
+- `protect_profile_is_admin()` — trigger `BEFORE INSERT` y `BEFORE UPDATE OF is_admin` en `profiles` (SECURITY INVOKER — nunca SECURITY DEFINER, ver comentario en la migración `31_profiles_is_admin.sql`). Rechaza la escritura (`RAISE EXCEPTION`) salvo que `current_user` sea `postgres`, `service_role` o `supabase_admin`. El predicado usa `current_user`, no `auth.role()` (devuelve `NULL` en psql/CLI directo) ni `session_user` (siempre `authenticator` vía PostgREST, no distingue roles)
+- `is_admin()` — RPC `SECURITY DEFINER STABLE`, devuelve `is_admin` del perfil de `auth.uid()` (`false` si no hay sesión o fila). Aún no está aplicada a ninguna policy de RLS existente — helper listo para uso futuro
 
 > `increment_class_views` **no existe todavía** como RPC — es trabajo pendiente, ver `docs/TASKS.md` §6.2. No lo trates como implementado.
 

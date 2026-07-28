@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
-  Settings, LogOut, Users,
+  Settings, LogOut, Users, Shield,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -15,6 +15,7 @@ interface Profile {
   name: string;
   role: Role;
   photo_url: string | null;
+  is_admin: boolean;
 }
 
 const BADGE = {
@@ -92,7 +93,9 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
   const isEditingClass = pathname === '/dashboard/crear-clase' && Boolean(searchParams.get('edit'));
 
   const badge = BADGE[profile.role];
-  const NAV   = NAV_BY_ROLE[profile.role];
+  const NAV   = profile.is_admin
+    ? [...NAV_BY_ROLE[profile.role], { href: '/dashboard/admin', label: 'Admin', icon: Shield }]
+    : NAV_BY_ROLE[profile.role];
 
   async function logout() {
     const supabase = createClient();
