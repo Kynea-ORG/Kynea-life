@@ -7,6 +7,7 @@ import { Mail, Loader2, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { safeRedirectPath } from '@/lib/utils';
+import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
 
 const CODE_LENGTH = 6;
 const VALID_ROLES = new Set(['alumno', 'profesor', 'academia']);
@@ -70,6 +71,7 @@ function ConfirmarEmailContent() {
     }
     setVerifying(true);
     setError('');
+    trackAuthAttempt({ action: 'registro', method: 'email_otp' });
 
     const supabase = createClient();
     const { error: verifyError } = await supabase.auth.verifyOtp({
@@ -129,7 +131,7 @@ function ConfirmarEmailContent() {
             </div>
             <p className="text-[16px] font-semibold text-neutral-900 mb-2">Enlace no válido</p>
             <p className="text-[14px] text-neutral-500 mb-6">El enlace de confirmación no es válido o ya expiró.</p>
-            <Link href="/registro" className="btn-dark inline-block">Volver al registro</Link>
+            <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'confirmar_email_page' })} className="btn-dark inline-block">Volver al registro</Link>
           </div>
         </div>
       </div>
@@ -215,6 +217,7 @@ function ConfirmarEmailContent() {
 
             <Link
               href="/registro"
+              onClick={() => trackAuthCtaClick({ action: 'registro', location: 'confirmar_email_page' })}
               className="text-[13px] text-neutral-500 hover:text-neutral-700 transition-colors"
             >
               ← Volver y cambiar email

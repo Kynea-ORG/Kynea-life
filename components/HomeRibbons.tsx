@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { trackAuthCtaClick } from '@/lib/analytics';
 
 const TOP_DISMISS_KEY = 'kynea_dismissed_top_ribbon';
 const BOTTOM_DISMISS_KEY = 'kynea_dismissed_bottom_ribbon';
@@ -87,6 +88,7 @@ export function BottomSignupRibbon() {
         </div>
         <Link
           href="/registro"
+          onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_bottom_ribbon' })}
           className="font-sans w-full sm:w-auto text-center text-[14px] font-bold text-white bg-neutral-900 border border-neutral-900 rounded-full px-5 py-2.5 hover:bg-neutral-800 transition-colors active:scale-[0.97] whitespace-nowrap"
         >
           Registrarme gratis

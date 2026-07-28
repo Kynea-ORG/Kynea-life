@@ -3,6 +3,7 @@ import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, X } from 'lucide-react';
+import { trackAuthCtaClick } from '@/lib/analytics';
 
 function AuthErrorBannerInner() {
   const searchParams = useSearchParams();
@@ -39,14 +40,14 @@ function AuthErrorBannerInner() {
             <Link
               href="/registro"
               className="text-[13px] font-semibold text-neutral-900 hover:underline"
-              onClick={() => setDismissed(true)}
+              onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'auth_error_banner' }); setDismissed(true); }}
             >
               Crear cuenta
             </Link>
             <Link
               href="/login"
               className="text-[13px] font-semibold text-neutral-500 hover:text-neutral-700"
-              onClick={() => setDismissed(true)}
+              onClick={() => { trackAuthCtaClick({ action: 'login', location: 'auth_error_banner' }); setDismissed(true); }}
             >
               Iniciar sesión
             </Link>

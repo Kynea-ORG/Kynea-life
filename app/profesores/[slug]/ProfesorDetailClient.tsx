@@ -2,10 +2,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronLeft, Star, MapPin, Camera, Video, Globe, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Star, MapPin, Globe, MessageCircle } from 'lucide-react';
+import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import { trackGenerateLead } from '@/lib/analytics';
+import { buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { Teacher, DanceClass } from '@/lib/types';
 
 export default function ProfesorDetailClient({
@@ -84,14 +86,24 @@ export default function ProfesorDetailClient({
 
               <div className="flex flex-wrap gap-4 mt-3.5">
                 {teacher.instagram && (
-                  <span className="text-[12.5px] text-white/80 flex items-center gap-1.5">
-                    <Camera className="w-3.5 h-3.5" /> {teacher.instagram}
-                  </span>
+                  <a
+                    href={buildInstagramUrl(teacher.instagram)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12.5px] text-white/80 flex items-center gap-1.5 hover:text-white transition-colors"
+                  >
+                    <InstagramIcon className="w-3.5 h-3.5" /> {teacher.instagram}
+                  </a>
                 )}
                 {teacher.tiktok && (
-                  <span className="text-[12.5px] text-white/80 flex items-center gap-1.5">
-                    <Video className="w-3.5 h-3.5" /> {teacher.tiktok}
-                  </span>
+                  <a
+                    href={buildTikTokUrl(teacher.tiktok)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12.5px] text-white/80 flex items-center gap-1.5 hover:text-white transition-colors"
+                  >
+                    <TikTokIcon className="w-3.5 h-3.5" /> {teacher.tiktok}
+                  </a>
                 )}
                 {teacher.website && (
                   <a href={teacher.website} target="_blank" rel="noopener noreferrer" className="text-[12.5px] text-white flex items-center gap-1.5 hover:underline font-bold">

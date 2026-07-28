@@ -2,18 +2,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Camera, Video, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
-
-function IgIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
-    </svg>
-  );
-}
+import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
+import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ContactModal from '@/components/ContactModal';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead } from '@/lib/analytics';
@@ -307,14 +300,24 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <p className="text-[13px] text-neutral-600 mt-2 leading-relaxed">{cls.teacher.bio}</p>
                   <div className="flex flex-wrap gap-3 mt-3">
                     {cls.teacher.instagram && (
-                      <span className="text-[13px] text-neutral-500 flex items-center gap-1">
-                        <Camera className="w-3.5 h-3.5" /> {cls.teacher.instagram}
-                      </span>
+                      <a
+                        href={buildInstagramUrl(cls.teacher.instagram)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[13px] text-neutral-500 flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                      >
+                        <InstagramIcon className="w-3.5 h-3.5" /> {cls.teacher.instagram}
+                      </a>
                     )}
                     {cls.teacher.tiktok && (
-                      <span className="text-[13px] text-neutral-500 flex items-center gap-1">
-                        <Video className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
-                      </span>
+                      <a
+                        href={buildTikTokUrl(cls.teacher.tiktok)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[13px] text-neutral-500 flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                      >
+                        <TikTokIcon className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
+                      </a>
                     )}
                     {cls.teacher.website && (
                       <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
@@ -416,7 +419,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                           : 'bg-[#E1306C] border-[#E1306C] hover:bg-[#c9225a] hover:border-[#c9225a] text-white'
                       }`}
                     >
-                      {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <IgIcon className="w-4 h-4" />}
+                      {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
                       {isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
                     </button>
                   )}
@@ -479,14 +482,24 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <p className="text-[13px] text-neutral-600 mt-2 leading-relaxed">{cls.teacher.bio}</p>
                   <div className="flex flex-wrap gap-3 mt-3">
                     {cls.teacher.instagram && (
-                      <span className="text-[13px] text-neutral-500 flex items-center gap-1">
-                        <Camera className="w-3.5 h-3.5" /> {cls.teacher.instagram}
-                      </span>
+                      <a
+                        href={buildInstagramUrl(cls.teacher.instagram)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[13px] text-neutral-500 flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                      >
+                        <InstagramIcon className="w-3.5 h-3.5" /> {cls.teacher.instagram}
+                      </a>
                     )}
                     {cls.teacher.tiktok && (
-                      <span className="text-[13px] text-neutral-500 flex items-center gap-1">
-                        <Video className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
-                      </span>
+                      <a
+                        href={buildTikTokUrl(cls.teacher.tiktok)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[13px] text-neutral-500 flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                      >
+                        <TikTokIcon className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
+                      </a>
                     )}
                     {cls.teacher.website && (
                       <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
@@ -534,7 +547,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-[#E1306C] hover:bg-[#c9225a] text-white'
               }`}
             >
-              {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <IgIcon className="w-4 h-4" />}
+              {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
               {!showWa && (isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Contactar')}
             </button>
           )}
