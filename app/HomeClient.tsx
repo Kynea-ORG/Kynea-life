@@ -175,6 +175,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             .from('classes')
             .select('id, title, type, class_styles(dance_styles(name))')
             .eq('status', 'published')
+            .or('end_date.is.null,end_date.gte.today')
             .ilike('title', `%${q}%`)
             .limit(4),
           supabase
@@ -589,7 +590,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                     className="shrink-0 w-[210px] rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
                     style={{ scrollSnapAlign: 'start' }}
                   >
-                    <div className={`relative w-full aspect-square flex items-center justify-center ${avatar.bg}`}>
+                    <div className={`relative w-full aspect-square overflow-hidden flex items-center justify-center ${avatar.bg}`}>
                       {t.photo ? (
                         <Image
                           src={t.photo}

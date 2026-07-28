@@ -233,15 +233,18 @@ input de texto plano. Las columnas `lat`, `lng`, `maps_url` existen en la **tabl
 **Tarea:** agregar `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, integrar Places Autocomplete en el campo
 de dirección y guardar `lat`/`lng` en `venues`. Esto alimenta el mapa (6.1).
 
-### 4.3 🟡 Estado "finalizada" para clases vencidas
+### 4.3 ✅ Estado "finalizada" para clases vencidas
 
-El status `'finished'` existe en el schema (`supabase/migrations/20260705000050_05_classes.sql`, CHECK incluye `'finished'`), pero
-**no se usa automáticamente**: `fetchPublishedClasses` filtra por `.eq('status','published')` sin
-verificar `end_date`, y no hay trigger que marque clases vencidas.
+**Opción A implementada:** `fetchPublishedClasses` (`lib/classes/queries.ts`) ahora filtra
+`.or('end_date.is.null,end_date.gte.today')` — una clase con `end_date` vencido deja de listarse
+en Home/`/clases`/mapa/sitemap. Sigue accesible por link directo vía `fetchClassById` (no
+touched), y el status en DB sigue siendo `'published'` (no se reescribe).
 
-**Tarea (opción A):** añadir `.or('end_date.is.null,end_date.gte.today')` en
-`lib/classes/queries.ts`. **Opción B:** trigger SQL que cambie el status a `finished` cuando
-`end_date < now()`.
+El status `'finished'` existe en el schema (`supabase/migrations/20260705000050_05_classes.sql`,
+CHECK incluye `'finished'`) pero sigue sin usarse automáticamente — **pendiente opción B:**
+trigger SQL que cambie el status a `finished` cuando `end_date < now()`, si en algún momento se
+necesita que el estado en DB refleje esto (ej. para que el profesor vea "finalizada" en Mis
+Clases, o para excluirla de `fetchTeacherClasses`).
 
 ### 4.4 ⬜ Importación CSV — implementar el parseo
 

@@ -191,6 +191,9 @@ export async function fetchPublishedClasses(filters?: ClassFilters): Promise<Dan
     .from('classes')
     .select(CLASS_SELECT)
     .eq('status', 'published')
+    // Talleres/clases con fecha de fin ya vencida no deben listarse — una
+    // clase recurrente sin end_date (null) sigue activa indefinidamente.
+    .or('end_date.is.null,end_date.gte.today')
     .order('published_at', { ascending: false });
 
   // Direct-column filters
