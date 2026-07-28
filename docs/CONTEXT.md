@@ -75,6 +75,7 @@ Extiende `auth.users`. Se crea automáticamente vía trigger `handle_new_user` a
 | `youtube` | text | Canal de YouTube |
 | `website` | text | URL de sitio web |
 | `is_admin` | boolean | `NOT NULL DEFAULT false` — solo escribible vía conexión directa a la DB (`postgres`/`service_role`/`supabase_admin`), ver Funciones / Triggers |
+| `created_by` | uuid | `NULL` — FK → `auth.users`, `ON DELETE SET NULL`. `NULL` = se registró solo; no-`NULL` = uuid del admin que creó la cuenta desde `/dashboard/admin`. Advisory: no es un control de seguridad, ver Funciones / Triggers |
 | `created_at` | timestamptz | — |
 | `updated_at` | timestamptz | Se actualiza en cada mutación (trigger) |
 
@@ -159,7 +160,7 @@ Todas las tablas tienen Row Level Security activado:
 - `saved_classes`: cada usuario solo ve y modifica los suyos
 
 ### Funciones / Triggers
-- `handle_new_user()` — trigger `AFTER INSERT` en `auth.users`, crea el profile automáticamente (`role` puede quedar `NULL` en el flujo OAuth desde `/login`)
+- `handle_new_user()` — trigger `AFTER INSERT` en `auth.users`, crea el profile automáticamente (`role` puede quedar `NULL` en el flujo OAuth desde `/login`). Desde la migración 32 también lee `raw_user_meta_data->>'created_by'` y lo valida contra `is_admin` (solo se acepta si el uuid pertenece a un admin real) antes de guardarlo en `profiles.created_by` — **`created_by` es procedencia informativa, no un control de seguridad**, ya que `raw_user_meta_data` lo controla el cliente y los uuids de admins son enumerables (`profiles_select` es `USING (true)`)
 - `class_slug_on_insert` — trigger `BEFORE INSERT` en `classes`, asigna el `slug` vía `set_class_slug()`
 - `set_updated_at_*` — triggers `BEFORE UPDATE` en `profiles`, `classes` y `venues`
 - `increment_class_contacts(target_class_id)` — RPC `SECURITY DEFINER`, incrementa `contacts_count` sin race condition (solo si `status = 'published'`)

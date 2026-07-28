@@ -12,13 +12,16 @@ Kynea se despliega en dos capas independientes: la app (Vercel) y la base de dat
 
 ### 2. Variables de entorno
 
-En la pantalla de import (o en **Settings → Environment Variables**), agrega estas dos
+En la pantalla de import (o en **Settings → Environment Variables**), agrega estas variables
 (las mismas de tu `.env.local`):
 
 | Name | Value |
 |------|-------|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<tu-proyecto>.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` (anon key) |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (service_role key, Settings → API) |
+
+`SUPABASE_SERVICE_ROLE_KEY` es server-only y bypassea RLS por completo: nunca la expongas con prefijo `NEXT_PUBLIC_` ni la subas al repo.
 
 Aplícalas a **Production**, **Preview** y **Development**.
 
