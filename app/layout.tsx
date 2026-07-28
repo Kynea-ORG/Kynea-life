@@ -27,6 +27,9 @@ const figtree = Figtree({
 export const metadata: Metadata = {
   title: "Kynea – La primera plataforma integral de danza en Latinoamérica",
   description: "Encuentra clases de baile, audiciones, shows, eventos culturales y tiendas especializadas. Donde la pasión por la danza cobra vida.",
+  other: {
+    "facebook-domain-verification": "slfge5n6asfeu1iy16dq2bbf7hg2nr",
+  },
 };
 
 export default function RootLayout({

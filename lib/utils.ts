@@ -49,6 +49,14 @@ export function buildWhatsAppMessage(style: string, startDate: string, teacherPh
   return `https://wa.me/${teacherPhone.replace(/\s+/g, '')}?text=${text}`;
 }
 
+export function buildInstagramUrl(handle: string): string {
+  return `https://instagram.com/${handle.replace(/^@/, '')}`;
+}
+
+export function buildTikTokUrl(handle: string): string {
+  return `https://tiktok.com/@${handle.replace(/^@/, '')}`;
+}
+
 // `venues.maps_url` exists in the schema but nothing writes to it — venues
 // are saved from Google Places `placeId`/`lat`/`lng`, so build the Maps link
 // from those instead of a column that's always empty in practice.

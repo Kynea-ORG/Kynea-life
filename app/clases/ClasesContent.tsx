@@ -221,9 +221,11 @@ export default function ClasesContent({
       <div className="max-w-[1200px] mx-auto px-6 py-8 flex gap-8">
         {/* Sidebar */}
         <aside className="hidden md:block w-60 shrink-0">
-          <div className="sticky top-36">
-            <h3 className="font-bold text-neutral-900 text-[15px] mb-4">Filtros</h3>
-            <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} />
+          <div className="sticky top-36 max-h-[calc(100vh-9rem-2rem)] flex flex-col">
+            <h3 className="font-bold text-neutral-900 text-[15px] mb-4 shrink-0">Filtros</h3>
+            <div className="overflow-y-auto pr-1 -mr-1">
+              <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} />
+            </div>
           </div>
         </aside>
 

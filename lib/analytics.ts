@@ -42,3 +42,20 @@ export function trackGenerateLead(params: {
     teacher_name: params.teacherName,
   });
 }
+
+// Top-of-funnel: fired on every link/button across the site that takes a
+// visitor toward /registro or /login (Header, Home CTAs, the contact-gate
+// modal, cross-links between the two auth pages, error-recovery banners).
+// `location` identifies which of those entry points fired it, so a funnel
+// report in GA4 can tell them apart.
+export function trackAuthCtaClick(params: { action: 'registro' | 'login'; location: string }) {
+  pushEvent('auth_cta_click', { auth_action: params.action, cta_location: params.location });
+}
+
+// Mid-funnel: fired when the visitor actually submits the registro/login
+// form or clicks "Continuar con Google" on those pages — i.e. attempted the
+// action, regardless of whether Supabase accepts it. Sits between
+// auth_cta_click (intent) and sign_up (completed) in the funnel.
+export function trackAuthAttempt(params: { action: 'registro' | 'login'; method: 'email' | 'google' | 'email_otp' }) {
+  pushEvent('auth_attempt', { auth_action: params.action, auth_method: params.method });
+}
