@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
+import { trackAuthCtaClick } from '@/lib/analytics';
 
 function getResetErrorMessage(msg: string): string {
   const m = msg.toLowerCase();
@@ -98,7 +99,7 @@ function ResetPasswordContent() {
                 <p className="text-[14px] text-neutral-500">
                   Este enlace ya no es válido. Solicita un nuevo correo de recuperación desde el login.
                 </p>
-                <Link href="/login" className="btn-dark mt-2 inline-block px-6">
+                <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'reset_password_page' })} className="btn-dark mt-2 inline-block px-6">
                   Ir al login
                 </Link>
               </div>

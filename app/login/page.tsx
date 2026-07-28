@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { safeRedirectPath } from '@/lib/utils';
+import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
 
 function errorMessageFromParam(errorParam: string | null): string {
   if (errorParam === 'cuenta_incompleta') {
@@ -47,6 +48,7 @@ function LoginPageContent() {
 
   async function handleGoogle() {
     setGoogleLoading(true);
+    trackAuthAttempt({ action: 'login', method: 'google' });
     const supabase = createClient();
     const callbackUrl = redirectTarget
       ? `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTarget)}`
@@ -95,6 +97,7 @@ function LoginPageContent() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    trackAuthAttempt({ action: 'login', method: 'email' });
 
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
@@ -268,7 +271,7 @@ function LoginPageContent() {
 
                 <p className="text-center text-[13px] text-neutral-400 mt-5">
                   ¿No tienes cuenta?{' '}
-                  <Link href="/registro" onClick={shift} className="text-neutral-900 font-semibold hover:underline">
+                  <Link href="/registro" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'login_page' }); shift(); }} className="text-neutral-900 font-semibold hover:underline">
                     Regístrate gratis
                   </Link>
                 </p>

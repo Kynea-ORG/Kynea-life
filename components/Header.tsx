@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
+import { trackAuthCtaClick } from '@/lib/analytics';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -231,7 +232,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
             </>
           ) : (
             <>
-              <Link href="/login"
+              <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_desktop' })}
                 className={`text-[15px] font-semibold px-5 py-2 rounded-btn border-2 transition-[background-color,border-color] active:scale-[0.97] ${
                   transparent
                     ? 'border-white/40 text-white hover:bg-white/10'
@@ -239,7 +240,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                 }`}>
                 Iniciar sesión
               </Link>
-              <Link href="/registro"
+              <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop' })}
                 className={`text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 transition-[background-color] active:scale-[0.97] ${
                   transparent
                     ? 'bg-white text-neutral-900 hover:bg-neutral-100'
@@ -324,11 +325,11 @@ export default function Header({ transparent = false }: { transparent?: boolean 
               </>
             ) : (
               <>
-                <Link href="/login" onClick={() => setMobileOpen(false)}
+                <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'header_mobile' }); setMobileOpen(false); }}
                   className="flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
                   Iniciar sesión
                 </Link>
-                <Link href="/registro" onClick={() => setMobileOpen(false)}
+                <Link href="/registro" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile' }); setMobileOpen(false); }}
                   className="flex items-center justify-center mt-2 mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
                   Publicar clase
                 </Link>

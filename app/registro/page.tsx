@@ -15,6 +15,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { safeRedirectPath } from '@/lib/utils';
+import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -63,6 +64,7 @@ function RegistroPageContent() {
     if (!role) return;
     setError('');
     setLoading(true);
+    trackAuthAttempt({ action: 'registro', method: 'email' });
 
     const supabase = createClient();
     // Every role goes through /onboarding on first signup — alumno gets a
@@ -108,6 +110,7 @@ function RegistroPageContent() {
   async function handleGoogle() {
     if (!role || !termsAccepted) return;
     setGoogleLoading(true);
+    trackAuthAttempt({ action: 'registro', method: 'google' });
     const supabase = createClient();
     const callbackUrl = redirectTarget
       ? `${window.location.origin}/auth/callback?role=${role}&redirect=${encodeURIComponent(redirectTarget)}`
@@ -238,7 +241,7 @@ function RegistroPageContent() {
 
                 <p className="text-center text-[13px] text-neutral-400 mt-5">
                   ¿Ya tienes cuenta?{' '}
-                  <Link href="/login" onClick={shift} className="text-neutral-900 font-semibold hover:underline">
+                  <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'registro_page' }); shift(); }} className="text-neutral-900 font-semibold hover:underline">
                     Inicia sesión
                   </Link>
                 </p>

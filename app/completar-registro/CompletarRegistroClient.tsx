@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { User, BookOpen, Loader2, Check } from 'lucide-react';
 import { completeOAuthRegistration } from '@/lib/auth/actions';
 import { safeRedirectPath } from '@/lib/utils';
+import { trackAuthAttempt } from '@/lib/analytics';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -34,6 +35,7 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
     if (!selected || !termsAccepted || loading) return;
     setLoading(true);
     setError('');
+    trackAuthAttempt({ action: 'registro', method: 'google' });
     try {
       await completeOAuthRegistration(selected);
       router.refresh();
