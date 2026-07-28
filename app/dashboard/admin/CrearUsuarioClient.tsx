@@ -7,7 +7,7 @@ type Role = 'profesor' | 'academia';
 
 // Contraseña inicial compartida que se le entrega al profesor; la cambia
 // desde /dashboard/configuracion. No es un secreto: se muestra en pantalla.
-const DEFAULT_PASSWORD = 'Kynea2026!';
+const DEFAULT_PASSWORD = 'Kynea-Prof_0KqhcUWo!26';
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
