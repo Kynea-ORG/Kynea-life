@@ -69,15 +69,17 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
             zoom — an inline style would silently override any transform
             utility class placed on the same element. */}
         <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
-          <SmartImage
-            src={cls.coverImage || '/logo.png'}
-            alt={cls.title}
-            fill
-            sizes="(max-width: 768px) 100vw, 400px"
-            className="object-cover"
-            style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }}
-          />
-          <div className="absolute top-3 left-3 flex gap-2">
+          <Link href={`/clases/${cls.id}`} aria-label={cls.title} className="absolute inset-0">
+            <SmartImage
+              src={cls.coverImage || '/logo.png'}
+              alt={cls.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 400px"
+              className="object-cover"
+              style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }}
+            />
+          </Link>
+          <div className="absolute top-3 left-3 flex gap-2 pointer-events-none">
             {isFullyBooked && (
               <span className="badge-gray text-[11px]">Sin cupos</span>
             )}
@@ -85,7 +87,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
               <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-yellow text-neutral-900 whitespace-nowrap">Últimos cupos</span>
             )}
           </div>
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 pointer-events-none">
             <span className="badge-black text-[11px]">{getTypeLabel(cls.type)}</span>
           </div>
           <button
