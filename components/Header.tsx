@@ -236,7 +236,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                 className="font-sans text-[15px] font-semibold px-5 py-2 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 transition-[background-color] active:scale-[0.97]">
                 Iniciar sesión
               </Link>
-              <Link href="/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_profesor' })}
+              <Link href="/unete/beneficios" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_profesor' })}
                 className="font-sans text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800 transition-[background-color] active:scale-[0.97]">
                 Únete como profesor
               </Link>
@@ -321,7 +321,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                   className="font-sans flex items-center justify-center mt-1 mb-2 text-[15px] font-semibold px-5 py-3 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 active:scale-[0.97] transition-[background-color]">
                   Iniciar sesión
                 </Link>
-                <Link href="/unete" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_profesor' }); setMobileOpen(false); }}
+                <Link href="/unete/beneficios" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_profesor' }); setMobileOpen(false); }}
                   className="font-sans flex items-center justify-center mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
                   Únete como profesor
                 </Link>
