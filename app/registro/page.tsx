@@ -261,23 +261,15 @@ function RegistroPageContent() {
 
         {/* Ilustración de marca — copy + ilustración lado a lado en mobile, panel único con overlay en desktop */}
         <div className="relative shrink-0 lg:flex-1 bg-primary overflow-hidden flex flex-col lg:justify-start lg:px-14 lg:pt-20 lg:h-auto">
-          {/* Mobile: copy a la izquierda, ilustración pegada a la derecha, sin degradado */}
-          <div className="lg:hidden flex items-stretch min-h-[300px]">
-            <div className="flex-1 min-w-0 flex flex-col justify-center px-5 py-7">
-              <p className="text-[12px] font-bold uppercase tracking-wide mb-1.5" style={{ color: '#E9C72A' }}>Crear cuenta</p>
-              <h2 className="text-[22px] font-black text-white tracking-tight leading-[1.15] mb-2.5">
+          {/* Mobile: compacto — copy corto a la izquierda, ilustración pequeña a la derecha, para que el formulario blanco siempre se vea */}
+          <div className="lg:hidden flex items-center gap-3 px-5 py-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: '#E9C72A' }}>Crear cuenta</p>
+              <h2 className="text-[17px] font-black text-white tracking-tight leading-[1.2]">
                 Encuentra tu próxima clase de baile
               </h2>
-              <ul className="flex flex-col gap-1.5">
-                {['Profesores verificados', 'Contacto directo por WhatsApp', 'Guarda tus clases favoritas'].map(item => (
-                  <li key={item} className="flex items-start gap-2 text-[12.5px] font-bold text-white leading-snug">
-                    <span className="mt-[6px] w-1.5 h-1.5 rounded-[2px] bg-white shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
             </div>
-            <div className="relative w-[56%] shrink-0">
+            <div className="relative w-[72px] h-[72px] shrink-0">
               <SmartImage
                 src="/registro-login- alumnos-mobile.png"
                 alt=""

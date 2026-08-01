@@ -252,39 +252,16 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
 
         {/* Ilustración + propuesta de valor — banda copy+ilustración lado a lado en mobile, panel único con overlay en desktop */}
         <div className="relative shrink-0 lg:flex-1 bg-primary overflow-hidden flex flex-col lg:justify-start lg:px-14 lg:pt-20 lg:h-auto">
-          {/* Mobile: copy a la izquierda, ilustración acompañando a la derecha */}
-          <div className="lg:hidden">
-            <div className="flex items-stretch gap-2 pl-5 pt-6 min-h-[300px]">
-              <div className="flex-1 min-w-0 pb-5 flex flex-col justify-center">
-                <h2 className="text-[23px] font-black text-white tracking-tight leading-[1.15] mb-2.5">
-                  Comparte tu pasión por el baile y llega a más alumnos
-                </h2>
-                <ul className="flex flex-col gap-1.5">
-                  {BENEFITS.slice(0, 3).map(({ text }) => (
-                    <li key={text} className="flex items-start gap-2 text-[12.5px] font-bold text-white leading-snug">
-                      <span className="mt-[6px] w-1.5 h-1.5 rounded-[2px] bg-white shrink-0" />
-                      {text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="relative w-[56%] shrink-0">
-                <SmartImage src="/Bg-Registro-profesores-Mobile.png" alt="" fill className="object-contain object-bottom" />
-              </div>
+          {/* Mobile: compacto — copy corto a la izquierda, ilustración pequeña a la derecha, para que el formulario blanco siempre se vea */}
+          <div className="lg:hidden flex items-center gap-3 px-5 py-4">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-[17px] font-black text-white tracking-tight leading-[1.2]">
+                Comparte tu pasión por el baile y llega a más alumnos
+              </h2>
             </div>
-
-            {teacherCount > 0 && (
-              <div className="px-5 pb-6">
-                <div className="inline-flex items-center gap-2 bg-white border border-neutral-900 rounded-full py-1 pl-1.5 pr-3">
-                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-green shrink-0">
-                    <span className="absolute inset-0 rounded-full bg-green animate-ping" />
-                  </span>
-                  <span className="text-[11px] font-bold text-neutral-900">
-                    <span className="text-pink-600">{teacherCount}+</span> profesores ya publican en Kynea
-                  </span>
-                </div>
-              </div>
-            )}
+            <div className="relative w-[72px] h-[72px] shrink-0">
+              <SmartImage src="/Bg-Registro-profesores-Mobile.png" alt="" fill className="object-contain object-bottom" />
+            </div>
           </div>
 
           {/* Ilustración desktop — bleed detrás del copy */}
@@ -309,7 +286,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
             </ul>
 
             {teacherCount > 0 && (
-              <div className="inline-flex items-center gap-2 bg-white border border-neutral-900 rounded-full py-1.5 pl-2 pr-4">
+              <div className="inline-flex items-center gap-2 bg-white border border-neutral-900 rounded-full py-1.5 pl-2 pr-4 mb-4">
                 <span className="relative inline-flex w-2 h-2 rounded-full bg-green shrink-0">
                   <span className="absolute inset-0 rounded-full bg-green animate-ping" />
                 </span>
@@ -318,6 +295,12 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
                 </span>
               </div>
             )}
+
+            <div>
+              <Link href="/unete/beneficios" className="text-[13.5px] font-bold text-white underline underline-offset-2 hover:text-white/80 transition-colors">
+                Conoce todos los beneficios →
+              </Link>
+            </div>
           </div>
         </div>
       </div>
