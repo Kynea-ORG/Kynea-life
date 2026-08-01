@@ -251,7 +251,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
         </div>
 
         {/* Ilustración + propuesta de valor — banda copy+ilustración lado a lado en mobile, panel único con overlay en desktop */}
-        <div className="relative shrink-0 lg:flex-1 bg-primary overflow-hidden flex flex-col lg:justify-start lg:px-14 lg:pt-20 lg:h-auto">
+        <div className="relative shrink-0 lg:flex-1 bg-pink-800 overflow-hidden flex flex-col lg:justify-start lg:px-14 lg:pt-20 lg:h-auto">
           {/* Mobile: compacto — copy corto a la izquierda, ilustración pequeña a la derecha, para que el formulario blanco siempre se vea */}
           <div className="lg:hidden flex items-center gap-3 px-5 py-4">
             <div className="flex-1 min-w-0">
