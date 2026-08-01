@@ -751,7 +751,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             Publica tus clases gratis y llega a cientos de alumnos en toda Latinoamérica. Sin comisiones.
           </p>
           <div className="flex justify-center">
-            <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
+            <Link href="/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
           </div>
         </div>
       </section>
