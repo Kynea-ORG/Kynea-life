@@ -9,7 +9,7 @@ import ContactModal from '@/components/ContactModal';
 import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
-import { trackGenerateLead } from '@/lib/analytics';
+import { trackGenerateLead, trackAuthCtaClick } from '@/lib/analytics';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [showContact, setShowContact] = useState(false);
@@ -42,7 +42,11 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const toggleSave = async () => {
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = '/login'; return; }
+    if (!session) {
+      trackAuthCtaClick({ action: 'login', location: 'save_class_gate' });
+      window.location.href = '/login';
+      return;
+    }
     setSaving(true);
     if (saved) {
       const { error } = await supabase.from('saved_classes').delete()

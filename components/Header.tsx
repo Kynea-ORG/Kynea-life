@@ -124,8 +124,8 @@ export default function Header({ transparent = false }: { transparent?: boolean 
   }
 
   const linkBase = transparent
-    ? 'text-[15px] font-medium text-white/90 px-3.5 py-1.5 rounded-md hover:bg-white/10 active:opacity-70 transition-[background-color,color]'
-    : 'nav-link';
+    ? 'font-sans text-[15px] font-medium text-white/90 px-3.5 py-1.5 rounded-md hover:bg-white/10 active:opacity-70 transition-[background-color,color]'
+    : 'font-sans nav-link';
 
   return (
     <header className={
@@ -170,7 +170,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
               {canPublish && (
                 <Link
                   href="/dashboard/crear-clase"
-                  className={`text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 transition-[background-color] active:scale-[0.97] flex items-center gap-2 ${
+                  className={`font-sans text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 transition-[background-color] active:scale-[0.97] flex items-center gap-2 ${
                     transparent
                       ? 'bg-white text-neutral-900 hover:bg-neutral-100'
                       : 'bg-neutral-900 text-white hover:bg-neutral-800'
@@ -189,10 +189,10 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                 >
                   <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-8 h-8" />
                   <div className="text-left hidden lg:block">
-                    <p className={`text-[13px] font-bold leading-tight ${transparent ? 'text-white' : 'text-neutral-900'}`}>
+                    <p className={`font-sans text-[13px] font-bold leading-tight ${transparent ? 'text-white' : 'text-neutral-900'}`}>
                       {profile.name.split(' ')[0]}
                     </p>
-                    <p className={`text-[11px] leading-tight ${transparent ? 'text-white/70' : 'text-neutral-500'}`}>
+                    <p className={`font-sans text-[11px] leading-tight ${transparent ? 'text-white/70' : 'text-neutral-500'}`}>
                       {ROLE_LABEL[profile.role]}
                     </p>
                   </div>
@@ -204,25 +204,25 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                     <div className="px-4 py-3 border-b border-neutral-100 flex items-center gap-3">
                       <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-9 h-9" />
                       <div className="min-w-0">
-                        <p className="text-[13px] font-bold text-neutral-900 truncate">{profile.name}</p>
-                        <p className="text-[11px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
+                        <p className="font-sans text-[13px] font-bold text-neutral-900 truncate">{profile.name}</p>
+                        <p className="font-sans text-[11px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
                       </div>
                     </div>
                     <Link href="/dashboard" onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
+                      className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
                       <LayoutDashboard className="w-4 h-4 shrink-0" /> Mi panel
                     </Link>
                     <Link href="/dashboard/perfil" onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
+                      className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
                       <User className="w-4 h-4 shrink-0" /> Perfil
                     </Link>
                     <Link href="/dashboard/configuracion" onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
+                      className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
                       <Settings className="w-4 h-4 shrink-0" /> Configuración
                     </Link>
                     <div className="border-t border-neutral-100">
                       <button onClick={logout}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-500 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors">
+                        className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-500 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors">
                         <LogOut className="w-4 h-4 shrink-0" /> Cerrar sesión
                       </button>
                     </div>
@@ -233,20 +233,12 @@ export default function Header({ transparent = false }: { transparent?: boolean 
           ) : (
             <>
               <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_desktop' })}
-                className={`text-[15px] font-semibold px-5 py-2 rounded-btn border-2 transition-[background-color,border-color] active:scale-[0.97] ${
-                  transparent
-                    ? 'border-white/40 text-white hover:bg-white/10'
-                    : 'border-neutral-300 text-neutral-700 hover:border-neutral-900 hover:bg-neutral-50'
-                }`}>
+                className="font-sans text-[15px] font-semibold px-5 py-2 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 transition-[background-color] active:scale-[0.97]">
                 Iniciar sesión
               </Link>
-              <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop' })}
-                className={`text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 transition-[background-color] active:scale-[0.97] ${
-                  transparent
-                    ? 'bg-white text-neutral-900 hover:bg-neutral-100'
-                    : 'bg-neutral-900 text-white hover:bg-neutral-800'
-                }`}>
-                Publicar clase
+              <Link href="/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_profesor' })}
+                className="font-sans text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800 transition-[background-color] active:scale-[0.97]">
+                Únete como profesor
               </Link>
             </>
           )}
@@ -276,13 +268,13 @@ export default function Header({ transparent = false }: { transparent?: boolean 
             <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
               <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-11 h-11" />
               <div>
-                <p className="text-[15px] font-bold text-neutral-900">{profile.name}</p>
-                <p className="text-[13px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
+                <p className="font-sans text-[15px] font-bold text-neutral-900">{profile.name}</p>
+                <p className="font-sans text-[13px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
               </div>
             </div>
           ) : (
             <div className="px-5 py-4 border-b border-neutral-100">
-              <p className="text-[14px] text-neutral-500">Encuentra clases de baile en Latinoamérica</p>
+              <p className="font-sans text-[14px] text-neutral-500">Encuentra clases de baile en Latinoamérica</p>
             </div>
           )}
 
@@ -290,7 +282,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
           <div className="px-3 py-2">
             {NAV_LINKS.map(item => (
               <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
+                className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
                 {item.label}
               </Link>
             ))}
@@ -301,37 +293,37 @@ export default function Header({ transparent = false }: { transparent?: boolean 
             {isLoggedIn ? (
               <>
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
+                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
                   <LayoutDashboard className="w-4 h-4 shrink-0 text-neutral-400" /> Mi panel
                 </Link>
                 <Link href="/dashboard/perfil" onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
+                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
                   <User className="w-4 h-4 shrink-0 text-neutral-400" /> Perfil
                 </Link>
                 <Link href="/dashboard/configuracion" onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
+                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
                   <Settings className="w-4 h-4 shrink-0 text-neutral-400" /> Configuración
                 </Link>
                 {canPublish && (
                   <Link href="/dashboard/crear-clase" onClick={() => setMobileOpen(false)}
-                    className="flex items-center justify-center gap-2 mt-2 mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
+                    className="font-sans flex items-center justify-center gap-2 mt-2 mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
                     <PlusCircle className="w-4 h-4" /> Publicar clase
                   </Link>
                 )}
                 <button onClick={logout}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-500 hover:text-red-500 hover:bg-red-50 active:bg-red-100 w-full transition-colors mt-1">
+                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-500 hover:text-red-500 hover:bg-red-50 active:bg-red-100 w-full transition-colors mt-1">
                   <LogOut className="w-4 h-4 shrink-0" /> Cerrar sesión
                 </button>
               </>
             ) : (
               <>
                 <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'header_mobile' }); setMobileOpen(false); }}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
+                  className="font-sans flex items-center justify-center mt-1 mb-2 text-[15px] font-semibold px-5 py-3 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 active:scale-[0.97] transition-[background-color]">
                   Iniciar sesión
                 </Link>
-                <Link href="/registro" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile' }); setMobileOpen(false); }}
-                  className="flex items-center justify-center mt-2 mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
-                  Publicar clase
+                <Link href="/unete" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_profesor' }); setMobileOpen(false); }}
+                  className="font-sans flex items-center justify-center mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
+                  Únete como profesor
                 </Link>
               </>
             )}
