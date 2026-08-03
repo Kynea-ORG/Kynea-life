@@ -6,7 +6,7 @@ import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, S
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ContactModal from '@/components/ContactModal';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackAuthCtaClick } from '@/lib/analytics';
@@ -110,11 +110,11 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const priceDisplay = cls.priceType === 'Gratis' ? 'Gratis' : (
     cls.offerPrice ? (
       <span className="flex items-baseline gap-2">
-        <span className="text-[30px] font-black text-neutral-900">
-          {cls.currency === 'PEN' ? 'S/' : '$'}{cls.offerPrice}
+        <span className="text-[30px] font-black text-primary">
+          {formatPrice(cls.priceType, cls.offerPrice, cls.currency)}
         </span>
         <span className="text-[18px] text-neutral-400 line-through font-semibold">
-          {cls.currency === 'PEN' ? 'S/' : '$'}{cls.price}
+          {formatPrice(cls.priceType, cls.price, cls.currency)}
         </span>
       </span>
     ) : formatPrice(cls.priceType, cls.price, cls.currency)
@@ -291,7 +291,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
-                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {cls.teacher.experience} años de experiencia</p>
+                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
                   {cls.teacher.rating && (
                     <div className="flex items-center gap-1 mt-1.5">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
@@ -375,9 +375,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     </div>
                   </div>
                   {cls.startDate && (
-                    <div className="flex items-center gap-2.5 text-[13px] text-neutral-600">
-                      <Calendar className="w-4 h-4 text-neutral-400 shrink-0" />
-                      <span>Inicia {new Date(`${cls.startDate}T12:00:00`).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                    <div className="flex items-center gap-2.5 text-[13px] font-semibold text-neutral-900">
+                      <Calendar className="w-4 h-4 text-primary shrink-0" />
+                      <span>Inicia {formatFriendlyDate(cls.startDate)}</span>
                     </div>
                   )}
                   {cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
@@ -473,7 +473,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
-                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {cls.teacher.experience} años de experiencia</p>
+                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
                   {cls.teacher.rating && (
                     <div className="flex items-center gap-1 mt-1.5">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
@@ -521,11 +521,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       {/* Mobile sticky bottom CTA */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 z-40 flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[18px] font-black text-neutral-900 leading-none">
-            {cls.priceType === 'Gratis' ? 'Gratis' : (
-              cls.offerPrice
-                ? `${cls.currency === 'PEN' ? 'S/' : '$'}${cls.offerPrice}`
-                : formatPrice(cls.priceType, cls.price, cls.currency)
+          <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5">
+            {cls.priceType === 'Gratis' ? (
+              <span className="text-neutral-900">Gratis</span>
+            ) : cls.offerPrice ? (
+              <>
+                <span className="text-primary">{formatPrice(cls.priceType, cls.offerPrice, cls.currency)}</span>
+                <span className="text-[12px] text-neutral-400 line-through font-semibold">
+                  {formatPrice(cls.priceType, cls.price, cls.currency)}
+                </span>
+              </>
+            ) : (
+              <span className="text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
             )}
           </p>
           {cls.level && <p className="text-[12px] text-neutral-500 mt-0.5">Nivel {cls.level}</p>}

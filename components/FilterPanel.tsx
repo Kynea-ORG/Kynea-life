@@ -17,6 +17,11 @@ export interface Filters {
 
 export const MAX_PRICE = 300;
 
+// "Estilo de baile" arranca colapsado a este tamaño de grupo y crece de a
+// tantos estilos por click en "Ver más" — evita que el filtro completo
+// (40+ estilos) ocupe toda la pantalla por defecto.
+const STYLES_GROUP_SIZE = 12;
+
 interface FilterPanelProps {
   filters: Filters;
   onChange: (f: Filters) => void;
@@ -66,6 +71,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function FilterPanel({ filters, onChange, className = '', danceStyles = [], levels = [] }: FilterPanelProps) {
+  const [visibleStylesCount, setVisibleStylesCount] = useState(STYLES_GROUP_SIZE);
   const set = (key: keyof Filters, value: unknown) => onChange({ ...filters, [key]: value });
 
   const toggleIn = (key: 'styles' | 'levels' | 'days' | 'timesOfDay' | 'modalities' | 'types', v: string) => {
@@ -80,6 +86,16 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
     filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
     filters.types.length + (filters.withSpots ? 1 : 0) +
     [filters.city, filters.district].filter(Boolean).length;
+
+  // Los estilos ya seleccionados siempre se muestran (aunque el grupo visible
+  // los hubiera dejado afuera) — nunca se esconde un filtro activo.
+  const selectedStyles = danceStyles.filter(s => filters.styles.includes(s));
+  const unselectedStyles = danceStyles.filter(s => !filters.styles.includes(s));
+  const visibleStyles = [
+    ...selectedStyles,
+    ...unselectedStyles.slice(0, Math.max(visibleStylesCount - selectedStyles.length, 0)),
+  ];
+  const hasMoreStyles = visibleStyles.length < danceStyles.length;
 
   return (
     <div className={`bg-white ${className}`}>
@@ -97,7 +113,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
 
       <Section title="Estilo de baile">
         <div className="flex flex-wrap gap-2">
-          {danceStyles.map(s => (
+          {visibleStyles.map(s => (
             <button
               key={s}
               onClick={() => toggleIn('styles', s)}
@@ -106,6 +122,14 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
               {s}
             </button>
           ))}
+          {hasMoreStyles && (
+            <button
+              onClick={() => setVisibleStylesCount(c => c + STYLES_GROUP_SIZE)}
+              className="text-[11px] font-semibold text-primary border border-primary/30 rounded-full px-3 py-1 hover:bg-primary-bg transition-colors"
+            >
+              Ver más
+            </button>
+          )}
         </div>
       </Section>
 

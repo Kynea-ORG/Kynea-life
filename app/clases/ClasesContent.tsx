@@ -1,7 +1,7 @@
 'use client';
 import { useState, useTransition, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, SlidersHorizontal, X, Loader2 } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2, ArrowUp } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import FilterPanel, { Filters, EMPTY_FILTERS } from '@/components/FilterPanel';
@@ -77,6 +77,21 @@ export default function ClasesContent({
   const [showFilters, setShowFilters] = useState(false);
   const shouldRenderFilters = useDelayedUnmount(showFilters, 200);
   const [sortBy, setSortBy] = useState('Recomendados');
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    function onScroll() {
+      setShowScrollTop(window.scrollY > 480);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  };
 
   // Debounce for query URL updates
   const queryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,9 +135,16 @@ export default function ClasesContent({
   // instant feedback while the server re-fetch is in progress.
 
   const results = initialClasses.filter(cls => {
-    if (query && !cls.title.toLowerCase().includes(query.toLowerCase()) &&
-        !cls.style.toLowerCase().includes(query.toLowerCase()) &&
-        !cls.teacher.name.toLowerCase().includes(query.toLowerCase())) return false;
+    if (query) {
+      const q = query.toLowerCase();
+      const matchesQuery =
+        cls.title.toLowerCase().includes(q) ||
+        cls.style.toLowerCase().includes(q) ||
+        cls.teacher.name.toLowerCase().includes(q) ||
+        cls.city.toLowerCase().includes(q) ||
+        cls.district.toLowerCase().includes(q);
+      if (!matchesQuery) return false;
+    }
     if (filters.styles.length && !filters.styles.includes(cls.style)) return false;
     if (filters.levels.length && !filters.levels.includes(cls.level)) return false;
     if (filters.modalities.length && !filters.modalities.includes(cls.modality)) return false;
@@ -157,7 +179,7 @@ export default function ClasesContent({
               type="text"
               value={query}
               onChange={e => handleQueryChange(e.target.value)}
-              placeholder="Busca por estilo, profesor o academia…"
+              placeholder="Busca por estilo, profesor, academia o distrito…"
               className="flex-1 text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none"
             />
             {query && (
@@ -283,6 +305,17 @@ export default function ClasesContent({
           )}
         </main>
       </div>
+
+      <button
+        onClick={scrollToTop}
+        aria-label="Volver arriba"
+        tabIndex={showScrollTop ? 0 : -1}
+        className={`fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-neutral-900 text-white shadow-lg flex items-center justify-center hover:bg-neutral-800 active:scale-90 transition-[opacity,transform] duration-200 ease-out ${
+          showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'
+        }`}
+      >
+        <ArrowUp className="w-5 h-5" />
+      </button>
     </div>
   );
 }

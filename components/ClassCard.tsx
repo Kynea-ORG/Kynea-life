@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { MapPin, Clock, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
+import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead } from '@/lib/analytics';
 import ContactModal from './ContactModal';
@@ -107,9 +107,20 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
             <span className="text-[11px] font-semibold bg-pink-50 text-pink-600 border border-pink-100 px-2.5 py-1 rounded-full">
               {cls.style}
             </span>
-            <span className="text-[15px] font-bold text-neutral-900">
-              {formatPrice(cls.priceType, cls.price, cls.currency)}
-            </span>
+            {cls.offerPrice ? (
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-[12px] text-neutral-400 line-through font-medium">
+                  {formatPrice(cls.priceType, cls.price, cls.currency)}
+                </span>
+                <span className="text-[15px] font-bold text-primary">
+                  {formatPrice(cls.priceType, cls.offerPrice, cls.currency)}
+                </span>
+              </span>
+            ) : (
+              <span className="text-[15px] font-bold text-neutral-900">
+                {formatPrice(cls.priceType, cls.price, cls.currency)}
+              </span>
+            )}
           </div>
 
           <div>
@@ -124,6 +135,12 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           )}
 
           <div className="flex flex-col gap-1.5">
+            {cls.startDate && (
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-neutral-900">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                Inicia {formatFriendlyDate(cls.startDate)}
+              </span>
+            )}
             <span className="flex items-center gap-1.5 text-[13px] text-neutral-500">
               <MapPin className="w-3.5 h-3.5 text-neutral-400" />
               {cls.venueName ? `${cls.venueName} · ` : ''}{cls.district}, {cls.city}
