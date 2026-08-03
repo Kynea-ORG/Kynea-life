@@ -335,6 +335,7 @@ function OnboardingContent() {
                   >
                     {photoUrl ? 'Cambiar foto' : 'Subir foto o logo'}
                   </button>
+                  <p className="text-[11px] text-neutral-400 text-center">PNG, JPG o WebP · Máx. 5MB · Recomendado 400×400px</p>
                 </div>
                 {[
                   { key: 'publicName', label: role === 'academia' ? 'Nombre de la academia' : 'Nombre público', placeholder: role === 'academia' ? 'Ej. Studio Ritmo Latino' : 'Tu nombre completo', required: true },
