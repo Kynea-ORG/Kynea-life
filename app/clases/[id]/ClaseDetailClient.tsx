@@ -110,11 +110,11 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const priceDisplay = cls.priceType === 'Gratis' ? 'Gratis' : (
     cls.offerPrice ? (
       <span className="flex items-baseline gap-2">
-        <span className="text-[30px] font-black text-neutral-900">
-          {cls.currency === 'PEN' ? 'S/' : '$'}{cls.offerPrice}
+        <span className="text-[30px] font-black text-primary">
+          {formatPrice(cls.priceType, cls.offerPrice, cls.currency)}
         </span>
         <span className="text-[18px] text-neutral-400 line-through font-semibold">
-          {cls.currency === 'PEN' ? 'S/' : '$'}{cls.price}
+          {formatPrice(cls.priceType, cls.price, cls.currency)}
         </span>
       </span>
     ) : formatPrice(cls.priceType, cls.price, cls.currency)
@@ -521,11 +521,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       {/* Mobile sticky bottom CTA */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 z-40 flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[18px] font-black text-neutral-900 leading-none">
-            {cls.priceType === 'Gratis' ? 'Gratis' : (
-              cls.offerPrice
-                ? `${cls.currency === 'PEN' ? 'S/' : '$'}${cls.offerPrice}`
-                : formatPrice(cls.priceType, cls.price, cls.currency)
+          <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5">
+            {cls.priceType === 'Gratis' ? (
+              <span className="text-neutral-900">Gratis</span>
+            ) : cls.offerPrice ? (
+              <>
+                <span className="text-primary">{formatPrice(cls.priceType, cls.offerPrice, cls.currency)}</span>
+                <span className="text-[12px] text-neutral-400 line-through font-semibold">
+                  {formatPrice(cls.priceType, cls.price, cls.currency)}
+                </span>
+              </>
+            ) : (
+              <span className="text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
             )}
           </p>
           {cls.level && <p className="text-[12px] text-neutral-500 mt-0.5">Nivel {cls.level}</p>}

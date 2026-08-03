@@ -107,9 +107,20 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
             <span className="text-[11px] font-semibold bg-pink-50 text-pink-600 border border-pink-100 px-2.5 py-1 rounded-full">
               {cls.style}
             </span>
-            <span className="text-[15px] font-bold text-neutral-900">
-              {formatPrice(cls.priceType, cls.price, cls.currency)}
-            </span>
+            {cls.offerPrice ? (
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-[12px] text-neutral-400 line-through font-medium">
+                  {formatPrice(cls.priceType, cls.price, cls.currency)}
+                </span>
+                <span className="text-[15px] font-bold text-primary">
+                  {formatPrice(cls.priceType, cls.offerPrice, cls.currency)}
+                </span>
+              </span>
+            ) : (
+              <span className="text-[15px] font-bold text-neutral-900">
+                {formatPrice(cls.priceType, cls.price, cls.currency)}
+              </span>
+            )}
           </div>
 
           <div>
