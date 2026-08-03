@@ -6,7 +6,7 @@ import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, S
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ContactModal from '@/components/ContactModal';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatExperience, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackAuthCtaClick } from '@/lib/analytics';
@@ -291,7 +291,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
-                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {cls.teacher.experience} años de experiencia</p>
+                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
                   {cls.teacher.rating && (
                     <div className="flex items-center gap-1 mt-1.5">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
@@ -473,7 +473,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
-                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {cls.teacher.experience} años de experiencia</p>
+                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
                   {cls.teacher.rating && (
                     <div className="flex items-center gap-1 mt-1.5">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />

@@ -33,6 +33,14 @@ export function formatPrice(priceType: string, price: number, currency: string):
   return `${symbol}${price}${suffix}`;
 }
 
+// El onboarding guarda el rango "10+ años" como el número 10 (colapsa
+// 1-2/3-5/5-10/10+ a 1/3/5/10) — sin este piso, un profesor con 10+ años
+// se ve como si tuviera exactamente 10.
+export function formatExperience(years: number): string {
+  if (years >= 10) return '+de 10 años';
+  return `${years} ${years === 1 ? 'año' : 'años'}`;
+}
+
 export function formatTimeSlots(slots: { days: string[]; startTime: string; endTime: string }[]): string {
   // DB `time` columns come back as "HH:MM:SS" — trim to "HH:MM" for display.
   return slots.map(s => `${s.days.join(', ')} · ${s.startTime.slice(0, 5)} – ${s.endTime.slice(0, 5)}`).join(' | ');
