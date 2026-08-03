@@ -6,7 +6,7 @@ import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, S
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ContactModal from '@/components/ContactModal';
-import { getTypeLabel, formatPrice, formatExperience, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackAuthCtaClick } from '@/lib/analytics';
@@ -375,9 +375,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     </div>
                   </div>
                   {cls.startDate && (
-                    <div className="flex items-center gap-2.5 text-[13px] text-neutral-600">
-                      <Calendar className="w-4 h-4 text-neutral-400 shrink-0" />
-                      <span>Inicia {new Date(`${cls.startDate}T12:00:00`).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                    <div className="flex items-center gap-2.5 text-[13px] font-semibold text-neutral-900">
+                      <Calendar className="w-4 h-4 text-primary shrink-0" />
+                      <span>Inicia {formatFriendlyDate(cls.startDate)}</span>
                     </div>
                   )}
                   {cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (

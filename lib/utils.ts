@@ -33,6 +33,18 @@ export function formatPrice(priceType: string, price: number, currency: string):
   return `${symbol}${price}${suffix}`;
 }
 
+// "2026-08-10" -> "Lun 10 Ago" — corto y amigable para cards/detalle, en vez
+// del formato largo ("10 de agosto de 2026") o la fecha ISO cruda.
+export function formatFriendlyDate(dateStr: string): string {
+  // Mediodía evita que el parseo UTC-medianoche corra la fecha un día hacia
+  // atrás en zonas horarias negativas (mismo truco que buildWhatsAppMessage).
+  const date = new Date(`${dateStr}T12:00:00`);
+  const raw = date.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' });
+  return raw.replace(/[.,]/g, '').split(/\s+/).filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 // El onboarding guarda el rango "10+ años" como el número 10 (colapsa
 // 1-2/3-5/5-10/10+ a 1/3/5/10) — sin este piso, un profesor con 10+ años
 // se ve como si tuviera exactamente 10.

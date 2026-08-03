@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { MapPin, Clock, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
+import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
-import { getTypeLabel, formatPrice, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead } from '@/lib/analytics';
 import ContactModal from './ContactModal';
@@ -135,6 +135,12 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           )}
 
           <div className="flex flex-col gap-1.5">
+            {cls.startDate && (
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-neutral-900">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                Inicia {formatFriendlyDate(cls.startDate)}
+              </span>
+            )}
             <span className="flex items-center gap-1.5 text-[13px] text-neutral-500">
               <MapPin className="w-3.5 h-3.5 text-neutral-400" />
               {cls.venueName ? `${cls.venueName} · ` : ''}{cls.district}, {cls.city}
