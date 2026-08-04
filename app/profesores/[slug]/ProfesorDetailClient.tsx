@@ -7,7 +7,7 @@ import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import { trackGenerateLead } from '@/lib/analytics';
-import { buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
+import { buildInstagramUrl, buildTikTokUrl, formatExperience } from '@/lib/utils';
 import type { Teacher, DanceClass } from '@/lib/types';
 
 export default function ProfesorDetailClient({
@@ -63,7 +63,7 @@ export default function ProfesorDetailClient({
                 {teacher.experience > 0 && (
                   <>
                     <span>·</span>
-                    <span>{teacher.experience} años de experiencia</span>
+                    <span>{formatExperience(teacher.experience)} de experiencia</span>
                   </>
                 )}
                 {teacher.totalClasses && (

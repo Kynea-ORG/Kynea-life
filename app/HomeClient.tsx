@@ -11,7 +11,7 @@ import {
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
-import { getTypeLabel } from '@/lib/utils';
+import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { trackAuthCtaClick } from '@/lib/analytics';
 import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
@@ -609,7 +609,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                       )}
                       {t.experience > 0 && (
                         <span className="absolute top-2.5 left-2.5 bg-white/90 rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-900 whitespace-nowrap">
-                          {t.experience} {t.experience === 1 ? 'año' : 'años'}
+                          {formatExperience(t.experience)}
                         </span>
                       )}
                     </div>
@@ -751,7 +751,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             Publica tus clases gratis y llega a cientos de alumnos en toda Latinoamérica. Sin comisiones.
           </p>
           <div className="flex justify-center">
-            <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
+            <Link href="/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
           </div>
         </div>
       </section>

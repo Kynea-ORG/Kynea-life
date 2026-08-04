@@ -168,17 +168,40 @@ async function resolveCityVenueIds(
   return (data ?? []).map((r: { id: string }) => r.id);
 }
 
+// PostgREST .or() filter strings break on raw commas/parens in the value —
+// strip them so a free-text search never corrupts the filter syntax.
+function sanitizeForOrFilter(text: string): string {
+  return text.replace(/[,()]/g, ' ').trim();
+}
+
+// Lets the free-text search box also match by city/district (e.g. "Miraflores",
+// "Lima") — venues.city/district are free text, not a lookup table, so this is
+// an ilike scan rather than an id lookup like resolveCityVenueIds above.
+async function resolveQueryVenueIds(
+  supabase: SupabaseClient,
+  query: string | undefined
+): Promise<string[]> {
+  if (!query) return [];
+  const { data } = await supabase
+    .from('venues')
+    .select('id')
+    .or(`city.ilike.%${query}%,district.ilike.%${query}%`);
+  return (data ?? []).map((r: { id: string }) => r.id);
+}
+
 // ── Class queries ─────────────────────────────────────────────────────────────
 
 export async function fetchPublishedClasses(filters?: ClassFilters): Promise<DanceClass[]> {
   const supabase = await createClient();
+  const safeQuery = filters?.query ? sanitizeForOrFilter(filters.query) : undefined;
 
   // Resolve join-based filters in parallel — null means inactive, [] means no matches
-  const [styleClassIds, levelIds, dayClassIds, cityVenueIds] = await Promise.all([
+  const [styleClassIds, levelIds, dayClassIds, cityVenueIds, queryVenueIds] = await Promise.all([
     resolveStyleClassIds(supabase, filters?.styles),
     resolveLevelIds(supabase, filters?.levels),
     resolveDayClassIds(supabase, filters?.days),
     resolveCityVenueIds(supabase, filters?.city),
+    resolveQueryVenueIds(supabase, safeQuery),
   ]);
 
   // Early exit: any active filter resolved to zero matches → no results possible
@@ -200,7 +223,14 @@ export async function fetchPublishedClasses(filters?: ClassFilters): Promise<Dan
   if (filters?.modalities?.length) q = q.in('modality', filters.modalities);
   if (filters?.types?.length)      q = q.in('type', filters.types);
   if (filters?.withSpots)          q = q.gt('available_spots', 0);
-  if (filters?.query)              q = q.ilike('title', `%${filters.query}%`);
+
+  // Free-text search matches title OR the class's venue city/district (e.g.
+  // "Miraflores", "Lima") — whichever term the user typed.
+  if (safeQuery) {
+    q = queryVenueIds.length
+      ? q.or(`title.ilike.%${safeQuery}%,venue_id.in.(${queryVenueIds.join(',')})`)
+      : q.ilike('title', `%${safeQuery}%`);
+  }
 
   // ID-based filters (from join resolution)
   if (styleClassIds?.length) q = q.in('id', styleClassIds);

@@ -194,6 +194,80 @@
            hover:-translate-y-px hover:bg-neutral-100 active:translate-y-0 active:scale-[0.97];
   }
 
+  /* Variante "ring" — el fill se queda blanco; el degradado de la luz del
+     hero (dorado → morado → magenta → ciruela) gira como un anillo
+     alrededor del botón al hacer hover, con elevación y un glow de
+     acompañamiento. El texto se queda oscuro siempre — nunca compite con
+     el color, porque el color nunca toca el fill.
+     Se anima el ángulo del conic-gradient (vía @property), no el propio
+     elemento — rotar el elemento (que tiene forma de píldora) lo haría
+     "voltearse" y sobresalir del botón en ciertos ángulos. */
+  @property --ring-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  @keyframes btn-ring-spin {
+    to { --ring-angle: 360deg; }
+  }
+
+  @keyframes btn-ring-glow {
+    0%, 100% {
+      box-shadow:
+        0 14px 32px -10px rgba(138, 17, 188, 0.5),
+        0 10px 26px -8px rgba(233, 199, 42, 0.3);
+    }
+    50% {
+      box-shadow:
+        0 18px 40px -10px rgba(138, 17, 188, 0.65),
+        0 14px 32px -8px rgba(233, 199, 42, 0.45);
+    }
+  }
+
+  .btn-cta-ring {
+    position: relative;
+    isolation: isolate;
+    transition: box-shadow 0.4s ease, translate 0.3s ease;
+  }
+  .btn-cta-ring > span {
+    position: relative;
+    z-index: 2;
+  }
+  .btn-cta-ring::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    z-index: 0;
+    border-radius: inherit;
+    background: conic-gradient(from var(--ring-angle), #E9C72A, #8a11bc, #c026d3, #4a0a67, #E9C72A);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    animation: btn-ring-spin 3.5s linear infinite;
+  }
+  .btn-cta-ring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    background: white;
+    transition: background-color 0.3s ease;
+  }
+  .btn-cta-ring:hover::before {
+    opacity: 1;
+  }
+  .btn-cta-ring:hover::after {
+    background: #F9F8F6;
+  }
+  .btn-cta-ring:hover {
+    translate: 0 -4px;
+    animation: btn-ring-glow 2.4s ease-in-out infinite;
+  }
+  .btn-cta-ring:active {
+    translate: 0 -1px;
+  }
+
   /* ══ BOTONES: FAMILIA B — Corporativo (sobre fondo blanco) ══ */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 font-sans

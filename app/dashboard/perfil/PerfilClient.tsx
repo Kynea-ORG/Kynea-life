@@ -311,7 +311,7 @@ export default function PerfilClient({
                 {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 {uploadingPhoto ? 'Subiendo…' : photoUrl ? 'Cambiar foto' : 'Subir foto'}
               </button>
-              <p className="text-xs text-neutral-400 mt-2">PNG o JPG · Máx. 2MB</p>
+              <p className="text-xs text-neutral-400 mt-2">PNG o JPG · Máx. 2MB · Recomendado 400×400px</p>
             </div>
           </div>
         </div>

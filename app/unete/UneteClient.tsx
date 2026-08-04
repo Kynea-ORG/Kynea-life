@@ -1,10 +1,14 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import SmartImage from '@/components/SmartImage';
-import { Loader2, Eye, EyeOff, Check, X } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Loader2, Eye, EyeOff, Check, X, Zap, Users, ShieldCheck, MessageCircle } from 'lucide-react';
 import GoogleIcon from '@/components/GoogleIcon';
+import { createClient } from '@/lib/supabase/client';
+import { safeRedirectPath } from '@/lib/utils';
+import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
 
 const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: 'Mínimo 8 caracteres',       test: pw => pw.length >= 8 },
@@ -13,11 +17,13 @@ const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: 'Un número (0-9)',           test: pw => /[0-9]/.test(pw) },
   { label: 'Un carácter especial',      test: pw => /[^A-Za-z0-9]/.test(pw) },
 ];
-import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
-import { safeRedirectPath } from '@/lib/utils';
-import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
+
+const BENEFITS = [
+  { Icon: Zap,           text: 'Publica tu clase en minutos' },
+  { Icon: Users,         text: 'Llega a cientos de alumnos en Latinoamérica' },
+  { Icon: ShieldCheck,   text: 'Perfil profesional verificado' },
+  { Icon: MessageCircle, text: 'Contacto directo por WhatsApp o Instagram' },
+];
 
 function getAuthErrorMessage(msg: string): string {
   const m = msg.toLowerCase();
@@ -32,9 +38,7 @@ function getAuthErrorMessage(msg: string): string {
   return 'Ocurrió un error al crear la cuenta. Intenta de nuevo.';
 }
 
-// Registro de alumno únicamente — profesores se registran desde /unete.
-// Ver docs/CONTEXT.md sobre la separación de audiencias.
-function RegistroPageContent() {
+export default function UneteClient({ teacherCount }: { teacherCount: number }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
@@ -44,7 +48,6 @@ function RegistroPageContent() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { shift } = useFunFocusBackground();
 
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) => {
@@ -60,11 +63,8 @@ function RegistroPageContent() {
     trackAuthAttempt({ action: 'registro', method: 'email' });
 
     const supabase = createClient();
-    // Alumno onboarding is a short intro carousel (AlumnoWelcome), not the
-    // full data-collecting wizard profesor/academia get. See
-    // app/onboarding/page.tsx. redirectTarget (e.g. the class the user was
-    // trying to contact) rides along as its own param and gets picked up
-    // again once onboarding finishes.
+    // Profesor onboarding is the full data-collecting wizard (bio, estilos,
+    // WhatsApp/Instagram, foto) — see app/onboarding/page.tsx.
     const nextPath = redirectTarget
       ? `/onboarding?new=1&redirect=${encodeURIComponent(redirectTarget)}`
       : '/onboarding?new=1';
@@ -73,7 +73,7 @@ function RegistroPageContent() {
       email: form.email,
       password: form.password,
       options: {
-        data: { name: form.name, role: 'alumno' },
+        data: { name: form.name, role: 'profesor' },
       },
     });
 
@@ -83,14 +83,11 @@ function RegistroPageContent() {
       return;
     }
 
-    // No authError → Supabase accepted the signup (new account or re-send to existing
-    // unconfirmed email via enumeration protection). Always proceed: the OTP step will
-    // surface any real conflict (already-confirmed account).
     if (data.session) {
       router.refresh();
       router.push(nextPath);
     } else {
-      const confirmDest = `/confirmar-email?email=${encodeURIComponent(form.email)}&role=alumno`;
+      const confirmDest = `/confirmar-email?email=${encodeURIComponent(form.email)}&role=profesor`;
       router.push(redirectTarget ? `${confirmDest}&redirect=${encodeURIComponent(redirectTarget)}` : confirmDest);
     }
   }
@@ -101,19 +98,16 @@ function RegistroPageContent() {
     trackAuthAttempt({ action: 'registro', method: 'google' });
     const supabase = createClient();
     const callbackUrl = redirectTarget
-      ? `${window.location.origin}/auth/callback?role=alumno&redirect=${encodeURIComponent(redirectTarget)}`
-      : `${window.location.origin}/auth/callback?role=alumno`;
+      ? `${window.location.origin}/auth/callback?role=profesor&redirect=${encodeURIComponent(redirectTarget)}`
+      : `${window.location.origin}/auth/callback?role=profesor`;
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: callbackUrl,
-      },
+      options: { redirectTo: callbackUrl },
     });
     if (oauthError) {
       setError('No se pudo continuar con Google. Intenta de nuevo.');
       setGoogleLoading(false);
     }
-    // If no error, browser redirects to Google — loading stays true intentionally
   }
 
   const passwordChecks = PASSWORD_RULES.map(r => ({ ...r, ok: r.test(form.password) }));
@@ -131,9 +125,11 @@ function RegistroPageContent() {
         {/* Formulario — sheet blanca que monta sobre la ilustración en mobile, columna izquierda en desktop */}
         <div className="relative z-10 -mt-7 lg:mt-0 flex-1 flex items-start lg:items-center justify-center px-5 pt-8 pb-12 lg:py-16 bg-white rounded-t-[28px] lg:rounded-none">
           <div className="w-full max-w-md">
-            <h1 className="hidden lg:block text-[28px] font-black text-neutral-900 tracking-tight mb-1">Crear cuenta</h1>
+            <h1 className="hidden lg:block text-[28px] font-black text-neutral-900 tracking-tight leading-tight mb-2">
+              Únete como profesor
+            </h1>
             <p className="hidden lg:block text-[15px] text-neutral-500 mb-7">
-              Regístrate gratis para contactar profesores y guardar tus clases favoritas.
+              Crea tu cuenta gratis y empieza a publicar tus clases hoy mismo.
             </p>
 
             {error && (
@@ -149,7 +145,6 @@ function RegistroPageContent() {
                   type="text"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  onFocus={shift}
                   placeholder="Tu nombre"
                   required
                   className="input"
@@ -162,7 +157,6 @@ function RegistroPageContent() {
                   type="email"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  onFocus={shift}
                   placeholder="tu@correo.com"
                   required
                   className="input"
@@ -176,7 +170,6 @@ function RegistroPageContent() {
                     type={showPass ? 'text' : 'password'}
                     value={form.password}
                     onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    onFocus={shift}
                     placeholder="Mínimo 8 caracteres"
                     minLength={8}
                     required
@@ -205,12 +198,11 @@ function RegistroPageContent() {
                 )}
               </div>
 
-              {/* Terms checkbox */}
               <label className="flex items-start gap-3 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={termsAccepted}
-                  onChange={e => { setTermsAccepted(e.target.checked); shift(); }}
+                  onChange={e => setTermsAccepted(e.target.checked)}
                   className="mt-0.5 w-4 h-4 accent-neutral-900 shrink-0"
                 />
                 <span className="text-[13px] text-neutral-500 leading-relaxed">
@@ -229,17 +221,16 @@ function RegistroPageContent() {
               <button
                 type="submit"
                 disabled={loading || !passwordValid || !termsAccepted}
-                onClick={shift}
                 className="btn-primary w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {loading ? 'Creando cuenta…' : 'Crear cuenta'}
+                {loading ? 'Creando cuenta…' : 'Crear cuenta de profesor'}
               </button>
             </form>
 
             <button
               type="button"
-              onClick={() => { handleGoogle(); shift(); }}
+              onClick={handleGoogle}
               disabled={!termsAccepted || googleLoading}
               className="w-full btn-outline disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
@@ -252,67 +243,67 @@ function RegistroPageContent() {
 
             <p className="text-center text-[13px] text-neutral-400 mt-5">
               ¿Ya tienes cuenta?{' '}
-              <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'registro_page' }); shift(); }} className="text-neutral-900 font-semibold hover:underline">
+              <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'unete_page' })} className="text-neutral-900 font-semibold hover:underline">
                 Inicia sesión
               </Link>
             </p>
           </div>
         </div>
 
-        {/* Ilustración de marca — copy + ilustración lado a lado en mobile, panel único con overlay en desktop */}
-        <div className="relative shrink-0 lg:flex-1 bg-primary overflow-hidden flex flex-col lg:justify-start lg:px-14 lg:pt-20 lg:h-auto">
+        {/* Ilustración + propuesta de valor — banda copy+ilustración lado a lado en mobile, panel único con overlay en desktop */}
+        <div className="relative shrink-0 lg:flex-1 bg-pink-800 overflow-hidden flex flex-col lg:justify-start lg:px-14 lg:pt-20 lg:h-auto">
           {/* Mobile: compacto — copy corto a la izquierda, ilustración pequeña a la derecha, para que el formulario blanco siempre se vea */}
           <div className="lg:hidden flex items-center gap-3 px-5 py-4">
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: '#E9C72A' }}>Crear cuenta</p>
               <h2 className="text-[17px] font-black text-white tracking-tight leading-[1.2]">
-                Encuentra tu próxima clase de baile
+                Comparte tu pasión por el baile y llega a más alumnos
               </h2>
             </div>
             <div className="relative w-[72px] h-[72px] shrink-0">
-              <SmartImage
-                src="/registro-login- alumnos-mobile.png"
-                alt=""
-                fill
-                className="object-contain object-bottom"
-              />
+              <SmartImage src="/Bg-Registro-profesores-Mobile.png" alt="" fill className="object-contain object-bottom" />
             </div>
           </div>
 
           {/* Ilustración desktop — bleed detrás del copy */}
-          <div className="hidden lg:block absolute -bottom-10 right-[-2%] w-[78%] max-w-none pointer-events-none">
-            <SmartImage src="/profesor-alumno-desktop.png" alt="" width={2108} height={1679} className="w-full h-auto" />
+          <div className="hidden lg:block absolute -bottom-10 right-0 w-[50%] max-w-none pointer-events-none">
+            <SmartImage src="/BG-Registro-Profesores-2.png" alt="" width={1656} height={2178} className="w-full h-auto" />
           </div>
 
           {/* Copy desktop */}
           <div className="hidden lg:block relative z-10 lg:max-w-lg">
-            <p className="text-[13px] font-bold uppercase tracking-wide mb-1.5" style={{ color: '#E9C72A' }}>Crear cuenta</p>
+            <p className="text-[13px] font-bold uppercase tracking-wide mb-1.5" style={{ color: '#E9C72A' }}>Únete como profesor</p>
             <h2 className="text-[46px] font-black text-white tracking-tight leading-[1.15] mb-5">
-              Encuentra tu próxima clase de baile
+              Comparte tu pasión por el baile y llega a más alumnos
             </h2>
-            <ul className="flex flex-col gap-2.5">
-              {['Profesores verificados', 'Contacto directo por WhatsApp', 'Guarda tus clases favoritas'].map(item => (
-                <li key={item} className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-white shrink-0" />
-                  <span className="text-[15px] font-bold text-white">{item}</span>
+
+            <ul className="flex flex-col gap-2.5 mb-6">
+              {BENEFITS.map(({ Icon, text }) => (
+                <li key={text} className="flex items-start gap-2.5">
+                  <Icon className="w-4 h-4 text-white shrink-0 mt-0.5" />
+                  <span className="text-[15px] font-bold text-white leading-snug">{text}</span>
                 </li>
               ))}
             </ul>
+
+            {teacherCount > 0 && (
+              <div className="inline-flex items-center gap-2 bg-white border border-neutral-900 rounded-full py-1.5 pl-2 pr-4 mb-4">
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-green shrink-0">
+                  <span className="absolute inset-0 rounded-full bg-green animate-ping" />
+                </span>
+                <span className="text-[12.5px] font-bold text-neutral-900">
+                  <span className="text-pink-600">{teacherCount}+</span> profesores ya publican en Kynea
+                </span>
+              </div>
+            )}
+
+            <div>
+              <Link href="/unete/beneficios" className="text-[13.5px] font-bold text-white underline underline-offset-2 hover:text-white/80 transition-colors">
+                Conoce todos los beneficios →
+              </Link>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-export default function RegistroPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
-      </div>
-    }>
-      <RegistroPageContent />
-    </Suspense>
   );
 }

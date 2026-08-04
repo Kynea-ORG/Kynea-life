@@ -2,8 +2,10 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import SmartImage from '@/components/SmartImage';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Globe, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
+import GoogleIcon from '@/components/GoogleIcon';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
@@ -37,7 +39,7 @@ function LoginPageContent() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
+  const { shift } = useFunFocusBackground();
 
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) => {
@@ -91,8 +93,6 @@ function LoginPageContent() {
     setResetLoading(false);
   }
 
-
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -117,24 +117,19 @@ function LoginPageContent() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex flex-col">
-      <div aria-hidden className="absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute inset-0" style={{ backgroundColor: baseColor }} />
-        <div key={revealId} style={revealStyle} />
-      </div>
-
-      <div className="relative z-10 flex flex-col flex-1">
-      <header className="bg-white border-b border-neutral-200 px-6 py-4">
+    <div className="min-h-screen flex flex-col bg-white">
+      <header className="border-b border-neutral-200 px-6 py-4">
         <Link href="/">
-          <Image src="/logo.png" alt="Kynea" width={90} height={30} priority />
+          <Image src="/logo.png" alt="Kynea" width={90} height={30} priority style={{ height: 'auto' }} />
         </Link>
       </header>
 
-      <div className="flex-1 flex items-center justify-center px-5 py-12">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-8">
-            <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-1">Iniciar sesión</h1>
-            <p className="text-[15px] text-neutral-500 mb-6">Bienvenido de vuelta a Kynea</p>
+      <div className="flex-1 flex flex-col-reverse lg:flex-row">
+        {/* Formulario — sheet blanca que monta sobre la ilustración en mobile, columna izquierda en desktop */}
+        <div className="relative z-10 -mt-7 lg:mt-0 flex-1 flex items-end lg:items-center justify-center px-5 pt-8 pb-12 lg:py-16 bg-white rounded-t-[28px] lg:rounded-none">
+          <div className="w-full max-w-md">
+            <h1 className="hidden lg:block text-[28px] font-black text-neutral-900 tracking-tight mb-1">Iniciar sesión</h1>
+            <p className="hidden lg:block text-[15px] text-neutral-500 mb-7">Bienvenido de vuelta a Kynea</p>
 
             {forgotMode ? (
               resetSent ? (
@@ -187,7 +182,7 @@ function LoginPageContent() {
             ) : (
               <div key="login-form" className="animate-fade-in">
                 <button type="button" onClick={() => { handleGoogle(); shift(); }} disabled={googleLoading} className="w-full btn-outline mb-4 flex items-center justify-center gap-2 disabled:opacity-50">
-                  {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                  {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-4 h-4" />}
                   Continuar con Google
                 </button>
 
@@ -279,7 +274,40 @@ function LoginPageContent() {
             )}
           </div>
         </div>
-      </div>
+
+        {/* Ilustración de marca — copy + ilustración lado a lado en mobile, panel único con overlay en desktop */}
+        <div className="relative shrink-0 lg:flex-1 bg-primary overflow-hidden flex flex-col lg:justify-start lg:px-14 lg:pt-20 lg:h-auto">
+          {/* Mobile: copy a la izquierda, ilustración pegada a la derecha, sin degradado */}
+          <div className="lg:hidden flex items-stretch min-h-[300px]">
+            <div className="flex-1 min-w-0 flex flex-col justify-center px-5 py-8">
+              <p className="text-[12px] font-bold uppercase tracking-wide mb-1.5" style={{ color: '#E9C72A' }}>Iniciar sesión</p>
+              <h2 className="text-[26px] font-black text-white tracking-tight leading-[1.15]">
+                Bienvenido de vuelta a Kynea
+              </h2>
+            </div>
+            <div className="relative w-[56%] shrink-0">
+              <SmartImage
+                src="/registro-login- alumnos-mobile.png"
+                alt=""
+                fill
+                className="object-contain object-bottom"
+              />
+            </div>
+          </div>
+
+          {/* Ilustración desktop — bleed detrás del copy */}
+          <div className="hidden lg:block absolute -bottom-10 right-[-2%] w-[78%] max-w-none pointer-events-none">
+            <SmartImage src="/profesor-alumno-desktop.png" alt="" width={2108} height={1679} className="w-full h-auto" />
+          </div>
+
+          {/* Copy desktop */}
+          <div className="hidden lg:block relative z-10 lg:max-w-lg">
+            <p className="text-[13px] font-bold uppercase tracking-wide mb-1.5" style={{ color: '#E9C72A' }}>Iniciar sesión</p>
+            <h2 className="text-[46px] font-black text-white tracking-tight leading-[1.15]">
+              Bienvenido de vuelta a Kynea
+            </h2>
+          </div>
+        </div>
       </div>
     </div>
   );
