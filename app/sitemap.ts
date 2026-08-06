@@ -30,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const classEntries: MetadataRoute.Sitemap = classes.map(cls => ({
-    url: `${SITE_URL}/clases/${cls.id}`,
+    url: `${SITE_URL}/clases/${cls.slug}`,
     lastModified: cls.publishedAt || cls.createdAt,
     changeFrequency: 'weekly',
     priority: 0.7,

@@ -51,7 +51,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     id:               row.id,
     type:             row.type as ClassType,
     title:            row.title,
-    slug:             row.slug ?? undefined,
+    slug:             row.slug ?? row.id,
     style,
     secondaryStyles:  secondaryStyles.length ? secondaryStyles : undefined,
     level:            (row.level?.name ?? '') as Level,
@@ -252,6 +252,17 @@ export async function fetchClassById(id: string): Promise<DanceClass | null> {
     .from('classes')
     .select(CLASS_SELECT)
     .eq('id', id)
+    .single();
+  if (error || !data) return null;
+  return mapDbClassToType(data as unknown as DbClassRow);
+}
+
+export async function fetchClassBySlug(slug: string): Promise<DanceClass | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('classes')
+    .select(CLASS_SELECT)
+    .eq('slug', slug)
     .single();
   if (error || !data) return null;
   return mapDbClassToType(data as unknown as DbClassRow);

@@ -28,6 +28,7 @@ interface FilterPanelProps {
   className?: string;
   danceStyles?: string[];
   levels?: string[];
+  hideStyles?: boolean;
 }
 
 export const EMPTY_FILTERS: Filters = {
@@ -70,7 +71,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function FilterPanel({ filters, onChange, className = '', danceStyles = [], levels = [] }: FilterPanelProps) {
+export default function FilterPanel({ filters, onChange, className = '', danceStyles = [], levels = [], hideStyles = false }: FilterPanelProps) {
   const [visibleStylesCount, setVisibleStylesCount] = useState(STYLES_GROUP_SIZE);
   const set = (key: keyof Filters, value: unknown) => onChange({ ...filters, [key]: value });
 
@@ -111,27 +112,29 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
         </div>
       )}
 
-      <Section title="Estilo de baile">
-        <div className="flex flex-wrap gap-2">
-          {visibleStyles.map(s => (
-            <button
-              key={s}
-              onClick={() => toggleIn('styles', s)}
-              className={filters.styles.includes(s) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
-            >
-              {s}
-            </button>
-          ))}
-          {hasMoreStyles && (
-            <button
-              onClick={() => setVisibleStylesCount(c => c + STYLES_GROUP_SIZE)}
-              className="text-[11px] font-semibold text-primary border border-primary/30 rounded-full px-3 py-1 hover:bg-primary-bg transition-colors"
-            >
-              Ver más
-            </button>
-          )}
-        </div>
-      </Section>
+      {!hideStyles && (
+        <Section title="Estilo de baile">
+          <div className="flex flex-wrap gap-2">
+            {visibleStyles.map(s => (
+              <button
+                key={s}
+                onClick={() => toggleIn('styles', s)}
+                className={filters.styles.includes(s) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
+              >
+                {s}
+              </button>
+            ))}
+            {hasMoreStyles && (
+              <button
+                onClick={() => setVisibleStylesCount(c => c + STYLES_GROUP_SIZE)}
+                className="text-[11px] font-semibold text-primary border border-primary/30 rounded-full px-3 py-1 hover:bg-primary-bg transition-colors"
+              >
+                Ver más
+              </button>
+            )}
+          </div>
+        </Section>
+      )}
 
       <Section title="Nivel">
         <div className="flex flex-wrap gap-2">

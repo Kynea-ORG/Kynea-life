@@ -14,12 +14,13 @@ import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibb
 import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { trackAuthCtaClick } from '@/lib/analytics';
+import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES, CATEGORY_GRADIENTS } from '@/lib/catalog/styleImages';
 import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
 import type { HomeStats } from '@/lib/stats/queries';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SearchClass   = { id: string; title: string; type: string; class_styles: any[] | null };
+type SearchClass   = { id: string; slug: string; title: string; type: string; class_styles: any[] | null };
 type SearchProfile = { id: string; slug: string; name: string; role: string; photo_url: string | null };
 
 const AVATAR_PALETTE = [
@@ -29,21 +30,6 @@ const AVATAR_PALETTE = [
   { bg: 'bg-yellow-bg',      text: 'text-yellow-dark' },
 ];
 
-// One curated photo per dance style, keyed by slug — add an entry here as
-// more get uploaded to public/categorias/. Styles without an entry yet fall
-// back to FALLBACK_CATEGORY_IMAGES (round-robin) so nothing ever 404s.
-const STYLE_IMAGES: Record<string, string> = {
-  'salsa':         '/categorias/salsa.jpg',
-  'bachata':       '/categorias/bachata.jpg',
-  'heels':         '/categorias/hills.jpg',
-  'reggaeton':     '/categorias/Reggaeton.jpg',
-  'hip-hop':       '/categorias/hiphop.jpeg',
-  'urbano':        '/categorias/urbano.jpg',
-  'contemporaneo': '/categorias/comtempo.jpeg',
-  'ballet':        '/categorias/ballet.jpg',
-  'jazz-funk':     '/categorias/jazzfunk.png',
-};
-
 // Which styles show in the Home category strip, and in what order — purely
 // a display choice for this page, independent of dance_styles.ord (which
 // still governs the Crear Clase dropdown, filters, etc. elsewhere). Swap
@@ -51,21 +37,6 @@ const STYLE_IMAGES: Record<string, string> = {
 const HOME_CATEGORY_SLUGS = [
   'salsa', 'bachata', 'heels', 'reggaeton', 'hip-hop',
   'urbano', 'contemporaneo', 'ballet', 'jazz-funk',
-];
-
-const FALLBACK_CATEGORY_IMAGES = [
-  '/categorias/rainier-ridao-GRDpPpKczdY-unsplash.jpg',
-  '/categorias/barrett-smith-uB4cOqtOf90-unsplash.jpg',
-];
-
-// Fallback gradients shown behind the photo while it loads (also color variety across cards)
-const CATEGORY_GRADIENTS = [
-  'linear-gradient(135deg, #8a11bc 0%, #4a0a67 100%)',
-  'linear-gradient(135deg, #A8C8F8 0%, #4b6fd6 100%)',
-  'linear-gradient(135deg, #00D68F 0%, #00745A 100%)',
-  'linear-gradient(135deg, #d499f0 0%, #8a11bc 100%)',
-  'linear-gradient(135deg, #FFE040 0%, #d68f2f 100%)',
-  'linear-gradient(135deg, #e8c5f7 0%, #6d0d97 100%)',
 ];
 
 const HOW_IT_WORKS = [
@@ -175,7 +146,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
         const [{ data: classes }, { data: profiles }] = await Promise.all([
           supabase
             .from('classes')
-            .select('id, title, type, class_styles(dance_styles(name))')
+            .select('id, slug, title, type, class_styles(dance_styles(name))')
             .eq('status', 'published')
             .or('end_date.is.null,end_date.gte.today')
             .ilike('title', `%${q}%`)
@@ -318,7 +289,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                           <button
                             key={cls.id}
                             type="button"
-                            onClick={() => { router.push(`/clases/${cls.id}`); setShowSuggestions(false); }}
+                            onClick={() => { router.push(`/clases/${cls.slug}`); setShowSuggestions(false); }}
                             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
                           >
                             <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0 text-sm">
@@ -440,6 +411,12 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       {/* ── CATEGORÍAS ── */}
       <section className="bg-white py-8">
         <div className="max-w-[1200px] mx-auto px-6">
+          <div className="flex items-end justify-between mb-4">
+            <h2 className="text-[22px] font-extrabold text-neutral-900 tracking-tight">Categorías</h2>
+            <Link href="/categorias" className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors whitespace-nowrap">
+              Ver todas <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
           <div
             className="flex gap-3 overflow-x-auto pb-2"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}

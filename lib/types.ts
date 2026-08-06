@@ -48,7 +48,7 @@ export interface DanceClass {
   id: string;
   type: ClassType;
   title: string;
-  slug?: string;
+  slug: string;
   style: DanceStyle;
   secondaryStyles?: DanceStyle[];
   level: Level;
