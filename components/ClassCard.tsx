@@ -69,7 +69,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
             zoom — an inline style would silently override any transform
             utility class placed on the same element. */}
         <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
-          <Link href={`/clases/${cls.id}`} aria-label={cls.title} className="absolute inset-0">
+          <Link href={`/clases/${cls.slug}`} aria-label={cls.title} className="absolute inset-0">
             <SmartImage
               src={cls.coverImage || '/logo.png'}
               alt={cls.title}
@@ -160,7 +160,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           {/* Actions */}
           <div className="flex gap-2 mt-auto pt-1">
             <Link
-              href={`/clases/${cls.id}`}
+              href={`/clases/${cls.slug}`}
               className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
             >
               Ver clase

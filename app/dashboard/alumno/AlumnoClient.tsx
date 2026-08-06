@@ -59,7 +59,7 @@ export default function AlumnoClient({
             {savedClasses.map(cls => (
               <Link
                 key={cls.id}
-                href={`/clases/${cls.id}`}
+                href={`/clases/${cls.slug}`}
                 className="bg-white border border-neutral-200 rounded-xl p-4 flex items-start gap-4 hover:border-neutral-400 transition-colors block"
               >
                 {cls.coverImage ? (

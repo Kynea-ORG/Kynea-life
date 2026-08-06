@@ -280,7 +280,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                         <Copy className="w-4 h-4" />
                       </button>
                       {cls.status === 'published' && (
-                        <Link href={`/clases/${cls.id}`} title="Ver publicación" target="_blank"
+                        <Link href={`/clases/${cls.slug}`} title="Ver publicación" target="_blank"
                           className="p-1.5 hover:bg-green-50 rounded-lg text-neutral-400 hover:text-green-600 transition-colors active:scale-90">
                           <ExternalLink className="w-4 h-4" />
                         </Link>
@@ -362,7 +362,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                     <Copy className="w-3 h-3" /> Duplicar
                   </button>
                   {cls.status === 'published' && (
-                    <Link href={`/clases/${cls.id}`} target="_blank"
+                    <Link href={`/clases/${cls.slug}`} target="_blank"
                       className="text-xs font-medium text-green-700 flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
                       <ExternalLink className="w-3 h-3" /> Ver
                     </Link>

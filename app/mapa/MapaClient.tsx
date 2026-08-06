@@ -180,7 +180,7 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                   </div>
                   <div className="flex gap-2 mt-3">
                     <Link
-                      href={`/clases/${selectedClass.id}`}
+                      href={`/clases/${selectedClass.slug}`}
                       className="flex-1 text-center text-sm font-semibold py-2 rounded-xl border border-neutral-200 text-neutral-900 hover:bg-neutral-100 transition-colors flex items-center justify-center gap-1"
                     >
                       Ver clase <ChevronRight className="w-4 h-4" />

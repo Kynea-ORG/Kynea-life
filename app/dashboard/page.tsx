@@ -120,7 +120,7 @@ export default async function DashboardPage() {
                   <span className="text-[13px] font-semibold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
                 </div>
               </div>
-              <Link href={`/clases/${cls.id}`} className="text-[13px] text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors shrink-0">
+              <Link href={`/clases/${cls.slug}`} className="text-[13px] text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors shrink-0">
                 Ver <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>
