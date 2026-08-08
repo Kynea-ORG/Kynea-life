@@ -93,7 +93,6 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
   }
 
   async function handleGoogle() {
-    if (!termsAccepted) return;
     setGoogleLoading(true);
     trackAuthAttempt({ action: 'registro', method: 'google' });
     const supabase = createClient();
@@ -231,7 +230,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
             <button
               type="button"
               onClick={handleGoogle}
-              disabled={!termsAccepted || googleLoading}
+              disabled={googleLoading}
               className="w-full btn-outline disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {googleLoading
