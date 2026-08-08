@@ -40,6 +40,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
   const stylesRows: DbClassStyle[] = row.class_styles ?? [];
   const mainStyleRow = stylesRows.find((s) => s.is_main);
   const style: DanceStyle = mainStyleRow?.dance_styles?.name ?? '';
+  const styleSlug = mainStyleRow?.dance_styles?.slug ?? '';
   const secondaryStyles = stylesRows
     .filter((s) => !s.is_main)
     .map((s) => s.dance_styles?.name as DanceStyle)
@@ -53,6 +54,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     title:            row.title,
     slug:             row.slug ?? row.id,
     style,
+    styleSlug,
     secondaryStyles:  secondaryStyles.length ? secondaryStyles : undefined,
     level:            (row.level?.name ?? '') as Level,
     shortDescription: row.short_description ?? '',
@@ -110,7 +112,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
 export const CLASS_SELECT = `
   *,
   level:class_levels(id, name),
-  class_styles(style_id, is_main, dance_styles(id, name)),
+  class_styles(style_id, is_main, dance_styles(id, name, slug)),
   class_schedules(id, day_of_week, start_time, end_time),
   venue:venues(name, address, reference, maps_url, place_id, lat, lng, city, district),
   teacher:profiles!teacher_id(

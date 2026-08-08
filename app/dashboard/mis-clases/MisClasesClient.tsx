@@ -8,6 +8,7 @@ import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSl
 import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/classes/actions';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { parsePublishError, profileFixHref } from '@/lib/classes/validation';
+import { classUrl } from '@/lib/classes/helpers';
 import type { ClassStatus, DanceClass } from '@/lib/types';
 
 const STATUS_TABS: { key: ClassStatus | 'all'; label: string }[] = [
@@ -280,7 +281,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                         <Copy className="w-4 h-4" />
                       </button>
                       {cls.status === 'published' && (
-                        <Link href={`/clases/${cls.slug}`} title="Ver publicación" target="_blank"
+                        <Link href={classUrl(cls)} title="Ver publicación" target="_blank"
                           className="p-1.5 hover:bg-green-50 rounded-lg text-neutral-400 hover:text-green-600 transition-colors active:scale-90">
                           <ExternalLink className="w-4 h-4" />
                         </Link>
@@ -362,7 +363,7 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                     <Copy className="w-3 h-3" /> Duplicar
                   </button>
                   {cls.status === 'published' && (
-                    <Link href={`/clases/${cls.slug}`} target="_blank"
+                    <Link href={classUrl(cls)} target="_blank"
                       className="text-xs font-medium text-green-700 flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
                       <ExternalLink className="w-3 h-3" /> Ver
                     </Link>

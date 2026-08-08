@@ -50,6 +50,7 @@ export interface DanceClass {
   title: string;
   slug: string;
   style: DanceStyle;
+  styleSlug: string;
   secondaryStyles?: DanceStyle[];
   level: Level;
   shortDescription: string;

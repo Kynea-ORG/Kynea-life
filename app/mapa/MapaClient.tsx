@@ -5,6 +5,7 @@ import SmartImage from '@/components/SmartImage';
 import { List, MapPin, X, MessageCircle, Clock, ChevronRight } from 'lucide-react';
 import Header from '@/components/Header';
 import { formatPrice, formatTimeSlots, getTypeLabel } from '@/lib/utils';
+import { classUrl } from '@/lib/classes/helpers';
 import type { DanceClass } from '@/lib/types';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { trackGenerateLead } from '@/lib/analytics';
@@ -180,7 +181,7 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                   </div>
                   <div className="flex gap-2 mt-3">
                     <Link
-                      href={`/clases/${selectedClass.slug}`}
+                      href={classUrl(selectedClass)}
                       className="flex-1 text-center text-sm font-semibold py-2 rounded-xl border border-neutral-200 text-neutral-900 hover:bg-neutral-100 transition-colors flex items-center justify-center gap-1"
                     >
                       Ver clase <ChevronRight className="w-4 h-4" />

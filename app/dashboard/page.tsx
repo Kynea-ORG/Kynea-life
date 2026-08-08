@@ -4,6 +4,7 @@ import SmartImage from '@/components/SmartImage';
 import { PlusCircle, Upload, BookOpen, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
+import { classUrl } from '@/lib/classes/helpers';
 import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 
 export default async function DashboardPage() {
@@ -120,7 +121,7 @@ export default async function DashboardPage() {
                   <span className="text-[13px] font-semibold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
                 </div>
               </div>
-              <Link href={`/clases/${cls.slug}`} className="text-[13px] text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors shrink-0">
+              <Link href={classUrl(cls)} className="text-[13px] text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors shrink-0">
                 Ver <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>

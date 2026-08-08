@@ -1,22 +1,16 @@
 import { notFound, permanentRedirect } from 'next/navigation';
 import { fetchClassBySlug, fetchClassById } from '@/lib/classes/queries';
-import ClaseDetailClient from './ClaseDetailClient';
+import { classUrl } from '@/lib/classes/helpers';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default async function ClaseDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+// Legacy URL shape (/clases/[slug], and even older /clases/[id] links already
+// shared before slugs existed) — redirect permanently to the canonical
+// /{categoria}/{tipo}/{slug} URL instead of 404ing on links already out there.
+export default async function LegacyClaseDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   let cls = await fetchClassBySlug(slug);
-
-  // Links a los ids planos que los profesores ya compartieron antes del
-  // cambio a slug — en vez de 404, redirige de forma permanente a la URL
-  // canónica para no romper lo que ya está publicado por ahí.
-  if (!cls && UUID_RE.test(slug)) {
-    cls = await fetchClassById(slug);
-    if (cls) permanentRedirect(`/clases/${cls.slug}`);
-  }
-
-  if (!cls || cls.status !== 'published') notFound();
-
-  return <ClaseDetailClient cls={cls} />;
+  if (!cls && UUID_RE.test(slug)) cls = await fetchClassById(slug);
+  if (cls) permanentRedirect(classUrl(cls));
+  notFound();
 }
