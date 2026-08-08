@@ -19,8 +19,7 @@ import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types'
 import type { HomeStats } from '@/lib/stats/queries';
 
 // ── Types ─────────────────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SearchClass   = { id: string; slug: string; title: string; type: string; class_styles: any[] | null };
+type SearchClass   = { id: string; slug: string; title: string; type: string; class_styles: { is_main: boolean; dance_styles: { name: string; slug: string }[] | null }[] | null };
 type SearchProfile = { id: string; slug: string; name: string; role: string; photo_url: string | null };
 
 const AVATAR_PALETTE = [
@@ -146,7 +145,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
         const [{ data: classes }, { data: profiles }] = await Promise.all([
           supabase
             .from('classes')
-            .select('id, slug, title, type, class_styles(dance_styles(name))')
+            .select('id, slug, title, type, class_styles(is_main, dance_styles(name, slug))')
             .eq('status', 'published')
             .or('end_date.is.null,end_date.gte.today')
             .ilike('title', `%${q}%`)
@@ -285,22 +284,25 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                         <div className="px-4 pt-3 pb-1">
                           <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Clases</span>
                         </div>
-                        {suggestions.classes.map(cls => (
-                          <button
-                            key={cls.id}
-                            type="button"
-                            onClick={() => { router.push(`/clases/${cls.slug}`); setShowSuggestions(false); }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0 text-sm">
-                              💃
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[14px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                              <p className="text-[11px] text-neutral-400">{cls.class_styles?.[0]?.dance_styles?.name ?? ''} · {getTypeLabel(cls.type)}</p>
-                            </div>
-                          </button>
-                        ))}
+                        {suggestions.classes.map(cls => {
+                          const mainStyle = (cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0])?.dance_styles?.[0];
+                          return (
+                            <button
+                              key={cls.id}
+                              type="button"
+                              onClick={() => { router.push(`/${mainStyle?.slug ?? ''}/${cls.type}/${cls.slug}`); setShowSuggestions(false); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0 text-sm">
+                                💃
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[14px] font-semibold text-neutral-900 truncate">{cls.title}</p>
+                                <p className="text-[11px] text-neutral-400">{mainStyle?.name ?? ''} · {getTypeLabel(cls.type)}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
 

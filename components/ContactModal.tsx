@@ -6,6 +6,7 @@ import { X, MessageCircle, Phone, Check, ShieldCheck } from 'lucide-react';
 import { InstagramIcon } from '@/components/icons/SocialIcons';
 import { DanceClass } from '@/lib/types';
 import { buildWhatsAppMessage } from '@/lib/utils';
+import { classUrl } from '@/lib/classes/helpers';
 import { trackGenerateLead, trackAuthCtaClick } from '@/lib/analytics';
 
 // Gate de registro para usuarios sin sesión — diseño propio (mockups
@@ -71,14 +72,14 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
 
             <div className="flex gap-3 max-w-[380px]">
               <Link
-                href={`/registro?redirect=/clases/${cls.slug}`}
+                href={`/registro?redirect=${classUrl(cls)}`}
                 onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'contact_modal_desktop' }); onClose(); }}
                 className="flex-1 text-center py-[15px] rounded-xl border border-neutral-900 text-white font-extrabold text-[15px] bg-[#8613B9] hover:bg-[#6d0d97] transition-colors active:scale-[0.97]"
               >
                 Registrarme gratis
               </Link>
               <Link
-                href={`/login?redirect=/clases/${cls.slug}`}
+                href={`/login?redirect=${classUrl(cls)}`}
                 onClick={() => { trackAuthCtaClick({ action: 'login', location: 'contact_modal_desktop' }); onClose(); }}
                 className="flex-1 text-center py-[15px] rounded-xl border border-neutral-900 bg-white text-neutral-900 font-extrabold text-[15px] hover:bg-neutral-50 transition-colors active:scale-[0.97]"
               >
@@ -142,14 +143,14 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
 
           <div className="flex flex-col gap-2.5">
             <Link
-              href={`/registro?redirect=/clases/${cls.slug}`}
+              href={`/registro?redirect=${classUrl(cls)}`}
               onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'contact_modal_mobile' }); onClose(); }}
               className="w-full text-center py-[15px] rounded-xl border border-neutral-900 text-white font-extrabold text-[15px] bg-[#8613B9] active:scale-[0.97] transition-colors"
             >
               Registrarme gratis
             </Link>
             <Link
-              href={`/login?redirect=/clases/${cls.slug}`}
+              href={`/login?redirect=${classUrl(cls)}`}
               onClick={() => { trackAuthCtaClick({ action: 'login', location: 'contact_modal_mobile' }); onClose(); }}
               className="w-full text-center py-[15px] rounded-xl border border-neutral-900 bg-white text-neutral-900 font-extrabold text-[15px] active:scale-[0.97] transition-colors"
             >

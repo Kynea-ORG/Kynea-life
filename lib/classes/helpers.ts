@@ -1,6 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ClassStatus, ClassType, PriceType, Modality } from '@/lib/types';
+import type { ClassStatus, ClassType, DanceClass, PriceType, Modality } from '@/lib/types';
 import type { FormSlot, ClassUpdatePayload } from './types';
+
+// Canonical detail URL: /{categoria}/{tipo}/{slug} — categoria is the class's
+// main dance style slug, tipo is the raw ClassType column value.
+export function classUrl(cls: Pick<DanceClass, 'styleSlug' | 'type' | 'slug'>): string {
+  return `/${cls.styleSlug}/${cls.type}/${cls.slug}`;
+}
 
 // day_of_week: 0 = Lunes ... 6 = Domingo (ISO/Peru convention)
 export const DAY_MAP: Record<string, number> = {
