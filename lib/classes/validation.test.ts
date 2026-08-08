@@ -399,7 +399,7 @@ function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
     updated_at: null,
     published_at: null,
     level: { id: 1, name: 'Avanzado' },
-    class_styles: [{ style_id: 1, is_main: true, dance_styles: { id: 1, name: 'Salsa' } }],
+    class_styles: [{ style_id: 1, is_main: true, dance_styles: { id: 1, name: 'Salsa', slug: 'salsa' } }],
     class_schedules: [],
     venue: {
       name: 'Estudio X',

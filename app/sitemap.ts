@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/constants';
 import { fetchPublishedClasses } from '@/lib/classes/queries';
+import { classUrl } from '@/lib/classes/helpers';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 
 const STATIC_ROUTES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency']; priority: number }[] = [
@@ -30,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const classEntries: MetadataRoute.Sitemap = classes.map(cls => ({
-    url: `${SITE_URL}/clases/${cls.id}`,
+    url: `${SITE_URL}${classUrl(cls)}`,
     lastModified: cls.publishedAt || cls.createdAt,
     changeFrequency: 'weekly',
     priority: 0.7,

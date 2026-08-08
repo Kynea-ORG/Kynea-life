@@ -57,7 +57,7 @@ export interface DbClassSchedule {
 export interface DbClassStyle {
   style_id: number;
   is_main: boolean;
-  dance_styles: { id: number; name: string } | null;
+  dance_styles: { id: number; name: string; slug: string } | null;
 }
 
 export interface DbVenue {

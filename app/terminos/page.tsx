@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import Header from '@/components/Header';
 
 export default function TerminosPage() {
@@ -242,7 +243,7 @@ export default function TerminosPage() {
             peruana aplicable, incluyendo la Ley N.° 29733 – Ley de Protección de Datos Personales y su
             Reglamento. La información detallada sobre el tratamiento de datos personales se encuentra
             disponible en la{' '}
-            <a href="/privacidad" className="underline text-neutral-900">Política de Privacidad</a>{' '}
+            <Link href="/privacidad" className="underline text-neutral-900">Política de Privacidad</Link>{' '}
             de KYNEA, que forma parte integrante de estos Términos.
           </p>
 
