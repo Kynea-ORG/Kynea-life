@@ -37,16 +37,19 @@ export const EMPTY_FILTERS: Filters = {
 };
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+// Special day-filter value: matches by date (today), not by weekday name —
+// mutually exclusive with the weekday tags (see toggleDay in FilterPanel).
+export const TODAY_TAG = 'Hoy';
 const TIMES_OF_DAY = ['Mañana (6–12)', 'Tarde (12–18)', 'Noche (18–23)'];
 const MODALITIES = ['Presencial', 'Online'];
 // value matches ClassType from crear-clase; label matches the form options
 const TYPES: { value: string; label: string }[] = [
-  { value: 'clase',        label: 'Clase regular' },
   { value: 'clase-suelta', label: 'Clase suelta' },
   { value: 'taller',       label: 'Taller' },
-  { value: 'curso',        label: 'Curso' },
+  { value: 'programa',     label: 'Programa' },
   { value: 'masterclass',  label: 'Masterclass' },
   { value: 'evento',       label: 'Evento' },
+  { value: 'workshop',     label: 'Workshop' },
 ];
 
 function levelLabel(l: string) {
@@ -75,11 +78,25 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
   const [visibleStylesCount, setVisibleStylesCount] = useState(STYLES_GROUP_SIZE);
   const set = (key: keyof Filters, value: unknown) => onChange({ ...filters, [key]: value });
 
-  const toggleIn = (key: 'styles' | 'levels' | 'days' | 'timesOfDay' | 'modalities' | 'types', v: string) => {
+  const toggleIn = (key: 'styles' | 'levels' | 'timesOfDay' | 'modalities' | 'types', v: string) => {
     const arr = filters[key].includes(v)
       ? filters[key].filter(x => x !== v)
       : [...filters[key], v];
     set(key, arr);
+  };
+
+  // 'Hoy' matches by date rather than weekday name, so it's mutually
+  // exclusive with the weekday tags instead of just adding to the OR set.
+  const toggleDay = (d: string) => {
+    if (d === TODAY_TAG) {
+      set('days', filters.days.includes(TODAY_TAG) ? [] : [TODAY_TAG]);
+      return;
+    }
+    const withoutToday = filters.days.filter(x => x !== TODAY_TAG);
+    const arr = withoutToday.includes(d)
+      ? withoutToday.filter(x => x !== d)
+      : [...withoutToday, d];
+    set('days', arr);
   };
 
   const activeCount =
@@ -151,11 +168,18 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
       </Section>
 
       <Section title="Día de la semana">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => toggleDay(TODAY_TAG)}
+            className={filters.days.includes(TODAY_TAG) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
+          >
+            {TODAY_TAG}
+          </button>
+          <span className="w-px h-5 bg-neutral-200 shrink-0" aria-hidden="true" />
           {DAYS.map(d => (
             <button
               key={d}
-              onClick={() => toggleIn('days', d)}
+              onClick={() => toggleDay(d)}
               className={filters.days.includes(d) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
             >
               {d.slice(0, 3)}
