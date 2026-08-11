@@ -26,7 +26,7 @@ function isoDaysFromToday(days: number): string {
 function validInput(overrides: Partial<ClassValidationInput> = {}): ClassValidationInput {
   return {
     status: 'published',
-    type: 'clase',
+    type: 'taller',
     title: 'Salsa Básico desde cero',
     style: 'Salsa',
     level: 'Principiante',
@@ -280,7 +280,7 @@ describe('formDataToValidationInput', () => {
   it('maps FormData fields into a ClassValidationInput', () => {
     const fd = new FormData();
     fd.set('status', 'published');
-    fd.set('type', 'clase');
+    fd.set('type', 'taller');
     fd.set('title', 'Bachata Intermedio');
     fd.set('style', 'Bachata');
     fd.set('level', 'Intermedio');
@@ -357,7 +357,7 @@ describe('profileFixHref', () => {
 function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
   return {
     id: 'class-1',
-    type: 'clase',
+    type: 'taller',
     title: 'Salsa Avanzado',
     slug: null,
     status: 'draft',
