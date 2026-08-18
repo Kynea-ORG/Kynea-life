@@ -417,6 +417,17 @@
   animation: pulseSoft 2s ease-out infinite;
 }
 
+/* Same breathing pulse, tinted primary — for spotlighting a genuinely new
+   feature (e.g. the "Hoy" filter) so it reads as "try this" rather than the
+   neutral pulseSoft's "this is live right now". */
+@keyframes pulseSoftPrimary {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(138, 17, 188, 0.28); }
+  50%      { box-shadow: 0 0 0 6px rgba(138, 17, 188, 0); }
+}
+.animate-pulse-soft-primary {
+  animation: pulseSoftPrimary 2s ease-out infinite;
+}
+
 /* Staggered drop-in for map pins on first render. */
 @keyframes pinIn {
   from { opacity: 0; transform: translateY(-8px) scale(0.6); }
