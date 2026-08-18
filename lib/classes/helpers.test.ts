@@ -11,7 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 function fdWith(contactMode: string | null): FormData {
   const fd = new FormData();
-  fd.set('type', 'clase');
+  fd.set('type', 'taller');
   fd.set('title', 'Salsa para principiantes');
   fd.set('priceType', 'Gratis');
   fd.set('price', '0');

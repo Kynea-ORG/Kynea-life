@@ -185,7 +185,7 @@ export function formDataToValidationInput(fd: FormData): ClassValidationInput {
 
   return {
     status: (fd.get('status') as string) ?? 'draft',
-    type: (fd.get('type') as string) ?? 'clase',
+    type: (fd.get('type') as string) ?? 'taller',
     title: (fd.get('title') as string) ?? '',
     style: (fd.get('style') as string) ?? '',
     level: (fd.get('level') as string) ?? '',

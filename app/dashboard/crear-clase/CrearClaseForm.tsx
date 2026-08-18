@@ -228,7 +228,7 @@ type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: s
 function buildInitialForm(editClass: DanceClass | null) {
   if (!editClass) {
     return {
-      type: 'clase',
+      type: 'taller',
       title: '',
       style: '',
       level: '',
@@ -265,7 +265,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     };
   }
   return {
-    type: editClass.type ?? 'clase',
+    type: editClass.type ?? 'taller',
     title: editClass.title ?? '',
     style: editClass.style ?? '',
     level: editClass.level ?? '',
@@ -575,12 +575,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         <FieldLabel>Tipo de publicación</FieldLabel>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
-            { value: 'clase', label: 'Clase regular', desc: 'Horario recurrente', emoji: '🎵' },
             { value: 'clase-suelta', label: 'Clase suelta', desc: 'Sesión única', emoji: '🎯' },
             { value: 'taller', label: 'Taller', desc: 'Taller puntual', emoji: '🛠️' },
-            { value: 'curso', label: 'Curso', desc: 'Programa completo', emoji: '📚' },
+            { value: 'programa', label: 'Programa', desc: 'Programa completo', emoji: '📚' },
             { value: 'masterclass', label: 'Masterclass', desc: 'Clase magistral', emoji: '⭐' },
             { value: 'evento', label: 'Evento', desc: 'Varios días seguidos', emoji: '🔥' },
+            { value: 'workshop', label: 'Workshop', desc: 'Sesión intensiva', emoji: '🚀' },
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('type', opt.value)}
               className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] ${
