@@ -10,7 +10,7 @@ import { validateStep } from '@/lib/onboarding/validation';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
-import { trackSignUp } from '@/lib/analytics';
+import { trackSignUp, trackOnboardingStepComplete, trackOnboardingComplete } from '@/lib/analytics';
 import { safeRedirectPath } from '@/lib/utils';
 import AlumnoWelcome from './AlumnoWelcome';
 
@@ -165,6 +165,7 @@ function OnboardingContent() {
       return;
     }
     setError('');
+    trackOnboardingStepComplete({ role, stepNumber: step, stepName: STEPS[step] });
     setStep(s => s + 1);
     shift();
   }
@@ -212,6 +213,7 @@ function OnboardingContent() {
         photo_position:   photoUrl ? photoPosition : undefined,
         photo_zoom:       photoUrl ? photoZoom : undefined,
       });
+      trackOnboardingComplete({ role, skipped: false });
       router.push('/dashboard');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al guardar perfil');

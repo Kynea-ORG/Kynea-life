@@ -143,7 +143,7 @@ export default function ProfesorDetailClient({
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {classes.map(cls => <ClassCard key={cls.id} cls={cls} />)}
+              {classes.map(cls => <ClassCard key={cls.id} cls={cls} listName="profesor_detail" />)}
             </div>
           )
         ) : (

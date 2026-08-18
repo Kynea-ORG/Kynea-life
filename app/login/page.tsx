@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { safeRedirectPath } from '@/lib/utils';
-import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
+import { trackAuthCtaClick, trackAuthAttempt, trackLoginSuccess } from '@/lib/analytics';
 
 function errorMessageFromParam(errorParam: string | null): string {
   if (errorParam === 'cuenta_incompleta') {
@@ -111,7 +111,10 @@ function LoginPageContent() {
 
     await redirectByRole(supabase, {
       refresh: () => router.refresh(),
-      onSuccess: (path) => router.push(redirectTarget ?? path),
+      onSuccess: (path, _notice, role) => {
+        if (role) trackLoginSuccess({ role, method: 'email' });
+        router.push(redirectTarget ?? path);
+      },
       onError: (msg) => { setError(msg); setLoading(false); },
     });
   }

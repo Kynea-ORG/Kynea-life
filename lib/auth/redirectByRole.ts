@@ -10,7 +10,13 @@ export function roleMismatchNotice(
 export async function redirectByRole(
   supabase: SupabaseClient,
   options: {
-    onSuccess: (path: string, notice?: string | null) => void;
+    // `role` is the real profiles.role value (null if the profile row is
+    // missing) — added so callers that need to know the actual role, not
+    // just the derived path (profesor and academia both route to /dashboard,
+    // so `path` alone can't tell them apart), can use it. Only app/login/
+    // page.tsx uses it today, for trackLoginSuccess; confirmar-email and
+    // reset-password ignore it, they don't fire a login event here.
+    onSuccess: (path: string, notice?: string | null, role?: string | null) => void;
     onError: (msg: string) => void;
     refresh?: () => void;
     expectedRole?: string | null;
@@ -41,5 +47,5 @@ export async function redirectByRole(
     ? roleMismatchNotice(options.expectedRole, profile?.role ?? null)
     : null;
 
-  options.onSuccess(dest, notice);
+  options.onSuccess(dest, notice, profile?.role ?? null);
 }

@@ -105,7 +105,7 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
         >
           {classes.map(cls => (
             <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-              <ClassCard cls={cls} compact />
+              <ClassCard cls={cls} compact listName={`home_featured_${style}`} />
             </div>
           ))}
         </div>
@@ -499,7 +499,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               >
                 {initialClasses.map(cls => (
                   <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-                    <ClassCard cls={cls} compact />
+                    <ClassCard cls={cls} compact listName="home_recommended" />
                   </div>
                 ))}
               </div>

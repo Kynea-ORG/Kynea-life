@@ -28,6 +28,7 @@ export default function CategoriaDetailContent({
         <><span className="font-bold text-neutral-900">{count}</span> clase{count !== 1 ? 's' : ''} de {style.name}</>
       )}
       emptyText={`No encontramos clases de ${style.name} con esos filtros. Prueba cambiando la ciudad, nivel o día.`}
+      listName="categorias_grid"
       topSlot={
         <div className="relative h-48 sm:h-56 overflow-hidden">
           <Image src={heroImage} alt="" aria-hidden="true" fill sizes="100vw" className="object-cover" priority />

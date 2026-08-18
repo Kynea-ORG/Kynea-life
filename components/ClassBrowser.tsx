@@ -22,6 +22,8 @@ interface ClassBrowserProps {
   emptyText: string;
   /** Rendered between the header and the sticky search bar — e.g. a category hero banner. */
   topSlot?: ReactNode;
+  /** Identifies this listing surface for select_item tracking — see trackSelectItem in lib/analytics.ts. */
+  listName: string;
 }
 
 export default function ClassBrowser({
@@ -34,6 +36,7 @@ export default function ClassBrowser({
   renderResultsCount,
   emptyText,
   topSlot,
+  listName,
 }: ClassBrowserProps) {
   const {
     query, filters, isPending, results, activeCount,
@@ -180,7 +183,7 @@ export default function ClassBrowser({
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {results.map(cls => <ClassCard key={cls.id} cls={cls} />)}
+              {results.map(cls => <ClassCard key={cls.id} cls={cls} listName={listName} />)}
             </div>
           )}
         </main>
