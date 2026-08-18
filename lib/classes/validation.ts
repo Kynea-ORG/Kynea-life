@@ -105,7 +105,19 @@ export function validateForDraft(_input: ClassValidationInput): ValidationResult
   return { ok: true, errors: [] };
 }
 
-export function validateForPublish(input: ClassValidationInput): ValidationResult {
+export interface ValidateForPublishOptions {
+  // True when validating an edit to an already-existing class (vs. its first
+  // publish). An existing class's startDate is real history — a recurring
+  // class drifts its startDate into the past just by staying active for a
+  // while, and that's expected, not an error. Only a brand-new class being
+  // published for the first time should be blocked from claiming a past
+  // start. See lib/classes/validation.test.ts's "editing an existing class"
+  // block for the bug this guards against.
+  isEdit?: boolean;
+}
+
+export function validateForPublish(input: ClassValidationInput, options: ValidateForPublishOptions = {}): ValidationResult {
+  const { isEdit = false } = options;
   const errors: FieldError[] = [];
 
   if (!input.title || !input.title.trim()) {
@@ -140,7 +152,7 @@ export function validateForPublish(input: ClassValidationInput): ValidationResul
 
   if (!input.startDate) {
     errors.push({ field: 'startDate', message: 'La fecha de inicio es obligatoria.' });
-  } else if (isPastDate(input.startDate)) {
+  } else if (!isEdit && isPastDate(input.startDate)) {
     errors.push({ field: 'startDate', message: 'La fecha de inicio no puede estar en el pasado.' });
   }
 
