@@ -177,12 +177,10 @@ antes de avanzar de paso (pasos 0 y 2 no validan).
 
 ### 2.3 ⬜ Onboarding de la Academia — diferenciación
 
-El wizard es idéntico al del profesor. No hay campos extra para academia.
-
-**Tarea:** cuando `role === 'academia'`, añadir campos de academia (nombre del estudio,
-número de profesores, etc.) y al terminar mostrar CTA a `/dashboard/profesores`.
-
-> Ver también CLAUDE.md → "TODO: Campos exclusivos para academia en onboarding".
+Confirmado: el wizard es idéntico al del profesor salvo el label del nombre. Diseño
+finalizado en la sección **8** (Flujo de Academias) — campos propios: RUC (opcional) +
+dirección principal vía `venues.is_primary`. Sin campo de "número de profesores": el
+roster de profesores por academia queda diferido (ver 8.8).
 
 ---
 
@@ -205,10 +203,10 @@ Ver `PerfilClient.tsx:79-98`. **Pendiente menor:** `profiles.total_classes` nunc
 
 ### 3.3 ⬜ Perfil de la Academia — campos propios
 
-La tabla `profiles` no tiene columnas específicas de academia (nombre comercial, horario,
-dirección principal, galería). `updateProfile` en `lib/profiles/actions.ts` no diferencia roles.
-
-**Tarea:** añadir columnas en `profiles` (requiere migración SQL) y exponerlas en `updateProfile`.
+La tabla `profiles` no tiene columnas específicas de academia. `updateProfile` en
+`lib/profiles/actions.ts` no diferencia roles. Diseño finalizado en **8.1**: `profiles.ruc`
++ dirección vía `venues.is_primary` — no se duplica el concepto de dirección en `profiles`,
+que fue eliminado a propósito en la migración 25 (`20260727000000_25_venues_denormalize_location_drop_districts.sql`).
 
 ---
 
@@ -343,14 +341,101 @@ La coordinación ocurre fuera de la plataforma.
 
 ---
 
-## 8. GESTIÓN DE PROFESORES (Academia)
+## 8. FLUJO DE ACADEMIAS — registro, conversión y aprobación
 
-### 8.1 ⬜ Roster de profesores — implementar en DB
+> Diseño acordado el 2026-08-18, reemplaza el plan anterior de esta sección (roster de
+> profesores) — esa idea queda diferida, ver **8.8**. Implementado el 2026-08-19
+> (migración 39 ya aplicada a `kynea-dev`). **Falta probar en vivo el circuito completo
+> de aprobación** (8.6) — necesita una cuenta con `is_admin = true`, que solo se puede
+> otorgar por conexión directa a la base; quien retome esto debería aprobar/rechazar al
+> menos una solicitud real antes de mergear a producción.
 
-`app/dashboard/profesores/page.tsx` existe pero usa datos mock (`MOCK_ACADEMY_TEACHERS` en
-estado local). Los cambios no persisten. No existe tabla `academy_teachers` en el schema.
+**Decisiones de producto:**
+- Para efectos prácticos, una academia es un profesor con un badge distinto — mismo
+  dashboard, mismo Crear Clase. Sin roster ni asociación de profesores en esta versión.
+- Toda cuenta academia (nueva o convertida) necesita aprobación manual de Kynea antes de
+  poder **publicar** clases. El resto de la cuenta (onboarding, configurar perfil, guardar
+  borradores) funciona sin restricción desde el día uno — el gate es solo sobre `publicar`.
+- Un profesor que solicita convertirse en academia **no sufre ninguna restricción**
+  mientras está pendiente: sigue siendo profesor al 100%, sus clases existentes no se
+  tocan. El cambio de rol ocurre atómicamente solo al aprobar; si se rechaza, no cambia
+  absolutamente nada.
 
-**Propuesta:** tabla `academy_teachers` + flujo de invitación por email:
+### 8.1 ✅ Modelo de datos
+
+- `profiles.academia_approved_at timestamptz null` — gate de publicación, solo relevante
+  cuando `role = 'academia'`.
+- `profiles.ruc text null`.
+- `venues.is_primary boolean not null default false` + índice único parcial por
+  `owner_id` (una sola sede principal por perfil).
+- Tabla `academia_requests`:
+  ```sql
+  create table public.academia_requests (
+    id uuid primary key default gen_random_uuid(),
+    profile_id uuid not null references public.profiles(id) on delete cascade,
+    kind text not null check (kind in ('signup', 'conversion')),
+    status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+    ruc text,
+    reviewed_by uuid references public.profiles(id),
+    reviewed_at timestamptz,
+    created_at timestamptz default now()
+  );
+  alter table public.academia_requests enable row level security;
+  -- el dueño puede crear/ver la suya; solo admin puede aprobar/rechazar
+  ```
+- Excepción angosta al trigger de rol inmutable
+  (`20260731000000_29_protect_profile_role.sql`): permite la transición
+  `profesor → academia` únicamente cuando la ejecuta la función de aprobación de admin
+  (vía flag de sesión que solo esa función puede setear) — nunca desde un update directo
+  del cliente. El trigger sigue bloqueando cualquier otro cambio de rol sin excepción.
+
+### 8.2 ✅ Landing `/academias` — alta directa
+
+Clon de `/unete` con copy propio ("Gestiona tu equipo... publica todas tus clases desde un
+solo lugar"), `role: 'academia'` fijo. Al registrarse, crea también su fila en
+`academia_requests` (kind: `signup`). Link cruzado desde `/unete` para quien llega
+buscando registrar una academia.
+
+### 8.3 ✅ Onboarding — campos propios de academia
+
+Cuando `profileType === 'academia'`: input de RUC (opcional) + el mismo
+`PlacesAddressField` que ya usa Crear Clase, guardando un `venue` con `is_primary: true`.
+Sin campo de "número de profesores" — no hay roster en esta versión (ver 8.8).
+
+### 8.4 ✅ Gate de publicación
+
+Nuevo guard `assertAcademiaApproved` en `lib/classes/publishGuard.ts`, calcado a
+`assertContactChannel`: bloquea únicamente `status: 'published'` cuando
+`role === 'academia'` y `academia_approved_at` es nulo. Mismo patrón de banner que el gate
+de contacto en `CrearClaseForm.tsx`, más un banner persistente en el dashboard mientras
+está pendiente.
+
+### 8.5 ✅ Conversión profesor → academia
+
+Botón en el dashboard del profesor ("¿Diriges una academia? Solicita el cambio") → un
+formulario chico (RUC + confirmación) → inserta `academia_requests` (kind: `conversion`).
+Cero restricciones al profesor mientras está pendiente.
+
+### 8.6 ✅ Bandeja de solicitudes (admin)
+
+Nueva pantalla bajo `/dashboard/admin` (reusa el gate existente de `fetchIsAdmin()`)
+listando solicitudes pendientes de ambos tipos. Aprobar: `signup` → solo marca
+`academia_approved_at`; `conversion` → cambia `role` a `academia` y marca
+`academia_approved_at` en el mismo paso, vía la excepción de 8.1. Rechazar: no toca nada
+más en el perfil.
+
+### 8.7 ✅ Badge visual diferenciado
+
+El perfil público hoy muestra texto plano ("academia de danza") en vez de un badge —
+agregar uno de color distinto, mismo patrón que `DashboardSidebar.tsx` ya usa
+internamente para el sidebar del dashboard.
+
+### 8.8 🔵 Diferido: roster de profesores por academia
+
+Idea original de esta sección — tabla `academy_teachers`, invitación por email, estados
+`invited/active/inactive` — **explícitamente fuera de alcance de esta versión** para
+simplificar el lanzamiento. Se retoma cuando la academia necesite asociar profesores de
+verdad; el diseño queda documentado por si sirve de punto de partida:
 
 ```sql
 create table public.academy_teachers (
@@ -363,10 +448,12 @@ create table public.academy_teachers (
   joined_at   timestamptz,
   primary key (academy_id, email)
 );
-alter table public.academy_teachers enable row level security;
-create policy "academy_teachers_own" on public.academy_teachers
-  using (academy_id = auth.uid()) with check (academy_id = auth.uid());
 ```
+
+Hasta entonces, ocultar el link "Gestionar profesores" y su stat card del dashboard
+(`app/dashboard/page.tsx`), ya que `app/dashboard/profesores/ProfesoresClient.tsx` corre
+sobre datos mock (`MOCK_ACADEMY_TEACHERS`) y no persiste nada real — mostrar una función
+que no guarda datos a una academia real genera confusión.
 
 ---
 
@@ -474,7 +561,7 @@ Migraciones versionadas en `supabase/migrations/`, aplicadas con `supabase db pu
 | 🟡 8 | **5.2 Paginación del catálogo** | Pequeño | Escalabilidad |
 | 🟢 9 | **9 Cambio de contraseña / eliminar cuenta** | Pequeño | Completitud |
 | 🟢 10 | **5.3 SEO metadata dinámica** | Pequeño | Tráfico y previews |
-| 🟢 11 | **8.1 Roster de profesores de academia** | Grande | Feature de academia |
+| 🟡 11 | **8. Flujo de academias (registro, conversión, aprobación)** | Grande | Habilita el rol academia de verdad |
 | 🟢 12 | **4.4 Importación CSV** | Grande | Eficiencia academia |
 | 🟢 13 | **1.2 Google OAuth config** (activar en Supabase Dashboard) | Config | Conversión |
 
