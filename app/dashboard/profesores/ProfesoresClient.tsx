@@ -1,4 +1,9 @@
 'use client';
+// Deliberately unused for now (no longer imported by page.tsx) — runs on
+// mock data (MOCK_ACADEMY_TEACHERS below) and never persisted anything
+// real. Kept as a design reference for the real academia roster feature
+// (academy_teachers table, invite flow) when that gets built. See
+// docs/TASKS.md sección 8.8.
 import { useState } from 'react';
 import SmartImage from '@/components/SmartImage';
 import { Plus, Edit2, Star, BookOpen, Users, Activity, UserX, Upload, X, Download, Search, ChevronDown } from 'lucide-react';
