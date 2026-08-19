@@ -70,11 +70,18 @@ export async function assertAcademiaApproved(
   supabase: SupabaseClient,
   userId: string
 ): Promise<void> {
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('role, academia_approved_at')
     .eq('id', userId)
     .single();
+
+  if (error) {
+    throw publishError({
+      code: 'ACADEMIA_NOT_APPROVED',
+      message: 'No se pudo verificar el estado de tu cuenta — intenta de nuevo.',
+    });
+  }
 
   if (profile?.role === 'academia' && !profile.academia_approved_at) {
     throw publishError({

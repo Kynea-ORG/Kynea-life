@@ -95,5 +95,6 @@ export async function requestAcademiaConversion(ruc?: string) {
     throw new Error(error.message);
   }
 
-  revalidatePath('/dashboard/configuracion');
+  // AcademiaConversionCard lives on the dashboard home, not Configuración.
+  revalidatePath('/dashboard');
 }

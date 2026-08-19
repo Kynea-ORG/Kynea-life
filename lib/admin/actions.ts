@@ -79,5 +79,7 @@ export async function approveAcademiaRequest(requestId: string, approve: boolean
   });
   if (error) throw new Error(error.message);
 
-  revalidatePath('/dashboard/admin/academias');
+  // 'layout' type: the pending-count badge lives in the persistent
+  // app/dashboard/admin/layout.tsx, not just this page.
+  revalidatePath('/dashboard/admin', 'layout');
 }

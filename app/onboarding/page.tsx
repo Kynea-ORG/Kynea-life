@@ -227,7 +227,7 @@ function OnboardingContent() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           if (form.address.trim()) {
-            await supabase.from('venues').insert({
+            const { error: venueError } = await supabase.from('venues').insert({
               owner_id: user.id,
               name: form.publicName || 'Sede principal',
               address: form.address.trim(),
@@ -235,12 +235,14 @@ function OnboardingContent() {
               city: form.city.trim() || null,
               is_primary: true,
             });
+            if (venueError) throw venueError;
           }
-          await supabase.from('academia_requests').insert({
+          const { error: requestError } = await supabase.from('academia_requests').insert({
             profile_id: user.id,
             kind: 'signup',
             ruc: form.ruc || null,
           });
+          if (requestError) throw requestError;
         }
       }
 

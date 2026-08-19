@@ -117,16 +117,21 @@ GRANT  EXECUTE ON FUNCTION public.approve_academia_request(uuid, boolean) TO aut
 -- ── Excepción angosta a la inmutabilidad de rol (migración 29) ──────────
 -- La única transición de rol permitida después del registro es
 -- profesor -> academia, y solo cuando la ejecuta approve_academia_request()
--- de arriba: dentro de esa función `current_user` es `postgres` (su
--- dueño, por SECURITY DEFINER), nunca 'authenticated' — así que ni
--- siquiera un admin autenticado puede lograr el mismo efecto con un
--- update directo del cliente. Cualquier otro cambio de rol sigue
--- bloqueado exactamente como antes.
+-- de arriba: dentro de esa función `current_user` es exactamente `postgres`
+-- (su dueño, por SECURITY DEFINER), nunca 'authenticated'. El chequeo NO
+-- incluye 'service_role' ni 'supabase_admin' a propósito: cualquier código
+-- de servidor que use la service key (p.ej. createAdminClient(), ya usado
+-- por createUserAsAdmin) conecta como 'service_role', y si esa rama
+-- estuviera permitida un update directo `profiles.role = 'academia'` desde
+-- ese cliente evadiría por completo el chequeo de is_admin() y el registro
+-- en academia_requests de approve_academia_request(). Solo el dueño de la
+-- función (postgres) puede tomar este camino. Cualquier otro cambio de rol
+-- sigue bloqueado exactamente como antes.
 CREATE OR REPLACE FUNCTION public.protect_profile_role()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF OLD.role IS NOT NULL AND NEW.role IS DISTINCT FROM OLD.role THEN
-    IF current_user IN ('postgres', 'service_role', 'supabase_admin')
+    IF current_user = 'postgres'
        AND OLD.role = 'profesor' AND NEW.role = 'academia' THEN
       RETURN NEW;
     END IF;
