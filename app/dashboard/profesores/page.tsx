@@ -1,12 +1,11 @@
 import { Users } from 'lucide-react';
 import { requireRole } from '@/lib/auth/requireRole';
 
-// ProfesoresClient.tsx (roster completo con invitar/gestionar profesores)
-// queda deliberadamente sin usar por ahora — corre sobre datos mock
-// (MOCK_ACADEMY_TEACHERS) y no persiste nada real. No hay link visible a
-// esta ruta (ver DashboardSidebar.tsx y dashboard/page.tsx), pero si algún
-// academia llega acá por una URL vieja, mejor un placeholder honesto que
-// una UI que aparenta funcionar sin guardar nada. Ver docs/TASKS.md 8.8.
+// El roster completo (invitar/gestionar profesores) todavía no existe —
+// ver docs/TASKS.md 8.8. No hay link visible a esta ruta (ver
+// DashboardSidebar.tsx y dashboard/page.tsx), pero si algún academia llega
+// acá por una URL vieja, mejor un placeholder honesto que una UI que
+// aparenta funcionar sin guardar nada.
 export default async function ProfesoresPage() {
   await requireRole(['academia']);
 

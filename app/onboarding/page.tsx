@@ -235,14 +235,18 @@ function OnboardingContent() {
               city: form.city.trim() || null,
               is_primary: true,
             });
-            if (venueError) throw venueError;
+            // 23505 = venues_one_primary_per_owner: a retry after this insert
+            // already succeeded once (e.g. academia_requests failed after) —
+            // the primary venue is already there, nothing to do.
+            if (venueError && venueError.code !== '23505') throw venueError;
           }
           const { error: requestError } = await supabase.from('academia_requests').insert({
             profile_id: user.id,
             kind: 'signup',
             ruc: form.ruc || null,
           });
-          if (requestError) throw requestError;
+          // 23505 = academia_requests_one_pending_per_profile: same retry case.
+          if (requestError && requestError.code !== '23505') throw requestError;
         }
       }
 

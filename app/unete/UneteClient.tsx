@@ -1,22 +1,11 @@
 'use client';
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import SmartImage from '@/components/SmartImage';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Eye, EyeOff, Check, X, Zap, Users, ShieldCheck, MessageCircle } from 'lucide-react';
 import GoogleIcon from '@/components/GoogleIcon';
-import { createClient } from '@/lib/supabase/client';
-import { safeRedirectPath } from '@/lib/utils';
-import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
-
-const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
-  { label: 'Mínimo 8 caracteres',       test: pw => pw.length >= 8 },
-  { label: 'Una letra mayúscula (A-Z)', test: pw => /[A-Z]/.test(pw) },
-  { label: 'Una letra minúscula (a-z)', test: pw => /[a-z]/.test(pw) },
-  { label: 'Un número (0-9)',           test: pw => /[0-9]/.test(pw) },
-  { label: 'Un carácter especial',      test: pw => /[^A-Za-z0-9]/.test(pw) },
-];
+import { trackAuthCtaClick } from '@/lib/analytics';
+import { useSignupForm } from '@/lib/auth/useSignupForm';
 
 const BENEFITS = [
   { Icon: Zap,           text: 'Publica tu clase en minutos' },
@@ -25,92 +14,17 @@ const BENEFITS = [
   { Icon: MessageCircle, text: 'Contacto directo por WhatsApp o Instagram' },
 ];
 
-function getAuthErrorMessage(msg: string): string {
-  const m = msg.toLowerCase();
-  if (m.includes('already registered') || m.includes('already been registered'))
-    return 'Ya existe una cuenta con este correo.';
-  if (m.includes('password'))
-    return 'La contraseña debe tener al menos 8 caracteres.';
-  if (m.includes('email') && (m.includes('invalid') || m.includes('format')))
-    return 'El correo electrónico no es válido.';
-  if (m.includes('rate limit') || m.includes('too many'))
-    return 'Demasiados intentos. Espera unos minutos.';
-  return 'Ocurrió un error al crear la cuenta. Intenta de nuevo.';
-}
-
 export default function UneteClient({ teacherCount }: { teacherCount: number }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
-  const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-
-  useEffect(() => {
-    createClient().auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace(redirectTarget ?? '/dashboard');
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    trackAuthAttempt({ action: 'registro', method: 'email' });
-
-    const supabase = createClient();
-    // Profesor onboarding is the full data-collecting wizard (bio, estilos,
-    // WhatsApp/Instagram, foto) — see app/onboarding/page.tsx.
-    const nextPath = redirectTarget
-      ? `/onboarding?new=1&redirect=${encodeURIComponent(redirectTarget)}`
-      : '/onboarding?new=1';
-
-    const { data, error: authError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: { name: form.name, role: 'profesor' },
-      },
-    });
-
-    if (authError) {
-      setError(getAuthErrorMessage(authError.message));
-      setLoading(false);
-      return;
-    }
-
-    if (data.session) {
-      router.refresh();
-      router.push(nextPath);
-    } else {
-      const confirmDest = `/confirmar-email?email=${encodeURIComponent(form.email)}&role=profesor`;
-      router.push(redirectTarget ? `${confirmDest}&redirect=${encodeURIComponent(redirectTarget)}` : confirmDest);
-    }
-  }
-
-  async function handleGoogle() {
-    setGoogleLoading(true);
-    trackAuthAttempt({ action: 'registro', method: 'google' });
-    const supabase = createClient();
-    const callbackUrl = redirectTarget
-      ? `${window.location.origin}/auth/callback?role=profesor&redirect=${encodeURIComponent(redirectTarget)}`
-      : `${window.location.origin}/auth/callback?role=profesor`;
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: callbackUrl },
-    });
-    if (oauthError) {
-      setError('No se pudo continuar con Google. Intenta de nuevo.');
-      setGoogleLoading(false);
-    }
-  }
-
-  const passwordChecks = PASSWORD_RULES.map(r => ({ ...r, ok: r.test(form.password) }));
-  const passwordValid  = passwordChecks.every(c => c.ok);
+  // Profesor onboarding is the full data-collecting wizard (bio, estilos,
+  // WhatsApp/Instagram, foto) — see app/onboarding/page.tsx.
+  const {
+    termsAccepted, setTermsAccepted,
+    form, setForm,
+    showPass, setShowPass,
+    error, loading, googleLoading,
+    passwordChecks, passwordValid,
+    handleSubmit, handleGoogle,
+  } = useSignupForm('profesor');
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
