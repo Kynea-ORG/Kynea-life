@@ -20,7 +20,7 @@ export function getStatusColor(status: string): string {
 
 export function getTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    clase: 'Clase', taller: 'Taller', curso: 'Curso',
+    taller: 'Taller', programa: 'Programa', workshop: 'Workshop',
     masterclass: 'Masterclass', evento: 'Evento', 'clase-suelta': 'Clase suelta',
   };
   return map[type] ?? type;

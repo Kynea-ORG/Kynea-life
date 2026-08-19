@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, Sparkles, X } from 'lucide-react';
 
 export interface Filters {
   city: string;
@@ -37,16 +37,19 @@ export const EMPTY_FILTERS: Filters = {
 };
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+// Special day-filter value: matches by date (today), not by weekday name —
+// mutually exclusive with the weekday tags (see toggleDay in FilterPanel).
+export const TODAY_TAG = 'Hoy';
 const TIMES_OF_DAY = ['Mañana (6–12)', 'Tarde (12–18)', 'Noche (18–23)'];
 const MODALITIES = ['Presencial', 'Online'];
 // value matches ClassType from crear-clase; label matches the form options
 const TYPES: { value: string; label: string }[] = [
-  { value: 'clase',        label: 'Clase regular' },
   { value: 'clase-suelta', label: 'Clase suelta' },
   { value: 'taller',       label: 'Taller' },
-  { value: 'curso',        label: 'Curso' },
+  { value: 'programa',     label: 'Programa' },
   { value: 'masterclass',  label: 'Masterclass' },
   { value: 'evento',       label: 'Evento' },
+  { value: 'workshop',     label: 'Workshop' },
 ];
 
 function levelLabel(l: string) {
@@ -75,11 +78,25 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
   const [visibleStylesCount, setVisibleStylesCount] = useState(STYLES_GROUP_SIZE);
   const set = (key: keyof Filters, value: unknown) => onChange({ ...filters, [key]: value });
 
-  const toggleIn = (key: 'styles' | 'levels' | 'days' | 'timesOfDay' | 'modalities' | 'types', v: string) => {
+  const toggleIn = (key: 'styles' | 'levels' | 'timesOfDay' | 'modalities' | 'types', v: string) => {
     const arr = filters[key].includes(v)
       ? filters[key].filter(x => x !== v)
       : [...filters[key], v];
     set(key, arr);
+  };
+
+  // 'Hoy' matches by date rather than weekday name, so it's mutually
+  // exclusive with the weekday tags instead of just adding to the OR set.
+  const toggleDay = (d: string) => {
+    if (d === TODAY_TAG) {
+      set('days', filters.days.includes(TODAY_TAG) ? [] : [TODAY_TAG]);
+      return;
+    }
+    const withoutToday = filters.days.filter(x => x !== TODAY_TAG);
+    const arr = withoutToday.includes(d)
+      ? withoutToday.filter(x => x !== d)
+      : [...withoutToday, d];
+    set('days', arr);
   };
 
   const activeCount =
@@ -98,8 +115,36 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
   ];
   const hasMoreStyles = visibleStyles.length < danceStyles.length;
 
+  const todayActive = filters.days.includes(TODAY_TAG);
+
   return (
     <div className={`bg-white ${className}`}>
+      <button
+        onClick={() => toggleDay(TODAY_TAG)}
+        className={`w-full flex items-center gap-3 rounded-xl border-2 px-4 py-3 mb-5 text-left cursor-pointer transition-colors ${
+          todayActive
+            ? 'bg-primary border-primary text-white'
+            : 'bg-primary-bg border-primary/30 text-neutral-900 hover:border-primary animate-pulse-soft-primary'
+        }`}
+      >
+        <span className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${todayActive ? 'bg-white/20' : 'bg-white'}`}>
+          <Sparkles className={`w-4 h-4 ${todayActive ? 'text-white' : 'text-primary'}`} />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="font-bold text-[14px]">{TODAY_TAG}</span>
+            <span className={`text-[9px] font-black uppercase tracking-wide rounded-full px-1.5 py-0.5 ${
+              todayActive ? 'bg-white/25 text-white' : 'bg-primary text-white'
+            }`}>
+              Nuevo
+            </span>
+          </span>
+          <span className={`block text-[12px] ${todayActive ? 'text-white/80' : 'text-neutral-500'}`}>
+            Clases que se dictan hoy
+          </span>
+        </span>
+      </button>
+
       {activeCount > 0 && (
         <div className="flex items-center justify-between mb-4">
           <span className="text-[13px] text-neutral-500">{activeCount} filtro{activeCount !== 1 ? 's' : ''} activo{activeCount !== 1 ? 's' : ''}</span>
@@ -151,11 +196,11 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
       </Section>
 
       <Section title="Día de la semana">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {DAYS.map(d => (
             <button
               key={d}
-              onClick={() => toggleIn('days', d)}
+              onClick={() => toggleDay(d)}
               className={filters.days.includes(d) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
             >
               {d.slice(0, 3)}

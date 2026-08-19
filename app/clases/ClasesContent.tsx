@@ -23,6 +23,7 @@ export default function ClasesContent({
         <><span className="font-bold text-neutral-900">{count}</span> clase{count !== 1 ? 's' : ''} disponible{count !== 1 ? 's' : ''}</>
       )}
       emptyText="No encontramos clases con esos filtros. Prueba cambiando el estilo, ciudad o nivel."
+      listName="clases_grid"
     />
   );
 }

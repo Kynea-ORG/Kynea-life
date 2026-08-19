@@ -26,7 +26,7 @@ function isoDaysFromToday(days: number): string {
 function validInput(overrides: Partial<ClassValidationInput> = {}): ClassValidationInput {
   return {
     status: 'published',
-    type: 'clase',
+    type: 'taller',
     title: 'Salsa Básico desde cero',
     style: 'Salsa',
     level: 'Principiante',
@@ -181,6 +181,39 @@ describe('validateForPublish — dates', () => {
   });
 });
 
+// A recurring class's startDate is expected to drift into the past just by
+// staying active for a while — re-saving an edit shouldn't re-litigate it.
+// Only a brand-new class's first publish should be blocked from claiming a
+// past start. See lib/dashboard/crear-clase/CrearClaseForm.tsx's classId ->
+// isEdit wiring and lib/classes/actions.ts's updateClass/updateClassFromForm.
+describe('validateForPublish — editing an existing class (isEdit: true)', () => {
+  it('still rejects a past startDate when isEdit is not set (first publish)', () => {
+    const result = validateForPublish(validInput({ startDate: isoDaysFromToday(-1) }));
+    expect(result.errors.some(e => e.field === 'startDate')).toBe(true);
+  });
+
+  it('accepts a past startDate on a recurring class when isEdit is true', () => {
+    const result = validateForPublish(
+      validInput({ recurrence: 'mensual', startDate: isoDaysFromToday(-30), endDate: isoDaysFromToday(30) }),
+      { isEdit: true }
+    );
+    expect(result.errors.some(e => e.field === 'startDate')).toBe(false);
+  });
+
+  it('accepts a past startDate on a single-session class when isEdit is true', () => {
+    const result = validateForPublish(
+      validInput({ recurrence: 'unica', startDate: isoDaysFromToday(-1), endDate: isoDaysFromToday(-1) }),
+      { isEdit: true }
+    );
+    expect(result.errors.some(e => e.field === 'startDate')).toBe(false);
+  });
+
+  it('still rejects a missing startDate when isEdit is true', () => {
+    const result = validateForPublish(validInput({ startDate: '' }), { isEdit: true });
+    expect(result.errors.some(e => e.field === 'startDate')).toBe(true);
+  });
+});
+
 describe('validateForPublish — price', () => {
   it('rejects empty price when priceType is not Gratis', () => {
     const result = validateForPublish(validInput({ priceType: 'Mensual', price: '' }));
@@ -280,7 +313,7 @@ describe('formDataToValidationInput', () => {
   it('maps FormData fields into a ClassValidationInput', () => {
     const fd = new FormData();
     fd.set('status', 'published');
-    fd.set('type', 'clase');
+    fd.set('type', 'taller');
     fd.set('title', 'Bachata Intermedio');
     fd.set('style', 'Bachata');
     fd.set('level', 'Intermedio');
@@ -357,7 +390,7 @@ describe('profileFixHref', () => {
 function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
   return {
     id: 'class-1',
-    type: 'clase',
+    type: 'taller',
     title: 'Salsa Avanzado',
     slug: null,
     status: 'draft',

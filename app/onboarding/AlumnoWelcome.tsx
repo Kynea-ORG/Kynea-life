@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Sparkles, Compass, MessageCircle, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
+import { trackOnboardingComplete } from '@/lib/analytics';
 
 // Pure intro carousel — no data is collected here, just a quick tour of what
 // Kynea offers before dropping the student into /clases. See the profesor/
@@ -34,12 +35,13 @@ export default function AlumnoWelcome({ redirectTo = '/clases' }: { redirectTo?:
   const isLast = slide === SLIDES.length - 1;
   const { baseColor, revealId, revealStyle, shift } = useFunFocusBackground();
 
-  async function finish() {
+  async function finish(skipped: boolean) {
     setLoading(true);
     const supabase = createClient();
     // Mark onboarding as done so proxy.ts allows full navigation — same flag
     // the profesor/academia wizard sets, just without any form data behind it.
     await supabase.auth.updateUser({ data: { onboarding_done: true } });
+    trackOnboardingComplete({ role: 'alumno', skipped });
     router.push(redirectTo);
   }
 
@@ -59,7 +61,7 @@ export default function AlumnoWelcome({ redirectTo = '/clases' }: { redirectTo?:
           <Image src="/logo.png" alt="Kynea" width={90} height={29} />
           <button
             type="button"
-            onClick={() => { finish(); shift(); }}
+            onClick={() => { finish(true); shift(); }}
             disabled={loading}
             className="text-sm font-semibold text-neutral-500 hover:text-neutral-700 transition-colors disabled:opacity-50"
           >
@@ -91,7 +93,7 @@ export default function AlumnoWelcome({ redirectTo = '/clases' }: { redirectTo?:
 
               <button
                 type="button"
-                onClick={() => { if (isLast) { finish(); } else { setSlide(s => s + 1); } shift(); }}
+                onClick={() => { if (isLast) { finish(false); } else { setSlide(s => s + 1); } shift(); }}
                 disabled={loading}
                 className="btn-dark w-full flex items-center justify-center gap-2 disabled:opacity-60"
               >

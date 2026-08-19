@@ -7,6 +7,7 @@ import {
   Upload, MapPin, Monitor, Loader2, X,
 } from 'lucide-react';
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
+import { trackCreateClassStepComplete, trackClassCreated, trackCreateClassBlocked } from '@/lib/analytics';
 import { uploadClassImage } from '@/lib/classes/imageActions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
@@ -228,7 +229,7 @@ type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: s
 function buildInitialForm(editClass: DanceClass | null) {
   if (!editClass) {
     return {
-      type: 'clase',
+      type: 'taller',
       title: '',
       style: '',
       level: '',
@@ -265,7 +266,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     };
   }
   return {
-    type: editClass.type ?? 'clase',
+    type: editClass.type ?? 'taller',
     title: editClass.title ?? '',
     style: editClass.style ?? '',
     level: editClass.level ?? '',
@@ -474,7 +475,11 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       })
     );
 
-  const goNext = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); setStep(s => Math.min(s + 1, STEPS.length - 1)); };
+  const goNext = () => {
+    trackCreateClassStepComplete({ stepNumber: step, stepName: STEPS[step].label, isEdit: Boolean(classId) });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setStep(s => Math.min(s + 1, STEPS.length - 1));
+  };
   const goBack = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); setStep(s => Math.max(s - 1, 0)); };
 
   const handlePublish = (status: string) => {
@@ -526,7 +531,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
         // Draft saves stay permissive — only publish attempts are gated.
         if (status === 'published') {
-          const result = validateForPublish(formDataToValidationInput(fd));
+          const result = validateForPublish(formDataToValidationInput(fd), { isEdit: Boolean(classId) });
           if (!result.ok) {
             const errorsByField: Record<string, string> = {};
             result.errors.forEach(e => { errorsByField[e.field] = e.message; });
@@ -543,6 +548,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           await updateClassFromForm(classId, fd);
         } else {
           await createClass(fd);
+          trackClassCreated({ status, classType: form.type, classStyle: form.style });
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
@@ -557,6 +563,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           return;
         }
         if (payload?.code === 'MISSING_CONTACT_CHANNEL') {
+          trackCreateClassBlocked({ isEdit: Boolean(classId) });
           setContactGateError({ message: payload.message, href: profileFixHref(payload.missing ?? []) });
           setStep(2);
           return;
@@ -575,12 +582,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         <FieldLabel>Tipo de publicación</FieldLabel>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
-            { value: 'clase', label: 'Clase regular', desc: 'Horario recurrente', emoji: '🎵' },
             { value: 'clase-suelta', label: 'Clase suelta', desc: 'Sesión única', emoji: '🎯' },
             { value: 'taller', label: 'Taller', desc: 'Taller puntual', emoji: '🛠️' },
-            { value: 'curso', label: 'Curso', desc: 'Programa completo', emoji: '📚' },
+            { value: 'programa', label: 'Programa', desc: 'Programa completo', emoji: '📚' },
             { value: 'masterclass', label: 'Masterclass', desc: 'Clase magistral', emoji: '⭐' },
             { value: 'evento', label: 'Evento', desc: 'Varios días seguidos', emoji: '🔥' },
+            { value: 'workshop', label: 'Workshop', desc: 'Sesión intensiva', emoji: '🚀' },
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('type', opt.value)}
               className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] ${
@@ -1288,6 +1295,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
+  const isLastStep = step === STEPS.length - 1;
+  // Editing (or duplicating, which lands here with a fresh classId) an
+  // existing class shouldn't gate saving behind walking through every
+  // remaining step — a one-field tweak on step 0 should be savable right away.
+  const showFinalize = isLastStep || Boolean(classId);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
       <SegmentedProgress step={step} />
@@ -1317,11 +1330,11 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </button>
         )}
 
-        {step < STEPS.length - 1 ? (
+        {!showFinalize ? (
           <button type="button" onClick={goNext} className="btn-dark flex items-center gap-2">
             Continuar <ChevronRight className="w-4 h-4" />
           </button>
-        ) : (
+        ) : isLastStep ? (
           <div className="flex flex-col gap-3 items-end">
             {submitError && <p className="text-[13px] text-red-600 font-medium animate-fade-in">{submitError}</p>}
             {contactGateError && (
@@ -1343,6 +1356,32 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 {classId ? 'Guardar y publicar' : 'Publicar clase'}
                 {!isPending && <ChevronRight className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Edit mode, not on the last step: a subtle quick-save link next to
+          // the primary Continuar, instead of stacking full-weight buttons —
+          // keeps the wizard's forward flow visually primary while still
+          // letting a mid-wizard tweak save without walking every step.
+          <div className="flex flex-col gap-3 items-end">
+            {submitError && <p className="text-[13px] text-red-600 font-medium animate-fade-in">{submitError}</p>}
+            {contactGateError && (
+              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5 animate-fade-in">
+                {contactGateError.message}
+                <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
+                  Completar perfil
+                </Link>
+              </p>
+            )}
+            <div className="flex items-center gap-5">
+              <button type="button" onClick={() => handlePublish(editClass?.status ?? 'draft')} disabled={isPending}
+                className="text-sm font-semibold text-neutral-500 hover:text-neutral-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Guardar cambios
+              </button>
+              <button type="button" onClick={goNext} className="btn-dark flex items-center gap-2">
+                Continuar <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>

@@ -121,7 +121,7 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload) 
     if (!row) throw new Error('Clase no encontrada');
 
     const typedRow = row as unknown as DbClassRow;
-    const result = validateForPublish(dbRowToValidationInput(typedRow, typedRow.class_schedules ?? []));
+    const result = validateForPublish(dbRowToValidationInput(typedRow, typedRow.class_schedules ?? []), { isEdit: true });
     if (!result.ok) {
       throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
     }
@@ -206,7 +206,7 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   await assertRole(supabase, user.id, ['profesor', 'academia']);
 
   if (formData.get('status') === 'published') {
-    const result = validateForPublish(formDataToValidationInput(formData));
+    const result = validateForPublish(formDataToValidationInput(formData), { isEdit: true });
     if (!result.ok) {
       throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
     }

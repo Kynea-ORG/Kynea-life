@@ -7,7 +7,7 @@ import { Mail, Loader2, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { safeRedirectPath } from '@/lib/utils';
-import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
+import { trackAuthCtaClick, trackAuthAttempt, trackOtpVerifyFailed } from '@/lib/analytics';
 
 const CODE_LENGTH = 6;
 const VALID_ROLES = new Set(['alumno', 'profesor', 'academia']);
@@ -81,6 +81,7 @@ function ConfirmarEmailContent() {
     });
 
     if (verifyError) {
+      trackOtpVerifyFailed();
       setError('Código incorrecto o expirado. Revisa el correo o reenvía uno nuevo.');
       setVerifying(false);
       return;

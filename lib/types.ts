@@ -1,5 +1,5 @@
 export type ClassStatus = 'published' | 'draft' | 'finished' | 'archived';
-export type ClassType = 'clase' | 'taller' | 'curso' | 'masterclass' | 'evento' | 'clase-suelta';
+export type ClassType = 'taller' | 'clase-suelta' | 'programa' | 'masterclass' | 'evento' | 'workshop';
 export type DanceStyle = string;
 export type Level = string;
 export type Modality = 'Presencial' | 'Online';

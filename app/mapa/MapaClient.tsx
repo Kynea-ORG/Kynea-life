@@ -8,7 +8,7 @@ import { formatPrice, formatTimeSlots, getTypeLabel } from '@/lib/utils';
 import { classUrl } from '@/lib/classes/helpers';
 import type { DanceClass } from '@/lib/types';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
-import { trackGenerateLead } from '@/lib/analytics';
+import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -182,6 +182,10 @@ export default function MapaClient({ classes }: { classes: DanceClass[] }) {
                   <div className="flex gap-2 mt-3">
                     <Link
                       href={classUrl(selectedClass)}
+                      onClick={() => trackSelectItem({
+                        classId: selectedClass.id, className: selectedClass.title, classStyle: selectedClass.style,
+                        teacherId: selectedClass.teacher.id, listName: 'mapa',
+                      })}
                       className="flex-1 text-center text-sm font-semibold py-2 rounded-xl border border-neutral-200 text-neutral-900 hover:bg-neutral-100 transition-colors flex items-center justify-center gap-1"
                     >
                       Ver clase <ChevronRight className="w-4 h-4" />

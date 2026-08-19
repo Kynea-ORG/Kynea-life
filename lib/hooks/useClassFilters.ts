@@ -1,8 +1,30 @@
 'use client';
 import { useState, useRef, useCallback, useEffect, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { EMPTY_FILTERS, type Filters } from '@/components/FilterPanel';
+import { EMPTY_FILTERS, TODAY_TAG, type Filters } from '@/components/FilterPanel';
 import type { DanceClass } from '@/lib/types';
+
+const WEEKDAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function isStartingToday(cls: DanceClass, today: string): boolean {
+  return cls.startDate === today;
+}
+
+// Recurring (weekly) classes whose weekday is today, but only once they've
+// actually started — a future 'mensual' class shouldn't show up under 'Hoy'
+// just because its weekly slot lands on today's weekday.
+function isRecurringToday(cls: DanceClass, today: string): boolean {
+  if (cls.recurrence !== 'mensual') return false;
+  if (!cls.startDate || cls.startDate > today) return false;
+  if (cls.endDate && cls.endDate < today) return false;
+  const weekday = WEEKDAY_NAMES[new Date(`${today}T12:00:00`).getDay()];
+  return cls.timeSlots.some(s => s.days.includes(weekday));
+}
 
 function matchesPriceMax(cls: DanceClass, priceMax: number): boolean {
   const free = cls.priceType === 'Gratis' || cls.price === 0;
@@ -111,7 +133,7 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
   // (styles/levels/days/city/modalities/types/withSpots/query). Client
   // applies priceMax + timesOfDay on top, plus the other dims again for
   // instant feedback while the server re-fetch is in progress.
-  const results = initialClasses.filter(cls => {
+  let results = initialClasses.filter(cls => {
     if (query) {
       const q = query.toLowerCase();
       const matchesQuery =
@@ -129,13 +151,25 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
     if (filters.withSpots && ((cls.availableSpots ?? 0) === 0)) return false;
     if (filters.priceMax !== null && !matchesPriceMax(cls, filters.priceMax)) return false;
     if (filters.timesOfDay.length && !filters.timesOfDay.some(t => matchesTimeOfDay(cls, t))) return false;
-    if (filters.days.length) {
+    if (filters.days.includes(TODAY_TAG)) {
+      const today = todayIso();
+      if (!isStartingToday(cls, today) && !isRecurringToday(cls, today)) return false;
+    } else if (filters.days.length) {
       const classdays = cls.timeSlots.flatMap(s => s.days);
       if (!filters.days.some(d => classdays.includes(d))) return false;
     }
     if (filters.city && cls.city !== filters.city) return false;
     return true;
   });
+
+  // 'Hoy' has a two-tier priority: classes starting today first, then
+  // already-started recurring classes whose weekly slot lands on today.
+  if (filters.days.includes(TODAY_TAG)) {
+    const today = todayIso();
+    results = [...results].sort(
+      (a, b) => Number(!isStartingToday(a, today)) - Number(!isStartingToday(b, today))
+    );
+  }
 
   const activeCount =
     filters.styles.length + filters.levels.length + filters.days.length +
