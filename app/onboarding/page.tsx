@@ -30,6 +30,10 @@ function OnboardingContent() {
   const [form, setForm] = useState({
     publicName: '',
     representante: '',
+    ruc: '',
+    address: '',
+    district: '',
+    city: 'Lima',
     nationality: '',
     bio: '',
     instagram: '',
@@ -202,6 +206,7 @@ function OnboardingContent() {
         name:             form.publicName || undefined,
         bio:              form.bio || undefined,
         nationality:      form.nationality || undefined,
+        ruc:              role === 'academia' && form.ruc ? form.ruc : undefined,
         whatsapp:         waNumber ? `${waCode}${waNumber}` : undefined,
         instagram:        form.instagram || undefined,
         tiktok:           form.tiktok || undefined,
@@ -213,6 +218,32 @@ function OnboardingContent() {
         photo_position:   photoUrl ? photoPosition : undefined,
         photo_zoom:       photoUrl ? photoZoom : undefined,
       });
+
+      // Academia-only: sede principal (venue) + solicitud de aprobación.
+      // Se crea siempre, aunque la dirección quede vacía — sin esta fila
+      // el admin nunca vería que esta cuenta necesita revisión (ver
+      // docs/TASKS.md sección 8 y assertAcademiaApproved en publishGuard.ts).
+      if (role === 'academia') {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          if (form.address.trim()) {
+            await supabase.from('venues').insert({
+              owner_id: user.id,
+              name: form.publicName || 'Sede principal',
+              address: form.address.trim(),
+              district: form.district.trim() || null,
+              city: form.city.trim() || null,
+              is_primary: true,
+            });
+          }
+          await supabase.from('academia_requests').insert({
+            profile_id: user.id,
+            kind: 'signup',
+            ruc: form.ruc || null,
+          });
+        }
+      }
+
       trackOnboardingComplete({ role, skipped: false });
       router.push('/dashboard');
     } catch (err: unknown) {
@@ -343,6 +374,16 @@ function OnboardingContent() {
                   { key: 'publicName', label: role === 'academia' ? 'Nombre de la academia' : 'Nombre público', placeholder: role === 'academia' ? 'Ej. Studio Ritmo Latino' : 'Tu nombre completo', required: true },
                   ...(role === 'academia' ? [{ key: 'representante', label: 'Nombre del representante', placeholder: 'Nombre de quien gestiona la cuenta' }] : []),
                   { key: 'bio', label: 'Bio corta', placeholder: 'Cuéntanos sobre ti o tu academia…', type: 'textarea' },
+                  // Campos propios de academia — se guardan como profiles.ruc
+                  // y una venue con is_primary: true (ver handleFinish). Todos
+                  // opcionales: esto no bloquea terminar el onboarding, solo
+                  // enriquece la solicitud de aprobación.
+                  ...(role === 'academia' ? [
+                    { key: 'ruc', label: 'RUC (opcional)', placeholder: '20123456789' },
+                    { key: 'address', label: 'Dirección de tu academia', placeholder: 'Av. Benavides 1234' },
+                    { key: 'district', label: 'Distrito', placeholder: 'Ej. Miraflores' },
+                    { key: 'city', label: 'Ciudad', placeholder: 'Lima' },
+                  ] : []),
                 ].map(field => (
                   <div key={field.key}>
                     <label className="block text-xs font-semibold text-neutral-700 mb-1.5">

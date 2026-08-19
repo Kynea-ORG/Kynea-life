@@ -10,7 +10,7 @@ import {
 import {
   validateForPublish, formDataToValidationInput, dbRowToValidationInput, publishError,
 } from './validation';
-import { assertContactChannel } from './publishGuard';
+import { assertContactChannel, assertAcademiaApproved } from './publishGuard';
 import { CLASS_SELECT } from './queries';
 import type { FormSlot, ClassUpdatePayload, DbClassRow } from './types';
 
@@ -58,6 +58,7 @@ export async function createClass(formData: FormData) {
   const cols = buildClassColumns(formData, { levelId, venueId });
 
   if (cols.status === 'published') {
+    await assertAcademiaApproved(supabase, user.id);
     await assertContactChannel(supabase, user.id, cols.contact_mode ?? 'whatsapp');
   }
 
@@ -126,6 +127,7 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload) 
       throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
     }
 
+    await assertAcademiaApproved(supabase, user.id);
     await assertContactChannel(supabase, user.id, typedRow.contact_mode ?? 'whatsapp');
 
     if (!payload.published_at) payload.published_at = new Date().toISOString();
@@ -263,6 +265,7 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   const updates: ClassUpdatePayload = { ...cols };
 
   if (cols.status === 'published') {
+    await assertAcademiaApproved(supabase, user.id);
     await assertContactChannel(supabase, user.id, cols.contact_mode ?? 'whatsapp');
   }
 

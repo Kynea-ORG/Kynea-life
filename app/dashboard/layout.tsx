@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, name, role, photo_url, is_admin')
+    .select('id, name, role, photo_url, is_admin, academia_approved_at')
     .eq('id', user.id)
     .single();
 
@@ -23,6 +23,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Suspense>
         <NoticeBar />
       </Suspense>
+      {profile.role === 'academia' && !profile.academia_approved_at && (
+        <div className="bg-yellow-bg border-b border-yellow-dark/30 px-4 py-2.5 text-center">
+          <p className="text-[13px] font-semibold text-neutral-800">
+            Tu academia está en revisión — podrás publicar clases en cuanto la aprobemos. Mientras tanto puedes configurar tu perfil y guardar borradores.
+          </p>
+        </div>
+      )}
       <div className="flex flex-1 min-h-0">
         <DashboardSidebar profile={profile} />
         <main className="flex-1 min-w-0 pt-14 md:pt-0 pb-20 md:pb-0">
