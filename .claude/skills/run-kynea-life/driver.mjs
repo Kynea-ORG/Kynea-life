@@ -77,20 +77,21 @@ if (cmd === 'login') {
   });
 
 } else if (cmd === 'signup') {
+  // /registro is alumno-only; profesor/academia sign up at /unete (split
+  // happened in the "categorias-y-slug-clases" merge — no role-selection
+  // buttons on either page anymore, each page hardcodes its own role).
   const [role, email] = args;
   const roleLabel = { alumno: 'Alumno', profesor: 'Profesor', academia: 'Academia' }[role];
   if (!roleLabel) { console.error('role must be alumno|profesor|academia'); process.exit(1); }
+  const path = role === 'alumno' ? '/registro' : '/unete';
   await withPage(async page => {
-    await page.goto(`${BASE}/registro`, { waitUntil: 'networkidle' });
-    await page.click(`button:has-text("${roleLabel}")`);
-    await page.check('input[type="checkbox"]'); // NOT label:has-text(...) — see Gotchas
-    await page.click(`button:has-text("Continuar como ${roleLabel} con correo")`);
-    await page.waitForSelector(`text=Cuenta de ${roleLabel}`);
+    await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' });
     await page.fill('input[placeholder="Tu nombre"], input[placeholder="Ej. Studio Ritmo Latino"]', 'Profesor Prueba QA');
     await page.fill('input[placeholder="tu@correo.com"]', email);
     await page.fill('input[placeholder="Mínimo 8 caracteres"]', 'TestPassword123!');
+    await page.check('input[type="checkbox"]'); // NOT label:has-text(...) — see Gotchas
     await shot(page, '01-registro-filled');
-    await page.click('button[type="submit"]:has-text("Crear cuenta")');
+    await page.click(`button[type="submit"]:has-text("Crear cuenta")`);
     await page.waitForTimeout(3000);
     await shot(page, '02-post-signup');
   });

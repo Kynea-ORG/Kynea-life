@@ -9,7 +9,7 @@ import ContactModal from '@/components/ContactModal';
 import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
-import { trackGenerateLead, trackAuthCtaClick } from '@/lib/analytics';
+import { trackGenerateLead, trackAuthCtaClick, trackViewItem } from '@/lib/analytics';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [showContact, setShowContact] = useState(false);
@@ -37,6 +37,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
         .maybeSingle();
       if (data) setSaved(true);
     });
+  }, [cls.id]);
+
+  useEffect(() => {
+    trackViewItem({
+      classId: cls.id, className: cls.title, classStyle: cls.style,
+      classType: cls.type, teacherId: cls.teacher.id, price: cls.price,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cls.id]);
 
   const toggleSave = async () => {

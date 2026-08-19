@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, Sparkles, X } from 'lucide-react';
 
 export interface Filters {
   city: string;
@@ -115,8 +115,36 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
   ];
   const hasMoreStyles = visibleStyles.length < danceStyles.length;
 
+  const todayActive = filters.days.includes(TODAY_TAG);
+
   return (
     <div className={`bg-white ${className}`}>
+      <button
+        onClick={() => toggleDay(TODAY_TAG)}
+        className={`w-full flex items-center gap-3 rounded-xl border-2 px-4 py-3 mb-5 text-left cursor-pointer transition-colors ${
+          todayActive
+            ? 'bg-primary border-primary text-white'
+            : 'bg-primary-bg border-primary/30 text-neutral-900 hover:border-primary animate-pulse-soft-primary'
+        }`}
+      >
+        <span className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${todayActive ? 'bg-white/20' : 'bg-white'}`}>
+          <Sparkles className={`w-4 h-4 ${todayActive ? 'text-white' : 'text-primary'}`} />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="font-bold text-[14px]">{TODAY_TAG}</span>
+            <span className={`text-[9px] font-black uppercase tracking-wide rounded-full px-1.5 py-0.5 ${
+              todayActive ? 'bg-white/25 text-white' : 'bg-primary text-white'
+            }`}>
+              Nuevo
+            </span>
+          </span>
+          <span className={`block text-[12px] ${todayActive ? 'text-white/80' : 'text-neutral-500'}`}>
+            Clases que se dictan hoy
+          </span>
+        </span>
+      </button>
+
       {activeCount > 0 && (
         <div className="flex items-center justify-between mb-4">
           <span className="text-[13px] text-neutral-500">{activeCount} filtro{activeCount !== 1 ? 's' : ''} activo{activeCount !== 1 ? 's' : ''}</span>
@@ -169,13 +197,6 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
 
       <Section title="Día de la semana">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => toggleDay(TODAY_TAG)}
-            className={filters.days.includes(TODAY_TAG) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
-          >
-            {TODAY_TAG}
-          </button>
-          <span className="w-px h-5 bg-neutral-200 shrink-0" aria-hidden="true" />
           {DAYS.map(d => (
             <button
               key={d}

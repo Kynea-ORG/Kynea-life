@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Hanken_Grotesk, Figtree } from "next/font/google";
 import ImageProviderHealthCheck from "@/components/ImageProviderHealthCheck";
+import LoginSuccessListener from "@/components/LoginSuccessListener";
 import "./globals.css";
 
 // GTM only fires in the real production environment — NEXT_PUBLIC_APP_ENV is
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="es" className={`${hanken.variable} ${figtree.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
         <ImageProviderHealthCheck />
+        <LoginSuccessListener />
         {GTM_ENABLED && (
           <noscript>
             <iframe

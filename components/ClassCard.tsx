@@ -7,15 +7,19 @@ import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { classUrl } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
-import { trackGenerateLead } from '@/lib/analytics';
+import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
 import ContactModal from './ContactModal';
 
 interface ClassCardProps {
   cls: DanceClass;
   compact?: boolean;
+  // Identifies which listing this card was rendered in (Home recomendadas,
+  // Home fila de estilo destacado, /clases grid, perfil de profesor) — see
+  // trackSelectItem in lib/analytics.ts and each call site below.
+  listName: string;
 }
 
-export default function ClassCard({ cls, compact = false }: ClassCardProps) {
+export default function ClassCard({ cls, compact = false, listName }: ClassCardProps) {
   const [showContact, setShowContact] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -28,6 +32,13 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
   const spotsLeft = cls.availableSpots;
   const isFullyBooked = spotsLeft === 0;
   const isAlmostFull = spotsLeft !== undefined && spotsLeft <= 3 && spotsLeft > 0;
+
+  function handleSelectItem() {
+    trackSelectItem({
+      classId: cls.id, className: cls.title, classStyle: cls.style,
+      teacherId: cls.teacher.id, listName,
+    });
+  }
 
   function handleContact() {
     if (isFullyBooked) return;
@@ -70,7 +81,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
             zoom — an inline style would silently override any transform
             utility class placed on the same element. */}
         <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
-          <Link href={classUrl(cls)} aria-label={cls.title} className="absolute inset-0">
+          <Link href={classUrl(cls)} aria-label={cls.title} className="absolute inset-0" onClick={handleSelectItem}>
             <SmartImage
               src={cls.coverImage || '/logo.png'}
               alt={cls.title}
@@ -162,6 +173,7 @@ export default function ClassCard({ cls, compact = false }: ClassCardProps) {
           <div className="flex gap-2 mt-auto pt-1">
             <Link
               href={classUrl(cls)}
+              onClick={handleSelectItem}
               className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
             >
               Ver clase

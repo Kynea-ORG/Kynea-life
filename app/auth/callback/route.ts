@@ -74,8 +74,12 @@ export async function GET(request: Request) {
         const dest = redirectTarget ?? (profile.role === 'alumno' ? '/clases' : '/dashboard');
         // If they came from /registro with a different role, warn them they already have an account
         const notice = roleMismatchNotice(incomingRole, profile.role);
-        const url = notice ? `${origin}${dest}?notice=${notice}` : `${origin}${dest}`;
-        return NextResponse.redirect(url);
+        // `login=1` is a one-shot flag for LoginSuccessListener (mounted in
+        // app/layout.tsx) to fire trackLoginSuccess once — this route runs
+        // server-side and has no dataLayer access of its own.
+        const params = new URLSearchParams({ login: '1' });
+        if (notice) params.set('notice', notice);
+        return NextResponse.redirect(`${origin}${dest}?${params.toString()}`);
       }
     }
   }
