@@ -71,9 +71,14 @@ export type AcademiaRequestRow = {
 
 export async function fetchPendingAcademiaRequests(): Promise<AcademiaRequestRow[]> {
   const supabase = await createClient();
+  // `!profile_id` disambiguates the embed: academia_requests has two FKs to
+  // profiles (profile_id and reviewed_by), so the bare `profiles(...)` embed
+  // PostgREST would otherwise try fails with "more than one relationship
+  // was found" — silently swallowed below into an empty list, which is why
+  // this needs the explicit hint rather than being caught by a type error.
   const { data, error } = await supabase
     .from('academia_requests')
-    .select('id, kind, ruc, created_at, profile_id, profiles(name, role)')
+    .select('id, kind, ruc, created_at, profile_id, profiles!profile_id(name, role)')
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
 
