@@ -1,3 +1,10 @@
+// Portada por defecto que ve una academia en el onboarding/conversión antes
+// de subir la suya — así entiende que puede cambiarla en vez de ver un
+// recuadro vacío. No se persiste en profiles.cover_image_url a menos que
+// suban un archivo real: el perfil público cae a esta misma constante
+// cuando cover_image_url es null.
+export const DEFAULT_ACADEMIA_COVER = '/img-portada-kynea.png';
+
 export function getStatusLabel(status: string): string {
   const map: Record<string, string> = {
     published: 'Publicada',

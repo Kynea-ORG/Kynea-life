@@ -30,6 +30,15 @@ export interface Teacher {
   website?: string;
   rating?: number;
   totalClasses?: number;
+  // Campos corporativos de academia — siempre undefined para type === 'profesor'.
+  teamSize?: string;
+  branchCount?: string;
+  coverImage?: string;
+  coverImagePosition?: string;
+  coverImageZoom?: number;
+  venueAddress?: string;
+  venueDistrict?: string;
+  venueCity?: string;
 }
 
 export interface TimeSlot {

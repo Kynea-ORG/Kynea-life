@@ -35,12 +35,23 @@ export function mapTeacher(t: any): Teacher {
     website:      t.website,
     rating:       t.rating,
     totalClasses: t.total_classes,
+    // Campos corporativos — undefined si el caller no los seleccionó (p.ej.
+    // el sub-select de teacher en CLASS_SELECT), harmless para 'profesor'.
+    teamSize:           t.team_size ?? undefined,
+    branchCount:        t.branch_count ?? undefined,
+    coverImage:         t.cover_image_url ?? undefined,
+    coverImagePosition: t.cover_image_position || undefined,
+    coverImageZoom:     t.cover_image_zoom ?? undefined,
+    venueAddress:       t.venue?.address ?? undefined,
+    venueDistrict:      t.venue?.district ?? undefined,
+    venueCity:          t.venue?.city ?? undefined,
   };
 }
 
 export const PROFILE_SELECT = `
   id, slug, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
   nationality, whatsapp, show_whatsapp, instagram, tiktok, youtube, website,
+  team_size, branch_count, cover_image_url, cover_image_position, cover_image_zoom,
   profile_styles(style_id, dance_styles(name))
 `;
 
@@ -69,5 +80,22 @@ export async function fetchTeacherBySlug(slug: string): Promise<Teacher | null> 
     .eq('slug', slug)
     .single();
   if (error || !data) return null;
-  return mapTeacher(data);
+
+  // Sede principal — solo relevante para academia, y se busca aparte en vez
+  // de un embed porque venues no tiene una FK única hacia profiles desde acá
+  // (es owner_id, uno-a-muchos) y queremos filtrar por is_primary sin pelear
+  // con la sintaxis de embed filtrado de PostgREST.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let venue: any = null;
+  if (data.role === 'academia') {
+    const { data: venueRow } = await supabase
+      .from('venues')
+      .select('address, district, city')
+      .eq('owner_id', data.id)
+      .eq('is_primary', true)
+      .maybeSingle();
+    venue = venueRow;
+  }
+
+  return mapTeacher({ ...data, venue });
 }

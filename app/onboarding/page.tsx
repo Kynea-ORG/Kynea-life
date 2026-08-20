@@ -11,13 +11,24 @@ import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { trackSignUp, trackOnboardingStepComplete, trackOnboardingComplete } from '@/lib/analytics';
-import { safeRedirectPath } from '@/lib/utils';
+import { safeRedirectPath, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
+import SmartImage from '@/components/SmartImage';
 import AlumnoWelcome from './AlumnoWelcome';
 
-const STEPS = [
+const STEPS_PROFESOR = [
   'Datos públicos',
   'Contacto',
   'Especialidad',
+  'Validación',
+];
+// Academia inserta un paso propio "Tu academia" antes de Validación — así
+// los índices 0/1/2 (Datos públicos, Contacto, Especialidad) quedan
+// idénticos entre roles y validateStep() no necesita saber de role.
+const STEPS_ACADEMIA = [
+  'Datos públicos',
+  'Contacto',
+  'Especialidad',
+  'Tu academia',
   'Validación',
 ];
 
@@ -27,10 +38,13 @@ function OnboardingContent() {
   const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
   const [step, setStep] = useState(0);
   const [role, setRole] = useState('');
+  const STEPS = role === 'academia' ? STEPS_ACADEMIA : STEPS_PROFESOR;
   const [form, setForm] = useState({
     publicName: '',
     representante: '',
     ruc: '',
+    teamSize: '',
+    branchCount: '',
     address: '',
     district: '',
     city: 'Lima',
@@ -52,6 +66,16 @@ function OnboardingContent() {
   const [photoZoom, setPhotoZoom] = useState(1);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Portada — solo academia. Arranca vacía (nada se persiste) y el picker
+  // muestra DEFAULT_ACADEMIA_COVER como preview no interactiva hasta que
+  // suben su propia imagen, para que vean que pueden reemplazarla.
+  const [coverUrl, setCoverUrl] = useState('');
+  const [coverPosition, setCoverPosition] = useState('50% 50%');
+  const [coverZoom, setCoverZoom] = useState(1);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
   const [availableStyles, setAvailableStyles] = useState<string[]>([]);
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -162,6 +186,29 @@ function OnboardingContent() {
     }
   }
 
+  async function handleCoverUpload(file: File) {
+    if (file.size > 5 * 1024 * 1024) { setError('La imagen no puede superar 5MB.'); return; }
+    setError('');
+    setUploadingCover(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No autenticado');
+      const ext = file.name.split('.').pop() ?? 'jpg';
+      const path = `${user.id}/${Date.now()}-cover.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file);
+      if (uploadErr) throw new Error(uploadErr.message);
+      const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
+      setCoverUrl(publicUrl);
+      setCoverPosition('50% 50%');
+      setCoverZoom(1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al subir la portada');
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
   function handleNext() {
     const result = validateStep(step, form, { waNumber });
     if (!result.ok) {
@@ -177,7 +224,12 @@ function OnboardingContent() {
   const back = () => { setError(''); setStep(s => s - 1); shift(); };
 
   async function handleFinish() {
-    for (let s = 0; s <= 2; s++) {
+    // Valida todos los pasos de contenido excepto el último (Validación,
+    // que solo depende del checkbox rulesAccepted, chequeado abajo). Cubre
+    // "Tu academia" para role === 'academia' sin que validateStep necesite
+    // saber de role: ese paso no tiene campos obligatorios, así que pasa
+    // trivialmente igual que el resto de índices sin case explícito.
+    for (let s = 0; s < STEPS.length - 1; s++) {
       const result = validateStep(s, form, { waNumber });
       if (!result.ok) {
         setError(`Revisa el paso ${s + 1}: ${result.errors[0].message}`);
@@ -217,6 +269,11 @@ function OnboardingContent() {
         photo_url:        photoUrl || undefined,
         photo_position:   photoUrl ? photoPosition : undefined,
         photo_zoom:       photoUrl ? photoZoom : undefined,
+        team_size:            role === 'academia' && form.teamSize ? form.teamSize : undefined,
+        branch_count:         role === 'academia' && form.branchCount ? form.branchCount : undefined,
+        cover_image_url:      role === 'academia' && coverUrl ? coverUrl : undefined,
+        cover_image_position: role === 'academia' && coverUrl ? coverPosition : undefined,
+        cover_image_zoom:     role === 'academia' && coverUrl ? coverZoom : undefined,
       });
 
       // Academia-only: sede principal (venue) + solicitud de aprobación.
@@ -380,16 +437,6 @@ function OnboardingContent() {
                   { key: 'publicName', label: role === 'academia' ? 'Nombre de la academia' : 'Nombre público', placeholder: role === 'academia' ? 'Ej. Studio Ritmo Latino' : 'Tu nombre completo', required: true },
                   ...(role === 'academia' ? [{ key: 'representante', label: 'Nombre del representante', placeholder: 'Nombre de quien gestiona la cuenta' }] : []),
                   { key: 'bio', label: 'Bio corta', placeholder: 'Cuéntanos sobre ti o tu academia…', type: 'textarea' },
-                  // Campos propios de academia — se guardan como profiles.ruc
-                  // y una venue con is_primary: true (ver handleFinish). Todos
-                  // opcionales: esto no bloquea terminar el onboarding, solo
-                  // enriquece la solicitud de aprobación.
-                  ...(role === 'academia' ? [
-                    { key: 'ruc', label: 'RUC (opcional)', placeholder: '20123456789' },
-                    { key: 'address', label: 'Dirección de tu academia', placeholder: 'Av. Benavides 1234' },
-                    { key: 'district', label: 'Distrito', placeholder: 'Ej. Miraflores' },
-                    { key: 'city', label: 'Ciudad', placeholder: 'Lima' },
-                  ] : []),
                 ].map(field => (
                   <div key={field.key}>
                     <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
@@ -529,8 +576,135 @@ function OnboardingContent() {
             </div>
           )}
 
-          {/* Step 3: Confirmation */}
-          {step === 3 && (
+          {/* Paso "Tu academia" — solo role === 'academia', ver STEPS_ACADEMIA */}
+          {role === 'academia' && step === 3 && (
+            <div className="animate-fade-in">
+              <h2 className="text-xl font-black text-neutral-900 mb-2">Tu academia</h2>
+              <p className="text-sm text-neutral-500 mb-6">Esto ayuda a los alumnos a ubicarte y a Kynea a revisar tu cuenta más rápido — todo es opcional</p>
+              <div className="space-y-4">
+                {[
+                  { key: 'ruc', label: 'RUC (opcional)', placeholder: '20123456789' },
+                ].map(field => (
+                  <div key={field.key}>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{field.label}</label>
+                    <input
+                      type="text"
+                      placeholder={field.placeholder}
+                      value={(form as Record<string, unknown>)[field.key] as string}
+                      onChange={e => set(field.key as keyof typeof form, e.target.value)}
+                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
+                    />
+                  </div>
+                ))}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Tamaño del equipo</label>
+                    <select
+                      value={form.teamSize}
+                      onChange={e => set('teamSize', e.target.value)}
+                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
+                    >
+                      <option value="">Seleccionar…</option>
+                      <option value="1-2">1-2 profesores</option>
+                      <option value="3-5">3-5 profesores</option>
+                      <option value="6+">6+ profesores</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Cantidad de sedes</label>
+                    <select
+                      value={form.branchCount}
+                      onChange={e => set('branchCount', e.target.value)}
+                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
+                    >
+                      <option value="">Seleccionar…</option>
+                      <option value="1">1 sede</option>
+                      <option value="2-3">2-3 sedes</option>
+                      <option value="4+">4+ sedes</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Dirección de tu sede principal</label>
+                  <input
+                    type="text"
+                    placeholder="Av. Benavides 1234"
+                    value={form.address}
+                    onChange={e => set('address', e.target.value)}
+                    className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Distrito</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Miraflores"
+                      value={form.district}
+                      onChange={e => set('district', e.target.value)}
+                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Ciudad</label>
+                    <input
+                      type="text"
+                      placeholder="Lima"
+                      value={form.city}
+                      onChange={e => set('city', e.target.value)}
+                      className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Portada de tu perfil</label>
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f); }}
+                  />
+                  {coverUrl ? (
+                    <ImagePositionPicker
+                      src={coverUrl}
+                      value={coverPosition}
+                      onChange={setCoverPosition}
+                      zoom={coverZoom}
+                      onZoomChange={setCoverZoom}
+                      frameClassName="w-full h-32 rounded-xl border-2 border-neutral-200"
+                      sizes="500px"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => coverInputRef.current?.click()}
+                      disabled={uploadingCover}
+                      className="relative w-full h-32 rounded-xl overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors group"
+                    >
+                      <SmartImage src={DEFAULT_ACADEMIA_COVER} alt="Portada de ejemplo" fill sizes="500px" className="object-cover opacity-60 group-hover:opacity-40 transition-opacity" />
+                      <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/10">
+                        {uploadingCover ? (
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                        ) : (
+                          <span className="text-xs font-semibold text-white bg-neutral-900/70 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                            <Upload className="w-3.5 h-3.5" /> Subir tu portada
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                  <p className="text-[11px] text-neutral-400 mt-1.5">Esta es una portada de ejemplo — puedes reemplazarla ahora o después desde tu perfil.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step de confirmación — siempre el último, ver STEPS_PROFESOR/STEPS_ACADEMIA */}
+          {step === STEPS.length - 1 && (
             <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Confirmar y guardar</h2>
               <p className="text-sm text-neutral-500 mb-6">Revisa tu información antes de guardar</p>
