@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { PlusCircle, Upload, BookOpen, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight, Users } from 'lucide-react';
+import { PlusCircle, Upload, BookOpen, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { classUrl } from '@/lib/classes/helpers';
 import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
+import AcademiaConversionCard from './AcademiaConversionCard';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -20,16 +21,33 @@ export default async function DashboardPage() {
 
   if (profile?.role === 'alumno') redirect('/dashboard/alumno');
 
+  // Only a profesor can request this — an academia is already one, and an
+  // alumno never reaches this page (redirected above).
+  let conversionStatus: 'pending' | 'approved' | 'rejected' | null = null;
+  if (profile?.role === 'profesor') {
+    const { data: conversionRequest } = await supabase
+      .from('academia_requests')
+      .select('status')
+      .eq('profile_id', user.id)
+      .eq('kind', 'conversion')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    conversionStatus = conversionRequest?.status ?? null;
+  }
+
   const classes = await fetchTeacherClasses(user.id);
   const publishedClasses = classes.filter(c => c.status === 'published');
   const draftClasses = classes.filter(c => c.status === 'draft');
   const totalViews = publishedClasses.reduce((acc, c) => acc + c.metrics.views, 0);
   const recentClasses = publishedClasses.slice(0, 3);
 
+  // Sin métrica de 'Profesores' — el roster de academia corre sobre datos
+  // mock por ahora, mostrar un conteo real inexistente sería engañoso. Ver
+  // docs/TASKS.md sección 8.8.
   const METRICS = [
     { label: 'Visualizaciones', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-700',    iconBg: 'bg-blue-pastel/30' },
     { label: 'Publicadas',      value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
-    ...(profile?.role === 'academia' ? [{ label: 'Profesores', value: 0, icon: Users, bg: 'bg-pink-50', text: 'text-pink-600', iconBg: 'bg-pink-100' }] : []),
   ];
 
   const firstName = profile?.name?.split(' ')[0] ?? 'profe';
@@ -51,8 +69,10 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {profile?.role === 'profesor' && <AcademiaConversionCard initialStatus={conversionStatus} />}
+
       {/* Metrics */}
-      <div className={`grid ${METRICS.length === 3 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-8`}>
+      <div className="grid grid-cols-2 gap-4 mb-8">
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
@@ -130,7 +150,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className={`grid ${profile?.role === 'academia' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
+      <div className="grid sm:grid-cols-2 gap-4">
         <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 border border-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors active:scale-[0.98]">
           <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
             <PlusCircle className="w-6 h-6" />
@@ -151,18 +171,6 @@ export default async function DashboardPage() {
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>
-        {profile?.role === 'academia' && (
-          <Link href="/dashboard/profesores" className="flex items-center gap-4 p-5 bg-pink-50 border border-neutral-900 rounded-xl text-neutral-900 transition-transform active:scale-[0.98]">
-            <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-pink-600" />
-            </div>
-            <div>
-              <p className="font-bold text-[15px]">Gestionar profesores</p>
-              <p className="text-[13px] text-neutral-500">Profesores en tu academia</p>
-            </div>
-            <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
-          </Link>
-        )}
       </div>
     </div>
   );

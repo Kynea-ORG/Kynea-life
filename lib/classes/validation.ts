@@ -50,7 +50,7 @@ export interface ClassValidationInput {
 // ─── Error envelope (shared by validation + publish gating + image upload) ────
 
 export type PublishErrorPayload = {
-  code: 'VALIDATION' | 'MISSING_CONTACT_CHANNEL' | 'INVALID_IMAGE';
+  code: 'VALIDATION' | 'MISSING_CONTACT_CHANNEL' | 'INVALID_IMAGE' | 'ACADEMIA_NOT_APPROVED';
   // NOTE: 'INVALID_IMAGE' is used by imageActions.ts's uploadClassImage
   message: string;
   errors?: FieldError[];

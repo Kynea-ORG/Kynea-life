@@ -7,6 +7,7 @@ export async function updateProfile(updates: {
   bio?: string;
   nationality?: string;
   years_experience?: number;
+  ruc?: string;
   whatsapp?: string;
   show_whatsapp?: boolean;
   show_spots?: boolean;
@@ -28,6 +29,7 @@ export async function updateProfile(updates: {
   if (updates.bio              !== undefined) profileUpdate.bio = updates.bio;
   if (updates.nationality      !== undefined) profileUpdate.nationality = updates.nationality;
   if (updates.years_experience !== undefined) profileUpdate.years_experience = updates.years_experience;
+  if (updates.ruc              !== undefined) profileUpdate.ruc = updates.ruc;
   if (updates.whatsapp         !== undefined) profileUpdate.whatsapp = updates.whatsapp;
   if (updates.show_whatsapp    !== undefined) profileUpdate.show_whatsapp = updates.show_whatsapp;
   if (updates.show_spots       !== undefined) profileUpdate.show_spots = updates.show_spots;
@@ -68,4 +70,31 @@ export async function updateProfile(updates: {
   // client-side nav within /dashboard/*, so a plain 'page' revalidation
   // of '/dashboard' alone wouldn't refresh it.
   revalidatePath('/dashboard', 'layout');
+}
+
+// A profesor requesting to become an academia — see docs/TASKS.md sección 8.
+// Does NOT touch `profiles.role`: the requester keeps functioning as a
+// normal profesor with zero restriction while pending. `role` only changes
+// when an admin approves via approve_academia_request() (Supabase RPC),
+// the sole path the role-immutability trigger allows for this transition.
+export async function requestAcademiaConversion(ruc?: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+
+  const { error } = await supabase.from('academia_requests').insert({
+    profile_id: user.id,
+    kind: 'conversion',
+    ruc: ruc || null,
+  });
+  if (error) {
+    // academia_requests_one_pending_per_profile (partial unique index)
+    // rejects a second pending request — surface a friendly message
+    // instead of the raw Postgres constraint error.
+    if (error.code === '23505') throw new Error('Ya tienes una solicitud pendiente de revisión.');
+    throw new Error(error.message);
+  }
+
+  // AcademiaConversionCard lives on the dashboard home, not Configuración.
+  revalidatePath('/dashboard');
 }

@@ -568,6 +568,11 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           setStep(2);
           return;
         }
+        if (payload?.code === 'ACADEMIA_NOT_APPROVED') {
+          trackCreateClassBlocked({ isEdit: Boolean(classId) });
+          setSubmitError(payload.message);
+          return;
+        }
         setSubmitError(payload?.message ?? (err instanceof Error ? err.message : 'Error al guardar'));
       }
     });

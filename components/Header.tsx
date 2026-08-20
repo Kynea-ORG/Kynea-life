@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Menu, X, User, Settings, LogOut,
-  LayoutDashboard, PlusCircle, ChevronDown,
+  LayoutDashboard, PlusCircle, ChevronDown, Building2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
@@ -232,6 +232,10 @@ export default function Header({ transparent = false }: { transparent?: boolean 
             </>
           ) : (
             <>
+              <Link href="/academias" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_academia' })}
+                className="hidden lg:inline-flex items-center gap-1.5 font-sans text-[13px] font-bold px-3.5 py-2 rounded-full border border-pink-100 bg-pink-50 text-pink-600 hover:bg-pink-100 transition-colors active:scale-[0.97]">
+                <Building2 className="w-3.5 h-3.5" /> ¿Tienes una academia?
+              </Link>
               <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_desktop' })}
                 className="font-sans text-[15px] font-semibold px-5 py-2 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 transition-[background-color] active:scale-[0.97]">
                 Iniciar sesión
@@ -324,6 +328,10 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                 <Link href="/unete/beneficios" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_profesor' }); setMobileOpen(false); }}
                   className="font-sans flex items-center justify-center mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
                   Únete como profesor
+                </Link>
+                <Link href="/academias" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_academia' }); setMobileOpen(false); }}
+                  className="font-sans flex items-center justify-center gap-1.5 text-[13px] font-bold text-pink-600 hover:text-pink-700 active:opacity-70 transition-colors py-2">
+                  <Building2 className="w-3.5 h-3.5" /> ¿Tienes una academia? Regístrate aquí
                 </Link>
               </>
             )}

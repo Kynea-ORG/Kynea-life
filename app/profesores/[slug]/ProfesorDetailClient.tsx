@@ -43,7 +43,14 @@ export default function ProfesorDetailClient({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h1 className="text-[30px] font-black text-white tracking-tight">{teacher.name}</h1>
-                  <p className="font-figtree text-[14px] text-white/75 mt-1 capitalize">{teacher.type} de danza</p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className={`text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${
+                      teacher.type === 'academia' ? 'bg-pink-50 text-pink-600' : 'bg-white text-neutral-700'
+                    }`}>
+                      {teacher.type === 'academia' ? 'Academia' : 'Profesor'}
+                    </span>
+                    <span className="font-figtree text-[14px] text-white/75">de danza</span>
+                  </div>
                 </div>
                 {teacher.rating && (
                   <div className="flex items-center gap-1.5 bg-white border border-neutral-900 px-3.5 py-2 rounded-full animate-float-slow-2">
