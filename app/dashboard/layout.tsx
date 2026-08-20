@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import DashboardSidebar from './DashboardSidebar';
 import NoticeBar from './NoticeBar';
+import AcademiaWelcomeModal from './AcademiaWelcomeModal';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -11,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, name, role, photo_url, is_admin, academia_approved_at')
+    .select('id, name, role, photo_url, is_admin, academia_approved_at, academia_welcome_seen_at')
     .eq('id', user.id)
     .single();
 
@@ -23,6 +24,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Suspense>
         <NoticeBar />
       </Suspense>
+      {profile.role === 'academia' && profile.academia_approved_at && !profile.academia_welcome_seen_at && (
+        <AcademiaWelcomeModal name={profile.name ?? ''} />
+      )}
       {profile.role === 'academia' && !profile.academia_approved_at && (
         <div className="bg-yellow-bg border-b border-yellow-dark/30 px-4 py-2.5 text-center">
           <p className="text-[13px] font-semibold text-neutral-800">
