@@ -6,6 +6,7 @@ import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, S
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ContactModal from '@/components/ContactModal';
+import MapPreview from '@/components/MapPreview';
 import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
@@ -281,6 +282,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               </div>
             )}
 
+            {cls.lat != null && cls.lng != null && (
+              <div className="hidden lg:block mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                    <MapPin className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <h2 className="font-bold text-neutral-900 text-[17px]">Ubicación</h2>
+                </div>
+                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} className="h-64" />
+              </div>
+            )}
+
             <div className="hidden lg:block border border-neutral-200 rounded-xl p-6">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
               <div className="flex items-start gap-4">
@@ -462,6 +475,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 )}
               </div>
             </div>
+
+            {cls.lat != null && cls.lng != null && (
+              <div className="lg:hidden mt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+                    <MapPin className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <h2 className="font-bold text-neutral-900 text-[17px]">Ubicación</h2>
+                </div>
+                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} className="h-56" />
+              </div>
+            )}
 
             <div className="lg:hidden border border-neutral-200 rounded-xl p-6 mt-6">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>

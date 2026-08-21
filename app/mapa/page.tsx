@@ -1,8 +1,9 @@
-import { fetchPublishedClasses } from '@/lib/classes/queries';
-import MapaClient from './MapaClient';
+import { redirect } from 'next/navigation';
 
-export default async function MapaPage() {
-  const allClasses = await fetchPublishedClasses();
-  const classesWithCoords = allClasses.filter(c => c.lat != null && c.lng != null);
-  return <MapaClient classes={classesWithCoords} />;
+// La vista Mapa real vive ahora en /clases (toggle Lista/Mapa) — ver
+// ClassBrowser.tsx y ClasesMapView.tsx. Esta ruta se conserva solo para no
+// romper links/bookmarks viejos a /mapa, que antes mostraba un mapa CSS
+// falso (sin Google Maps real, sin academias) sin ningún link real hacia ahí.
+export default function MapaPage() {
+  redirect('/clases?vista=mapa');
 }

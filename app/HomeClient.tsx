@@ -525,6 +525,85 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
         <FeaturedCategoryRow key={`${cat.style}-${i}`} style={cat.style} classes={cat.classes} />
       ))}
 
+      {/* ── ACADEMIAS ── */}
+      {/* Antes de Profesores/Cómo funciona, con fondo negro — el amarillo
+          quedaba muy fuerte; neutral-900 es más elegante y además ya es el
+          color que usa el banner de portada del perfil público de academia
+          (ProfesorDetailClient), así que refuerza la misma identidad visual
+          en vez de introducir un tercer tratamiento distinto. */}
+      {initialAcademias.length > 0 && (
+        <section className="bg-neutral-900 py-16">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <h2 className="text-[30px] font-extrabold text-white tracking-snug">Academias</h2>
+                <p className="text-white/60 text-[15px] mt-1">Espacios de danza en toda Latinoamérica</p>
+              </div>
+              <Link href="/profesores?type=academia" className="hidden sm:flex items-center gap-1 text-[15px] text-white font-semibold hover:text-white/70 transition-colors">
+                Ver todas <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {initialAcademias.map(t => (
+                <Link
+                  key={t.id}
+                  href={`/profesores/${t.slug}`}
+                  className="card-hover flex items-start gap-4 group"
+                >
+                  <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 transition-transform duration-300 group-hover:scale-105">
+                    {t.photo ? (
+                      <SmartImage
+                        src={t.photo}
+                        alt={t.name}
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                        style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-3xl font-black text-neutral-400 select-none">
+                          {t.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-1">
+                      <h3 className="font-bold text-neutral-900 text-[16px] leading-tight">{t.name}</h3>
+                      {t.rating && (
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                          <span className="text-[13px] font-bold text-neutral-800">{t.rating}</span>
+                        </div>
+                      )}
+                    </div>
+                    {t.nationality && (
+                      <p className="text-[13px] text-neutral-500 mb-2">
+                        <MapPin className="w-3 h-3 inline mr-0.5 -mt-px" />
+                        {t.nationality}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {t.styles.slice(0, 3).map(s => (
+                        <span key={s} className="badge-pink text-[11px]">{s}</span>
+                      ))}
+                      {t.styles.length > 3 && (
+                        <span className="text-[11px] text-neutral-400 px-1">+{t.styles.length - 3}</span>
+                      )}
+                    </div>
+                    {t.totalClasses && (
+                      <p className="text-[12px] text-neutral-400">{t.totalClasses} clases publicadas</p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── PROFESORES DESTACADOS ── */}
       {initialTeachers.length > 0 && (
         <section className="bg-white py-16">
@@ -645,80 +724,6 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
           </div>
         </div>
       </section>
-
-      {/* ── ACADEMIAS ── */}
-      {initialAcademias.length > 0 && (
-        <section className="bg-neutral-50 py-16">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Academias</h2>
-                <p className="text-neutral-500 text-[15px] mt-1">Espacios de danza en toda Latinoamérica</p>
-              </div>
-              <Link href="/profesores?type=academia" className="hidden sm:flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
-                Ver todas <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {initialAcademias.map(t => (
-                <Link
-                  key={t.id}
-                  href={`/profesores/${t.slug}`}
-                  className="card-hover flex items-start gap-4 group"
-                >
-                  <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 transition-transform duration-300 group-hover:scale-105">
-                    {t.photo ? (
-                      <SmartImage
-                        src={t.photo}
-                        alt={t.name}
-                        fill
-                        sizes="80px"
-                        className="object-cover"
-                        style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-3xl font-black text-neutral-400 select-none">
-                          {t.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-1">
-                      <h3 className="font-bold text-neutral-900 text-[16px] leading-tight">{t.name}</h3>
-                      {t.rating && (
-                        <div className="flex items-center gap-1 shrink-0 ml-2">
-                          <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                          <span className="text-[13px] font-bold text-neutral-800">{t.rating}</span>
-                        </div>
-                      )}
-                    </div>
-                    {t.nationality && (
-                      <p className="text-[13px] text-neutral-500 mb-2">
-                        <MapPin className="w-3 h-3 inline mr-0.5 -mt-px" />
-                        {t.nationality}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {t.styles.slice(0, 3).map(s => (
-                        <span key={s} className="badge-pink text-[11px]">{s}</span>
-                      ))}
-                      {t.styles.length > 3 && (
-                        <span className="text-[11px] text-neutral-400 px-1">+{t.styles.length - 3}</span>
-                      )}
-                    </div>
-                    {t.totalClasses && (
-                      <p className="text-[12px] text-neutral-400">{t.totalClasses} clases publicadas</p>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ── CTA PROFESORES ── */}
       <section className="hero-section py-20">

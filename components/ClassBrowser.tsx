@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect, type ReactNode } from 'react';
-import { Search, SlidersHorizontal, X, Loader2, ArrowUp } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Search, SlidersHorizontal, X, Loader2, ArrowUp, List, Map as MapIcon } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import FilterPanel from '@/components/FilterPanel';
-import type { DanceClass } from '@/lib/types';
+import type { DanceClass, Teacher } from '@/lib/types';
 import { useClassFilters } from '@/lib/hooks/useClassFilters';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
+import ClasesMapView from '@/components/ClasesMapView';
 
 interface ClassBrowserProps {
   /** Route to sync filters into via router.replace, e.g. '/clases' or '/categorias/heels'. */
@@ -24,6 +26,11 @@ interface ClassBrowserProps {
   topSlot?: ReactNode;
   /** Identifies this listing surface for select_item tracking — see trackSelectItem in lib/analytics.ts. */
   listName: string;
+  /** Shows the Lista/Mapa toggle — off by default so category-locked pages
+   * (which don't receive `academias`) don't suddenly grow a map option. */
+  enableMapView?: boolean;
+  /** Academias with real coordinates, for pins in the Mapa view — see fetchAcademiasWithLocation. */
+  academias?: Teacher[];
 }
 
 export default function ClassBrowser({
@@ -37,12 +44,26 @@ export default function ClassBrowser({
   emptyText,
   topSlot,
   listName,
+  enableMapView = false,
+  academias = [],
 }: ClassBrowserProps) {
   const {
     query, filters, isPending, results, activeCount,
     handleQueryChange, handleFiltersChange, handleClearAll,
   } = useClassFilters({ initialClasses, baseUrl, includeStyles });
 
+  // `?vista=mapa` opens straight into the map view — used by /mapa's redirect
+  // (see app/mapa/page.tsx) so old links/bookmarks still land on a map.
+  const searchParams = useSearchParams();
+  const [view, setView] = useState<'lista' | 'mapa'>(
+    enableMapView && searchParams.get('vista') === 'mapa' ? 'mapa' : 'lista'
+  );
+  // La vista Mapa se sale del ancho fijo de 1200px de la lista normal — con
+  // el sidebar de filtros + un panel de 380px, el mapa quedaba angosto en
+  // pantallas grandes. En Mapa el sidebar se oculta (los filtros pasan al
+  // mismo botón/modal que ya existe para mobile, ahora también en desktop)
+  // y el contenedor usa casi todo el ancho disponible.
+  const isMapView = enableMapView && view === 'mapa';
   const [showFilters, setShowFilters] = useState(false);
   const shouldRenderFilters = useDelayedUnmount(showFilters, 200);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -68,7 +89,7 @@ export default function ClassBrowser({
 
       {/* Search bar */}
       <div className="bg-white border-b border-neutral-200 sticky top-[64px] z-40">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+        <div className={`mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
           <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-neutral-900/8 transition-[border-color,box-shadow]">
             <Search className="w-4 h-4 text-neutral-400 shrink-0" />
             <input
@@ -85,9 +106,26 @@ export default function ClassBrowser({
             )}
           </div>
 
+          {enableMapView && (
+            <div className="flex items-center gap-1 bg-neutral-100 rounded-xl p-1 shrink-0">
+              {(['lista', 'mapa'] as const).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`flex items-center gap-1.5 text-[13px] font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
+                    view === v ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+                  }`}
+                >
+                  {v === 'lista' ? <List className="w-3.5 h-3.5" /> : <MapIcon className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">{v === 'lista' ? 'Lista' : 'Mapa'}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 text-[15px] font-semibold px-4 py-2.5 rounded-btn border-2 transition-colors active:scale-[0.97] md:hidden ${
+            className={`flex items-center gap-2 text-[15px] font-semibold px-4 py-2.5 rounded-btn border-2 transition-colors active:scale-[0.97] ${isMapView ? '' : 'md:hidden'} ${
               activeCount > 0
                 ? 'bg-neutral-900 border-neutral-900 text-white'
                 : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
@@ -99,7 +137,7 @@ export default function ClassBrowser({
         </div>
 
         {(filters.styles.length > 0 || filters.levels.length > 0) && (
-          <div className="max-w-[1200px] mx-auto px-6 pb-3 flex gap-2 overflow-x-auto">
+          <div className={`mx-auto px-6 pb-3 flex gap-2 overflow-x-auto ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
             {filters.styles.map(s => (
               <span key={s} className="flex items-center gap-1 text-[13px] bg-neutral-900 text-white font-medium px-3 py-1 rounded-full whitespace-nowrap">
                 {s}
@@ -126,20 +164,26 @@ export default function ClassBrowser({
         )}
       </div>
 
-      <div className="max-w-[1200px] mx-auto px-6 py-8 flex gap-8">
-        {/* Sidebar */}
-        <aside className="hidden md:block w-60 shrink-0">
-          <div className="sticky top-36 max-h-[calc(100vh-9rem-2rem)] flex flex-col">
-            <h3 className="font-bold text-neutral-900 text-[15px] mb-4 shrink-0">Filtros</h3>
-            <div className="overflow-y-auto pr-1 -mr-1">
-              <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} hideStyles={!includeStyles} />
+      <div className={`mx-auto px-4 sm:px-6 py-8 flex gap-8 ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
+        {/* Sidebar — oculto en vista Mapa para dejarle todo el ancho al mapa;
+            sus filtros siguen disponibles vía el mismo botón/modal de abajo,
+            que en Mapa se muestra también en desktop (ver isMapView). */}
+        {!isMapView && (
+          <aside className="hidden md:block w-60 shrink-0">
+            <div className="sticky top-36 max-h-[calc(100vh-9rem-2rem)] flex flex-col">
+              <h3 className="font-bold text-neutral-900 text-[15px] mb-4 shrink-0">Filtros</h3>
+              <div className="overflow-y-auto pr-1 -mr-1">
+                <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} hideStyles={!includeStyles} />
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        )}
 
-        {/* Mobile filter modal */}
+        {/* Filter modal — always md:hidden except in map view, where the
+            sidebar above is gone on every breakpoint and this becomes the
+            only way to reach filters. */}
         {shouldRenderFilters && (
-          <div className="fixed inset-0 z-50 md:hidden">
+          <div className={`fixed inset-0 z-50 ${isMapView ? '' : 'md:hidden'}`}>
             <div
               className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ease-out starting:opacity-0 ${showFilters ? 'opacity-100' : 'opacity-0'}`}
               onClick={() => setShowFilters(false)}
@@ -181,6 +225,8 @@ export default function ClassBrowser({
                 Limpiar filtros
               </button>
             </div>
+          ) : enableMapView && view === 'mapa' ? (
+            <ClasesMapView classes={results} academias={academias} />
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {results.map(cls => <ClassCard key={cls.id} cls={cls} listName={listName} />)}

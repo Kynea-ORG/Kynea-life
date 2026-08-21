@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { ChevronLeft, Star, MapPin, Globe, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Star, MapPin, Globe, MessageCircle, Users, Building2 } from 'lucide-react';
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import { trackGenerateLead } from '@/lib/analytics';
-import { buildInstagramUrl, buildTikTokUrl, formatExperience } from '@/lib/utils';
+import { buildInstagramUrl, buildTikTokUrl, formatExperience, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import type { Teacher, DanceClass } from '@/lib/types';
 
 export default function ProfesorDetailClient({
@@ -23,8 +23,24 @@ export default function ProfesorDetailClient({
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Artistic profile banner */}
-      <div className="relative bg-primary overflow-hidden pt-10 px-5 lg:px-8 pb-[88px]">
+      {/* Artistic profile banner — academia gets a real cover photo behind a
+          dark overlay for legibility; profesor keeps the plain bg-primary
+          banner untouched (academia and profesor are deliberately not the
+          same visual treatment here). */}
+      <div className={`relative overflow-hidden pt-10 px-5 lg:px-8 pb-[88px] ${teacher.type === 'academia' ? 'bg-neutral-900' : 'bg-primary'}`}>
+        {teacher.type === 'academia' && (
+          <>
+            <SmartImage
+              src={teacher.coverImage || DEFAULT_ACADEMIA_COVER}
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover"
+              style={{ objectPosition: teacher.coverImagePosition || '50% 50%', transform: `scale(${teacher.coverImageZoom || 1})` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/45 to-black/75" />
+          </>
+        )}
         <div className="relative z-10 max-w-5xl mx-auto">
           <Link href="/clases" className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white mb-6 transition-colors">
             <ChevronLeft className="w-4 h-4" /> Volver a clases
@@ -91,6 +107,28 @@ export default function ProfesorDetailClient({
                 </div>
               )}
 
+              {teacher.type === 'academia' && teacher.venueAddress && (
+                <p className="flex items-center gap-1.5 text-[13px] text-white/75 mt-3.5">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  {[teacher.venueAddress, teacher.venueDistrict, teacher.venueCity].filter(Boolean).join(', ')}
+                </p>
+              )}
+
+              {teacher.type === 'academia' && (teacher.teamSize || teacher.branchCount) && (
+                <div className="flex flex-wrap gap-4 mt-2 text-[13px] text-white/75">
+                  {teacher.teamSize && (
+                    <span className="flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" /> {teacher.teamSize} profesores
+                    </span>
+                  )}
+                  {teacher.branchCount && (
+                    <span className="flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5" /> {teacher.branchCount} {teacher.branchCount === '1' ? 'sede' : 'sedes'}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-4 mt-3.5">
                 {teacher.instagram && (
                   <a
@@ -128,7 +166,7 @@ export default function ProfesorDetailClient({
         <div className="flex gap-1 mb-6 bg-neutral-100 rounded-xl p-1 w-fit">
           {[
             { key: 'clases' as const, label: `Clases (${classes.length})` },
-            { key: 'bio' as const, label: 'Sobre mí' },
+            { key: 'bio' as const, label: teacher.type === 'academia' ? 'Sobre la academia' : 'Sobre mí' },
           ].map(tab => (
             <button
               key={tab.key}
@@ -146,7 +184,9 @@ export default function ProfesorDetailClient({
           classes.length === 0 ? (
             <div className="text-center py-16 text-neutral-400">
               <p className="text-4xl mb-3">🕺</p>
-              <p className="text-sm">Este profesor no tiene clases publicadas actualmente.</p>
+              <p className="text-sm">
+                {teacher.type === 'academia' ? 'Esta academia no tiene clases publicadas actualmente.' : 'Este profesor no tiene clases publicadas actualmente.'}
+              </p>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
