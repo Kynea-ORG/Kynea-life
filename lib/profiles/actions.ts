@@ -99,6 +99,9 @@ export async function requestAcademiaConversion(input: {
   teamSize?: string;
   branchCount?: string;
   address?: string;
+  placeId?: string;
+  lat?: number;
+  lng?: number;
   district?: string;
   city?: string;
   photoUrl?: string;
@@ -132,6 +135,9 @@ export async function requestAcademiaConversion(input: {
       address: input.address.trim(),
       district: input.district?.trim() || null,
       city: input.city?.trim() || null,
+      place_id: input.placeId || null,
+      lat: input.lat ?? null,
+      lng: input.lng ?? null,
       is_primary: true,
     });
     // 23505 = venues_one_primary_per_owner: ya existe una sede principal

@@ -13,6 +13,7 @@ import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { trackSignUp, trackOnboardingStepComplete, trackOnboardingComplete } from '@/lib/analytics';
 import { safeRedirectPath, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import SmartImage from '@/components/SmartImage';
+import PlacesAddressField from '@/components/PlacesAddressField';
 import AlumnoWelcome from './AlumnoWelcome';
 
 const STEPS_PROFESOR = [
@@ -46,6 +47,9 @@ function OnboardingContent() {
     teamSize: '',
     branchCount: '',
     address: '',
+    placeId: '',
+    lat: '',
+    lng: '',
     district: '',
     city: 'Lima',
     nationality: '',
@@ -290,6 +294,9 @@ function OnboardingContent() {
               address: form.address.trim(),
               district: form.district.trim() || null,
               city: form.city.trim() || null,
+              place_id: form.placeId || null,
+              lat: form.lat ? Number(form.lat) : null,
+              lng: form.lng ? Number(form.lng) : null,
               is_primary: true,
             });
             // 23505 = venues_one_primary_per_owner: a retry after this insert
@@ -628,12 +635,23 @@ function OnboardingContent() {
 
                 <div>
                   <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Dirección de tu sede principal</label>
-                  <input
-                    type="text"
-                    placeholder="Av. Benavides 1234"
+                  <PlacesAddressField
                     value={form.address}
-                    onChange={e => set('address', e.target.value)}
-                    className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
+                    placeholder="Av. Benavides 1234"
+                    onManualChange={v => {
+                      set('address', v);
+                      set('placeId', '');
+                      set('lat', '');
+                      set('lng', '');
+                    }}
+                    onPlaceSelect={selection => {
+                      set('address', selection.address);
+                      set('placeId', selection.placeId);
+                      set('lat', String(selection.lat));
+                      set('lng', String(selection.lng));
+                      if (selection.city) set('city', selection.city);
+                      if (selection.district) set('district', selection.district);
+                    }}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">

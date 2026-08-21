@@ -8,6 +8,7 @@ import { requestAcademiaConversion } from '@/lib/profiles/actions';
 import { createClient } from '@/lib/supabase/client';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import SmartImage from '@/components/SmartImage';
+import PlacesAddressField from '@/components/PlacesAddressField';
 import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 
 const STEPS = ['Sobre tu academia', 'Ubicación y marca'];
@@ -36,6 +37,9 @@ export default function ConvertirAcademiaClient({
     teamSize: '',
     branchCount: '',
     address: '',
+    placeId: '',
+    lat: '',
+    lng: '',
     district: '',
     city: 'Lima',
   });
@@ -84,6 +88,9 @@ export default function ConvertirAcademiaClient({
         teamSize: form.teamSize || undefined,
         branchCount: form.branchCount || undefined,
         address: form.address.trim() || undefined,
+        placeId: form.placeId || undefined,
+        lat: form.lat ? Number(form.lat) : undefined,
+        lng: form.lng ? Number(form.lng) : undefined,
         district: form.district.trim() || undefined,
         city: form.city.trim() || undefined,
         photoUrl: photoUrl !== initialPhotoUrl ? photoUrl : undefined,
@@ -196,12 +203,23 @@ export default function ConvertirAcademiaClient({
               <div className="animate-fade-in space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Dirección de tu sede principal</label>
-                  <input
-                    type="text"
+                  <PlacesAddressField
                     value={form.address}
-                    onChange={e => set('address', e.target.value)}
                     placeholder="Av. Benavides 1234"
-                    className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
+                    onManualChange={v => {
+                      set('address', v);
+                      set('placeId', '');
+                      set('lat', '');
+                      set('lng', '');
+                    }}
+                    onPlaceSelect={selection => {
+                      set('address', selection.address);
+                      set('placeId', selection.placeId);
+                      set('lat', String(selection.lat));
+                      set('lng', String(selection.lng));
+                      if (selection.city) set('city', selection.city);
+                      if (selection.district) set('district', selection.district);
+                    }}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
