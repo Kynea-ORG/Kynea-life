@@ -45,6 +45,8 @@ export function mapTeacher(t: any): Teacher {
     venueAddress:       t.venue?.address ?? undefined,
     venueDistrict:      t.venue?.district ?? undefined,
     venueCity:          t.venue?.city ?? undefined,
+    venueLat:           t.venue?.lat ?? undefined,
+    venueLng:           t.venue?.lng ?? undefined,
   };
 }
 
@@ -90,7 +92,7 @@ export async function fetchTeacherBySlug(slug: string): Promise<Teacher | null> 
   if (data.role === 'academia') {
     const { data: venueRow } = await supabase
       .from('venues')
-      .select('address, district, city')
+      .select('address, district, city, lat, lng')
       .eq('owner_id', data.id)
       .eq('is_primary', true)
       .maybeSingle();
@@ -98,4 +100,29 @@ export async function fetchTeacherBySlug(slug: string): Promise<Teacher | null> 
   }
 
   return mapTeacher({ ...data, venue });
+}
+
+// Academias con coordenadas reales en su sede principal — para pintarlas
+// como pines en la vista Mapa de /clases (ver ClasesMapView.tsx). Academias
+// sin lat/lng (dirección cargada como texto libre antes del autocompletado
+// de Google, o que nunca completaron esa sección) simplemente no aparecen
+// — no inventamos una ubicación aproximada.
+export async function fetchAcademiasWithLocation(): Promise<Teacher[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`${PROFILE_SELECT}, venues!inner(address, district, city, lat, lng, is_primary)`)
+    .eq('role', 'academia')
+    .eq('venues.is_primary', true)
+    .not('venues.lat', 'is', null)
+    .not('venues.lng', 'is', null);
+  if (error) {
+    console.error('fetchAcademiasWithLocation error:', error.message);
+    return [];
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((row: any) => {
+    const venue = Array.isArray(row.venues) ? row.venues[0] : row.venues;
+    return mapTeacher({ ...row, venue });
+  });
 }

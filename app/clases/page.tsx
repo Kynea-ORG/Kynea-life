@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { fetchPublishedClasses } from '@/lib/classes/queries';
 import type { ClassFilters } from '@/lib/classes/types';
 import { fetchDanceStyles, fetchClassLevels } from '@/lib/catalog/queries';
+import { fetchAcademiasWithLocation } from '@/lib/profiles/queries';
 import ClasesContent from './ClasesContent';
 
 function asArray(v: string | string[] | undefined): string[] {
@@ -33,10 +34,11 @@ export default async function ClasesPage({
     filters.city || filters.withSpots
   );
 
-  const [classes, danceStyles, levels] = await Promise.all([
+  const [classes, danceStyles, levels, academias] = await Promise.all([
     fetchPublishedClasses(hasFilters ? filters : undefined),
     fetchDanceStyles(),
     fetchClassLevels(),
+    fetchAcademiasWithLocation(),
   ]);
 
   return (
@@ -47,6 +49,7 @@ export default async function ClasesPage({
     }>
       <ClasesContent
         initialClasses={classes}
+        academias={academias}
         danceStyles={danceStyles.map(s => s.name)}
         levels={levels.map(l => l.name)}
       />

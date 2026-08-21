@@ -39,6 +39,8 @@ export interface Teacher {
   venueAddress?: string;
   venueDistrict?: string;
   venueCity?: string;
+  venueLat?: number;
+  venueLng?: number;
 }
 
 export interface TimeSlot {

@@ -1,13 +1,15 @@
 'use client';
 import ClassBrowser from '@/components/ClassBrowser';
-import type { DanceClass } from '@/lib/types';
+import type { DanceClass, Teacher } from '@/lib/types';
 
 export default function ClasesContent({
   initialClasses,
+  academias = [],
   danceStyles = [],
   levels = [],
 }: {
   initialClasses: DanceClass[];
+  academias?: Teacher[];
   danceStyles?: string[];
   levels?: string[];
 }) {
@@ -24,6 +26,8 @@ export default function ClasesContent({
       )}
       emptyText="No encontramos clases con esos filtros. Prueba cambiando el estilo, ciudad o nivel."
       listName="clases_grid"
+      enableMapView
+      academias={academias}
     />
   );
 }
