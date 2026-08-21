@@ -34,6 +34,8 @@ interface GoogleMarkerInstance {
 }
 interface GoogleMapsMapsLibrary {
   Map: new (el: HTMLElement, opts: Record<string, unknown>) => GoogleMapInstance;
+}
+interface GoogleMapsCoreLibrary {
   LatLngBounds: new () => GoogleLatLngBoundsInstance;
 }
 interface GoogleMapsMarkerLibrary {
@@ -79,8 +81,9 @@ export default function GoogleMap({
       try {
         await loadGoogleMapsScript(GOOGLE_MAPS_API_KEY);
         if (cancelled || !window.google) return;
-        const [{ Map, LatLngBounds }, { Marker }] = await Promise.all([
+        const [{ Map }, coreLib, { Marker }] = await Promise.all([
           window.google.maps.importLibrary('maps') as Promise<GoogleMapsMapsLibrary>,
+          window.google.maps.importLibrary('core') as Promise<GoogleMapsCoreLibrary>,
           window.google.maps.importLibrary('marker') as Promise<GoogleMapsMarkerLibrary>,
         ]);
         if (cancelled || !container) return;
@@ -93,10 +96,12 @@ export default function GoogleMap({
         });
         mapRef.current = map;
 
-        if (pins.length === 1) {
+        const LatLngBoundsClass = coreLib?.LatLngBounds || (window as unknown as { google?: { maps?: { LatLngBounds?: new () => GoogleLatLngBoundsInstance } } }).google?.maps?.LatLngBounds;
+
+        if (pins.length === 1 || !LatLngBoundsClass) {
           map.setCenter({ lat: pins[0].lat, lng: pins[0].lng });
         } else {
-          const bounds = new LatLngBounds();
+          const bounds = new LatLngBoundsClass();
           pins.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
           map.fitBounds(bounds, 48);
         }
