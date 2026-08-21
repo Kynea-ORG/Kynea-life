@@ -77,6 +77,12 @@ export default function GoogleMap({
     let cancelled = false;
     const markers = markersRef.current;
 
+    const prevAuthFailure = (window as unknown as { gm_authFailure?: () => void }).gm_authFailure;
+    (window as unknown as { gm_authFailure?: () => void }).gm_authFailure = () => {
+      if (!cancelled) setError(true);
+      if (typeof prevAuthFailure === 'function') prevAuthFailure();
+    };
+
     (async () => {
       try {
         await loadGoogleMapsScript(GOOGLE_MAPS_API_KEY);
@@ -124,6 +130,7 @@ export default function GoogleMap({
 
     return () => {
       cancelled = true;
+      (window as unknown as { gm_authFailure?: () => void }).gm_authFailure = prevAuthFailure;
       markers.forEach(m => m.setMap(null));
       markers.clear();
     };
