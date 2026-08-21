@@ -119,6 +119,7 @@ export async function fetchAcademiasWithLocation(): Promise<Teacher[]> {
     .from('profiles')
     .select(`${PROFILE_SELECT}, venues!inner(address, district, city, lat, lng, is_primary)`)
     .eq('role', 'academia')
+    .not('academia_approved_at', 'is', null)
     .eq('venues.is_primary', true)
     .not('venues.lat', 'is', null)
     .not('venues.lng', 'is', null);
