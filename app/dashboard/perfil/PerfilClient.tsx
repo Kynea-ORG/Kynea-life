@@ -1,12 +1,15 @@
 'use client';
 import { useState, useTransition, useRef, useEffect } from 'react';
-import { Save, Upload, Loader2, LogOut, X } from 'lucide-react';
+import { Save, Upload, Loader2, LogOut, X, Building2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { updateProfile } from '@/lib/profiles/actions';
+import { uploadProfileImage } from '@/lib/profiles/imageActions';
 import { createClient } from '@/lib/supabase/client';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
+import SmartImage from '@/components/SmartImage';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
+import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 
 // Extracts the storage object path from a public Supabase Storage URL
 // (".../object/public/class-images/<path>" -> "<path>") so a replaced or
@@ -46,6 +49,7 @@ interface Profile {
   bio: string | null;
   nationality: string | null;
   years_experience: number | null;
+  ruc: string | null;
   whatsapp: string | null;
   instagram: string | null;
   tiktok: string | null;
@@ -54,7 +58,18 @@ interface Profile {
   photo_url: string | null;
   photo_position: string | null;
   photo_zoom: number | null;
+  team_size: string | null;
+  branch_count: string | null;
+  cover_image_url: string | null;
+  cover_image_position: string | null;
+  cover_image_zoom: number | null;
   profile_styles: ProfileStyleRow[] | null;
+}
+
+interface PrimaryVenue {
+  address: string | null;
+  district: string | null;
+  city: string | null;
 }
 
 type Role = 'alumno' | 'profesor' | 'academia';
@@ -62,28 +77,41 @@ type Role = 'alumno' | 'profesor' | 'academia';
 export default function PerfilClient({
   role,
   profile,
+  primaryVenue,
   danceStyles,
 }: {
   role: Role;
   profile: Profile;
+  primaryVenue: PrimaryVenue | null;
   danceStyles: string[];
 }) {
   const isTeacher = role !== 'alumno';
+  const isAcademia = role === 'academia';
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const waInputRef = useRef<HTMLInputElement>(null);
   const instagramInputRef = useRef<HTMLInputElement>(null);
   // Deep-link landing target from the contact-gating CTA (?missing=whatsapp,instagram#contacto).
   const [highlightField, setHighlightField] = useState<'whatsapp' | 'instagram' | null>(null);
+
+  // Photo
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(profile.photo_url ?? '');
   const [photoPosition, setPhotoPosition] = useState(profile.photo_position ?? '50% 50%');
   const [photoZoom, setPhotoZoom] = useState(profile.photo_zoom ?? 1);
 
+  // Cover (Academia)
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverUrl, setCoverUrl] = useState(profile.cover_image_url ?? '');
+  const [coverPosition, setCoverPosition] = useState(profile.cover_image_position ?? '50% 50%');
+  const [coverZoom, setCoverZoom] = useState(profile.cover_image_zoom ?? 1);
+
+  // Basic Info
   const [name, setName] = useState(profile.name ?? '');
   const [bio, setBio] = useState(profile.bio ?? '');
   const [nationality, setNationality] = useState(profile.nationality ?? '');
@@ -92,12 +120,16 @@ export default function PerfilClient({
     (profile.profile_styles ?? []).map(ps => ps.dance_styles?.name ?? '').filter(Boolean)
   );
 
+  // Corporate Info (Academia)
+  const [ruc, setRuc] = useState(profile.ruc ?? '');
+  const [teamSize, setTeamSize] = useState(profile.team_size ?? '');
+  const [branchCount, setBranchCount] = useState(profile.branch_count ?? '');
+  const [address, setAddress] = useState(primaryVenue?.address ?? '');
+  const [district, setDistrict] = useState(primaryVenue?.district ?? '');
+  const [city, setCity] = useState(primaryVenue?.city ?? 'Lima');
+
   const parseWa = (wa: string) => {
     if (!wa) return { code: '+51', number: '' };
-    // Match against known codes (longest first) instead of a generic
-    // \d{1,3} regex — a greedy length-agnostic match would swallow the
-    // first digit of the phone number into the code group for any
-    // 2-digit code (e.g. "+51919960111" -> code "+519", dropping the "9").
     const match = WA_CODES_BY_LENGTH.find(c => wa.startsWith(c.code));
     if (match) {
       return { code: match.code, number: wa.slice(match.code.length).replace(/\D/g, '') };
@@ -117,7 +149,7 @@ export default function PerfilClient({
   };
 
   const handlePhotoUpload = async (file: File) => {
-    if (file.size > 2 * 1024 * 1024) { setError('La foto debe ser menor a 2MB'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('La foto debe ser menor a 5MB'); return; }
     try {
       const { width, height } = await getImageDimensions(file);
       if (Math.min(width, height) < MIN_IMAGE_DIMENSION) {
@@ -130,25 +162,15 @@ export default function PerfilClient({
     }
     setUploadingPhoto(true);
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No autenticado');
       const previousPath = storagePathFromUrl(photoUrl);
-      const ext = file.name.split('.').pop() ?? 'jpg';
-      // Timestamped path (not a fixed "profile.<ext>" name) so a re-upload gets
-      // a brand-new public URL — reusing the same URL would let the browser/CDN
-      // keep serving the previous cached image after replacing the file.
-      const path = `${session.user.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('class-images').upload(path, file);
-      if (upErr) throw new Error(upErr.message);
-      const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
-      setPhotoUrl(publicUrl);
+      const formData = new FormData();
+      formData.set('file', file);
+      const { url } = await uploadProfileImage(formData, 'photo');
+      setPhotoUrl(url);
       setPhotoPosition('50% 50%');
       setPhotoZoom(1);
-      await updateProfile({ photo_url: publicUrl, photo_position: '50% 50%', photo_zoom: 1 });
-      // Best-effort cleanup of the replaced file — the new photo is already
-      // saved at this point, so a failure here shouldn't surface as an error.
-      if (previousPath) supabase.storage.from('class-images').remove([previousPath]);
+      await updateProfile({ photo_url: url, photo_position: '50% 50%', photo_zoom: 1 });
+      if (previousPath) createClient().storage.from('class-images').remove([previousPath]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir foto');
     } finally {
@@ -179,6 +201,52 @@ export default function PerfilClient({
       if (previousPath) createClient().storage.from('class-images').remove([previousPath]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar la foto');
+    }
+  };
+
+  const handleCoverUpload = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) { setError('La portada debe ser menor a 5MB'); return; }
+    setUploadingCover(true);
+    try {
+      const previousPath = storagePathFromUrl(coverUrl);
+      const formData = new FormData();
+      formData.set('file', file);
+      const { url } = await uploadProfileImage(formData, 'cover');
+      setCoverUrl(url);
+      setCoverPosition('50% 50%');
+      setCoverZoom(1);
+      await updateProfile({ cover_image_url: url, cover_image_position: '50% 50%', cover_image_zoom: 1 });
+      if (previousPath) createClient().storage.from('class-images').remove([previousPath]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al subir portada');
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const handleCoverPositionDragEnd = (position: string) => {
+    updateProfile({ cover_image_position: position }).catch(err => {
+      setError(err instanceof Error ? err.message : 'Error al guardar la posición de la portada');
+    });
+  };
+
+  const handleCoverZoomDragEnd = (zoom: number) => {
+    updateProfile({ cover_image_zoom: zoom }).catch(err => {
+      setError(err instanceof Error ? err.message : 'Error al guardar el zoom de la portada');
+    });
+  };
+
+  const handleRemoveCover = async () => {
+    const previousPath = storagePathFromUrl(coverUrl);
+    setCoverUrl('');
+    setCoverPosition('50% 50%');
+    setCoverZoom(1);
+    if (coverInputRef.current) coverInputRef.current.value = '';
+    try {
+      await updateProfile({ cover_image_url: '', cover_image_position: '50% 50%', cover_image_zoom: 1 });
+      if (previousPath) createClient().storage.from('class-images').remove([previousPath]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar la portada');
     }
   };
 
@@ -221,12 +289,20 @@ export default function PerfilClient({
           bio,
           nationality,
           years_experience: years ? parseInt(years) : undefined,
+          ruc: isAcademia ? (ruc || '') : undefined,
+          team_size: isAcademia ? (teamSize || '') : undefined,
+          branch_count: isAcademia ? (branchCount || '') : undefined,
           whatsapp: waNumber ? `${waCode}${waNumber}` : '',
           instagram,
           tiktok,
           youtube,
           website,
           style_names: styles,
+          primary_venue: isAcademia ? {
+            address: address.trim(),
+            district: district.trim() || undefined,
+            city: city.trim() || undefined,
+          } : undefined,
         });
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
@@ -246,9 +322,9 @@ export default function PerfilClient({
       </div>
 
       <div className="space-y-6">
-        {/* Photo */}
+        {/* Photo / Logo */}
         <div className="bg-white rounded-xl border border-neutral-900 p-6">
-          <h2 className="text-lg font-bold text-neutral-900">{isTeacher ? 'Foto / Logo' : 'Foto de perfil'}</h2>
+          <h2 className="text-lg font-bold text-neutral-900">{isAcademia ? 'Logo de la academia' : isTeacher ? 'Foto / Logo' : 'Foto de perfil'}</h2>
           {isTeacher && (
             <p className="text-xs text-neutral-500 mt-0.5 mb-4">Esto es lo que verán los alumnos en tu perfil público</p>
           )}
@@ -309,18 +385,181 @@ export default function PerfilClient({
                 className="btn-outline btn-sm disabled:opacity-50"
               >
                 {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {uploadingPhoto ? 'Subiendo…' : photoUrl ? 'Cambiar foto' : 'Subir foto'}
+                {uploadingPhoto ? 'Subiendo…' : photoUrl ? (isAcademia ? 'Cambiar logo' : 'Cambiar foto') : (isAcademia ? 'Subir logo' : 'Subir foto')}
               </button>
-              <p className="text-xs text-neutral-400 mt-2">PNG o JPG · Máx. 2MB · Recomendado 400×400px</p>
+              <p className="text-xs text-neutral-400 mt-2">PNG, JPG o WEBP · Máx. 5MB · Recomendado 400×400px</p>
             </div>
           </div>
         </div>
+
+        {/* Cover Photo (Academia only) */}
+        {isAcademia && (
+          <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-neutral-900">Portada de la academia</h2>
+                <p className="text-xs text-neutral-500 mt-0.5">Se muestra en el banner superior de tu perfil público</p>
+              </div>
+              {coverUrl && (
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploadingCover}
+                  className="text-xs font-semibold text-primary hover:text-primary-dark"
+                >
+                  {uploadingCover ? 'Subiendo…' : 'Cambiar portada'}
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f); }}
+            />
+
+            {coverUrl ? (
+              <div className="relative">
+                <ImagePositionPicker
+                  src={coverUrl}
+                  value={coverPosition}
+                  onChange={setCoverPosition}
+                  onDragEnd={handleCoverPositionDragEnd}
+                  zoom={coverZoom}
+                  onZoomChange={setCoverZoom}
+                  onZoomDragEnd={handleCoverZoomDragEnd}
+                  frameClassName="w-full h-40 rounded-xl border border-neutral-200"
+                  sizes="600px"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveCover}
+                  className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors active:scale-90 z-10"
+                  aria-label="Eliminar portada"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploadingCover}
+                  className="relative w-full h-40 rounded-xl overflow-hidden border-2 border-dashed border-neutral-300 hover:border-neutral-500 transition-colors group"
+                >
+                  <SmartImage src={DEFAULT_ACADEMIA_COVER} alt="Portada de ejemplo" fill sizes="600px" className="object-cover opacity-60 group-hover:opacity-40 transition-opacity" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                    {uploadingCover ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-white" />
+                    ) : (
+                      <span className="text-xs font-semibold text-white bg-neutral-900/70 px-3.5 py-2 rounded-full flex items-center gap-1.5">
+                        <Upload className="w-4 h-4" /> Subir tu portada
+                      </span>
+                    )}
+                  </div>
+                </button>
+                <p className="text-xs text-neutral-400 mt-2">PNG, JPG o WEBP · Máx. 5MB</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Corporate details (Academia only) */}
+        {isAcademia && (
+          <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="w-5 h-5 text-pink-600" />
+              <h2 className="text-lg font-bold text-neutral-900">Datos de la academia</h2>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">RUC (opcional)</label>
+              <input
+                type="text"
+                value={ruc}
+                onChange={e => setRuc(e.target.value)}
+                placeholder="20123456789"
+                className="input"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Tamaño del equipo</label>
+                <select
+                  value={teamSize}
+                  onChange={e => setTeamSize(e.target.value)}
+                  className="input appearance-none cursor-pointer bg-white"
+                >
+                  <option value="">Seleccionar…</option>
+                  <option value="1-2">1-2 profesores</option>
+                  <option value="3-5">3-5 profesores</option>
+                  <option value="6+">6+ profesores</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Cantidad de sedes</label>
+                <select
+                  value={branchCount}
+                  onChange={e => setBranchCount(e.target.value)}
+                  className="input appearance-none cursor-pointer bg-white"
+                >
+                  <option value="">Seleccionar…</option>
+                  <option value="1">1 sede</option>
+                  <option value="2-3">2-3 sedes</option>
+                  <option value="4+">4+ sedes</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Dirección de la sede principal</label>
+              <input
+                type="text"
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                placeholder="Av. Benavides 1234"
+                className="input"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Distrito</label>
+                <input
+                  type="text"
+                  value={district}
+                  onChange={e => setDistrict(e.target.value)}
+                  placeholder="Ej. Miraflores"
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Ciudad</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  placeholder="Lima"
+                  className="input"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Basic info */}
         <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
           <h2 className="text-lg font-bold text-neutral-900">Información pública</h2>
           <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Nombre público</label>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+              {isAcademia ? 'Nombre de la academia' : 'Nombre público'}
+            </label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
               className="input" />
           </div>
@@ -340,7 +579,7 @@ export default function PerfilClient({
               {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
-          {isTeacher && (
+          {isTeacher && !isAcademia && (
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Años de experiencia</label>
               <input type="number" min="0" value={years} onChange={e => setYears(e.target.value)}
@@ -352,7 +591,7 @@ export default function PerfilClient({
         {/* Styles */}
         {isTeacher && (
           <div className="bg-white rounded-xl border border-neutral-900 p-6">
-            <h2 className="text-lg font-bold text-neutral-900 mb-4">Estilos que enseñas</h2>
+            <h2 className="text-lg font-bold text-neutral-900 mb-4">{isAcademia ? 'Estilos que ofrece la academia' : 'Estilos que enseñas'}</h2>
             <div className="flex flex-wrap gap-2">
               {danceStyles.map(s => (
                 <button key={s} onClick={() => toggleStyle(s)}

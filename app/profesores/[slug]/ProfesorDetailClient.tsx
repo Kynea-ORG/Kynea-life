@@ -166,7 +166,7 @@ export default function ProfesorDetailClient({
         <div className="flex gap-1 mb-6 bg-neutral-100 rounded-xl p-1 w-fit">
           {[
             { key: 'clases' as const, label: `Clases (${classes.length})` },
-            { key: 'bio' as const, label: 'Sobre mí' },
+            { key: 'bio' as const, label: teacher.type === 'academia' ? 'Sobre la academia' : 'Sobre mí' },
           ].map(tab => (
             <button
               key={tab.key}
@@ -184,7 +184,9 @@ export default function ProfesorDetailClient({
           classes.length === 0 ? (
             <div className="text-center py-16 text-neutral-400">
               <p className="text-4xl mb-3">🕺</p>
-              <p className="text-sm">Este profesor no tiene clases publicadas actualmente.</p>
+              <p className="text-sm">
+                {teacher.type === 'academia' ? 'Esta academia no tiene clases publicadas actualmente.' : 'Este profesor no tiene clases publicadas actualmente.'}
+              </p>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">

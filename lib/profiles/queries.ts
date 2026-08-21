@@ -63,6 +63,12 @@ export async function fetchFeaturedProfiles(role: 'profesor' | 'academia', limit
     .from('profiles')
     .select(PROFILE_SELECT)
     .eq('role', role);
+
+  // Las academias deben haber sido aprobadas por el admin para figurar en la lista pública
+  if (role === 'academia') {
+    query = query.not('academia_approved_at', 'is', null);
+  }
+
   // No limit = every profile with this role — used by the "/profesores"
   // directory page, which must list everyone, not just a Home-page preview.
   if (limit !== undefined) query = query.limit(limit);
