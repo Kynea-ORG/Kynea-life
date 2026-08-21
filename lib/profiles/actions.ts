@@ -24,6 +24,11 @@ export async function updateProfile(updates: {
   cover_image_url?: string;
   cover_image_position?: string;
   cover_image_zoom?: number;
+  primary_venue?: {
+    address: string;
+    district?: string;
+    city?: string;
+  };
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -54,6 +59,43 @@ export async function updateProfile(updates: {
   if (Object.keys(profileUpdate).length > 0) {
     const { error } = await supabase.from('profiles').update(profileUpdate).eq('id', user.id);
     if (error) throw new Error(error.message);
+  }
+
+  if (updates.primary_venue !== undefined) {
+    const { address, district, city } = updates.primary_venue;
+    const { data: existingPrimary } = await supabase
+      .from('venues')
+      .select('id')
+      .eq('owner_id', user.id)
+      .eq('is_primary', true)
+      .maybeSingle();
+
+    if (address.trim()) {
+      if (existingPrimary) {
+        const { error: venueUpdateErr } = await supabase
+          .from('venues')
+          .update({
+            name: updates.name || 'Sede principal',
+            address: address.trim(),
+            district: district?.trim() || null,
+            city: city?.trim() || null,
+          })
+          .eq('id', existingPrimary.id);
+        if (venueUpdateErr) throw new Error(venueUpdateErr.message);
+      } else {
+        const { error: venueInsertErr } = await supabase.from('venues').insert({
+          owner_id: user.id,
+          name: updates.name || 'Sede principal',
+          address: address.trim(),
+          district: district?.trim() || null,
+          city: city?.trim() || null,
+          is_primary: true,
+        });
+        if (venueInsertErr && venueInsertErr.code !== '23505') throw new Error(venueInsertErr.message);
+      }
+    } else if (existingPrimary) {
+      await supabase.from('venues').delete().eq('id', existingPrimary.id);
+    }
   }
 
   if (updates.style_names !== undefined) {
@@ -112,6 +154,21 @@ export async function requestAcademiaConversion(input: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
 
+  // Solo un profesor puede pedir convertirse en academia — app/convertir-academia/page.tsx
+  // ya redirige a quien no lo es, pero ese es un gate de UI, no de seguridad:
+  // sin este chequeo, cualquier rol podía llamar esta Server Action directo y
+  // crear una solicitud de conversión que después revienta la transacción de
+  // approve_academia_request() (protect_profile_role solo acepta profesor->academia).
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (profileError) throw new Error(profileError.message);
+  if (profile.role !== 'profesor') {
+    throw new Error('Solo un profesor puede solicitar convertirse en academia.');
+  }
+
   await updateProfile({
     name:                 input.name || undefined,
     ruc:                  input.ruc || undefined,
@@ -123,21 +180,12 @@ export async function requestAcademiaConversion(input: {
     cover_image_url:      input.coverImageUrl || undefined,
     cover_image_position: input.coverImageUrl ? input.coverImagePosition : undefined,
     cover_image_zoom:     input.coverImageUrl ? input.coverImageZoom : undefined,
-  });
-
-  if (input.address?.trim()) {
-    const { error: venueError } = await supabase.from('venues').insert({
-      owner_id: user.id,
-      name: input.name || 'Sede principal',
+    primary_venue: input.address?.trim() ? {
       address: input.address.trim(),
-      district: input.district?.trim() || null,
-      city: input.city?.trim() || null,
-      is_primary: true,
-    });
-    // 23505 = venues_one_primary_per_owner: ya existe una sede principal
-    // (p.ej. reintento tras un error posterior) — nada que hacer.
-    if (venueError && venueError.code !== '23505') throw new Error(venueError.message);
-  }
+      district: input.district?.trim() || undefined,
+      city: input.city?.trim() || undefined,
+    } : undefined,
+  });
 
   const { error } = await supabase.from('academia_requests').insert({
     profile_id: user.id,

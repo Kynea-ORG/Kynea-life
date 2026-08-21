@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ChevronRight, ChevronLeft, Upload, Loader2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/profiles/actions';
+import { uploadProfileImage } from '@/lib/profiles/imageActions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
 import { NATIONALITIES } from '@/lib/nationalities';
@@ -168,15 +169,10 @@ function OnboardingContent() {
     }
     setUploadingPhoto(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No autenticado');
-      const ext = file.name.split('.').pop() ?? 'jpg';
-      const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file);
-      if (uploadErr) throw new Error(uploadErr.message);
-      const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
-      setPhotoUrl(publicUrl);
+      const formData = new FormData();
+      formData.set('file', file);
+      const { url } = await uploadProfileImage(formData, 'photo');
+      setPhotoUrl(url);
       setPhotoPosition('50% 50%');
       setPhotoZoom(1);
     } catch (err) {
@@ -191,15 +187,10 @@ function OnboardingContent() {
     setError('');
     setUploadingCover(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No autenticado');
-      const ext = file.name.split('.').pop() ?? 'jpg';
-      const path = `${user.id}/${Date.now()}-cover.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file);
-      if (uploadErr) throw new Error(uploadErr.message);
-      const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
-      setCoverUrl(publicUrl);
+      const formData = new FormData();
+      formData.set('file', file);
+      const { url } = await uploadProfileImage(formData, 'cover');
+      setCoverUrl(url);
       setCoverPosition('50% 50%');
       setCoverZoom(1);
     } catch (err) {
@@ -284,18 +275,35 @@ function OnboardingContent() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           if (form.address.trim()) {
-            const { error: venueError } = await supabase.from('venues').insert({
-              owner_id: user.id,
-              name: form.publicName || 'Sede principal',
-              address: form.address.trim(),
-              district: form.district.trim() || null,
-              city: form.city.trim() || null,
-              is_primary: true,
-            });
-            // 23505 = venues_one_primary_per_owner: a retry after this insert
-            // already succeeded once (e.g. academia_requests failed after) —
-            // the primary venue is already there, nothing to do.
-            if (venueError && venueError.code !== '23505') throw venueError;
+            const { data: existingPrimary } = await supabase
+              .from('venues')
+              .select('id')
+              .eq('owner_id', user.id)
+              .eq('is_primary', true)
+              .maybeSingle();
+
+            if (existingPrimary) {
+              const { error: venueUpdateErr } = await supabase
+                .from('venues')
+                .update({
+                  name: form.publicName || 'Sede principal',
+                  address: form.address.trim(),
+                  district: form.district.trim() || null,
+                  city: form.city.trim() || null,
+                })
+                .eq('id', existingPrimary.id);
+              if (venueUpdateErr) throw venueUpdateErr;
+            } else {
+              const { error: venueError } = await supabase.from('venues').insert({
+                owner_id: user.id,
+                name: form.publicName || 'Sede principal',
+                address: form.address.trim(),
+                district: form.district.trim() || null,
+                city: form.city.trim() || null,
+                is_primary: true,
+              });
+              if (venueError && venueError.code !== '23505') throw venueError;
+            }
           }
           const { error: requestError } = await supabase.from('academia_requests').insert({
             profile_id: user.id,
@@ -660,7 +668,19 @@ function OnboardingContent() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Portada de tu perfil</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-neutral-700">Portada de tu perfil</label>
+                    {coverUrl && (
+                      <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        disabled={uploadingCover}
+                        className="text-xs font-semibold text-primary hover:text-primary-dark"
+                      >
+                        {uploadingCover ? 'Subiendo…' : 'Cambiar portada'}
+                      </button>
+                    )}
+                  </div>
                   <input
                     ref={coverInputRef}
                     type="file"

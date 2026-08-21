@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, Loader2, Upload, Building2 } from 'lucide-react';
 import { requestAcademiaConversion } from '@/lib/profiles/actions';
-import { createClient } from '@/lib/supabase/client';
+import { uploadProfileImage } from '@/lib/profiles/imageActions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import SmartImage from '@/components/SmartImage';
 import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
@@ -53,20 +53,14 @@ export default function ConvertirAcademiaClient({
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  async function uploadTo(file: File, suffix: string, onDone: (url: string) => void, setLoading: (v: boolean) => void) {
-    if (file.size > 5 * 1024 * 1024) { setError('La imagen no puede superar 5MB.'); return; }
+  async function uploadTo(file: File, suffix: 'photo' | 'cover', onDone: (url: string) => void, setLoading: (v: boolean) => void) {
     setError('');
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No autenticado');
-      const ext = file.name.split('.').pop() ?? 'jpg';
-      const path = `${user.id}/${Date.now()}-${suffix}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file);
-      if (uploadErr) throw new Error(uploadErr.message);
-      const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);
-      onDone(publicUrl);
+      const formData = new FormData();
+      formData.set('file', file);
+      const { url } = await uploadProfileImage(formData, suffix);
+      onDone(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir la imagen');
     } finally {
@@ -234,7 +228,7 @@ export default function ConvertirAcademiaClient({
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     className="hidden"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadTo(f, 'logo', url => { setPhotoUrl(url); setPhotoPosition('50% 50%'); setPhotoZoom(1); }, setUploadingPhoto); }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadTo(f, 'photo', url => { setPhotoUrl(url); setPhotoPosition('50% 50%'); setPhotoZoom(1); }, setUploadingPhoto); }}
                   />
                   <div className="flex items-center gap-3">
                     <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-neutral-200 bg-neutral-100 shrink-0 flex items-center justify-center">
@@ -255,7 +249,19 @@ export default function ConvertirAcademiaClient({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Portada de tu perfil</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-neutral-700">Portada de tu perfil</label>
+                    {coverUrl && (
+                      <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        disabled={uploadingCover}
+                        className="text-xs font-semibold text-primary hover:text-primary-dark"
+                      >
+                        {uploadingCover ? 'Subiendo…' : 'Cambiar portada'}
+                      </button>
+                    )}
+                  </div>
                   <input
                     ref={coverInputRef}
                     type="file"
