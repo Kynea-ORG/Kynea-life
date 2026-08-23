@@ -1,4 +1,5 @@
 'use server';
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchIsAdmin } from '@/lib/admin/queries';
@@ -59,4 +60,26 @@ export async function createUserAsAdmin(input: CreateUserInput): Promise<CreateU
   // No INSERT manual en profiles — handle_new_user ya crea la fila completa
   // (name, role, slug y ahora created_by).
   return { ok: true, userId: data.user.id, name, email, password: input.password };
+}
+
+// Aprueba o rechaza una solicitud de academia (alta nueva o conversión desde
+// profesor) — ver docs/TASKS.md sección 8. El chequeo real de permisos vive
+// dentro de approve_academia_request() (SECURITY DEFINER, valida
+// is_admin() del caller); este guard aquí es defensa en profundidad, mismo
+// patrón que createUserAsAdmin de arriba.
+export async function approveAcademiaRequest(requestId: string, approve: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+  if (!(await fetchIsAdmin())) throw new Error('No autorizado');
+
+  const { error } = await supabase.rpc('approve_academia_request', {
+    request_id: requestId,
+    approve,
+  });
+  if (error) throw new Error(error.message);
+
+  // 'layout' type: the pending-count badge lives in the persistent
+  // app/dashboard/admin/layout.tsx, not just this page.
+  revalidatePath('/dashboard/admin', 'layout');
 }

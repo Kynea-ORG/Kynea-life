@@ -50,8 +50,11 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // Protect /dashboard, /onboarding and /completar-registro — redirect to /login if not authenticated
-  if ((path.startsWith('/dashboard') || path.startsWith('/onboarding') || path.startsWith('/completar-registro')) && !user) {
+  // Protect /dashboard, /onboarding, /completar-registro and /convertir-academia
+  // (a profesor-only dashboard action, but a top-level route — see
+  // app/convertir-academia — so it doesn't inherit the dashboard sidebar
+  // layout) — redirect to /login if not authenticated
+  if ((path.startsWith('/dashboard') || path.startsWith('/onboarding') || path.startsWith('/completar-registro') || path.startsWith('/convertir-academia')) && !user) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -61,7 +64,7 @@ export async function proxy(request: NextRequest) {
   // immediately for alumnos who don't need it) — no extra DB query needed.
   if (user && user.user_metadata?.onboarding_done !== true) {
     const ONBOARDING_FREE = [
-      '/onboarding', '/auth', '/login', '/registro', '/unete',
+      '/onboarding', '/auth', '/login', '/registro', '/unete', '/academias',
       '/confirmar-email', '/completar-registro', '/reset-password',
       '/terminos', '/_next',
     ];

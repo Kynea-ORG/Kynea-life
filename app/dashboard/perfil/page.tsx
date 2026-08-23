@@ -9,17 +9,24 @@ export default async function PerfilPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const [profileResult, danceStyles] = await Promise.all([
+  const [profileResult, danceStyles, venueResult] = await Promise.all([
     supabase
       .from('profiles')
-      .select('role, name, bio, nationality, years_experience, whatsapp, instagram, tiktok, youtube, website, photo_url, photo_position, photo_zoom, profile_styles(style_id, dance_styles(name))')
+      .select('role, name, bio, nationality, years_experience, ruc, whatsapp, instagram, tiktok, youtube, website, photo_url, photo_position, photo_zoom, team_size, branch_count, cover_image_url, cover_image_position, cover_image_zoom, profile_styles(style_id, dance_styles(name))')
       .eq('id', user.id)
       .single(),
     fetchDanceStyles(),
+    supabase
+      .from('venues')
+      .select('address, district, city')
+      .eq('owner_id', user.id)
+      .eq('is_primary', true)
+      .maybeSingle(),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const profile = profileResult.data as any;
+  const primaryVenue = venueResult.data;
 
   return (
     // PerfilClient reads ?missing=... via useSearchParams (contact-gating
@@ -29,11 +36,14 @@ export default async function PerfilPage() {
         role={profile?.role ?? 'alumno'}
         profile={profile ?? {
           name: null, bio: null, nationality: null, years_experience: null,
-          whatsapp: null, instagram: null, tiktok: null,
+          ruc: null, whatsapp: null, instagram: null, tiktok: null,
           youtube: null, website: null, photo_url: null,
           photo_position: null, photo_zoom: null,
+          team_size: null, branch_count: null,
+          cover_image_url: null, cover_image_position: null, cover_image_zoom: null,
           profile_styles: null,
         }}
+        primaryVenue={primaryVenue ?? null}
         danceStyles={danceStyles.map(s => s.name)}
       />
     </Suspense>

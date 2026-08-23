@@ -5,7 +5,7 @@ import SmartImage from '@/components/SmartImage';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
-  Settings, LogOut, Users, Shield,
+  Settings, LogOut, Shield,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -42,7 +42,8 @@ const NAV_BY_ROLE = {
   academia: [
     { href: '/dashboard',              label: 'Inicio',         icon: LayoutDashboard },
     { href: '/dashboard/mis-clases',   label: 'Mis clases',     icon: BookOpen },
-    { href: '/dashboard/profesores',   label: 'Profesores',     icon: Users },
+    // 'Profesores' (roster) deliberadamente oculto — corre sobre datos mock,
+    // no persiste nada real. Ver docs/TASKS.md sección 8.8.
     { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
     { href: '/dashboard/importar-csv', label: 'Subir clases masivas', icon: Upload },
     { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
