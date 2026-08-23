@@ -729,7 +729,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       <section className="hero-section py-20">
         <div className="max-w-[880px] mx-auto px-6 text-center">
           <h2 className="text-[38px] font-black tracking-snug text-white mb-4">
-            ¿Eres profesor o academia?
+            ¿Eres profesor de baile?
           </h2>
           <p className="text-[17px] text-white/80 mb-10 max-w-xl mx-auto leading-relaxed">
             Publica tus clases gratis y llega a cientos de alumnos en toda Latinoamérica. Sin comisiones.

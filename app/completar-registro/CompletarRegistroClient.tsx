@@ -10,7 +10,7 @@ import { trackAuthAttempt } from '@/lib/analytics';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
-// Registro de tipo "academia" desactivado temporalmente en la UI — ver TODO en CLAUDE.md.
+// Registro de tipo "academia" oculto temporalmente en la UI para pruebas
 const ROLES: { key: Role; icon: React.ElementType; label: string; description: string }[] = [
   { key: 'alumno',   icon: User,      label: 'Alumno',   description: 'Quiero encontrar clases de baile' },
   { key: 'profesor', icon: BookOpen,  label: 'Profesor', description: 'Enseño clases de manera independiente' },

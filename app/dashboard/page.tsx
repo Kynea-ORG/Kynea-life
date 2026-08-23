@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { classUrl } from '@/lib/classes/helpers';
 import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
-import AcademiaConversionCard from './AcademiaConversionCard';
+// import AcademiaConversionCard from './AcademiaConversionCard';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -20,21 +20,6 @@ export default async function DashboardPage() {
     .single();
 
   if (profile?.role === 'alumno') redirect('/dashboard/alumno');
-
-  // Only a profesor can request this — an academia is already one, and an
-  // alumno never reaches this page (redirected above).
-  let conversionStatus: 'pending' | 'approved' | 'rejected' | null = null;
-  if (profile?.role === 'profesor') {
-    const { data: conversionRequest } = await supabase
-      .from('academia_requests')
-      .select('status')
-      .eq('profile_id', user.id)
-      .eq('kind', 'conversion')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    conversionStatus = conversionRequest?.status ?? null;
-  }
 
   const classes = await fetchTeacherClasses(user.id);
   const publishedClasses = classes.filter(c => c.status === 'published');
@@ -68,8 +53,6 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
-
-      {profile?.role === 'profesor' && <AcademiaConversionCard initialStatus={conversionStatus} />}
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-4 mb-8">
