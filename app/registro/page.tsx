@@ -47,8 +47,8 @@ function RegistroPageContent() {
   const { shift } = useFunFocusBackground();
 
   useEffect(() => {
-    createClient().auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace(redirectTarget ?? '/dashboard');
+    createClient().auth.getUser().then(({ data: { user } }) => {
+      if (user) router.replace(redirectTarget ?? '/dashboard');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);

@@ -1,7 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import SmartImage from '@/components/SmartImage';
-import { Move, ZoomIn, ZoomOut } from 'lucide-react';
+import { Move, ZoomIn, ZoomOut, X } from 'lucide-react';
 
 interface ImagePositionPickerProps {
   src: string;
@@ -11,6 +11,7 @@ interface ImagePositionPickerProps {
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
   onZoomDragEnd?: (zoom: number) => void;
+  onRemove?: () => void;
   frameClassName: string;
   sizes?: string;
   /** Narrow avatar contexts (circle/square) — drops the hint sentence so it
@@ -41,7 +42,7 @@ const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(mi
  */
 export default function ImagePositionPicker({
   src, value, onChange, onDragEnd,
-  zoom = 1, onZoomChange, onZoomDragEnd,
+  zoom = 1, onZoomChange, onZoomDragEnd, onRemove,
   frameClassName, sizes = '400px', compact = false,
 }: ImagePositionPickerProps) {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -81,31 +82,46 @@ export default function ImagePositionPicker({
 
   const isModified = x !== 50 || y !== 50 || zoom !== 1;
 
+  const isFullWidth = frameClassName.includes('w-full');
+
   return (
-    <div>
-      <div
-        ref={frameRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        className={`relative overflow-hidden touch-none select-none ${dragging ? 'cursor-grabbing' : 'cursor-grab'} ${frameClassName}`}
-      >
-        <SmartImage
-          src={src}
-          alt="Vista previa"
-          fill
-          sizes={sizes}
-          draggable={false}
-          className="object-cover pointer-events-none"
-          style={{ objectPosition: `${x}% ${y}%`, transform: `scale(${zoom})` }}
-        />
-        <div className="absolute bottom-2 right-2 bg-neutral-900/70 text-white rounded-full p-1.5 pointer-events-none">
-          <Move className="w-3.5 h-3.5" />
+    <div className={`flex flex-col ${compact ? 'items-center w-full max-w-[200px]' : 'w-full'}`}>
+      <div className={`relative ${isFullWidth ? 'w-full' : 'inline-block'}`}>
+        <div
+          ref={frameRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          className={`relative overflow-hidden touch-none select-none ${dragging ? 'cursor-grabbing' : 'cursor-grab'} ${frameClassName}`}
+        >
+          <SmartImage
+            src={src}
+            alt="Vista previa"
+            fill
+            sizes={sizes}
+            draggable={false}
+            className="object-cover pointer-events-none"
+            style={{ objectPosition: `${x}% ${y}%`, transform: `scale(${zoom})` }}
+          />
+          <div className="absolute bottom-2 right-2 bg-neutral-900/70 text-white rounded-full p-1.5 pointer-events-none">
+            <Move className="w-3.5 h-3.5" />
+          </div>
         </div>
+
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute -top-1.5 -right-1.5 bg-neutral-900/80 hover:bg-neutral-900 text-white rounded-full p-1 transition-colors active:scale-90 z-10 shadow-sm"
+            aria-label="Eliminar foto"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
       </div>
 
       {onZoomChange && (
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex items-center gap-2 mt-2 w-full">
           <ZoomOut className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
           <input
             type="range"
@@ -122,7 +138,7 @@ export default function ImagePositionPicker({
       )}
 
       {(!compact || isModified) && (
-        <div className={`flex items-center mt-1.5 ${compact ? 'justify-end' : 'justify-between'}`}>
+        <div className={`flex items-center mt-1.5 w-full ${compact ? 'justify-end' : 'justify-between'}`}>
           {!compact && <p className="text-xs text-neutral-500">Arrastra la foto para centrarla</p>}
           {isModified && (
             <button
