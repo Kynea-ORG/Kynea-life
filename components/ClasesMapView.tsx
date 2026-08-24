@@ -100,32 +100,38 @@ export default function ClasesMapView({
       const cls = validClasses.find(c => `clase-${c.id}` === pinId);
       if (!cls) return null;
       return (
-        <div>
-          {/* Card horizontal tipo VRBO — la foto de portada de una clase es
-              casi siempre un flyer/retrato, no un paisaje: a todo el ancho
-              arriba (como antes) quedaba recortada de forma rara. De
-              costado, a una proporción más angosta, se lee mejor. */}
-          <div className="flex gap-3 p-3">
-            <div className="relative w-28 shrink-0 rounded-lg overflow-hidden">
-              <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="112px" className="object-cover" />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col">
-              <div className="flex items-start justify-between gap-2">
+        <div className="relative group">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              close();
+            }}
+            className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-sm flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors active:scale-90"
+            aria-label="Cerrar"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <Link href={classUrl(cls)} className="block p-3">
+            <div className="flex gap-3">
+              <div className="relative w-28 shrink-0 rounded-lg overflow-hidden">
+                <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="112px" className="object-cover group-hover:scale-105 transition-transform duration-300" />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col pr-6">
                 <p className="text-[11px] font-bold text-primary">{cls.style}</p>
-                <button onClick={close} className="shrink-0 -mt-1 -mr-1 w-6 h-6 rounded-full flex items-center justify-center text-neutral-400 hover:bg-neutral-100 transition-colors active:scale-90">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <h3 className="font-bold text-neutral-900 text-[14px] leading-snug line-clamp-2">{cls.title}</h3>
-              <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name} · {cls.district}</p>
-              <div className="mt-auto pt-1.5">
-                <span className="text-[14px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.offerPrice ?? cls.price, cls.currency)}</span>
-                <p className="text-[11px] text-neutral-500 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
+                <h3 className="font-bold text-neutral-900 text-[14px] leading-snug line-clamp-2 mt-0.5 group-hover:text-primary transition-colors">{cls.title}</h3>
+                <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name} · {cls.district}</p>
+                <div className="mt-auto pt-1.5">
+                  <span className="text-[14px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.offerPrice ?? cls.price, cls.currency)}</span>
+                  <p className="text-[11px] text-neutral-500 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
+                </div>
               </div>
             </div>
-          </div>
-          <Link href={classUrl(cls)} className="flex items-center justify-center gap-1 text-[12px] font-semibold text-primary hover:text-primary-dark py-2.5 border-t border-neutral-100">
-            Ver clase <ChevronRight className="w-3.5 h-3.5" />
+            <div className="flex items-center justify-center gap-1 text-[12px] font-semibold text-primary group-hover:text-primary-dark pt-2.5 mt-2.5 border-t border-neutral-100">
+              Ver clase <ChevronRight className="w-3.5 h-3.5" />
+            </div>
           </Link>
         </div>
       );
@@ -134,26 +140,38 @@ export default function ClasesMapView({
     const academia = validAcademias.find(a => `academia-${a.id}` === pinId);
     if (!academia) return null;
     return (
-      <div>
-        <div className="flex items-start gap-3 p-3">
-          <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-neutral-100 flex items-center justify-center">
-            {academia.photo ? (
-              <SmartImage src={academia.photo} alt={academia.name} fill sizes="56px" className="object-cover" />
-            ) : (
-              <Building2 className="w-5 h-5 text-neutral-400" />
-            )}
+      <div className="relative group">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            close();
+          }}
+          className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-sm flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors active:scale-90"
+          aria-label="Cerrar"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <Link href={`/profesores/${academia.slug}`} className="block p-3">
+          <div className="flex items-start gap-3 pr-6">
+            <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-neutral-100 flex items-center justify-center">
+              {academia.photo ? (
+                <SmartImage src={academia.photo} alt={academia.name} fill sizes="56px" className="object-cover group-hover:scale-105 transition-transform duration-300" />
+              ) : (
+                <Building2 className="w-5 h-5 text-neutral-400" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="badge-pink text-[10px]">Academia</span>
+              <h3 className="font-bold text-neutral-900 text-[14px] leading-snug mt-0.5 line-clamp-1 group-hover:text-primary transition-colors">{academia.name}</h3>
+              <p className="text-[12px] text-neutral-500 mt-0.5">{academia.venueDistrict}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <span className="badge-pink text-[10px]">Academia</span>
-            <h3 className="font-bold text-neutral-900 text-[14px] leading-snug mt-0.5 line-clamp-1">{academia.name}</h3>
-            <p className="text-[12px] text-neutral-500 mt-0.5">{academia.venueDistrict}</p>
+          <div className="flex items-center justify-center gap-1 text-[12px] font-semibold text-primary group-hover:text-primary-dark pt-2.5 mt-2.5 border-t border-neutral-100">
+            Ver perfil <ChevronRight className="w-3.5 h-3.5" />
           </div>
-          <button onClick={close} className="w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-neutral-400 hover:bg-neutral-100 transition-colors active:scale-90">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-        <Link href={`/profesores/${academia.slug}`} className="flex items-center justify-center gap-1 text-[12px] font-semibold text-primary hover:text-primary-dark py-2.5 border-t border-neutral-100">
-          Ver perfil <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </div>
     );
