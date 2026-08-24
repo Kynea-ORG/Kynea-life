@@ -1,6 +1,7 @@
 import { fetchClassById } from '@/lib/classes/queries';
 import { fetchDanceStyles, fetchClassLevels } from '@/lib/catalog/queries';
-import { requireRole } from '@/lib/auth/requireRole';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import CrearClaseForm from './CrearClaseForm';
 import type { DanceClass } from '@/lib/types';
 
@@ -9,7 +10,21 @@ interface PageProps {
 }
 
 export default async function CrearClasePage({ searchParams }: PageProps) {
-  await requireRole(['profesor', 'academia']);
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, academia_approved_at')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile?.role || !['profesor', 'academia'].includes(profile.role)) {
+    redirect('/dashboard/alumno');
+  }
+
+  const isAcademiaPending = profile?.role === 'academia' && !profile?.academia_approved_at;
 
   const params = await searchParams;
 
@@ -26,6 +41,7 @@ export default async function CrearClasePage({ searchParams }: PageProps) {
       editClass={editClass as DanceClass | null}
       danceStyles={danceStyles.map(s => s.name)}
       levels={levels.map(l => l.name)}
+      academiaPending={isAcademiaPending}
     />
   );
 }
