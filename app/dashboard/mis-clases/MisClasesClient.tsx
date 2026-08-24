@@ -19,7 +19,12 @@ const STATUS_TABS: { key: ClassStatus | 'all'; label: string }[] = [
   { key: 'archived', label: 'Archivadas' },
 ];
 
-export default function MisClasesClient({ initialClasses }: { initialClasses: DanceClass[] }) {
+interface MisClasesClientProps {
+  initialClasses: DanceClass[];
+  academiaPending?: boolean;
+}
+
+export default function MisClasesClient({ initialClasses, academiaPending = false }: MisClasesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -64,9 +69,11 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
   };
 
   const publishClass = (id: string) => {
+    if (academiaPending) {
+      showToast('Tu academia todavía está en revisión. Podrás publicar tus clases en cuanto tu cuenta sea aprobada.', 'info');
+      return;
+    }
     const previousStatus = classes.find(c => c.id === id)?.status ?? 'draft';
-    setClasses(prev => prev.map(c => c.id === id ? { ...c, status: 'published' as const } : c));
-    showToast('Clase publicada', 'success');
     startTransition(async () => {
       try {
         const res = await updateClass(id, { status: 'published' });
@@ -82,7 +89,10 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
           } else {
             showToast(payload?.message || 'Error al publicar', 'error');
           }
+          return;
         }
+        setClasses(prev => prev.map(c => c.id === id ? { ...c, status: 'published' as const } : c));
+        showToast('Clase publicada', 'success');
       } catch (err) {
         setClasses(prev => prev.map(c => c.id === id ? { ...c, status: previousStatus } : c));
         const payload = parsePublishError(err);
@@ -100,13 +110,16 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
   };
 
   const hideClass = (id: string) => {
-    setClasses(prev => prev.map(c => c.id === id ? { ...c, status: 'archived' as const } : c));
-    showToast('Clase ocultada', 'info');
     startTransition(async () => {
       try {
-        await updateClass(id, { status: 'archived' });
+        const res = await updateClass(id, { status: 'archived' });
+        if (res && !res.ok) {
+          showToast(res.error?.message || 'Error al ocultar', 'error');
+          return;
+        }
+        setClasses(prev => prev.map(c => c.id === id ? { ...c, status: 'archived' as const } : c));
+        showToast('Clase ocultada', 'info');
       } catch {
-        setClasses(prev => prev.map(c => c.id === id ? { ...c, status: 'published' as const } : c));
         showToast('Error al ocultar', 'error');
       }
     });
@@ -116,15 +129,14 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
     setConfirmDelete(null);
     setOpenMenu(null);
     setRemovingId(id);
-    setTimeout(() => {
-      setClasses(prev => prev.filter(c => c.id !== id));
-      setRemovingId(null);
-    }, 150);
-    showToast('Clase eliminada', 'error');
     startTransition(async () => {
       try {
         await deleteClassAction(id);
+        setClasses(prev => prev.filter(c => c.id !== id));
+        setRemovingId(null);
+        showToast('Clase eliminada', 'info');
       } catch {
+        setRemovingId(null);
         showToast('Error al eliminar (recarga la página)', 'error');
         router.refresh();
       }
@@ -172,6 +184,18 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
           <PlusCircle className="w-4 h-4" /> Nueva clase
         </Link>
       </div>
+
+      {academiaPending && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <span className="text-xl shrink-0">⏳</span>
+          <div>
+            <p className="text-xs font-bold text-amber-900 mb-0.5">Academia en proceso de revisión</p>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              Tu cuenta de academia está siendo revisada por el equipo de Kynea. Durante este periodo puedes crear y guardar todas tus clases como borrador. En cuanto tu cuenta sea aprobada, podrás publicarlas inmediatamente.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-neutral-100 rounded-xl p-1 overflow-x-auto">
@@ -270,10 +294,21 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
                   ) : (
                     <div className="flex items-center gap-1.5 animate-fade-in">
                       {cls.status === 'draft' && (
-                        <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
-                          Publicar
-                        </button>
+                        academiaPending ? (
+                          <button
+                            type="button"
+                            onClick={() => showToast('Tu academia todavía está en revisión. Podrás publicar tus clases en cuanto sea aprobada.', 'info')}
+                            className="text-xs px-2.5 py-1.5 rounded-btn border border-amber-300 bg-amber-50 text-amber-900 font-semibold hover:bg-amber-100 transition-colors flex items-center gap-1"
+                            title="Tu academia todavía está en revisión"
+                          >
+                            Publicar <span className="text-[10px] bg-amber-200/80 text-amber-900 font-bold px-1 py-0.2 rounded">En revisión</span>
+                          </button>
+                        ) : (
+                          <button onClick={() => publishClass(cls.id)} disabled={isPending}
+                            className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                            Publicar
+                          </button>
+                        )
                       )}
                       {cls.status === 'published' && (
                         <button onClick={() => hideClass(cls.id)} disabled={isPending}
@@ -350,10 +385,23 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
               <div className="mt-3 pt-3 border-t border-neutral-100 space-y-2 animate-fade-in">
                 <div className="flex gap-2">
                   {cls.status === 'draft' && (
-                    <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-bold text-white flex items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
-                      <Eye className="w-3 h-3" /> Publicar
-                    </button>
+                    academiaPending ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          showToast('Tu academia todavía está en revisión. Podrás publicar tus clases en cuanto sea aprobada.', 'info');
+                          setOpenMenu(null);
+                        }}
+                        className="text-xs font-bold text-amber-900 flex items-center gap-1 border border-amber-300 bg-amber-50 px-3 py-1.5 rounded-btn hover:bg-amber-100 transition-colors"
+                      >
+                        <Eye className="w-3 h-3" /> Publicar (En revisión)
+                      </button>
+                    ) : (
+                      <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
+                        className="text-xs font-bold text-white flex items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                        <Eye className="w-3 h-3" /> Publicar
+                      </button>
+                    )
                   )}
                   {cls.status === 'published' && (
                     <button onClick={() => { hideClass(cls.id); setOpenMenu(null); }} disabled={isPending}
