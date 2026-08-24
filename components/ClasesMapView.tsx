@@ -159,7 +159,11 @@ export default function ClasesMapView({ classes, academias }: { classes: DanceCl
 
   return (
     <div className="relative grid lg:grid-cols-[380px_1fr] gap-5 h-[calc(100vh-220px)] min-h-[420px]">
-      <div className={`overflow-y-auto flex-col gap-3 pr-1 lg:flex ${mobileView === 'lista' ? 'flex' : 'hidden'}`}>
+      {/* `pb-20` on mobile reserves room below the last row for the floating
+          "Ver lista"/"Ver mapa" toggle — without it that button (same
+          bottom-anchored spot) sits on top of the last item instead of
+          below the list. */}
+      <div className={`overflow-y-auto flex-col gap-3 pr-1 pb-20 lg:pb-0 lg:flex ${mobileView === 'lista' ? 'flex' : 'hidden'}`}>
         {zoneFilterActive && (
           <p className="text-[13px] text-neutral-500 px-0.5">
             <strong className="text-neutral-900">{listClasses.length + listAcademias.length}</strong> clase{listClasses.length + listAcademias.length !== 1 ? 's' : ''} en esta zona

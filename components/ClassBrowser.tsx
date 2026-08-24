@@ -90,14 +90,14 @@ export default function ClassBrowser({
       {/* Search bar */}
       <div className="bg-white border-b border-neutral-200 sticky top-[64px] z-40">
         <div className={`mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
-          <div className="flex-1 flex items-center gap-2.5 bg-white border border-neutral-200 rounded-btn px-4 py-2.5 hover:border-neutral-900 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-[border-color,box-shadow]">
+          <div className="flex-1 min-w-0 flex items-center gap-2.5 bg-white border border-neutral-200 rounded-btn px-4 py-2.5 hover:border-neutral-900 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-[border-color,box-shadow]">
             <Search className="w-4 h-4 text-neutral-400 shrink-0" />
             <input
               type="text"
               value={query}
               onChange={e => handleQueryChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="flex-1 text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none"
+              className="flex-1 min-w-0 text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none"
             />
             {query && (
               <button onClick={() => handleQueryChange('')} className="text-neutral-400 hover:text-neutral-600">
@@ -128,7 +128,7 @@ export default function ClassBrowser({
             className={`flex items-center gap-2 text-[13px] font-bold px-4 py-2.5 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-50 transition-colors active:scale-[0.97] ${isMapView ? '' : 'md:hidden'}`}
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filtros
+            <span className="hidden sm:inline">Filtros</span>
             {activeCount > 0 && (
               <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-primary-bg text-primary-dark">{activeCount}</span>
             )}

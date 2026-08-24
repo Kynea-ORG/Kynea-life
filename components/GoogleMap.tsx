@@ -467,7 +467,12 @@ export default function GoogleMap({
         </div>
       )}
       {openPinId && renderPopup && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 w-72 max-w-[calc(100%-2rem)] bg-white rounded-xl border border-neutral-900 shadow-2xl overflow-hidden">
+        // `bottom-20` on mobile clears ClasesMapView's floating "Ver lista"/
+        // "Ver mapa" toggle (also bottom-anchored, centered, same z-index) —
+        // without it the card's own footer link sits right behind that
+        // button and becomes untappable. Desktop has no such toggle, so
+        // `lg:bottom-4` matches the tighter desktop spacing again there.
+        <div className="absolute bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-10 w-72 max-w-[calc(100%-2rem)] bg-white rounded-xl border border-neutral-900 shadow-2xl overflow-hidden">
           {renderPopup(openPinId, () => { focusPin(null); onPinClickRef.current?.(null); })}
         </div>
       )}
