@@ -174,7 +174,7 @@ export default function ClasesMapView({
   const listEmpty = listClasses.length === 0 && listAcademias.length === 0;
 
   return (
-    <div className="relative grid lg:grid-cols-[380px_1fr] gap-5 h-[calc(100dvh-130px)] lg:h-[calc(100vh-220px)] min-h-[380px] w-full">
+    <div className="relative grid lg:grid-cols-[380px_1fr] gap-5 h-full lg:h-[calc(100vh-220px)] min-h-[380px] w-full">
       {/* Desktop-only — below `lg` this view is map-only (see `onShowList`
           doc comment above), so this whole panel is dropped there instead
           of being a second, redundant "list" behind a mobile sub-toggle. */}
@@ -255,7 +255,7 @@ export default function ClasesMapView({
         })}
       </div>
 
-      <div className="relative rounded-none lg:rounded-xl overflow-hidden border-0 lg:border lg:border-neutral-200 block h-full lg:h-auto">
+      <div className="relative rounded-none lg:rounded-xl overflow-hidden border-0 lg:border lg:border-neutral-200 block h-full">
         <GoogleMap
           pins={pins}
           selectedPinId={selectedId}
@@ -265,12 +265,12 @@ export default function ClasesMapView({
           renderPopup={renderPopup}
           gestureHandling="greedy"
         />
-        <label className="absolute left-4 top-4 z-10 flex items-center gap-2 px-3.5 py-2 rounded-full border border-neutral-900 bg-white text-[12.5px] font-bold cursor-pointer shadow-[0_3px_12px_rgba(13,13,13,.1)]">
+        <label className="absolute left-3 top-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-900 bg-white text-[12px] font-bold cursor-pointer shadow-[0_2px_8px_rgba(13,13,13,.1)]">
           <input
             type="checkbox"
             checked={searchOnMove}
             onChange={e => setSearchOnMove(e.target.checked)}
-            className="w-[15px] h-[15px] accent-primary cursor-pointer"
+            className="w-[14px] h-[14px] accent-primary cursor-pointer"
           />
           Buscar al mover el mapa
         </label>
@@ -283,7 +283,7 @@ export default function ClasesMapView({
       <button
         type="button"
         onClick={onShowList}
-        className="lg:hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-neutral-900 text-white text-[13px] font-semibold px-4 py-2.5 rounded-full shadow-lg active:scale-[0.97] transition-transform"
+        className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-neutral-900 text-white text-[13px] font-semibold px-4 py-2.5 rounded-full shadow-lg active:scale-[0.97] transition-transform"
       >
         <List className="w-4 h-4" /> Lista
       </button>

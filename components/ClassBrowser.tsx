@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, SlidersHorizontal, X, Loader2, ArrowUp, List, Map as MapIcon } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2, ArrowUp, ArrowLeft, List, Map as MapIcon } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
 import FilterPanel from '@/components/FilterPanel';
@@ -24,13 +24,15 @@ interface ClassBrowserProps {
   emptyText: string;
   /** Rendered between the header and the sticky search bar — e.g. a category hero banner. */
   topSlot?: ReactNode;
-  /** Identifies this listing surface for select_item tracking — see trackSelectItem in lib/analytics.ts. */
-  listName: string;
-  /** Shows the Lista/Mapa toggle — off by default so category-locked pages
-   * (which don't receive `academias`) don't suddenly grow a map option. */
+  /** When true, a toggle in the search bar allows switching to an
+   * interactive map view of the filtered classes. Off on search/saved-classes
+   * pages where map view doesn't make sense or isn't wanted. */
   enableMapView?: boolean;
-  /** Academias with real coordinates, for pins in the Mapa view — see fetchAcademiasWithLocation. */
+  /** Academias to show alongside classes in map view (see ClasesMapView).
+   * Ignored when enableMapView is false. */
   academias?: Teacher[];
+  /** Sentry / analytics list identifier passed through to ClassCard (e.g. 'clases_explorador', 'categoria_heels'). */
+  listName?: string;
 }
 
 export default function ClassBrowser({
@@ -43,38 +45,43 @@ export default function ClassBrowser({
   renderResultsCount,
   emptyText,
   topSlot,
-  listName,
   enableMapView = false,
   academias = [],
+  listName = 'clases_explorador',
 }: ClassBrowserProps) {
-  const {
-    query, filters, isPending, results, activeCount,
-    handleQueryChange, handleFiltersChange, handleClearAll,
-  } = useClassFilters({ initialClasses, baseUrl, includeStyles });
-
-  // `?vista=mapa` opens straight into the map view — used by /mapa's redirect
-  // (see app/mapa/page.tsx) so old links/bookmarks still land on a map.
   const searchParams = useSearchParams();
-  const [view, setView] = useState<'lista' | 'mapa'>(
-    enableMapView && searchParams.get('vista') === 'mapa' ? 'mapa' : 'lista'
-  );
-  // La vista Mapa se sale del ancho fijo de 1200px de la lista normal — con
-  // el sidebar de filtros + un panel de 380px, el mapa quedaba angosto en
-  // pantallas grandes. En Mapa el sidebar se oculta (los filtros pasan al
-  // mismo botón/modal que ya existe para mobile, ahora también en desktop)
-  // y el contenedor usa casi todo el ancho disponible.
-  const isMapView = enableMapView && view === 'mapa';
   const [showFilters, setShowFilters] = useState(false);
   const shouldRenderFilters = useDelayedUnmount(showFilters, 200);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // URL-driven view mode ('lista' | 'mapa'). On initial mount, sync from
+  // ?vista=mapa if present (see app/mapa/page.tsx redirect target).
+  const initialView = enableMapView && searchParams.get('vista') === 'mapa' ? 'mapa' : 'lista';
+  const [view, setView] = useState<'lista' | 'mapa'>(initialView);
+
+  const isMapView = enableMapView && view === 'mapa';
+
+  const {
+    query,
+    filters,
+    results,
+    isPending,
+    activeCount,
+    handleQueryChange,
+    handleFiltersChange,
+    handleClearAll,
+  } = useClassFilters({
+    baseUrl,
+    initialClasses,
+    includeStyles,
+  });
+
   useEffect(() => {
-    function onScroll() {
-      setShowScrollTop(window.scrollY > 480);
-    }
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToTop = () => {
@@ -83,13 +90,26 @@ export default function ClassBrowser({
   };
 
   return (
-    <div className={`min-h-screen bg-white ${isMapView ? 'h-screen overflow-hidden lg:h-auto lg:overflow-visible' : ''}`}>
-      <Header />
-      {topSlot}
+    <div className={`min-h-screen bg-white ${isMapView ? 'h-dvh flex flex-col overflow-hidden lg:h-auto lg:min-h-screen lg:block lg:overflow-visible' : ''}`}>
+      <div className={isMapView ? 'hidden lg:block' : ''}>
+        <Header />
+      </div>
+      {topSlot && <div className={isMapView ? 'hidden lg:block' : ''}>{topSlot}</div>}
 
       {/* Search bar */}
-      <div className="bg-white border-b border-neutral-200 sticky top-[64px] z-40">
-        <div className={`mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
+      <div className={`bg-white border-b border-neutral-200 shrink-0 sticky ${isMapView ? 'top-0 lg:top-[64px]' : 'top-[64px]'} z-40`}>
+        <div className={`mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
+          {isMapView && (
+            <button
+              type="button"
+              onClick={() => setView('lista')}
+              className="lg:hidden p-2 -ml-1 rounded-full text-neutral-700 hover:bg-neutral-100 active:scale-95 transition-transform shrink-0"
+              aria-label="Volver a lista"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+
           <div className="flex-1 min-w-0 flex items-center gap-2.5 bg-white border border-neutral-200 rounded-btn px-4 py-2.5 hover:border-neutral-900 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-[border-color,box-shadow]">
             <Search className="w-4 h-4 text-neutral-400 shrink-0" />
             <input
@@ -167,7 +187,7 @@ export default function ClassBrowser({
         )}
       </div>
 
-      <div className={`mx-auto flex gap-8 ${isMapView ? 'max-w-[1800px] px-0 py-0 lg:px-6 lg:py-8' : 'max-w-[1200px] px-4 sm:px-6 py-8'}`}>
+      <div className={`mx-auto flex gap-8 ${isMapView ? 'flex-1 min-h-0 w-full max-w-[1800px] px-0 py-0 lg:px-6 lg:py-8' : 'max-w-[1200px] px-4 sm:px-6 py-8'}`}>
         {/* Sidebar — oculto en vista Mapa para dejarle todo el ancho al mapa;
             sus filtros siguen disponibles vía el mismo botón/modal de abajo,
             que en Mapa se muestra también en desktop (ver isMapView). */}
@@ -240,15 +260,17 @@ export default function ClassBrowser({
         )}
 
         {/* Results */}
-        <main className={`flex-1 min-w-0 transition-opacity duration-150 ${isPending ? 'opacity-60' : ''}`}>
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-[15px] text-neutral-500 flex items-center gap-2">
-              {isPending
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Filtrando…</>
-                : renderResultsCount(results.length, isPending)
-              }
-            </p>
-          </div>
+        <main className={`flex-1 min-w-0 flex flex-col transition-opacity duration-150 ${isPending ? 'opacity-60' : ''}`}>
+          {!isMapView && (
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-[15px] text-neutral-500 flex items-center gap-2">
+                {isPending
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Filtrando…</>
+                  : renderResultsCount(results.length, isPending)
+                }
+              </p>
+            </div>
+          )}
 
           {results.length === 0 && !isPending ? (
             <div className="text-center py-24 animate-fade-in">
