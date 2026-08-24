@@ -115,7 +115,7 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias, danceStyles, stats }: Props) {
+export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
 

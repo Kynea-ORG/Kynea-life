@@ -17,7 +17,7 @@ import type { DanceClass, Teacher } from '@/lib/types';
 // Los pines llevan el precio (clases) o el nombre (academias) en una
 // píldora — ver GoogleMap.tsx — y al hacer clic abren una tarjeta flotante
 // sobre el mapa mismo (no solo resaltan el item en la lista lateral).
-export default function ClasesMapView({ classes, academias }: { classes: DanceClass[]; academias: Teacher[] }) {
+export default function ClasesMapView({ classes, academias = [] }: { classes: DanceClass[]; academias?: Teacher[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Hover en desktop solo resalta el pin (sin abrir tarjeta ni mover el
   // mapa) — el click sigue siendo el único gesto que selecciona de verdad.

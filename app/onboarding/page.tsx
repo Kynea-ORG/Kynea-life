@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { ChevronRight, ChevronLeft, Upload, Loader2, X } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Upload, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/profiles/actions';
 import { uploadProfileImage } from '@/lib/profiles/imageActions';
@@ -371,31 +371,22 @@ function OnboardingContent() {
                     onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }}
                   />
                   {photoUrl ? (
-                    <div className="relative">
-                      <ImagePositionPicker
-                        src={photoUrl}
-                        value={photoPosition}
-                        onChange={setPhotoPosition}
-                        zoom={photoZoom}
-                        onZoomChange={setPhotoZoom}
-                        frameClassName="w-20 h-20 rounded-full border-2 border-dashed border-neutral-300"
-                        sizes="80px"
-                        compact
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPhotoUrl('');
-                          setPhotoPosition('50% 50%');
-                          setPhotoZoom(1);
-                          if (photoInputRef.current) photoInputRef.current.value = '';
-                        }}
-                        className="absolute top-0 right-0 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors active:scale-90 z-10"
-                        aria-label="Eliminar foto"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
+                    <ImagePositionPicker
+                      src={photoUrl}
+                      value={photoPosition}
+                      onChange={setPhotoPosition}
+                      zoom={photoZoom}
+                      onZoomChange={setPhotoZoom}
+                      onRemove={() => {
+                        setPhotoUrl('');
+                        setPhotoPosition('50% 50%');
+                        setPhotoZoom(1);
+                        if (photoInputRef.current) photoInputRef.current.value = '';
+                      }}
+                      frameClassName="w-20 h-20 rounded-full border-2 border-dashed border-neutral-300"
+                      sizes="80px"
+                      compact
+                    />
                   ) : (
                     <button
                       type="button"

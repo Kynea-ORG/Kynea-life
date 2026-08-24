@@ -338,28 +338,19 @@ export default function PerfilClient({
             />
             <div className="w-32 shrink-0">
               {photoUrl ? (
-                <div className="relative">
-                  <ImagePositionPicker
-                    src={photoUrl}
-                    value={photoPosition}
-                    onChange={setPhotoPosition}
-                    onDragEnd={handlePhotoPositionDragEnd}
-                    zoom={photoZoom}
-                    onZoomChange={setPhotoZoom}
-                    onZoomDragEnd={handlePhotoZoomDragEnd}
-                    frameClassName="w-32 h-32 rounded-xl border border-neutral-200"
-                    sizes="128px"
-                    compact
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRemovePhoto}
-                    className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors active:scale-90 z-10"
-                    aria-label="Eliminar foto"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
+                <ImagePositionPicker
+                  src={photoUrl}
+                  value={photoPosition}
+                  onChange={setPhotoPosition}
+                  onDragEnd={handlePhotoPositionDragEnd}
+                  zoom={photoZoom}
+                  onZoomChange={setPhotoZoom}
+                  onZoomDragEnd={handlePhotoZoomDragEnd}
+                  onRemove={handleRemovePhoto}
+                  frameClassName="w-32 h-32 rounded-xl border border-neutral-200"
+                  sizes="128px"
+                  compact
+                />
               ) : (
                 <button
                   type="button"
