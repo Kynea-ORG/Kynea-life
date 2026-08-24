@@ -32,7 +32,7 @@ export default function MapPreview({
   if (expanded || !previewImageUrl) {
     return (
       <div className={`relative rounded-xl overflow-hidden border border-neutral-200 ${className}`}>
-        <GoogleMap pins={[{ id: 'preview', lat, lng, title: label }]} />
+        <GoogleMap pins={[{ id: 'preview', lat, lng, title: label }]} gestureHandling="cooperative" />
       </div>
     );
   }

@@ -174,7 +174,7 @@ export default function ClasesMapView({
   const listEmpty = listClasses.length === 0 && listAcademias.length === 0;
 
   return (
-    <div className="relative grid lg:grid-cols-[380px_1fr] gap-5 h-[calc(100vh-220px)] min-h-[420px]">
+    <div className="relative grid lg:grid-cols-[380px_1fr] gap-5 h-[calc(100dvh-130px)] lg:h-[calc(100vh-220px)] min-h-[380px] w-full">
       {/* Desktop-only — below `lg` this view is map-only (see `onShowList`
           doc comment above), so this whole panel is dropped there instead
           of being a second, redundant "list" behind a mobile sub-toggle. */}
@@ -255,7 +255,7 @@ export default function ClasesMapView({
         })}
       </div>
 
-      <div className="relative rounded-xl overflow-hidden border border-neutral-200 block h-full lg:h-auto">
+      <div className="relative rounded-none lg:rounded-xl overflow-hidden border-0 lg:border lg:border-neutral-200 block h-full lg:h-auto">
         <GoogleMap
           pins={pins}
           selectedPinId={selectedId}
@@ -263,6 +263,7 @@ export default function ClasesMapView({
           onPinClick={handlePinClick}
           onVisibleChange={handleVisibleChange}
           renderPopup={renderPopup}
+          gestureHandling="greedy"
         />
         <label className="absolute left-4 top-4 z-10 flex items-center gap-2 px-3.5 py-2 rounded-full border border-neutral-900 bg-white text-[12.5px] font-bold cursor-pointer shadow-[0_3px_12px_rgba(13,13,13,.1)]">
           <input
