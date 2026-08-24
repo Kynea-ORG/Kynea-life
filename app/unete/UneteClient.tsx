@@ -160,6 +160,12 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
                 Inicia sesión
               </Link>
             </p>
+            <p className="text-center text-[13px] text-neutral-400 mt-2">
+              ¿Diriges una academia con varios profesores?{' '}
+              <Link href="/academias" className="text-neutral-900 font-semibold hover:underline">
+                Regístrate aquí
+              </Link>
+            </p>
           </div>
         </div>
 
