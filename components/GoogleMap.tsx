@@ -83,6 +83,7 @@ function buildPinElement(pin: MapPin): HTMLDivElement {
   const wrapper = document.createElement('div');
   wrapper.style.position = 'absolute';
   wrapper.style.cursor = 'pointer';
+  wrapper.style.pointerEvents = 'auto';
   wrapper.style.zIndex = '1';
   wrapper.dataset.pinId = pin.id;
 
@@ -105,6 +106,8 @@ function buildPinElement(pin: MapPin): HTMLDivElement {
     const img = document.createElement('img');
     img.src = pin.photo;
     img.alt = '';
+    img.decoding = 'async';
+    img.loading = 'lazy';
     img.className = 'w-6 h-6 rounded-full object-cover shrink-0';
     // Broken/missing image: fall back to a text-only pill instead of showing
     // a broken-image glyph inside the pin.
@@ -171,6 +174,7 @@ export default function GoogleMap({
   hoveredPinId,
   onPinClick,
   onVisibleChange,
+  onMapMoving,
   renderPopup,
   gestureHandling = 'greedy',
   className = 'w-full h-full',
@@ -190,6 +194,8 @@ export default function GoogleMap({
    * style list filter. The map itself never filters its own pins on this;
    * it's purely a report for the caller to act on. */
   onVisibleChange?: (visibleIds: Set<string>) => void;
+  /** Fires when user starts dragging/zooming or map settles — allows parent to show skeleton/feedback. */
+  onMapMoving?: (moving: boolean) => void;
   /** Content for the card that opens above a pin when it's clicked. Omit to
    * disable the popup entirely (MapPreview's single-pin view has nothing
    * more to say than the label already shown below the map). */
@@ -211,6 +217,8 @@ export default function GoogleMap({
   useEffect(() => { onPinClickRef.current = onPinClick; }, [onPinClick]);
   const onVisibleChangeRef = useRef(onVisibleChange);
   useEffect(() => { onVisibleChangeRef.current = onVisibleChange; }, [onVisibleChange]);
+  const onMapMovingRef = useRef(onMapMoving);
+  useEffect(() => { onMapMovingRef.current = onMapMoving; }, [onMapMoving]);
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [mapReady, setMapReady] = useState(false);
@@ -308,12 +316,25 @@ export default function GoogleMap({
           onPinClickRef.current?.(null);
         });
 
+        // Track when camera starts moving (pan/zoom) to trigger feedback/skeleton
+        map.addListener('dragstart', () => {
+          if (cancelled) return;
+          onMapMovingRef.current?.(true);
+        });
+
+        map.addListener('zoom_changed', () => {
+          if (cancelled) return;
+          onMapMovingRef.current?.(true);
+        });
+
         // Reports which pins are currently inside the viewport — fires after
         // any pan/zoom settles, programmatic or user-driven (recenter,
         // selecting a pin, dragging, scroll-zoom). Purely informational; see
         // `onVisibleChange` doc comment for why filtering isn't done here.
         map.addListener('idle', () => {
-          if (cancelled || !onVisibleChangeRef.current) return;
+          if (cancelled) return;
+          onMapMovingRef.current?.(false);
+          if (!onVisibleChangeRef.current) return;
           const bounds = map.getBounds?.();
           if (!bounds) return;
           const visible = new Set(pinsRef.current.filter(p => bounds.contains({ lat: p.lat, lng: p.lng })).map(p => p.id));
@@ -346,6 +367,7 @@ export default function GoogleMap({
   }, []);
 
   // Sync pin overlays whenever map is ready or pins change (e.g. live filter changes).
+  // Uses a single unified PinsOverlay to batch DOM operations for high performance with 100+ pins.
   useEffect(() => {
     const map = mapRef.current;
     const OverlayView = overlayViewClassRef.current;
@@ -404,28 +426,55 @@ export default function GoogleMap({
       pinDiv.addEventListener('mouseleave', () => {
         applyPinState(pinDiv, openPinIdRef.current === pin.id ? 'selected' : 'rest');
       });
+    });
 
-      class PinOverlay extends (overlayViewClass as unknown as { new(): GoogleOverlayViewInstance }) {
-        onAdd() {
-          this.getPanes().overlayMouseTarget.appendChild(pinDiv);
+    class PinsOverlay extends (overlayViewClass as unknown as { new(): GoogleOverlayViewInstance }) {
+      private container: HTMLDivElement | null = null;
+
+      onAdd() {
+        const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.pointerEvents = 'none';
+        this.container = container;
+
+        this.getPanes().overlayMouseTarget.appendChild(container);
+
+        pinElements.forEach(pinDiv => {
           overlayViewClass.preventMapHitsAndGesturesFrom(pinDiv);
-        }
-        draw() {
-          const projection = this.getProjection();
-          const pos = projection?.fromLatLngToDivPixel(new latLngClass(pin.lat, pin.lng));
+          container.appendChild(pinDiv);
+        });
+      }
+
+      draw() {
+        const projection = this.getProjection();
+        if (!projection) return;
+
+        pins.forEach(pin => {
+          const pinDiv = pinElements.get(pin.id);
+          if (!pinDiv) return;
+          const pos = projection.fromLatLngToDivPixel(new latLngClass(pin.lat, pin.lng));
           if (pos) {
             pinDiv.style.left = `${pos.x}px`;
             pinDiv.style.top = `${pos.y}px`;
           }
-        }
-        onRemove() {
-          pinDiv.parentNode?.removeChild(pinDiv);
+        });
+      }
+
+      onRemove() {
+        if (this.container) {
+          this.container.parentNode?.removeChild(this.container);
+          this.container = null;
         }
       }
-      const overlay = new PinOverlay();
-      overlay.setMap(map);
-      pinOverlaysRef.current.push(overlay);
-    });
+    }
+
+    const overlay = new PinsOverlay();
+    overlay.setMap(map);
+    pinOverlaysRef.current = [overlay];
 
     pinElements.forEach((el, id) => applyPinState(el, id === openPinIdRef.current ? 'selected' : 'rest'));
 

@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, useMemo, useCallback } from 'react';
+import { useRef, useState, useMemo, useCallback, useTransition } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import GoogleMap, { type MapPin } from '@/components/GoogleMap';
@@ -41,6 +41,8 @@ export default function ClasesMapView({
   // prenderlo refleja la zona actual al toque, sin esperar al próximo pan).
   const [searchOnMove, setSearchOnMove] = useState(true);
   const [visibleIds, setVisibleIds] = useState<Set<string> | null>(null);
+  const [isMapMoving, setIsMapMoving] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Siempre completos — alimentan los pines del mapa y el lookup de
@@ -73,15 +75,17 @@ export default function ClasesMapView({
   }, [validClasses, validAcademias]);
 
   const handleVisibleChange = useCallback((nextVisible: Set<string>) => {
-    setVisibleIds(prev => {
-      if (prev && prev.size === nextVisible.size) {
-        let same = true;
-        for (const id of nextVisible) {
-          if (!prev.has(id)) { same = false; break; }
+    startTransition(() => {
+      setVisibleIds(prev => {
+        if (prev && prev.size === nextVisible.size) {
+          let same = true;
+          for (const id of nextVisible) {
+            if (!prev.has(id)) { same = false; break; }
+          }
+          if (same) return prev;
         }
-        if (same) return prev;
-      }
-      return nextVisible;
+        return nextVisible;
+      });
     });
   }, []);
 
@@ -198,79 +202,108 @@ export default function ClasesMapView({
           of being a second, redundant "list" behind a mobile sub-toggle. */}
       <div className="hidden lg:flex overflow-y-auto flex-col gap-3 pr-1">
         {zoneFilterActive && (
-          <p className="text-[13px] text-neutral-500 px-0.5">
-            <strong className="text-neutral-900">{listClasses.length + listAcademias.length}</strong> clase{listClasses.length + listAcademias.length !== 1 ? 's' : ''} en esta zona
-          </p>
-        )}
-        {listEmpty && (
-          <div className="text-center py-10 px-4">
-            <p className="text-[13px] text-neutral-500">Nada por aquí — mueve el mapa para explorar otra zona.</p>
+          <div className="text-[13px] text-neutral-500 px-0.5 min-h-[20px] flex items-center">
+            {isMapMoving || isPending ? (
+              <div className="w-28 h-3.5 bg-neutral-200 rounded animate-pulse" />
+            ) : (
+              <p>
+                <strong className="text-neutral-900">{listClasses.length + listAcademias.length}</strong> clase{listClasses.length + listAcademias.length !== 1 ? 's' : ''} en esta zona
+              </p>
+            )}
           </div>
         )}
-        {listClasses.map(cls => {
-          const id = `clase-${cls.id}`;
-          return (
-            <div
-              key={id}
-              ref={el => { if (el) itemRefs.current.set(id, el); }}
-              onClick={() => setSelectedId(id)}
-              onMouseEnter={() => setHoveredId(id)}
-              onMouseLeave={() => setHoveredId(cur => (cur === id ? null : cur))}
-              className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                selectedId === id ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'
-              }`}
-            >
-              <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
-                <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="64px" className="object-cover" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-primary-dark bg-primary-bg px-2 py-0.5 rounded-full">{cls.style}</span>
-                <Link href={classUrl(cls)} className="block font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1 mt-1">
-                  {cls.title}
-                </Link>
-                <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name}</p>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[12px] text-neutral-500 flex items-center gap-1">
-                    <MapPinIcon className="w-3 h-3" /> {cls.district}
-                  </span>
-                  <span className="text-[12px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
+
+        {(isMapMoving || isPending) ? (
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex gap-3 p-3 rounded-xl border border-neutral-100 animate-pulse bg-white">
+                <div className="w-16 h-16 rounded-lg bg-neutral-200 shrink-0" />
+                <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                  <div>
+                    <div className="h-3.5 w-14 bg-neutral-200 rounded-full mb-1.5" />
+                    <div className="h-4 w-3/4 bg-neutral-200 rounded mb-1" />
+                    <div className="h-3 w-1/2 bg-neutral-100 rounded" />
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="h-3 w-20 bg-neutral-100 rounded" />
+                    <div className="h-3.5 w-14 bg-neutral-200 rounded" />
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-        {listAcademias.map(academia => {
-          const id = `academia-${academia.id}`;
-          return (
-            <div
-              key={id}
-              ref={el => { if (el) itemRefs.current.set(id, el); }}
-              onClick={() => setSelectedId(id)}
-              onMouseEnter={() => setHoveredId(id)}
-              onMouseLeave={() => setHoveredId(cur => (cur === id ? null : cur))}
-              className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                selectedId === id ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'
-              }`}
-            >
-              <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-neutral-100 flex items-center justify-center">
-                {academia.photo ? (
-                  <SmartImage src={academia.photo} alt={academia.name} fill sizes="64px" className="object-cover" />
-                ) : (
-                  <Building2 className="w-5 h-5 text-neutral-400" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <Link href={`/profesores/${academia.slug}`} className="font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1">
-                  {academia.name}
-                </Link>
-                <span className="badge-pink text-[10px] mt-0.5 inline-block">Academia</span>
-                <p className="text-[12px] text-neutral-500 flex items-center gap-1 mt-1">
-                  <MapPinIcon className="w-3 h-3" /> {academia.venueDistrict}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        ) : listEmpty ? (
+          <div className="text-center py-10 px-4 animate-fade-in">
+            <p className="text-[13px] text-neutral-500">Nada por aquí — mueve el mapa para explorar otra zona.</p>
+          </div>
+        ) : (
+          <>
+            {listClasses.map(cls => {
+              const id = `clase-${cls.id}`;
+              return (
+                <div
+                  key={id}
+                  ref={el => { if (el) itemRefs.current.set(id, el); }}
+                  onClick={() => setSelectedId(id)}
+                  onMouseEnter={() => setHoveredId(id)}
+                  onMouseLeave={() => setHoveredId(cur => (cur === id ? null : cur))}
+                  className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    selectedId === id ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'
+                  }`}
+                >
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
+                    <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="64px" className="object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-primary-dark bg-primary-bg px-2 py-0.5 rounded-full">{cls.style}</span>
+                    <Link href={classUrl(cls)} className="block font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1 mt-1">
+                      {cls.title}
+                    </Link>
+                    <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[12px] text-neutral-500 flex items-center gap-1">
+                        <MapPinIcon className="w-3 h-3" /> {cls.district}
+                      </span>
+                      <span className="text-[12px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {listAcademias.map(academia => {
+              const id = `academia-${academia.id}`;
+              return (
+                <div
+                  key={id}
+                  ref={el => { if (el) itemRefs.current.set(id, el); }}
+                  onClick={() => setSelectedId(id)}
+                  onMouseEnter={() => setHoveredId(id)}
+                  onMouseLeave={() => setHoveredId(cur => (cur === id ? null : cur))}
+                  className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    selectedId === id ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'
+                  }`}
+                >
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-neutral-100 flex items-center justify-center">
+                    {academia.photo ? (
+                      <SmartImage src={academia.photo} alt={academia.name} fill sizes="64px" className="object-cover" />
+                    ) : (
+                      <Building2 className="w-5 h-5 text-neutral-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/profesores/${academia.slug}`} className="font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1">
+                      {academia.name}
+                    </Link>
+                    <span className="badge-pink text-[10px] mt-0.5 inline-block">Academia</span>
+                    <p className="text-[12px] text-neutral-500 flex items-center gap-1 mt-1">
+                      <MapPinIcon className="w-3 h-3" /> {academia.venueDistrict}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       <div className="relative rounded-none lg:rounded-xl overflow-hidden border-0 lg:border lg:border-neutral-200 block h-full">
@@ -280,6 +313,7 @@ export default function ClasesMapView({
           hoveredPinId={hoveredId}
           onPinClick={handlePinClick}
           onVisibleChange={handleVisibleChange}
+          onMapMoving={setIsMapMoving}
           renderPopup={renderPopup}
           gestureHandling="greedy"
         />
