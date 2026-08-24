@@ -69,7 +69,20 @@ export default function MisClasesClient({ initialClasses }: { initialClasses: Da
     showToast('Clase publicada', 'success');
     startTransition(async () => {
       try {
-        await updateClass(id, { status: 'published' });
+        const res = await updateClass(id, { status: 'published' });
+        if (res && !res.ok) {
+          setClasses(prev => prev.map(c => c.id === id ? { ...c, status: previousStatus } : c));
+          const payload = res.error;
+          if (payload?.code === 'MISSING_CONTACT_CHANNEL') {
+            showToast(payload.message, 'error', profileFixHref(payload.missing ?? []), 'Completar perfil');
+          } else if (payload?.code === 'VALIDATION') {
+            showToast(payload.message, 'error', `/dashboard/crear-clase?edit=${id}`, 'Completar clase');
+          } else if (payload?.code === 'ACADEMIA_NOT_APPROVED') {
+            showToast(payload.message, 'error');
+          } else {
+            showToast(payload?.message || 'Error al publicar', 'error');
+          }
+        }
       } catch (err) {
         setClasses(prev => prev.map(c => c.id === id ? { ...c, status: previousStatus } : c));
         const payload = parsePublishError(err);

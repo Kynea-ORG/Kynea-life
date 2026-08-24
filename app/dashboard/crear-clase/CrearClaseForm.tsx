@@ -205,9 +205,10 @@ interface Props {
   editClass: DanceClass | null;
   danceStyles: string[];
   levels: string[];
+  academiaPending?: boolean;
 }
 
-export default function CrearClaseForm({ classId, editClass, danceStyles, levels }: Props) {
+export default function CrearClaseForm({ classId, editClass, danceStyles, levels, academiaPending = false }: Props) {
   useRouter();
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -258,10 +259,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
     try {
       const fd = new FormData();
       fd.set('file', file);
-      const { url } = await uploadClassImage(fd);
-      setCoverImageUrl(url);
-      setCoverImagePosition('50% 50%');
-      setCoverImageZoom(1);
+      const res = await uploadClassImage(fd);
+      if (res.error) {
+        setUploadError(res.error);
+        return;
+      }
+      if (res.url) {
+        setCoverImageUrl(res.url);
+        setCoverImagePosition('50% 50%');
+        setCoverImageZoom(1);
+      }
     } catch (err) {
       const payload = parsePublishError(err);
       if (payload?.code === 'INVALID_IMAGE') {
@@ -356,11 +363,39 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           }
         }
 
+        let resultAction;
         if (classId) {
-          await updateClassFromForm(classId, fd);
+          resultAction = await updateClassFromForm(classId, fd);
         } else {
-          await createClass(fd);
+          resultAction = await createClass(fd);
           trackClassCreated({ status, classType: form.type, classStyle: form.style });
+        }
+
+        if (resultAction && !resultAction.ok) {
+          const payload = resultAction.error;
+          if (payload.code === 'VALIDATION' && payload.errors) {
+            const errorsByField: Record<string, string> = {};
+            payload.errors.forEach(e => { errorsByField[e.field] = e.message; });
+            setFieldErrors(errorsByField);
+            setSubmitError(payload.message);
+            const firstStep = FIELD_STEP[payload.errors[0].field] ?? 0;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setStep(firstStep);
+            return;
+          }
+          if (payload.code === 'MISSING_CONTACT_CHANNEL') {
+            trackCreateClassBlocked({ isEdit: Boolean(classId) });
+            setContactGateError({ message: payload.message, href: profileFixHref(payload.missing ?? []) });
+            setStep(2);
+            return;
+          }
+          if (payload.code === 'ACADEMIA_NOT_APPROVED') {
+            trackCreateClassBlocked({ isEdit: Boolean(classId) });
+            setSubmitError(payload.message);
+            return;
+          }
+          setSubmitError(payload.message || 'Error al guardar');
+          return;
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
@@ -1101,12 +1136,24 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </p>
         )}
 
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <p className="text-xs font-bold text-amber-700 mb-1">💡 Consejo</p>
-          <p className="text-xs text-amber-700">
-            Puedes guardar como borrador y publicar después. Una vez activa, tu clase aparecerá en el buscador de Kynea.
-          </p>
-        </div>
+        {academiaPending ? (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
+            <span className="text-xl shrink-0">⏳</span>
+            <div>
+              <p className="text-xs font-bold text-amber-900 mb-0.5">Academia en proceso de revisión</p>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Tu cuenta de academia está siendo revisada por el equipo de Kynea. Por ahora solo puedes guardar tus clases como borrador. En cuanto sea aprobada, podrás publicarlas con un solo clic.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="text-xs font-bold text-amber-700 mb-1">💡 Consejo</p>
+            <p className="text-xs text-amber-700">
+              Puedes guardar como borrador y publicar después. Una vez activa, tu clase aparecerá en el buscador de Kynea.
+            </p>
+          </div>
+        )}
       </div>
     );
   };
@@ -1163,17 +1210,41 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               </p>
             )}
             <div className="flex gap-3">
-              <button type="button" onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')} disabled={isPending}
-                className="btn-outline flex items-center gap-2 disabled:opacity-50">
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {classId ? 'Guardar cambios' : 'Guardar borrador'}
-              </button>
-              <button type="button" onClick={() => handlePublish('published')} disabled={isPending}
-                className="btn-dark flex items-center gap-2 disabled:opacity-50">
-                {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                {classId ? 'Guardar y publicar' : 'Publicar clase'}
-                {!isPending && <ChevronRight className="w-4 h-4" />}
-              </button>
+              {academiaPending ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handlePublish('draft')}
+                    disabled={isPending}
+                    className="btn-dark flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {classId ? 'Guardar cambios' : 'Guardar borrador'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    title="Tu cuenta de academia está en proceso de revisión"
+                    className="btn-outline opacity-40 cursor-not-allowed flex items-center gap-2"
+                  >
+                    Publicar clase <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">En revisión</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')} disabled={isPending}
+                    className="btn-outline flex items-center gap-2 disabled:opacity-50">
+                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {classId ? 'Guardar cambios' : 'Guardar borrador'}
+                  </button>
+                  <button type="button" onClick={() => handlePublish('published')} disabled={isPending}
+                    className="btn-dark flex items-center gap-2 disabled:opacity-50">
+                    {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {classId ? 'Guardar y publicar' : 'Publicar clase'}
+                    {!isPending && <ChevronRight className="w-4 h-4" />}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ) : (

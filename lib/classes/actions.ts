@@ -8,13 +8,13 @@ import {
   findOrCreateVenue, venueNeedsUpdate, insertClassStyles, insertClassSchedules, buildClassColumns,
 } from './helpers';
 import {
-  validateForPublish, formDataToValidationInput, dbRowToValidationInput, publishError,
+  validateForPublish, formDataToValidationInput, dbRowToValidationInput, parsePublishError,
 } from './validation';
 import { assertPublishAllowed } from './publishGuard';
 import { CLASS_SELECT } from './queries';
-import type { FormSlot, ClassUpdatePayload, DbClassRow } from './types';
+import type { FormSlot, ClassUpdatePayload, DbClassRow, ClassActionResult } from './types';
 
-export async function createClass(formData: FormData) {
+export async function createClass(formData: FormData): Promise<ClassActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
@@ -23,7 +23,14 @@ export async function createClass(formData: FormData) {
   if (formData.get('status') === 'published') {
     const result = validateForPublish(formDataToValidationInput(formData));
     if (!result.ok) {
-      throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION',
+          message: 'Completa los campos obligatorios antes de publicar.',
+          errors: result.errors,
+        },
+      };
     }
   }
 
@@ -58,7 +65,13 @@ export async function createClass(formData: FormData) {
   const cols = buildClassColumns(formData, { levelId, venueId });
 
   if (cols.status === 'published') {
-    await assertPublishAllowed(supabase, user.id, cols.contact_mode ?? 'whatsapp');
+    try {
+      await assertPublishAllowed(supabase, user.id, cols.contact_mode ?? 'whatsapp');
+    } catch (err) {
+      const parsed = parsePublishError(err);
+      if (parsed) return { ok: false, error: parsed };
+      return { ok: false, error: { code: 'VALIDATION', message: err instanceof Error ? err.message : 'Error al verificar publicación' } };
+    }
   }
 
   const { data: newClass, error } = await supabase
@@ -76,7 +89,7 @@ export async function createClass(formData: FormData) {
 
   if (error || !newClass) {
     console.error('[createClass]', error?.code, error?.message);
-    throw new Error(error?.message ?? 'Error al crear clase');
+    return { ok: false, error: { code: 'VALIDATION', message: error?.message ?? 'Error al crear clase' } };
   }
 
   const classId = newClass.id;
@@ -86,11 +99,11 @@ export async function createClass(formData: FormData) {
       insertClassStyles(supabase, classId, styleId),
       insertClassSchedules(supabase, classId, slots, cols.start_date),
     ]);
-  } catch (err) {
+  } catch {
     // Roll back the orphaned class row rather than leaving a published/draft
     // class with no style or schedule attached.
     await supabase.from('classes').delete().eq('id', classId);
-    throw err;
+    return { ok: false, error: { code: 'VALIDATION', message: 'Error al asociar horarios a la clase' } };
   }
 
   revalidatePath('/dashboard/mis-clases');
@@ -98,7 +111,7 @@ export async function createClass(formData: FormData) {
   redirect(cols.status === 'published' ? '/dashboard/mis-clases?published=1' : '/dashboard/mis-clases');
 }
 
-export async function updateClass(classId: string, updates: ClassUpdatePayload) {
+export async function updateClass(classId: string, updates: ClassUpdatePayload): Promise<ClassActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
@@ -118,15 +131,28 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload) 
       .eq('teacher_id', user.id)
       .single();
 
-    if (!row) throw new Error('Clase no encontrada');
+    if (!row) return { ok: false, error: { code: 'VALIDATION', message: 'Clase no encontrada' } };
 
     const typedRow = row as unknown as DbClassRow;
     const result = validateForPublish(dbRowToValidationInput(typedRow, typedRow.class_schedules ?? []), { isEdit: true });
     if (!result.ok) {
-      throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION',
+          message: 'Completa los campos obligatorios antes de publicar.',
+          errors: result.errors,
+        },
+      };
     }
 
-    await assertPublishAllowed(supabase, user.id, typedRow.contact_mode ?? 'whatsapp');
+    try {
+      await assertPublishAllowed(supabase, user.id, typedRow.contact_mode ?? 'whatsapp');
+    } catch (err) {
+      const parsed = parsePublishError(err);
+      if (parsed) return { ok: false, error: parsed };
+      return { ok: false, error: { code: 'VALIDATION', message: err instanceof Error ? err.message : 'Error al verificar publicación' } };
+    }
 
     if (!payload.published_at) payload.published_at = new Date().toISOString();
   }
@@ -137,11 +163,12 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload) 
     .eq('id', classId)
     .eq('teacher_id', user.id);
 
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, error: { code: 'VALIDATION', message: error.message } };
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);
   revalidatePath('/clases');
+  return { ok: true, classId };
 }
 
 export async function deleteClass(classId: string) {
@@ -199,7 +226,7 @@ export async function duplicateClass(classId: string) {
   revalidatePath('/dashboard/mis-clases');
 }
 
-export async function updateClassFromForm(classId: string, formData: FormData) {
+export async function updateClassFromForm(classId: string, formData: FormData): Promise<ClassActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
@@ -208,7 +235,14 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   if (formData.get('status') === 'published') {
     const result = validateForPublish(formDataToValidationInput(formData), { isEdit: true });
     if (!result.ok) {
-      throw publishError({ code: 'VALIDATION', message: 'Completa los campos obligatorios antes de publicar.', errors: result.errors });
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION',
+          message: 'Completa los campos obligatorios antes de publicar.',
+          errors: result.errors,
+        },
+      };
     }
   }
 
@@ -232,7 +266,7 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
     .eq('teacher_id', user.id)
     .single();
 
-  if (!existing) throw new Error('Clase no encontrada');
+  if (!existing) return { ok: false, error: { code: 'VALIDATION', message: 'Clase no encontrada' } };
 
   const isPresencial = modality !== 'Online';
 
@@ -263,7 +297,13 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
   const updates: ClassUpdatePayload = { ...cols };
 
   if (cols.status === 'published') {
-    await assertPublishAllowed(supabase, user.id, cols.contact_mode ?? 'whatsapp');
+    try {
+      await assertPublishAllowed(supabase, user.id, cols.contact_mode ?? 'whatsapp');
+    } catch (err) {
+      const parsed = parsePublishError(err);
+      if (parsed) return { ok: false, error: parsed };
+      return { ok: false, error: { code: 'VALIDATION', message: err instanceof Error ? err.message : 'Error al verificar publicación' } };
+    }
   }
 
   if (coverImage) {
@@ -322,7 +362,7 @@ export async function updateClassFromForm(classId: string, formData: FormData) {
 
   if (error) {
     console.error('[updateClassFromForm]', error.message);
-    throw new Error(error.message);
+    return { ok: false, error: { code: 'VALIDATION', message: error.message } };
   }
 
   revalidatePath('/dashboard/mis-clases');
