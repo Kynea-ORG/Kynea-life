@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
@@ -13,6 +14,7 @@ import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackAuthCtaClick, trackViewItem } from '@/lib/analytics';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
+  const router = useRouter();
   const [showContact, setShowContact] = useState(false);
   const [contactType, setContactType] = useState<'whatsapp' | 'instagram'>('whatsapp');
   const [saved, setSaved] = useState(false);
@@ -53,7 +55,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       trackAuthCtaClick({ action: 'login', location: 'save_class_gate' });
-      window.location.href = '/login';
+      router.push('/login');
       return;
     }
     setSaving(true);
@@ -290,7 +292,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   </div>
                   <h2 className="font-bold text-neutral-900 text-[17px]">Ubicación</h2>
                 </div>
-                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} className="h-64" />
+                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} previewImageUrl={cls.mapImageUrl} className="h-64" />
               </div>
             )}
 
@@ -484,7 +486,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   </div>
                   <h2 className="font-bold text-neutral-900 text-[17px]">Ubicación</h2>
                 </div>
-                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} className="h-56" />
+                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} previewImageUrl={cls.mapImageUrl} className="h-56" />
               </div>
             )}
 

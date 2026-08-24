@@ -56,6 +56,17 @@ function levelLabel(l: string) {
   return l === 'Todos los niveles' ? 'All levels' : l;
 }
 
+// Variante local del chip activo — el mismo tamaño/forma que `.tag-active`
+// (clase global, usada también fuera de /clases — ver PerfilClient.tsx) pero
+// en morado en vez de negro, para alinear con el resto del rediseño del
+// buscador/mapa. Se define acá en vez de tocar la clase global para no
+// arrastrar el cambio a pantallas que no pidieron este rediseño.
+function chipClass(active: boolean) {
+  return active
+    ? 'inline-flex items-center text-[11px] font-medium px-3 py-1 rounded-full border border-primary bg-primary text-white cursor-pointer transition-colors duration-150'
+    : 'tag text-[11px] px-3 py-1';
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
@@ -164,7 +175,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
               <button
                 key={s}
                 onClick={() => toggleIn('styles', s)}
-                className={filters.styles.includes(s) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
+                className={chipClass(filters.styles.includes(s))}
               >
                 {s}
               </button>
@@ -187,7 +198,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
             <button
               key={l}
               onClick={() => toggleIn('levels', l)}
-              className={filters.levels.includes(l) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
+              className={chipClass(filters.levels.includes(l))}
             >
               {levelLabel(l)}
             </button>
@@ -201,7 +212,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
             <button
               key={d}
               onClick={() => toggleDay(d)}
-              className={filters.days.includes(d) ? 'tag-active text-[11px] px-3 py-1' : 'tag text-[11px] px-3 py-1'}
+              className={chipClass(filters.days.includes(d))}
             >
               {d.slice(0, 3)}
             </button>

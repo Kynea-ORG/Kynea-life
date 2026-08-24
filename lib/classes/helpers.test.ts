@@ -2,6 +2,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildClassColumns, venueNeedsUpdate, findOrCreateVenue } from './helpers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+// findOrCreateVenue calls this (fetch + Storage upload) whenever lat/lng are
+// set — stubbed so these tests stay deterministic/offline regardless of
+// whether a Static Maps key happens to be present in the test environment.
+vi.mock('@/lib/maps/staticMap', () => ({
+  generateAndCacheVenueMapImage: vi.fn(async () => null),
+}));
+
 // Approval tests for buildClassColumns' contact_mode handling.
 // PR1 (class-publish-wizard) widens the contact_mode union from
 // 'whatsapp' | 'instagram' | 'web' to 'whatsapp' | 'instagram' | 'both'.

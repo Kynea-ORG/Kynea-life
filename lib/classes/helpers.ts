@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ClassStatus, ClassType, DanceClass, PriceType, Modality } from '@/lib/types';
 import type { FormSlot, ClassUpdatePayload } from './types';
+import { generateAndCacheVenueMapImage } from '@/lib/maps/staticMap';
 
 // Canonical detail URL: /{categoria}/{tipo}/{slug} — categoria is the class's
 // main dance style slug, tipo is the raw ClassType column value.
@@ -37,7 +38,7 @@ export async function findOrCreateVenue(
   if (opts.placeId) {
     const { data: existing, error: lookupError } = await supabase
       .from('venues')
-      .select('id')
+      .select('id, lat, lng, map_image_url')
       .eq('owner_id', ownerId)
       .eq('place_id', opts.placeId)
       .maybeSingle();
@@ -52,6 +53,14 @@ export async function findOrCreateVenue(
         .update({ name: opts.name, reference: opts.reference, city: opts.city, district: opts.district, lat: opts.lat, lng: opts.lng })
         .eq('id', existing.id);
       if (updateError) console.error('[findOrCreateVenue] update', updateError.message);
+
+      // Solo regenera el snapshot si la coordenada realmente cambió (se
+      // reusa el mismo local en muchas clases — no vale la pena una llamada
+      // a Google en cada guardado) o si nunca se generó uno.
+      const coordsChanged = existing.lat !== opts.lat || existing.lng !== opts.lng;
+      if (opts.lat != null && opts.lng != null && (coordsChanged || !existing.map_image_url)) {
+        await generateAndCacheVenueMapImage(supabase, { venueId: existing.id, ownerId, lat: opts.lat, lng: opts.lng });
+      }
       return existing.id;
     }
   }
@@ -72,7 +81,12 @@ export async function findOrCreateVenue(
     .select('id')
     .single();
   if (error) { console.error('[findOrCreateVenue] insert', error.message); return null; }
-  return data?.id ?? null;
+  if (!data?.id) return null;
+
+  if (opts.lat != null && opts.lng != null) {
+    await generateAndCacheVenueMapImage(supabase, { venueId: data.id, ownerId, lat: opts.lat, lng: opts.lng });
+  }
+  return data.id;
 }
 
 export async function insertClassStyles(supabase: SupabaseClient, classId: string, styleId: number | null): Promise<void> {
