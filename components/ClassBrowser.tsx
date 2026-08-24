@@ -107,7 +107,11 @@ export default function ClassBrowser({
           </div>
 
           {enableMapView && (
-            <div className="flex items-center gap-1 bg-neutral-100 rounded-xl p-1 shrink-0">
+            // Solo desktop — en mobile cada vista tiene su propio botón
+            // flotante para cruzar a la otra (ver más abajo y
+            // ClasesMapView's "Ver lista"/"Ver mapa"), así que este switch
+            // quedaba duplicando esa misma función.
+            <div className="hidden lg:flex items-center gap-1 bg-neutral-100 rounded-xl p-1 shrink-0">
               {(['lista', 'mapa'] as const).map(v => (
                 <button
                   key={v}
@@ -256,14 +260,31 @@ export default function ClassBrowser({
               </button>
             </div>
           ) : enableMapView && view === 'mapa' ? (
-            <ClasesMapView classes={results} academias={academias} />
+            <ClasesMapView classes={results} academias={academias} onShowList={() => setView('lista')} />
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            // `pb-20` en mobile deja espacio para el botón flotante "Mapa"
+            // de abajo — si no, tapa la última fila (mismo problema que ya
+            // resolvimos en ClasesMapView para su propio toggle flotante).
+            <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-5 ${enableMapView ? 'pb-20 lg:pb-0' : ''}`}>
               {results.map(cls => <ClassCard key={cls.id} cls={cls} listName={listName} />)}
             </div>
           )}
         </main>
       </div>
+
+      {/* Botón flotante "Mapa" — la contraparte mobile del switch de arriba
+          (oculto en mobile) y del "Ver lista"/"Ver mapa" que ya tiene
+          ClasesMapView del otro lado — mismo estilo, mismo gesto, un solo
+          botón por pantalla para cruzar entre Lista y Mapa. */}
+      {enableMapView && view === 'lista' && (
+        <button
+          type="button"
+          onClick={() => setView('mapa')}
+          className="lg:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-neutral-900 text-white text-[13px] font-semibold px-4 py-2.5 rounded-full shadow-lg active:scale-[0.97] transition-transform"
+        >
+          <MapIcon className="w-4 h-4" /> Mapa
+        </button>
+      )}
 
       <button
         onClick={scrollToTop}

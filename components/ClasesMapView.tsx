@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import GoogleMap, { type MapPin } from '@/components/GoogleMap';
-import { MapPin as MapPinIcon, Building2, X, ChevronRight, List, Map as MapIcon } from 'lucide-react';
+import { MapPin as MapPinIcon, Building2, X, ChevronRight, List } from 'lucide-react';
 import { formatPrice, formatPriceShort, formatTimeSlots } from '@/lib/utils';
 import { classUrl } from '@/lib/classes/helpers';
 import type { DanceClass, Teacher } from '@/lib/types';
@@ -17,7 +17,20 @@ import type { DanceClass, Teacher } from '@/lib/types';
 // Los pines llevan el precio (clases) o el nombre (academias) en una
 // píldora — ver GoogleMap.tsx — y al hacer clic abren una tarjeta flotante
 // sobre el mapa mismo (no solo resaltan el item en la lista lateral).
-export default function ClasesMapView({ classes, academias = [] }: { classes: DanceClass[]; academias?: Teacher[] }) {
+export default function ClasesMapView({
+  classes,
+  academias = [],
+  onShowList,
+}: {
+  classes: DanceClass[];
+  academias?: Teacher[];
+  /** Below `lg` the list panel doesn't fit next to the map (see the grid
+   * below), so it's dropped entirely there and this view is map-only — the
+   * floating button (bottom, mobile-only) calls back up to the parent
+   * (ClassBrowser) to switch to its own Lista view instead. Desktop is
+   * unaffected: the list panel is always visible there regardless. */
+  onShowList: () => void;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Hover en desktop solo resalta el pin (sin abrir tarjeta ni mover el
   // mapa) — el click sigue siendo el único gesto que selecciona de verdad.
@@ -28,11 +41,6 @@ export default function ClasesMapView({ classes, academias = [] }: { classes: Da
   // prenderlo refleja la zona actual al toque, sin esperar al próximo pan).
   const [searchOnMove, setSearchOnMove] = useState(true);
   const [visibleIds, setVisibleIds] = useState<Set<string> | null>(null);
-  // Solo importa debajo de `lg` — ahí el mapa y la lista ya no van lado a
-  // lado (no entran ambos con un tamaño usable), así que se muestra uno a
-  // pantalla completa por vez con un botón flotante para alternar, en vez
-  // del split fijo 45vh/resto que quedaba muy apretado en mobile.
-  const [mobileView, setMobileView] = useState<'mapa' | 'lista'>('mapa');
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Siempre completos — alimentan los pines del mapa y el lookup de
@@ -70,15 +78,6 @@ export default function ClasesMapView({ classes, academias = [] }: { classes: Da
   function handlePinClick(id: string | null) {
     setSelectedId(id);
     if (id) itemRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  // Tocar una fila de la lista en mobile también cambia a la vista Mapa —
-  // si no, el pin se selecciona y abre su tarjeta "detrás" de la lista, sin
-  // que se vea. En desktop `mobileView` no tiene efecto (ambos paneles
-  // siguen visibles siempre a partir de `lg`).
-  function selectFromList(id: string) {
-    setSelectedId(id);
-    setMobileView('mapa');
   }
 
   function renderPopup(pinId: string, close: () => void) {
@@ -161,11 +160,10 @@ export default function ClasesMapView({ classes, academias = [] }: { classes: Da
 
   return (
     <div className="relative grid lg:grid-cols-[380px_1fr] gap-5 h-[calc(100vh-220px)] min-h-[420px]">
-      {/* `pb-20` on mobile reserves room below the last row for the floating
-          "Ver lista"/"Ver mapa" toggle — without it that button (same
-          bottom-anchored spot) sits on top of the last item instead of
-          below the list. */}
-      <div className={`overflow-y-auto flex-col gap-3 pr-1 pb-20 lg:pb-0 lg:flex ${mobileView === 'lista' ? 'flex' : 'hidden'}`}>
+      {/* Desktop-only — below `lg` this view is map-only (see `onShowList`
+          doc comment above), so this whole panel is dropped there instead
+          of being a second, redundant "list" behind a mobile sub-toggle. */}
+      <div className="hidden lg:flex overflow-y-auto flex-col gap-3 pr-1">
         {zoneFilterActive && (
           <p className="text-[13px] text-neutral-500 px-0.5">
             <strong className="text-neutral-900">{listClasses.length + listAcademias.length}</strong> clase{listClasses.length + listAcademias.length !== 1 ? 's' : ''} en esta zona
@@ -182,7 +180,7 @@ export default function ClasesMapView({ classes, academias = [] }: { classes: Da
             <div
               key={id}
               ref={el => { if (el) itemRefs.current.set(id, el); }}
-              onClick={() => selectFromList(id)}
+              onClick={() => setSelectedId(id)}
               onMouseEnter={() => setHoveredId(id)}
               onMouseLeave={() => setHoveredId(cur => (cur === id ? null : cur))}
               className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
@@ -214,7 +212,7 @@ export default function ClasesMapView({ classes, academias = [] }: { classes: Da
             <div
               key={id}
               ref={el => { if (el) itemRefs.current.set(id, el); }}
-              onClick={() => selectFromList(id)}
+              onClick={() => setSelectedId(id)}
               onMouseEnter={() => setHoveredId(id)}
               onMouseLeave={() => setHoveredId(cur => (cur === id ? null : cur))}
               className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
@@ -242,7 +240,7 @@ export default function ClasesMapView({ classes, academias = [] }: { classes: Da
         })}
       </div>
 
-      <div className={`relative rounded-xl overflow-hidden border border-neutral-200 lg:block lg:h-auto ${mobileView === 'mapa' ? 'block h-full' : 'hidden'}`}>
+      <div className="relative rounded-xl overflow-hidden border border-neutral-200 block h-full lg:h-auto">
         <GoogleMap
           pins={pins}
           selectedPinId={selectedId}
@@ -262,14 +260,16 @@ export default function ClasesMapView({ classes, academias = [] }: { classes: Da
         </label>
       </div>
 
-      {/* Toggle flotante — solo mobile, donde mapa y lista ya no van lado a
-          lado. En desktop el split de la izquierda ya muestra ambos. */}
+      {/* Botón flotante — solo mobile (el panel de la izquierda no existe
+          ahí). Su contraparte simétrica es el botón "Mapa" que ClassBrowser
+          muestra sobre su grilla normal cuando está en Lista — un solo
+          botón por pantalla para cruzar a la otra vista. */}
       <button
         type="button"
-        onClick={() => setMobileView(v => (v === 'mapa' ? 'lista' : 'mapa'))}
+        onClick={onShowList}
         className="lg:hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-neutral-900 text-white text-[13px] font-semibold px-4 py-2.5 rounded-full shadow-lg active:scale-[0.97] transition-transform"
       >
-        {mobileView === 'mapa' ? <><List className="w-4 h-4" /> Ver lista</> : <><MapIcon className="w-4 h-4" /> Ver mapa</>}
+        <List className="w-4 h-4" /> Lista
       </button>
     </div>
   );
