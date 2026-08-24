@@ -91,9 +91,7 @@ export default function ClassBrowser({
 
   return (
     <div className={`min-h-screen bg-white ${isMapView ? 'h-dvh flex flex-col overflow-hidden lg:h-auto lg:min-h-screen lg:block lg:overflow-visible' : ''}`}>
-      <div className={isMapView ? 'hidden lg:block' : ''}>
-        <Header />
-      </div>
+      <Header className={isMapView ? 'hidden lg:block' : ''} />
       {topSlot && <div className={isMapView ? 'hidden lg:block' : ''}>{topSlot}</div>}
 
       {/* Search bar */}
