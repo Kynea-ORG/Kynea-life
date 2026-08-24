@@ -418,13 +418,6 @@ export default function GoogleMap({
 
     pinElements.forEach((el, id) => applyPinState(el, id === openPinIdRef.current ? 'selected' : 'rest'));
 
-    // Trigger visible check for newly rendered pins if viewport is already established
-    const bounds = map.getBounds?.();
-    if (bounds && onVisibleChangeRef.current) {
-      const visible = new Set(pins.filter(p => bounds.contains({ lat: p.lat, lng: p.lng })).map(p => p.id));
-      onVisibleChangeRef.current(visible);
-    }
-
     return () => {
       pinOverlaysRef.current.forEach(o => o.setMap(null));
       pinOverlaysRef.current = [];
