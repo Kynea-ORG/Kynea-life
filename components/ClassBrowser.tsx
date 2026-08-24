@@ -83,7 +83,7 @@ export default function ClassBrowser({
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen bg-white ${isMapView ? 'h-screen overflow-hidden lg:h-auto lg:overflow-visible' : ''}`}>
       <Header />
       {topSlot}
 
@@ -167,7 +167,7 @@ export default function ClassBrowser({
         )}
       </div>
 
-      <div className={`mx-auto px-4 sm:px-6 py-8 flex gap-8 ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
+      <div className={`mx-auto flex gap-8 ${isMapView ? 'max-w-[1800px] px-0 py-0 lg:px-6 lg:py-8' : 'max-w-[1200px] px-4 sm:px-6 py-8'}`}>
         {/* Sidebar — oculto en vista Mapa para dejarle todo el ancho al mapa;
             sus filtros siguen disponibles vía el mismo botón/modal de abajo,
             que en Mapa se muestra también en desktop (ver isMapView). */}

@@ -172,6 +172,7 @@ export default function GoogleMap({
   onPinClick,
   onVisibleChange,
   renderPopup,
+  gestureHandling = 'greedy',
   className = 'w-full h-full',
 }: {
   pins: MapPin[];
@@ -193,6 +194,9 @@ export default function GoogleMap({
    * disable the popup entirely (MapPreview's single-pin view has nothing
    * more to say than the label already shown below the map). */
   renderPopup?: (pinId: string, close: () => void) => React.ReactNode;
+  /** 'greedy' allows single-finger map panning on mobile (for full map views).
+   * 'cooperative' requires two fingers on mobile to avoid trapping page scroll (for embedded previews). */
+  gestureHandling?: 'greedy' | 'cooperative' | 'none' | 'auto';
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -289,6 +293,7 @@ export default function GoogleMap({
           zoom: 15,
           disableDefaultUI: true,
           zoomControl: false,
+          gestureHandling,
           styles: MAP_STYLE,
         });
         mapRef.current = map;
