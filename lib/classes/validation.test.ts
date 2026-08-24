@@ -444,6 +444,7 @@ function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
       lng: null,
       city: 'Lima',
       district: 'Miraflores',
+      map_image_url: null,
     },
     teacher: null,
     ...overrides,

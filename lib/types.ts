@@ -93,6 +93,9 @@ export interface DanceClass {
   placeId?: string;
   lat?: number;
   lng?: number;
+  /** Snapshot estático cacheado (Static Maps API) para el preview de
+   * "Ubicación" — ver MapPreview.tsx / lib/maps/staticMap.ts. */
+  mapImageUrl?: string;
   platform?: string;
   accessLink?: string;
 

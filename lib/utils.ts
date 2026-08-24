@@ -40,6 +40,14 @@ export function formatPrice(priceType: string, price: number, currency: string):
   return `${symbol}${price}${suffix}`;
 }
 
+// Bare price for space-constrained UI (map pin pills) — no periodicity
+// suffix, since that varies per class and doesn't fit a small pill.
+export function formatPriceShort(priceType: string, price: number, currency: string): string {
+  if (priceType === 'Gratis') return 'Gratis';
+  const symbol = currency === 'PEN' ? 'S/' : '$';
+  return `${symbol}${price}`;
+}
+
 // "2026-08-10" -> "Lun 10 Ago" — corto y amigable para cards/detalle, en vez
 // del formato largo ("10 de agosto de 2026") o la fecha ISO cruda.
 export function formatFriendlyDate(dateStr: string): string {

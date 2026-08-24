@@ -83,6 +83,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     placeId:          venue?.place_id ?? undefined,
     lat:              venue?.lat ?? undefined,
     lng:              venue?.lng ?? undefined,
+    mapImageUrl:      venue?.map_image_url ?? undefined,
     platform:         row.platform ?? undefined,
     accessLink:       row.access_link ?? undefined,
     coverImage:       row.cover_image ?? '',
@@ -114,7 +115,7 @@ export const CLASS_SELECT = `
   level:class_levels(id, name),
   class_styles(style_id, is_main, dance_styles(id, name, slug)),
   class_schedules(id, day_of_week, start_time, end_time),
-  venue:venues(name, address, reference, maps_url, place_id, lat, lng, city, district),
+  venue:venues(name, address, reference, maps_url, place_id, lat, lng, city, district, map_image_url),
   teacher:profiles!teacher_id(
     id, slug, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
     whatsapp, show_spots, instagram, tiktok, youtube, website,
