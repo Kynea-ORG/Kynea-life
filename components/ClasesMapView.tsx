@@ -87,24 +87,26 @@ export default function ClasesMapView({ classes, academias = [] }: { classes: Da
       if (!cls) return null;
       return (
         <div>
-          <div className="relative h-28">
-            <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="288px" className="object-cover" />
-            <button onClick={close} className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors active:scale-90">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="p-3">
-            <p className="text-[11px] font-bold text-primary">{cls.style}</p>
-            <h3 className="font-bold text-neutral-900 text-[14px] leading-snug line-clamp-1">{cls.title}</h3>
-            <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name} · {cls.district}</p>
-            <div className="flex mt-2.5 pt-2.5 border-t border-neutral-100">
-              <div className="flex-1 pr-3 border-r border-neutral-100">
-                <p className="text-[10px] text-neutral-400">Precio</p>
-                <p className="text-[13px] font-bold text-neutral-900 mt-0.5">{formatPrice(cls.priceType, cls.offerPrice ?? cls.price, cls.currency)}</p>
+          {/* Card horizontal tipo VRBO — la foto de portada de una clase es
+              casi siempre un flyer/retrato, no un paisaje: a todo el ancho
+              arriba (como antes) quedaba recortada de forma rara. De
+              costado, a una proporción más angosta, se lee mejor. */}
+          <div className="flex gap-3 p-3">
+            <div className="relative w-28 shrink-0 rounded-lg overflow-hidden">
+              <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="112px" className="object-cover" />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11px] font-bold text-primary">{cls.style}</p>
+                <button onClick={close} className="shrink-0 -mt-1 -mr-1 w-6 h-6 rounded-full flex items-center justify-center text-neutral-400 hover:bg-neutral-100 transition-colors active:scale-90">
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <div className="flex-1 pl-3 min-w-0">
-                <p className="text-[10px] text-neutral-400">Horario</p>
-                <p className="text-[12px] font-semibold text-neutral-900 mt-0.5 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
+              <h3 className="font-bold text-neutral-900 text-[14px] leading-snug line-clamp-2">{cls.title}</h3>
+              <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name} · {cls.district}</p>
+              <div className="mt-auto pt-1.5">
+                <span className="text-[14px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.offerPrice ?? cls.price, cls.currency)}</span>
+                <p className="text-[11px] text-neutral-500 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
               </div>
             </div>
           </div>

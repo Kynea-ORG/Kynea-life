@@ -75,6 +75,7 @@ export interface DbVenue {
   lng: number | null;
   city: string | null;
   district: string | null;
+  map_image_url: string | null;
 }
 
 export interface DbTeacherProfile {

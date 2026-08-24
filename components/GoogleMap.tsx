@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Plus, Minus, LocateFixed } from 'lucide-react';
 import { loadGoogleMapsScript } from './PlacesAddressField';
+import { MAP_STYLE } from '@/lib/maps/mapStyle';
 
 // Real interactive Google Map — only ever mounted on demand (see
 // MapPreview.tsx), never passively on page load, so every mount here is a
@@ -20,45 +21,6 @@ import { loadGoogleMapsScript } from './PlacesAddressField';
 // selected pin currently sits, including when that's near the map's edge.
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-// Estilo de marca — sin Map ID (evita un paso extra de config en Google
-// Cloud): apaga íconos de comercios/transporte que compiten con las
-// píldoras de precio, pero a diferencia del estilo gris plano anterior
-// mantiene el mapa con más color — tierra y calles en el mismo morado
-// suave de marca (--color-primary/--color-primary-bg en globals.css) en
-// vez de gris neutro puro, y las áreas verdes (parques, bosques) visibles
-// en verde real en vez de apagadas, como hacen Airbnb/Vrbo, para que el
-// mapa se lea vivo y no como un widget monocromo incrustado.
-const MAP_STYLE = [
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.highway', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.local', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.arterial', elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
-  { featureType: 'administrative.neighborhood', stylers: [{ visibility: 'off' }] },
-
-  // Tierra y agua — morado suave en vez de gris plano.
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#f5eefa' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#cfe1f7' }] },
-
-  // POI: apagados por defecto (íconos/labels de comercios, etc.)...
-  { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
-  // ...excepto parques y áreas naturales, que quedan visibles en verde —
-  // estas reglas van después de las de arriba para ganar sobre 'poi'.
-  { featureType: 'poi.park', elementType: 'geometry.fill', stylers: [{ visibility: 'on', color: '#c8e8bd' }] },
-  { featureType: 'poi.park', elementType: 'geometry.stroke', stylers: [{ visibility: 'on', color: '#a8d79a' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ visibility: 'on', color: '#4f7a45' }] },
-  { featureType: 'poi.park', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-
-  // Calles
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e6d9f0' }] },
-  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#faf5fd' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#e3c3f4' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#c98fe0' }] },
-];
 
 export interface MapPin {
   id: string;
@@ -472,7 +434,7 @@ export default function GoogleMap({
         // without it the card's own footer link sits right behind that
         // button and becomes untappable. Desktop has no such toggle, so
         // `lg:bottom-4` matches the tighter desktop spacing again there.
-        <div className="absolute bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-10 w-72 max-w-[calc(100%-2rem)] bg-white rounded-xl border border-neutral-900 shadow-2xl overflow-hidden">
+        <div className="absolute bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-10 w-96 max-w-[calc(100%-2rem)] bg-white rounded-xl border border-neutral-900 shadow-2xl overflow-hidden">
           {renderPopup(openPinId, () => { focusPin(null); onPinClickRef.current?.(null); })}
         </div>
       )}

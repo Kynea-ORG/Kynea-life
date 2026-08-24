@@ -290,7 +290,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   </div>
                   <h2 className="font-bold text-neutral-900 text-[17px]">Ubicación</h2>
                 </div>
-                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} className="h-64" />
+                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} previewImageUrl={cls.mapImageUrl} className="h-64" />
               </div>
             )}
 
@@ -484,7 +484,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   </div>
                   <h2 className="font-bold text-neutral-900 text-[17px]">Ubicación</h2>
                 </div>
-                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} className="h-56" />
+                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} previewImageUrl={cls.mapImageUrl} className="h-56" />
               </div>
             )}
 
