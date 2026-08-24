@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import GoogleMap, { type MapPin } from '@/components/GoogleMap';
@@ -47,33 +47,48 @@ export default function ClasesMapView({
   // renderPopup. Si esto se filtrara por zona, GoogleMap perdería del todo
   // los pines fuera de vista (su `pinsRef` solo conoce lo que le llega por
   // props) y un futuro pan de vuelta nunca podría volver a mostrarlos.
-  const validClasses = classes.filter(c => c.lat != null && c.lng != null);
-  const validAcademias = academias.filter(a => a.venueLat != null && a.venueLng != null);
+  const validClasses = useMemo(() => classes.filter(c => c.lat != null && c.lng != null), [classes]);
+  const validAcademias = useMemo(() => academias.filter(a => a.venueLat != null && a.venueLng != null), [academias]);
+
+  const pins = useMemo<MapPin[]>(() => {
+    const classPins: MapPin[] = validClasses.map(c => ({
+      id: `clase-${c.id}`,
+      lat: c.lat!,
+      lng: c.lng!,
+      title: c.title,
+      kind: 'clase',
+      photo: c.coverImage || undefined,
+      pillLabel: formatPriceShort(c.priceType, c.offerPrice ?? c.price, c.currency),
+    }));
+    const academiaPins: MapPin[] = validAcademias.map(a => ({
+      id: `academia-${a.id}`,
+      lat: a.venueLat!,
+      lng: a.venueLng!,
+      title: a.name,
+      kind: 'academia',
+      photo: a.photo || undefined,
+      pillLabel: a.name.length > 18 ? `${a.name.slice(0, 17)}…` : a.name,
+    }));
+    return [...classPins, ...academiaPins];
+  }, [validClasses, validAcademias]);
+
+  const handleVisibleChange = useCallback((nextVisible: Set<string>) => {
+    setVisibleIds(prev => {
+      if (prev && prev.size === nextVisible.size) {
+        let same = true;
+        for (const id of nextVisible) {
+          if (!prev.has(id)) { same = false; break; }
+        }
+        if (same) return prev;
+      }
+      return nextVisible;
+    });
+  }, []);
 
   // Recortados por zona visible — solo para las filas de la lista.
   const zoneFilterActive = searchOnMove && visibleIds !== null;
   const listClasses = zoneFilterActive ? validClasses.filter(c => visibleIds!.has(`clase-${c.id}`)) : validClasses;
   const listAcademias = zoneFilterActive ? validAcademias.filter(a => visibleIds!.has(`academia-${a.id}`)) : validAcademias;
-
-  const classPins: MapPin[] = validClasses.map(c => ({
-    id: `clase-${c.id}`,
-    lat: c.lat!,
-    lng: c.lng!,
-    title: c.title,
-    kind: 'clase',
-    photo: c.coverImage || undefined,
-    pillLabel: formatPriceShort(c.priceType, c.offerPrice ?? c.price, c.currency),
-  }));
-  const academiaPins: MapPin[] = validAcademias.map(a => ({
-    id: `academia-${a.id}`,
-    lat: a.venueLat!,
-    lng: a.venueLng!,
-    title: a.name,
-    kind: 'academia',
-    photo: a.photo || undefined,
-    pillLabel: a.name.length > 18 ? `${a.name.slice(0, 17)}…` : a.name,
-  }));
-  const pins = [...classPins, ...academiaPins];
 
   function handlePinClick(id: string | null) {
     setSelectedId(id);
@@ -246,7 +261,7 @@ export default function ClasesMapView({
           selectedPinId={selectedId}
           hoveredPinId={hoveredId}
           onPinClick={handlePinClick}
-          onVisibleChange={setVisibleIds}
+          onVisibleChange={handleVisibleChange}
           renderPopup={renderPopup}
         />
         <label className="absolute left-4 top-4 z-10 flex items-center gap-2 px-3.5 py-2 rounded-full border border-neutral-900 bg-white text-[12.5px] font-bold cursor-pointer shadow-[0_3px_12px_rgba(13,13,13,.1)]">
