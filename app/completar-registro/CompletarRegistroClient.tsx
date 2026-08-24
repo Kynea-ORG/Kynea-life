@@ -3,17 +3,17 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { User, BookOpen, Loader2, Check } from 'lucide-react';
+import { User, BookOpen, Building2, Loader2, Check } from 'lucide-react';
 import { completeOAuthRegistration } from '@/lib/auth/actions';
 import { safeRedirectPath } from '@/lib/utils';
 import { trackAuthAttempt } from '@/lib/analytics';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
-// Registro de tipo "academia" oculto temporalmente en la UI para pruebas
 const ROLES: { key: Role; icon: React.ElementType; label: string; description: string }[] = [
   { key: 'alumno',   icon: User,      label: 'Alumno',   description: 'Quiero encontrar clases de baile' },
   { key: 'profesor', icon: BookOpen,  label: 'Profesor', description: 'Enseño clases de manera independiente' },
+  { key: 'academia', icon: Building2, label: 'Academia', description: 'Gestiono una academia o estudio de baile' },
 ];
 
 interface Props {
