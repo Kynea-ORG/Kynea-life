@@ -192,13 +192,19 @@ export default function GoogleMap({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<GoogleMapInstance | null>(null);
+  const pinOverlaysRef = useRef<GoogleOverlayViewInstance[]>([]);
   const pinElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const overlayViewClassRef = useRef<(GoogleOverlayViewClass & { preventMapHitsAndGesturesFrom: (el: HTMLElement) => void }) | null>(null);
+  const latLngClassRef = useRef<(new (lat: number, lng: number) => GoogleLatLng) | null>(null);
+  const latLngBoundsClassRef = useRef<(new () => GoogleLatLngBoundsInstance) | null>(null);
+
   const onPinClickRef = useRef(onPinClick);
   useEffect(() => { onPinClickRef.current = onPinClick; }, [onPinClick]);
   const onVisibleChangeRef = useRef(onVisibleChange);
   useEffect(() => { onVisibleChangeRef.current = onVisibleChange; }, [onVisibleChange]);
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [openPinId, setOpenPinId] = useState<string | null>(null);
   const openPinIdRef = useRef<string | null>(null);
   useEffect(() => { openPinIdRef.current = openPinId; }, [openPinId]);
@@ -245,18 +251,12 @@ export default function GoogleMap({
     setHoveredPin(hoveredPinId);
   }, [hoveredPinId, setHoveredPin]);
 
-  // Mount the map + pins once. Pins are read fresh via a ref-captured
-  // closure per click, so this intentionally doesn't re-run when `pins`
-  // changes shape — a map view's pin set is effectively static for the life
-  // of the mount (a fresh GoogleMap instance is used instead of diffing
-  // overlays in place, matching how MapPreview/ClasesMapView use it).
+  // Mount Google Maps instance once.
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY) return;
     const container = containerRef.current;
-    if (!container || pins.length === 0) return;
+    if (!container) return;
     let cancelled = false;
-    const pinOverlays: GoogleOverlayViewInstance[] = [];
-    const pinElements = pinElementsRef.current;
 
     const prevAuthFailure = (window as unknown as { gm_authFailure?: () => void }).gm_authFailure;
     (window as unknown as { gm_authFailure?: () => void }).gm_authFailure = () => {
@@ -273,32 +273,20 @@ export default function GoogleMap({
           window.google.maps.importLibrary('core') as Promise<GoogleMapsCoreLibrary>,
         ]);
         if (cancelled || !container) return;
-        const { LatLng } = coreLib;
 
+        overlayViewClassRef.current = OverlayView;
+        latLngClassRef.current = coreLib.LatLng;
+        latLngBoundsClassRef.current = coreLib?.LatLngBounds || (window as unknown as { google?: { maps?: { LatLngBounds?: new () => GoogleLatLngBoundsInstance } } }).google?.maps?.LatLngBounds || null;
+
+        const initialCenter = pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : { lat: -12.046374, lng: -77.042793 };
         const map = new Map(container, {
-          center: { lat: pins[0].lat, lng: pins[0].lng },
+          center: initialCenter,
           zoom: 15,
           disableDefaultUI: true,
           zoomControl: false,
           styles: MAP_STYLE,
         });
         mapRef.current = map;
-
-        const LatLngBoundsClass = coreLib?.LatLngBounds || (window as unknown as { google?: { maps?: { LatLngBounds?: new () => GoogleLatLngBoundsInstance } } }).google?.maps?.LatLngBounds;
-
-        // Same framing logic used on mount, re-run by the recenter button —
-        // undoes any pan/zoom drift back to the original "all pins" view.
-        const recenter = () => {
-          if (pins.length === 1 || !LatLngBoundsClass) {
-            map.setCenter({ lat: pins[0].lat, lng: pins[0].lng });
-          } else {
-            const bounds = new LatLngBoundsClass();
-            pins.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
-            map.fitBounds(bounds, 48);
-          }
-        };
-        recenter();
-        recenterRef.current = recenter;
 
         // Clicking empty map area closes whatever card is open — pins call
         // preventMapHitsAndGesturesFrom so their own clicks never reach this
@@ -322,61 +310,127 @@ export default function GoogleMap({
           onVisibleChangeRef.current(visible);
         });
 
-        pins.forEach(pin => {
-          const pinDiv = buildPinElement(pin);
-          pinElements.set(pin.id, pinDiv);
-          if (pin.title) pinDiv.title = pin.title;
-          pinDiv.addEventListener('click', e => {
-            e.stopPropagation();
-            const next = openPinIdRef.current === pin.id ? null : pin.id;
-            focusPin(next);
-            onPinClickRef.current?.(next);
-          });
-          pinDiv.addEventListener('mouseenter', () => {
-            if (openPinIdRef.current !== pin.id) applyPinState(pinDiv, 'hover');
-          });
-          pinDiv.addEventListener('mouseleave', () => {
-            applyPinState(pinDiv, openPinIdRef.current === pin.id ? 'selected' : 'rest');
-          });
-
-          class PinOverlay extends (OverlayView as unknown as { new(): GoogleOverlayViewInstance }) {
-            onAdd() {
-              this.getPanes().overlayMouseTarget.appendChild(pinDiv);
-              OverlayView.preventMapHitsAndGesturesFrom(pinDiv);
-            }
-            draw() {
-              const projection = this.getProjection();
-              const pos = projection?.fromLatLngToDivPixel(new LatLng(pin.lat, pin.lng));
-              if (pos) {
-                pinDiv.style.left = `${pos.x}px`;
-                pinDiv.style.top = `${pos.y}px`;
-              }
-            }
-            onRemove() {
-              pinDiv.parentNode?.removeChild(pinDiv);
-            }
-          }
-          const overlay = new PinOverlay();
-          overlay.setMap(map);
-          pinOverlays.push(overlay);
-        });
-
-        if (!cancelled) setLoaded(true);
+        if (!cancelled) {
+          setMapReady(true);
+          setLoaded(true);
+        }
       } catch (err) {
         console.error('[GoogleMap] init failed', err);
         if (!cancelled) setError(true);
       }
     })();
 
+    const pinOverlays = pinOverlaysRef.current;
+    const pinElements = pinElementsRef.current;
+
     return () => {
       cancelled = true;
       (window as unknown as { gm_authFailure?: () => void }).gm_authFailure = prevAuthFailure;
       pinOverlays.forEach(o => o.setMap(null));
+      pinOverlaysRef.current = [];
       pinElements.clear();
       recenterRef.current = null;
+      mapRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync pin overlays whenever map is ready or pins change (e.g. live filter changes).
+  useEffect(() => {
+    const map = mapRef.current;
+    const OverlayView = overlayViewClassRef.current;
+    const LatLng = latLngClassRef.current;
+    const LatLngBoundsClass = latLngBoundsClassRef.current;
+    if (!mapReady || !map || !OverlayView || !LatLng) return;
+
+    // Clear previous overlays
+    pinOverlaysRef.current.forEach(o => o.setMap(null));
+    pinOverlaysRef.current = [];
+    pinElementsRef.current.clear();
+
+    if (pins.length === 0) {
+      if (openPinIdRef.current) {
+        setOpenPinId(null);
+        onPinClickRef.current?.(null);
+      }
+      return;
+    }
+
+    const recenter = () => {
+      if (pins.length === 1 || !LatLngBoundsClass) {
+        map.setCenter({ lat: pins[0].lat, lng: pins[0].lng });
+      } else {
+        const bounds = new LatLngBoundsClass();
+        pins.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
+        map.fitBounds(bounds, 48);
+      }
+    };
+    recenterRef.current = recenter;
+
+    // If currently open pin is no longer in pins, close popup
+    if (openPinIdRef.current && !pins.some(p => p.id === openPinIdRef.current)) {
+      setOpenPinId(null);
+      onPinClickRef.current?.(null);
+    }
+
+    const overlayViewClass = OverlayView;
+    const latLngClass = LatLng;
+
+    const pinElements = pinElementsRef.current;
+    pins.forEach(pin => {
+      const pinDiv = buildPinElement(pin);
+      pinElements.set(pin.id, pinDiv);
+      if (pin.title) pinDiv.title = pin.title;
+      pinDiv.addEventListener('click', e => {
+        e.stopPropagation();
+        const next = openPinIdRef.current === pin.id ? null : pin.id;
+        focusPin(next);
+        onPinClickRef.current?.(next);
+      });
+      pinDiv.addEventListener('mouseenter', () => {
+        if (openPinIdRef.current !== pin.id) applyPinState(pinDiv, 'hover');
+      });
+      pinDiv.addEventListener('mouseleave', () => {
+        applyPinState(pinDiv, openPinIdRef.current === pin.id ? 'selected' : 'rest');
+      });
+
+      class PinOverlay extends (overlayViewClass as unknown as { new(): GoogleOverlayViewInstance }) {
+        onAdd() {
+          this.getPanes().overlayMouseTarget.appendChild(pinDiv);
+          overlayViewClass.preventMapHitsAndGesturesFrom(pinDiv);
+        }
+        draw() {
+          const projection = this.getProjection();
+          const pos = projection?.fromLatLngToDivPixel(new latLngClass(pin.lat, pin.lng));
+          if (pos) {
+            pinDiv.style.left = `${pos.x}px`;
+            pinDiv.style.top = `${pos.y}px`;
+          }
+        }
+        onRemove() {
+          pinDiv.parentNode?.removeChild(pinDiv);
+        }
+      }
+      const overlay = new PinOverlay();
+      overlay.setMap(map);
+      pinOverlaysRef.current.push(overlay);
+    });
+
+    pinElements.forEach((el, id) => applyPinState(el, id === openPinIdRef.current ? 'selected' : 'rest'));
+
+    // Trigger visible check for newly rendered pins if viewport is already established
+    const bounds = map.getBounds?.();
+    if (bounds && onVisibleChangeRef.current) {
+      const visible = new Set(pins.filter(p => bounds.contains({ lat: p.lat, lng: p.lng })).map(p => p.id));
+      onVisibleChangeRef.current(visible);
+    }
+
+    return () => {
+      pinOverlaysRef.current.forEach(o => o.setMap(null));
+      pinOverlaysRef.current = [];
+      pinElements.clear();
+    };
+  }, [mapReady, pins, focusPin]);
 
   if (error || !GOOGLE_MAPS_API_KEY) {
     return (
