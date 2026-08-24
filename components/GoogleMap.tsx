@@ -82,8 +82,11 @@ declare global {
 function buildPinElement(pin: MapPin): HTMLDivElement {
   const wrapper = document.createElement('div');
   wrapper.style.position = 'absolute';
+  wrapper.style.top = '0';
+  wrapper.style.left = '0';
   wrapper.style.cursor = 'pointer';
   wrapper.style.pointerEvents = 'auto';
+  wrapper.style.willChange = 'transform';
   wrapper.style.zIndex = '1';
   wrapper.dataset.pinId = pin.id;
 
@@ -316,15 +319,22 @@ export default function GoogleMap({
           onPinClickRef.current?.(null);
         });
 
+        let isMoving = false;
+        const notifyMoving = (moving: boolean) => {
+          if (isMoving === moving) return;
+          isMoving = moving;
+          onMapMovingRef.current?.(moving);
+        };
+
         // Track when camera starts moving (pan/zoom) to trigger feedback/skeleton
         map.addListener('dragstart', () => {
           if (cancelled) return;
-          onMapMovingRef.current?.(true);
+          notifyMoving(true);
         });
 
         map.addListener('zoom_changed', () => {
           if (cancelled) return;
-          onMapMovingRef.current?.(true);
+          notifyMoving(true);
         });
 
         // Reports which pins are currently inside the viewport — fires after
@@ -333,7 +343,7 @@ export default function GoogleMap({
         // `onVisibleChange` doc comment for why filtering isn't done here.
         map.addListener('idle', () => {
           if (cancelled) return;
-          onMapMovingRef.current?.(false);
+          notifyMoving(false);
           if (!onVisibleChangeRef.current) return;
           const bounds = map.getBounds?.();
           if (!bounds) return;
@@ -367,7 +377,7 @@ export default function GoogleMap({
   }, []);
 
   // Sync pin overlays whenever map is ready or pins change (e.g. live filter changes).
-  // Uses a single unified PinsOverlay to batch DOM operations for high performance with 100+ pins.
+  // Uses a single unified PinsOverlay with GPU translate3d and cached LatLng objects for 60fps zoom.
   useEffect(() => {
     const map = mapRef.current;
     const OverlayView = overlayViewClassRef.current;
@@ -408,8 +418,11 @@ export default function GoogleMap({
     const overlayViewClass = OverlayView;
     const latLngClass = LatLng;
 
+    // Pre-instantiate and cache LatLng instances to prevent garbage collection pauses during zoom
+    const latLngMap = new Map<string, GoogleLatLng>();
     const pinElements = pinElementsRef.current;
     pins.forEach(pin => {
+      latLngMap.set(pin.id, new latLngClass(pin.lat, pin.lng));
       const pinDiv = buildPinElement(pin);
       pinElements.set(pin.id, pinDiv);
       if (pin.title) pinDiv.title = pin.title;
@@ -439,6 +452,7 @@ export default function GoogleMap({
         container.style.width = '100%';
         container.style.height = '100%';
         container.style.pointerEvents = 'none';
+        container.style.willChange = 'transform';
         this.container = container;
 
         this.getPanes().overlayMouseTarget.appendChild(container);
@@ -455,11 +469,11 @@ export default function GoogleMap({
 
         pins.forEach(pin => {
           const pinDiv = pinElements.get(pin.id);
-          if (!pinDiv) return;
-          const pos = projection.fromLatLngToDivPixel(new latLngClass(pin.lat, pin.lng));
+          const latLng = latLngMap.get(pin.id);
+          if (!pinDiv || !latLng) return;
+          const pos = projection.fromLatLngToDivPixel(latLng);
           if (pos) {
-            pinDiv.style.left = `${pos.x}px`;
-            pinDiv.style.top = `${pos.y}px`;
+            pinDiv.style.transform = `translate3d(${Math.round(pos.x)}px, ${Math.round(pos.y)}px, 0)`;
           }
         });
       }
