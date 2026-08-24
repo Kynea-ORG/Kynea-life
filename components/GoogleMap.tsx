@@ -83,6 +83,7 @@ function buildPinElement(pin: MapPin): HTMLDivElement {
   const wrapper = document.createElement('div');
   wrapper.style.position = 'absolute';
   wrapper.style.cursor = 'pointer';
+  wrapper.style.zIndex = '1';
   wrapper.dataset.pinId = pin.id;
 
   if (!pin.pillLabel) {
@@ -136,13 +137,17 @@ const PIN_SHADOW = {
 // color; los de academia ya son oscuros, así que solo escalan. Seleccionado
 // usa `animate-pulse-soft-primary` (globals.css, ya pensada para pines de
 // mapa) como halo morado pulsante en vez de la sombra estática.
+// z-index: seleccionado siempre al frente (100) para no quedar tapado por
+// pines vecinos, hover en (50), y reposo en (1).
 type PinState = 'rest' | 'hover' | 'selected';
 function applyPinState(el: HTMLDivElement, pinState: PinState) {
+  const selected = pinState === 'selected';
+  const hovered = pinState === 'hover';
+  el.style.zIndex = selected ? '100' : hovered ? '50' : '1';
+
   const pill = el.querySelector<HTMLDivElement>('.pin-pill');
   const tail = el.querySelector<HTMLDivElement>('.pin-tail');
   if (!pill) return; // plain-dot pin, nothing to toggle
-  const selected = pinState === 'selected';
-  const hovered = pinState === 'hover';
   pill.classList.toggle('scale-110', selected);
   pill.classList.toggle('scale-105', hovered);
   pill.classList.toggle('animate-pulse-soft-primary', selected);
@@ -384,6 +389,7 @@ export default function GoogleMap({
       pinDiv.addEventListener('click', e => {
         e.stopPropagation();
         const next = openPinIdRef.current === pin.id ? null : pin.id;
+        pinElementsRef.current.forEach((el, id) => applyPinState(el, id === next ? 'selected' : 'rest'));
         focusPin(next);
         onPinClickRef.current?.(next);
       });
