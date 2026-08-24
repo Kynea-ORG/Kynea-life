@@ -1,4 +1,9 @@
 import type { ClassStatus, ClassType, Modality, PriceType } from '@/lib/types';
+import type { PublishErrorPayload } from './validation';
+
+export type ClassActionResult =
+  | { ok: true; classId?: string }
+  | { ok: false; error: PublishErrorPayload };
 
 export type FormSlot = { days: string[]; startTime: string; endTime: string };
 
