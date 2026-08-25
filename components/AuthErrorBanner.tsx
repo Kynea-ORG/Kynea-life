@@ -29,13 +29,13 @@ function AuthErrorBannerInner() {
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-md animate-fade-in">
-      <div className="bg-white border border-red-200 shadow-lg rounded-xl p-4 flex items-start gap-3">
+      <div className="bg-white border border-red shadow-lg rounded-xl p-4 flex items-start gap-3">
         <div className="w-9 h-9 rounded-lg bg-red-bg flex items-center justify-center shrink-0">
-          <AlertCircle className="w-5 h-5 text-red-600" />
+          <AlertCircle className="w-5 h-5 text-red" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-neutral-900">Enlace no válido</p>
-          <p className="text-[13px] text-neutral-500 mt-0.5">{message}</p>
+          <p className="text-[13px] text-neutral-600 mt-0.5">{message}</p>
           <div className="flex gap-3 mt-3">
             <Link
               href="/registro"
@@ -46,7 +46,7 @@ function AuthErrorBannerInner() {
             </Link>
             <Link
               href="/login"
-              className="text-[13px] font-semibold text-neutral-500 hover:text-neutral-700"
+              className="text-[13px] font-semibold text-neutral-600 hover:text-neutral-700"
               onClick={() => { trackAuthCtaClick({ action: 'login', location: 'auth_error_banner' }); setDismissed(true); }}
             >
               Iniciar sesión

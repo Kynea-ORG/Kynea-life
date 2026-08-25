@@ -102,10 +102,10 @@ export default function ClasesMapView({
                 </button>
               </div>
               <h3 className="font-bold text-neutral-900 text-[14px] leading-snug line-clamp-2">{cls.title}</h3>
-              <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name} · {cls.district}</p>
+              <p className="text-[12px] text-neutral-600 mt-0.5">{cls.teacher.name} · {cls.district}</p>
               <div className="mt-auto pt-1.5">
                 <span className="text-[14px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.offerPrice ?? cls.price, cls.currency)}</span>
-                <p className="text-[11px] text-neutral-500 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
+                <p className="text-[11px] text-neutral-600 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
               </div>
             </div>
           </div>
@@ -131,7 +131,7 @@ export default function ClasesMapView({
           <div className="flex-1 min-w-0">
             <span className="badge-pink text-[10px]">Academia</span>
             <h3 className="font-bold text-neutral-900 text-[14px] leading-snug mt-0.5 line-clamp-1">{academia.name}</h3>
-            <p className="text-[12px] text-neutral-500 mt-0.5">{academia.venueDistrict}</p>
+            <p className="text-[12px] text-neutral-600 mt-0.5">{academia.venueDistrict}</p>
           </div>
           <button onClick={close} className="w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-neutral-400 hover:bg-neutral-100 transition-colors active:scale-90">
             <X className="w-3.5 h-3.5" />
@@ -149,7 +149,7 @@ export default function ClasesMapView({
       <div className="text-center py-24">
         <p className="text-4xl mb-4">🗺️</p>
         <h3 className="text-[20px] font-bold text-neutral-900 mb-2">Nada con ubicación por ahora</h3>
-        <p className="text-neutral-500 text-[14px] max-w-sm mx-auto">
+        <p className="text-neutral-600 text-[14px] max-w-sm mx-auto">
           Ninguna clase o academia con estos filtros tiene una dirección con coordenadas todavía.
         </p>
       </div>
@@ -165,13 +165,13 @@ export default function ClasesMapView({
           of being a second, redundant "list" behind a mobile sub-toggle. */}
       <div className="hidden lg:flex overflow-y-auto flex-col gap-3 pr-1">
         {zoneFilterActive && (
-          <p className="text-[13px] text-neutral-500 px-0.5">
+          <p className="text-[13px] text-neutral-600 px-0.5">
             <strong className="text-neutral-900">{listClasses.length + listAcademias.length}</strong> clase{listClasses.length + listAcademias.length !== 1 ? 's' : ''} en esta zona
           </p>
         )}
         {listEmpty && (
           <div className="text-center py-10 px-4">
-            <p className="text-[13px] text-neutral-500">Nada por aquí — mueve el mapa para explorar otra zona.</p>
+            <p className="text-[13px] text-neutral-600">Nada por aquí — mueve el mapa para explorar otra zona.</p>
           </div>
         )}
         {listClasses.map(cls => {
@@ -195,9 +195,9 @@ export default function ClasesMapView({
                 <Link href={classUrl(cls)} className="block font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1 mt-1">
                   {cls.title}
                 </Link>
-                <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name}</p>
+                <p className="text-[12px] text-neutral-600 mt-0.5">{cls.teacher.name}</p>
                 <div className="flex items-center justify-between mt-1">
-                  <span className="text-[12px] text-neutral-500 flex items-center gap-1">
+                  <span className="text-[12px] text-neutral-600 flex items-center gap-1">
                     <MapPinIcon className="w-3 h-3" /> {cls.district}
                   </span>
                   <span className="text-[12px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
@@ -231,7 +231,7 @@ export default function ClasesMapView({
                   {academia.name}
                 </Link>
                 <span className="badge-pink text-[10px] mt-0.5 inline-block">Academia</span>
-                <p className="text-[12px] text-neutral-500 flex items-center gap-1 mt-1">
+                <p className="text-[12px] text-neutral-600 flex items-center gap-1 mt-1">
                   <MapPinIcon className="w-3 h-3" /> {academia.venueDistrict}
                 </p>
               </div>

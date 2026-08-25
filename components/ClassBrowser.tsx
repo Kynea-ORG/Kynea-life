@@ -117,7 +117,7 @@ export default function ClassBrowser({
                   key={v}
                   onClick={() => setView(v)}
                   className={`flex items-center gap-1.5 text-[13px] font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
-                    view === v ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+                    view === v ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-700'
                   }`}
                 >
                   {v === 'lista' ? <List className="w-3.5 h-3.5" /> : <MapIcon className="w-3.5 h-3.5" />}
@@ -202,7 +202,7 @@ export default function ClassBrowser({
               <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold text-neutral-900 text-[17px]">Filtros</h3>
                 <button onClick={() => setShowFilters(false)} className="p-2 hover:bg-neutral-100 rounded-md transition-colors active:scale-90">
-                  <X className="w-5 h-5 text-neutral-500" />
+                  <X className="w-5 h-5 text-neutral-600" />
                 </button>
               </div>
               <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} hideStyles={!includeStyles} />
@@ -223,7 +223,7 @@ export default function ClassBrowser({
                 <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-100 shrink-0">
                   <h3 className="font-bold text-neutral-900 text-[17px]">Filtros</h3>
                   <button onClick={() => setShowFilters(false)} className="p-2 hover:bg-neutral-100 rounded-md transition-colors active:scale-90">
-                    <X className="w-5 h-5 text-neutral-500" />
+                    <X className="w-5 h-5 text-neutral-600" />
                   </button>
                 </div>
                 <div className="px-6 py-5 overflow-y-auto">
@@ -242,7 +242,7 @@ export default function ClassBrowser({
         {/* Results */}
         <main className={`flex-1 min-w-0 transition-opacity duration-150 ${isPending ? 'opacity-60' : ''}`}>
           <div className="flex items-center justify-between mb-6">
-            <p className="text-[15px] text-neutral-500 flex items-center gap-2">
+            <p className="text-[15px] text-neutral-600 flex items-center gap-2">
               {isPending
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Filtrando…</>
                 : renderResultsCount(results.length, isPending)
@@ -254,7 +254,7 @@ export default function ClassBrowser({
             <div className="text-center py-24 animate-fade-in">
               <p className="text-5xl mb-5 animate-pop">🕺</p>
               <h3 className="text-[24px] font-bold text-neutral-900 mb-2">Sin resultados</h3>
-              <p className="text-neutral-500 text-[15px] max-w-sm mx-auto">{emptyText}</p>
+              <p className="text-neutral-600 text-[15px] max-w-sm mx-auto">{emptyText}</p>
               <button onClick={handleClearAll} className="btn-outline mt-6">
                 Limpiar filtros
               </button>

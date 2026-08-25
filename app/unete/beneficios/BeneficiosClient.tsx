@@ -266,7 +266,7 @@ export default function BeneficiosClient({
                   <Icon className="w-5 h-5 text-neutral-900" />
                 </div>
                 <h3 className="text-[19px] font-bold text-neutral-900 mb-2">{title}</h3>
-                <p className="text-[14.5px] text-neutral-500 leading-relaxed">{text}</p>
+                <p className="text-[14.5px] text-neutral-600 leading-relaxed">{text}</p>
               </Reveal>
             ))}
           </div>
@@ -299,7 +299,7 @@ export default function BeneficiosClient({
                     className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
                   >
                     <div className="overflow-hidden">
-                      <p className="pb-5 text-[14.5px] text-neutral-500 leading-relaxed max-w-lg">{faq.a}</p>
+                      <p className="pb-5 text-[14.5px] text-neutral-600 leading-relaxed max-w-lg">{faq.a}</p>
                     </div>
                   </div>
                 </Reveal>

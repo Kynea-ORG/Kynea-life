@@ -50,11 +50,11 @@ export default function NoticeBar() {
         >
           <X className="w-5 h-5" />
         </button>
-        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mb-4">
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-bg mb-4">
           <span className="text-2xl">⚠️</span>
         </div>
         <h3 className="text-[17px] font-black text-neutral-900 mb-2">{notice.title}</h3>
-        <p className="text-[14px] text-neutral-500 leading-relaxed mb-5">{notice.body}</p>
+        <p className="text-[14px] text-neutral-600 leading-relaxed mb-5">{notice.body}</p>
         <button
           onClick={handleClose}
           className="w-full bg-neutral-900 hover:bg-neutral-700 text-white font-bold py-3 rounded-xl text-sm transition-colors"

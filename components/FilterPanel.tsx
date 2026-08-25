@@ -150,7 +150,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
               Nuevo
             </span>
           </span>
-          <span className={`block text-[12px] ${todayActive ? 'text-white/80' : 'text-neutral-500'}`}>
+          <span className={`block text-[12px] ${todayActive ? 'text-white/80' : 'text-neutral-600'}`}>
             Clases que se dictan hoy
           </span>
         </span>
@@ -158,7 +158,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
 
       {activeCount > 0 && (
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[13px] text-neutral-500">{activeCount} filtro{activeCount !== 1 ? 's' : ''} activo{activeCount !== 1 ? 's' : ''}</span>
+          <span className="text-[13px] text-neutral-600">{activeCount} filtro{activeCount !== 1 ? 's' : ''} activo{activeCount !== 1 ? 's' : ''}</span>
           <button
             className="text-[13px] text-neutral-900 font-semibold flex items-center gap-1 hover:underline"
             onClick={() => onChange(EMPTY_FILTERS)}

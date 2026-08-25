@@ -447,7 +447,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               }`}>
               <p className="text-xl mb-1">{opt.emoji}</p>
               <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
-              <p className="text-xs text-neutral-500">{opt.desc}</p>
+              <p className="text-xs text-neutral-600">{opt.desc}</p>
             </button>
           ))}
         </div>
@@ -458,7 +458,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         <input className="input" value={form.title} onChange={e => set('title', e.target.value)}
           placeholder="Ej: Salsa Básico desde cero" maxLength={80} />
         <Hint>{form.title.length}/80 caracteres</Hint>
-        {fieldErrors.title && <p className="text-xs text-red-600 mt-1">{fieldErrors.title}</p>}
+        {fieldErrors.title && <p className="text-xs text-red mt-1">{fieldErrors.title}</p>}
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -468,7 +468,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <option value="">Seleccionar estilo…</option>
             {danceStyles.map(s => <option key={s}>{s}</option>)}
           </NativeSelect>
-          {fieldErrors.style && <p className="text-xs text-red-600 mt-1">{fieldErrors.style}</p>}
+          {fieldErrors.style && <p className="text-xs text-red mt-1">{fieldErrors.style}</p>}
         </div>
         <div>
           <FieldLabel>Nivel *</FieldLabel>
@@ -476,7 +476,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <option value="">Seleccionar nivel…</option>
             {levels.map(l => <option key={l}>{l}</option>)}
           </NativeSelect>
-          {fieldErrors.level && <p className="text-xs text-red-600 mt-1">{fieldErrors.level}</p>}
+          {fieldErrors.level && <p className="text-xs text-red mt-1">{fieldErrors.level}</p>}
         </div>
       </div>
 
@@ -494,7 +494,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           maxLength={MAX_FULL_DESC}
           className="input resize-none" />
         <Hint>{form.fullDesc.length}/{MAX_FULL_DESC} caracteres</Hint>
-        {fieldErrors.fullDesc && <p className="text-xs text-red-600 mt-1">{fieldErrors.fullDesc}</p>}
+        {fieldErrors.fullDesc && <p className="text-xs text-red mt-1">{fieldErrors.fullDesc}</p>}
       </div>
 
       {/* Cover image upload */}
@@ -549,8 +549,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </div>
         )}
 
-        {uploadError && <p className="text-xs text-red-600 mt-1 animate-fade-in">{uploadError}</p>}
-        {fieldErrors.coverImage && <p className="text-xs text-red-600 mt-1 animate-fade-in">{fieldErrors.coverImage}</p>}
+        {uploadError && <p className="text-xs text-red mt-1 animate-fade-in">{uploadError}</p>}
+        {fieldErrors.coverImage && <p className="text-xs text-red mt-1 animate-fade-in">{fieldErrors.coverImage}</p>}
         <Hint>Recomendado: 1200×630 px, formato JPG o PNG</Hint>
       </div>
     </div>
@@ -562,7 +562,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       <h2 className="text-lg font-bold text-neutral-900 mb-5">Horario y ubicación</h2>
 
       {fieldErrors.schedule && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{fieldErrors.schedule}</p>
+        <p className="text-xs text-red bg-red-bg border border-red rounded-lg px-3 py-2">{fieldErrors.schedule}</p>
       )}
 
       {/* Recurrence type — FIRST */}
@@ -602,7 +602,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                   // upserting the OLD weekday (only start/end time update).
                   updateSlot(0, 'days', []);
                 }} />
-              {fieldErrors.startDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.startDate}</p>}
+              {fieldErrors.startDate && <p className="text-xs text-red mt-1">{fieldErrors.startDate}</p>}
             </div>
             <div>
               <FieldLabel>Fecha de fin</FieldLabel>
@@ -640,13 +640,13 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               <FieldLabel>Fecha de inicio</FieldLabel>
               <input type="date" className="input" value={form.startDate}
                 onChange={e => set('startDate', e.target.value)} />
-              {fieldErrors.startDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.startDate}</p>}
+              {fieldErrors.startDate && <p className="text-xs text-red mt-1">{fieldErrors.startDate}</p>}
             </div>
             <div>
               <FieldLabel>Fecha de fin</FieldLabel>
               <input type="date" className="input" value={form.endDate}
                 onChange={e => set('endDate', e.target.value)} />
-              {fieldErrors.endDate && <p className="text-xs text-red-600 mt-1">{fieldErrors.endDate}</p>}
+              {fieldErrors.endDate && <p className="text-xs text-red mt-1">{fieldErrors.endDate}</p>}
             </div>
           </div>
           {(form.startDate || form.endDate) && (
@@ -661,13 +661,13 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 {slots.length > 1 && (
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold text-neutral-700">Horario {i + 1}</p>
-                    <button type="button" onClick={() => removeSlot(i)} className="text-neutral-400 hover:text-red-500 transition-colors">
+                    <button type="button" onClick={() => removeSlot(i)} className="text-neutral-400 hover:text-red transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 )}
                 <div>
-                  <p className="text-xs font-semibold text-neutral-500 mb-2">Días de la semana</p>
+                  <p className="text-xs font-semibold text-neutral-600 mb-2">Días de la semana</p>
                   <div className="flex flex-wrap gap-1.5">
                     {DAYS.map(d => (
                       <button key={d} type="button" onClick={() => toggleSlotDay(i, d)}
@@ -742,25 +742,25 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold text-neutral-700">Segmento {i + 1}</p>
                     {slots.length > 1 && (
-                      <button type="button" onClick={() => removeSlot(i)} className="text-neutral-400 hover:text-red-500 transition-colors">
+                      <button type="button" onClick={() => removeSlot(i)} className="text-neutral-400 hover:text-red transition-colors">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
-                      <p className="text-xs font-semibold text-neutral-500 mb-1.5">Desde</p>
+                      <p className="text-xs font-semibold text-neutral-600 mb-1.5">Desde</p>
                       <input type="date" className="input" value={slot.startDate ?? ''}
                         onChange={e => updateSlot(i, 'startDate', e.target.value)} />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-neutral-500 mb-1.5">Hasta</p>
+                      <p className="text-xs font-semibold text-neutral-600 mb-1.5">Hasta</p>
                       <input type="date" className="input" value={slot.endDate ?? ''}
                         onChange={e => updateSlot(i, 'endDate', e.target.value)} />
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-neutral-500 mb-2">Días</p>
+                    <p className="text-xs font-semibold text-neutral-600 mb-2">Días</p>
                     <div className="flex flex-wrap gap-1.5">
                       {DAYS.map(d => (
                         <button key={d} type="button" onClick={() => toggleSlotDay(i, d)}
@@ -774,12 +774,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <p className="text-xs font-semibold text-neutral-500 mb-1.5">Hora inicio</p>
+                      <p className="text-xs font-semibold text-neutral-600 mb-1.5">Hora inicio</p>
                       <input type="time" className="input" value={slot.startTime}
                         onChange={e => updateSlot(i, 'startTime', e.target.value)} />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-neutral-500 mb-1.5">Hora fin</p>
+                      <p className="text-xs font-semibold text-neutral-600 mb-1.5">Hora fin</p>
                       <input type="time" className="input" value={slot.endTime}
                         onChange={e => updateSlot(i, 'endTime', e.target.value)} />
                     </div>
@@ -813,7 +813,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               <opt.icon className={`w-5 h-5 mt-0.5 shrink-0 ${form.modality === opt.value ? 'text-primary' : 'text-neutral-400'}`} />
               <div>
                 <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
-                <p className="text-xs text-neutral-500">{opt.desc}</p>
+                <p className="text-xs text-neutral-600">{opt.desc}</p>
               </div>
             </button>
           ))}
@@ -854,9 +854,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               }}
               onFallbackChange={setAddressFallback}
             />
-            {fieldErrors.address && <p className="text-xs text-red-600 mt-1">{fieldErrors.address}</p>}
+            {fieldErrors.address && <p className="text-xs text-red mt-1">{fieldErrors.address}</p>}
             {!addressFallback && (fieldErrors.city || fieldErrors.district) && (
-              <p className="text-xs text-red-600 mt-1">No se pudo determinar la ciudad/distrito de esa dirección — elegí otra opción de la lista de Google.</p>
+              <p className="text-xs text-red mt-1">No se pudo determinar la ciudad/distrito de esa dirección — elegí otra opción de la lista de Google.</p>
             )}
           </div>
           {addressFallback && (
@@ -865,13 +865,13 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 <FieldLabel>Ciudad</FieldLabel>
                 <input className="input" value={form.city} onChange={e => set('city', e.target.value)}
                   placeholder="Ej: Lima" />
-                {fieldErrors.city && <p className="text-xs text-red-600 mt-1">{fieldErrors.city}</p>}
+                {fieldErrors.city && <p className="text-xs text-red mt-1">{fieldErrors.city}</p>}
               </div>
               <div>
                 <FieldLabel>Distrito</FieldLabel>
                 <input className="input" value={form.district} onChange={e => set('district', e.target.value)}
                   placeholder="Ej: Miraflores" />
-                {fieldErrors.district && <p className="text-xs text-red-600 mt-1">{fieldErrors.district}</p>}
+                {fieldErrors.district && <p className="text-xs text-red mt-1">{fieldErrors.district}</p>}
               </div>
               <p className="col-span-2 text-xs text-neutral-400">
                 No pudimos cargar el buscador de direcciones — completa ciudad y distrito manualmente.
@@ -903,7 +903,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <input className="input" value={form.accessLink} onChange={e => set('accessLink', e.target.value)}
               placeholder="https://zoom.us/j/..." />
             <Hint>Puedes ocultarlo hasta confirmar la inscripción</Hint>
-            {fieldErrors.accessLink && <p className="text-xs text-red-600 mt-1">{fieldErrors.accessLink}</p>}
+            {fieldErrors.accessLink && <p className="text-xs text-red mt-1">{fieldErrors.accessLink}</p>}
           </div>
         </div>
       )}
@@ -932,13 +932,13 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               <div>
                 <FieldLabel>Precio base</FieldLabel>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500 font-bold pointer-events-none">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-600 font-bold pointer-events-none">
                     {form.currency === 'PEN' ? 'S/' : '$'}
                   </span>
                   <input type="number" className="input pl-10" value={form.price}
                     onChange={e => set('price', e.target.value)} placeholder="0" min={0} />
                 </div>
-                {fieldErrors.price && <p className="text-xs text-red-600 mt-1">{fieldErrors.price}</p>}
+                {fieldErrors.price && <p className="text-xs text-red mt-1">{fieldErrors.price}</p>}
               </div>
               <div>
                 <FieldLabel>Moneda</FieldLabel>
@@ -951,7 +951,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <div>
               <FieldLabel>Precio preventa <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500 font-bold pointer-events-none">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-600 font-bold pointer-events-none">
                   {form.currency === 'PEN' ? 'S/' : '$'}
                 </span>
                 <input type="number" className="input pl-10" value={form.offerPrice}
@@ -985,7 +985,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                   className="mt-0.5 accent-primary" />
                 <div>
                   <p className="text-sm font-semibold text-neutral-900">{opt.label}</p>
-                  <p className="text-xs text-neutral-500 mt-0.5">{opt.desc}</p>
+                  <p className="text-xs text-neutral-600 mt-0.5">{opt.desc}</p>
                 </div>
               </label>
             ))}
@@ -1109,7 +1109,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { label: 'Cupos', value: form.maxSpots ? `${form.maxSpots} cupos` : '—' },
           ].map((row, i) => (
             <div key={row.label} className={`flex gap-4 px-4 py-3 ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}>
-              <span className="text-xs font-bold text-neutral-500 w-24 shrink-0 pt-0.5">{row.label}</span>
+              <span className="text-xs font-bold text-neutral-600 w-24 shrink-0 pt-0.5">{row.label}</span>
               <span className="text-sm text-neutral-800 break-words flex-1">{row.value}</span>
             </div>
           ))}
@@ -1117,7 +1117,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
         {coverImageUrl ? (
           <div>
-            <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Imagen de portada</p>
+            <p className="text-xs font-bold text-neutral-600 uppercase tracking-wider mb-2">Imagen de portada</p>
             <div className="rounded-xl border border-neutral-200 overflow-hidden">
               <ImagePositionPicker
                 src={coverImageUrl}
@@ -1131,25 +1131,25 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             </div>
           </div>
         ) : (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <p className="text-xs text-red bg-red-bg border border-red rounded-lg px-3 py-2">
             La imagen de portada es obligatoria para publicar. Agrega una foto en el paso &quot;Información básica&quot;.
           </p>
         )}
 
         {academiaPending ? (
-          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
+          <div className="bg-amber-bg border border-amber rounded-xl p-4 flex items-start gap-3">
             <span className="text-xl shrink-0">⏳</span>
             <div>
-              <p className="text-xs font-bold text-amber-900 mb-0.5">Academia en proceso de revisión</p>
-              <p className="text-xs text-amber-800 leading-relaxed">
+              <p className="text-xs font-bold text-amber-text mb-0.5">Academia en proceso de revisión</p>
+              <p className="text-xs text-amber-text leading-relaxed">
                 Tu cuenta de academia está siendo revisada por el equipo de Kynea. Por ahora solo puedes guardar tus clases como borrador. En cuanto sea aprobada, podrás publicarlas con un solo clic.
               </p>
             </div>
           </div>
         ) : (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p className="text-xs font-bold text-amber-700 mb-1">💡 Consejo</p>
-            <p className="text-xs text-amber-700">
+          <div className="bg-amber-bg border border-amber rounded-xl p-4">
+            <p className="text-xs font-bold text-amber-text mb-1">💡 Consejo</p>
+            <p className="text-xs text-amber-text">
               Puedes guardar como borrador y publicar después. Una vez activa, tu clase aparecerá en el buscador de Kynea.
             </p>
           </div>
@@ -1173,7 +1173,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         <h1 className="text-3xl font-black text-neutral-900">
           {classId ? 'Editar clase' : 'Crea tu clase de baile'}
         </h1>
-        <p className="text-sm text-neutral-500 mt-1">
+        <p className="text-sm text-neutral-600 mt-1">
           {classId ? 'Modifica los campos y guarda los cambios.' : 'Completa cada paso para publicar tu clase.'}
         </p>
       </div>
@@ -1200,9 +1200,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </button>
         ) : isLastStep ? (
           <div className="flex flex-col gap-3 items-end">
-            {submitError && <p className="text-[13px] text-red-600 font-medium animate-fade-in">{submitError}</p>}
+            {submitError && <p className="text-[13px] text-red font-medium animate-fade-in">{submitError}</p>}
             {contactGateError && (
-              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5 animate-fade-in">
+              <p className="text-[13px] text-red font-medium flex items-center gap-1.5 animate-fade-in">
                 {contactGateError.message}
                 <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
                   Completar perfil
@@ -1216,7 +1216,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                     type="button"
                     onClick={() => handlePublish('draft')}
                     disabled={isPending}
-                    className="btn-dark flex items-center gap-2 disabled:opacity-50"
+                    className="btn-dark flex items-center gap-2"
                   >
                     {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {classId ? 'Guardar cambios' : 'Guardar borrador'}
@@ -1225,20 +1225,20 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                     type="button"
                     disabled
                     title="Tu cuenta de academia está en proceso de revisión"
-                    className="btn-outline opacity-40 cursor-not-allowed flex items-center gap-2"
+                    className="btn-outline flex items-center gap-2"
                   >
-                    Publicar clase <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">En revisión</span>
+                    Publicar clase <span className="text-[10px] bg-amber-bg text-amber-text font-bold px-1.5 py-0.5 rounded">En revisión</span>
                   </button>
                 </>
               ) : (
                 <>
                   <button type="button" onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')} disabled={isPending}
-                    className="btn-outline flex items-center gap-2 disabled:opacity-50">
+                    className="btn-outline flex items-center gap-2">
                     {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {classId ? 'Guardar cambios' : 'Guardar borrador'}
                   </button>
                   <button type="button" onClick={() => handlePublish('published')} disabled={isPending}
-                    className="btn-dark flex items-center gap-2 disabled:opacity-50">
+                    className="btn-dark flex items-center gap-2">
                     {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                     {classId ? 'Guardar y publicar' : 'Publicar clase'}
                     {!isPending && <ChevronRight className="w-4 h-4" />}
@@ -1253,9 +1253,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           // keeps the wizard's forward flow visually primary while still
           // letting a mid-wizard tweak save without walking every step.
           <div className="flex flex-col gap-3 items-end">
-            {submitError && <p className="text-[13px] text-red-600 font-medium animate-fade-in">{submitError}</p>}
+            {submitError && <p className="text-[13px] text-red font-medium animate-fade-in">{submitError}</p>}
             {contactGateError && (
-              <p className="text-[13px] text-red-600 font-medium flex items-center gap-1.5 animate-fade-in">
+              <p className="text-[13px] text-red font-medium flex items-center gap-1.5 animate-fade-in">
                 {contactGateError.message}
                 <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
                   Completar perfil
@@ -1264,7 +1264,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             )}
             <div className="flex items-center gap-5">
               <button type="button" onClick={() => handlePublish(editClass?.status ?? 'draft')} disabled={isPending}
-                className="text-sm font-semibold text-neutral-500 hover:text-neutral-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                className="text-sm font-semibold text-neutral-600 hover:text-neutral-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
                 {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Guardar cambios
               </button>

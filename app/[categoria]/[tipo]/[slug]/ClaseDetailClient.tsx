@@ -136,7 +136,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       <Header />
 
       <div className="max-w-[1200px] mx-auto px-6 py-8">
-        <Link href="/clases" className="inline-flex items-center gap-1.5 text-[13px] text-neutral-500 hover:text-neutral-900 mb-6 transition-colors">
+        <Link href="/clases" className="inline-flex items-center gap-1.5 text-[13px] text-neutral-600 hover:text-neutral-900 mb-6 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Volver a clases
         </Link>
 
@@ -182,7 +182,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
             <div className="mb-6">
               <h1 className="text-[30px] font-black text-neutral-900 tracking-snug leading-tight mb-2">{cls.title}</h1>
-              <div className="flex flex-wrap items-center gap-3 text-[15px] text-neutral-500">
+              <div className="flex flex-wrap items-center gap-3 text-[15px] text-neutral-600">
                 <span className="font-semibold text-primary bg-primary-bg border border-primary-bg px-2.5 py-0.5 rounded-full text-[13px]">
                   Nivel {cls.level}
                 </span>
@@ -305,7 +305,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
+                    <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
                       {cls.teacher.name.charAt(0)}
                     </div>
                   )}
@@ -314,7 +314,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
-                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
+                  <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
                   {cls.teacher.rating && (
                     <div className="flex items-center gap-1 mt-1.5">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
@@ -331,7 +331,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                         href={buildInstagramUrl(cls.teacher.instagram)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[13px] text-neutral-500 flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
                       >
                         <InstagramIcon className="w-3.5 h-3.5" /> {cls.teacher.instagram}
                       </a>
@@ -341,7 +341,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                         href={buildTikTokUrl(cls.teacher.tiktok)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[13px] text-neutral-500 flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
                       >
                         <TikTokIcon className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
                       </a>
@@ -428,7 +428,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
                         isFullyBooked
                           ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                          : 'bg-[#25D366] border-[#25D366] hover:bg-[#20BC5A] hover:border-[#20BC5A] text-white'
+                          : 'bg-whatsapp border-whatsapp hover:bg-whatsapp-dark hover:border-whatsapp-dark text-white'
                       }`}
                     >
                       {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
@@ -443,7 +443,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
                         isFullyBooked
                           ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                          : 'bg-[#E1306C] border-[#E1306C] hover:bg-[#c9225a] hover:border-[#c9225a] text-white'
+                          : 'bg-instagram border-instagram hover:bg-instagram-dark hover:border-instagram-dark text-white'
                       }`}
                     >
                       {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
@@ -470,7 +470,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     href={mapsHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 w-full flex items-center justify-center gap-2 text-[13px] text-neutral-500 hover:text-neutral-900 transition-colors"
+                    className="mt-3 w-full flex items-center justify-center gap-2 text-[13px] text-neutral-600 hover:text-neutral-900 transition-colors"
                   >
                     <MapPin className="w-3.5 h-3.5" /> Ver en Google Maps
                   </a>
@@ -499,7 +499,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-500">
+                    <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
                       {cls.teacher.name.charAt(0)}
                     </div>
                   )}
@@ -508,7 +508,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
-                  <p className="text-[13px] text-neutral-500 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
+                  <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
                   {cls.teacher.rating && (
                     <div className="flex items-center gap-1 mt-1.5">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
@@ -525,7 +525,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                         href={buildInstagramUrl(cls.teacher.instagram)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[13px] text-neutral-500 flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
                       >
                         <InstagramIcon className="w-3.5 h-3.5" /> {cls.teacher.instagram}
                       </a>
@@ -535,7 +535,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                         href={buildTikTokUrl(cls.teacher.tiktok)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[13px] text-neutral-500 flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
                       >
                         <TikTokIcon className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
                       </a>
@@ -570,7 +570,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               <span className="text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
             )}
           </p>
-          {cls.level && <p className="text-[12px] text-neutral-500 mt-0.5">Nivel {cls.level}</p>}
+          {cls.level && <p className="text-[12px] text-neutral-600 mt-0.5">Nivel {cls.level}</p>}
         </div>
         <div className="flex gap-2 shrink-0">
           {showWa && (
@@ -578,7 +578,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               onClick={handleWhatsAppClick}
               disabled={isFullyBooked}
               className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
-                isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-[#25D366] hover:bg-[#20BC5A] text-white'
+                isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
               }`}
             >
               {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
@@ -590,7 +590,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               onClick={handleInstagramClick}
               disabled={isFullyBooked}
               className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
-                isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-[#E1306C] hover:bg-[#c9225a] text-white'
+                isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
               }`}
             >
               {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}

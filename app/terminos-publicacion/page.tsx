@@ -17,7 +17,7 @@ export default function TerminosPublicacionPage() {
             <li><strong>Sin spam:</strong> No publiques la misma clase múltiples veces con información diferente.</li>
             <li><strong>Contacto directo:</strong> Los datos de WhatsApp e Instagram deben ser de tu uso.</li>
           </ol>
-          <p className="text-neutral-500 text-[13px] mt-8">
+          <p className="text-neutral-600 text-[13px] mt-8">
             El incumplimiento de estas reglas puede resultar en la suspensión de tu cuenta.
             Para consultas: <a href="mailto:hola@kynea.pe" className="underline text-neutral-900">hola@kynea.pe</a>
           </p>

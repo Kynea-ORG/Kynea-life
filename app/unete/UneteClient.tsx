@@ -6,6 +6,7 @@ import { Loader2, Eye, EyeOff, Check, X, Zap, Users, ShieldCheck, MessageCircle 
 import GoogleIcon from '@/components/GoogleIcon';
 import { trackAuthCtaClick } from '@/lib/analytics';
 import { useSignupForm } from '@/lib/auth/useSignupForm';
+import ErrorBanner from '@/components/ErrorBanner';
 
 const BENEFITS = [
   { Icon: Zap,           text: 'Publica tu clase en minutos' },
@@ -41,15 +42,11 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
             <h1 className="hidden lg:block text-[28px] font-black text-neutral-900 tracking-tight leading-tight mb-2">
               Únete como profesor
             </h1>
-            <p className="hidden lg:block text-[15px] text-neutral-500 mb-7">
+            <p className="hidden lg:block text-[15px] text-neutral-600 mb-7">
               Crea tu cuenta gratis y empieza a publicar tus clases hoy mismo.
             </p>
 
-            {error && (
-              <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in mb-4">
-                {error}
-              </div>
-            )}
+            {error && <ErrorBanner className="mb-4">{error}</ErrorBanner>}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-5">
               <div>
@@ -99,7 +96,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
                 {form.password.length > 0 && (
                   <ul className="flex flex-col gap-1 mt-2 animate-fade-in">
                     {passwordChecks.map(c => (
-                      <li key={c.label} className={`flex items-center gap-2 text-[12px] font-figtree ${c.ok ? 'text-green-600' : 'text-neutral-400'}`}>
+                      <li key={c.label} className={`flex items-center gap-2 text-[12px] font-figtree ${c.ok ? 'text-green' : 'text-neutral-400'}`}>
                         {c.ok
                           ? <Check className="w-3.5 h-3.5 shrink-0" />
                           : <X className="w-3.5 h-3.5 shrink-0" />
@@ -118,7 +115,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
                   onChange={e => setTermsAccepted(e.target.checked)}
                   className="mt-0.5 w-4 h-4 accent-neutral-900 shrink-0"
                 />
-                <span className="text-[13px] text-neutral-500 leading-relaxed">
+                <span className="text-[13px] text-neutral-600 leading-relaxed">
                   Acepto los{' '}
                   <a href="/terminos" target="_blank" rel="noopener noreferrer" className="text-neutral-900 font-semibold hover:underline">
                     Términos y condiciones
@@ -134,7 +131,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
               <button
                 type="submit"
                 disabled={loading || !passwordValid || !termsAccepted}
-                className="btn-primary w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="btn-primary w-full mt-1 flex items-center justify-center gap-2"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? 'Creando cuenta…' : 'Crear cuenta de profesor'}
@@ -145,7 +142,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
               type="button"
               onClick={handleGoogle}
               disabled={googleLoading}
-              className="w-full btn-outline disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full btn-outline flex items-center justify-center gap-2"
             >
               {googleLoading
                 ? <Loader2 className="w-4 h-4 animate-spin" />

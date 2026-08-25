@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { safeRedirectPath } from '@/lib/utils';
 import { trackAuthCtaClick, trackAuthAttempt, trackOtpVerifyFailed } from '@/lib/analytics';
+import ErrorBanner from '@/components/ErrorBanner';
 
 const CODE_LENGTH = 6;
 const VALID_ROLES = new Set(['alumno', 'profesor', 'academia']);
@@ -131,7 +132,7 @@ function ConfirmarEmailContent() {
               <Mail className="w-7 h-7 text-neutral-400" />
             </div>
             <p className="text-[16px] font-semibold text-neutral-900 mb-2">Enlace no válido</p>
-            <p className="text-[14px] text-neutral-500 mb-6">El enlace de confirmación no es válido o ya expiró.</p>
+            <p className="text-[14px] text-neutral-600 mb-6">El enlace de confirmación no es válido o ya expiró.</p>
             <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'confirmar_email_page' })} className="btn-dark inline-block">Volver al registro</Link>
           </div>
         </div>
@@ -154,18 +155,14 @@ function ConfirmarEmailContent() {
               <Mail className="w-8 h-8 text-neutral-700" />
             </div>
             <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-2">Confirma tu correo</h1>
-            <p className="text-[15px] text-neutral-500 mb-1">
+            <p className="text-[15px] text-neutral-600 mb-1">
               Enviamos un código de {CODE_LENGTH} dígitos a
             </p>
             {email && (
               <p className="text-[15px] font-semibold text-neutral-900 mb-6">{email}</p>
             )}
 
-            {error && (
-              <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 mb-4 text-left animate-fade-in">
-                {error}
-              </div>
-            )}
+            {error && <ErrorBanner className="mb-4 text-left">{error}</ErrorBanner>}
 
             <form onSubmit={handleVerify}>
               <div className="flex justify-center gap-2 mb-6">
@@ -189,7 +186,7 @@ function ConfirmarEmailContent() {
               <button
                 type="submit"
                 disabled={verifying || code.length !== CODE_LENGTH}
-                className="w-full btn-dark flex items-center justify-center gap-2 mb-3 disabled:opacity-50"
+                className="w-full btn-dark flex items-center justify-center gap-2 mb-3"
               >
                 {verifying && <Loader2 className="w-4 h-4 animate-spin" />}
                 {verifying ? 'Verificando…' : 'Confirmar cuenta'}
@@ -205,7 +202,7 @@ function ConfirmarEmailContent() {
                 key="resend-btn"
                 onClick={handleResend}
                 disabled={resending}
-                className="w-full btn-outline flex items-center justify-center gap-2 mb-4 disabled:opacity-60 animate-fade-in"
+                className="w-full btn-outline flex items-center justify-center gap-2 mb-4 animate-fade-in"
               >
                 {resending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                 {resending ? 'Enviando…' : 'Reenviar código'}
@@ -219,7 +216,7 @@ function ConfirmarEmailContent() {
             <Link
               href="/registro"
               onClick={() => trackAuthCtaClick({ action: 'registro', location: 'confirmar_email_page' })}
-              className="text-[13px] text-neutral-500 hover:text-neutral-700 transition-colors"
+              className="text-[13px] text-neutral-600 hover:text-neutral-700 transition-colors"
             >
               ← Volver y cambiar email
             </Link>
@@ -234,7 +231,7 @@ export default function ConfirmarEmailPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="text-neutral-500 text-sm">Cargando…</div>
+        <div className="text-neutral-600 text-sm">Cargando…</div>
       </div>
     }>
       <ConfirmarEmailContent />

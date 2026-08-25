@@ -17,6 +17,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div>
       <div className="flex items-center gap-1 px-6 lg:px-8 pt-6 border-b border-neutral-100">
+        <Link href="/dashboard/admin/resumen" className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 px-3 py-2.5 border-b-2 border-transparent hover:border-neutral-300 transition-colors">
+          Resumen
+        </Link>
         <Link href="/dashboard/admin" className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 px-3 py-2.5 border-b-2 border-transparent hover:border-neutral-300 transition-colors">
           Usuarios
         </Link>

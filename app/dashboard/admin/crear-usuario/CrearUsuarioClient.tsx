@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { BookOpen, Building2, Check, CheckCircle, Copy, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { createUserAsAdmin } from '@/lib/admin/actions';
+import ErrorBanner from '@/components/ErrorBanner';
 
 type Role = 'profesor' | 'academia';
 
@@ -24,7 +25,7 @@ function CopyButton({ value }: { value: string }) {
       onClick={handleCopy}
       className="text-neutral-400 hover:text-neutral-600 transition-colors shrink-0"
     >
-      {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+      {copied ? <Check className="w-4 h-4 text-green" /> : <Copy className="w-4 h-4" />}
     </button>
   );
 }
@@ -68,7 +69,7 @@ export default function CrearUsuarioClient() {
     <div className="p-6 lg:p-8 max-w-2xl">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-neutral-900">Crear usuario</h1>
-        <p className="text-neutral-500 text-sm mt-1">Crea una cuenta de profesor lista para usar de inmediato, sin confirmar correo.</p>
+        <p className="text-neutral-600 text-sm mt-1">Crea una cuenta de profesor lista para usar de inmediato, sin confirmar correo.</p>
       </div>
 
       {created ? (
@@ -79,7 +80,7 @@ export default function CrearUsuarioClient() {
             </div>
             <div>
               <h2 className="font-bold text-neutral-900">Cuenta creada</h2>
-              <p className="text-xs text-neutral-500">{created.name}</p>
+              <p className="text-xs text-neutral-600">{created.name}</p>
             </div>
           </div>
 
@@ -90,23 +91,23 @@ export default function CrearUsuarioClient() {
           <div className="space-y-3 mb-5">
             <div className="flex items-center justify-between gap-3 bg-neutral-50 rounded-lg px-4 py-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide">Correo</p>
+                <p className="text-[11px] font-semibold text-neutral-600 uppercase tracking-wide">Correo</p>
                 <p className="text-sm font-semibold text-neutral-900 truncate">{created.email}</p>
               </div>
               <CopyButton value={created.email} />
             </div>
             <div className="flex items-center justify-between gap-3 bg-neutral-50 rounded-lg px-4 py-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide">Contraseña</p>
+                <p className="text-[11px] font-semibold text-neutral-600 uppercase tracking-wide">Contraseña</p>
                 <p className="text-sm font-semibold text-neutral-900 truncate">{created.password}</p>
               </div>
               <CopyButton value={created.password} />
             </div>
           </div>
 
-          <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 mb-5">
+          <ErrorBanner className="mb-5">
             Guarda o comparte estos datos ahora — la contraseña no se vuelve a mostrar si recargas la página.
-          </div>
+          </ErrorBanner>
 
           <button type="button" onClick={handleCreateAnother} className="btn-primary w-full">
             Crear otra
@@ -114,11 +115,7 @@ export default function CrearUsuarioClient() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6 flex flex-col gap-4">
-          {error && (
-            <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">
-              {error}
-            </div>
-          )}
+          {error && <ErrorBanner>{error}</ErrorBanner>}
 
           <div>
             <label className="block text-[13px] font-semibold text-neutral-700 mb-1.5">Nombre completo</label>
@@ -176,13 +173,13 @@ export default function CrearUsuarioClient() {
                 }`}
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                  role === 'profesor' ? 'bg-primary text-white' : 'bg-neutral-100 text-neutral-500'
+                  role === 'profesor' ? 'bg-primary text-white' : 'bg-neutral-100 text-neutral-600'
                 }`}>
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-neutral-900 text-[15px]">Profesor</p>
-                  <p className="text-[13px] text-neutral-500">Da clases de manera independiente</p>
+                  <p className="text-[13px] text-neutral-600">Da clases de manera independiente</p>
                 </div>
               </button>
 
@@ -198,7 +195,7 @@ export default function CrearUsuarioClient() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-neutral-900 text-[15px]">Academia</p>
-                  <p className="text-[13px] text-neutral-500">Gestiona un estudio o academia</p>
+                  <p className="text-[13px] text-neutral-600">Gestiona un estudio o academia</p>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-neutral-100 text-neutral-400 rounded-full px-2 py-1 shrink-0">
                   No disponible
@@ -210,7 +207,7 @@ export default function CrearUsuarioClient() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="btn-primary w-full mt-1 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {loading ? 'Creando cuenta…' : 'Crear cuenta'}

@@ -10,6 +10,7 @@ import SmartImage from '@/components/SmartImage';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
+import ErrorBanner from '@/components/ErrorBanner';
 
 // Extracts the storage object path from a public Supabase Storage URL
 // (".../object/public/class-images/<path>" -> "<path>") so a replaced or
@@ -316,7 +317,7 @@ export default function PerfilClient({
     <div className="p-6 lg:p-8 max-w-3xl">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-neutral-900">Mi perfil</h1>
-        <p className="text-neutral-500 text-sm mt-1">
+        <p className="text-neutral-600 text-sm mt-1">
           {isTeacher ? 'Esto es lo que verán los alumnos en tu página pública' : 'Actualiza tu información personal'}
         </p>
       </div>
@@ -326,7 +327,7 @@ export default function PerfilClient({
         <div className="bg-white rounded-xl border border-neutral-900 p-6">
           <h2 className="text-lg font-bold text-neutral-900">{isAcademia ? 'Logo de la academia' : isTeacher ? 'Foto / Logo' : 'Foto de perfil'}</h2>
           {isTeacher && (
-            <p className="text-xs text-neutral-500 mt-0.5 mb-4">Esto es lo que verán los alumnos en tu perfil público</p>
+            <p className="text-xs text-neutral-600 mt-0.5 mb-4">Esto es lo que verán los alumnos en tu perfil público</p>
           )}
           <div className={`flex flex-col sm:flex-row items-start gap-6 ${isTeacher ? '' : 'mt-4'}`}>
             <input
@@ -373,7 +374,7 @@ export default function PerfilClient({
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={uploadingPhoto}
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
               >
                 {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 {uploadingPhoto ? 'Subiendo…' : photoUrl ? (isAcademia ? 'Cambiar logo' : 'Cambiar foto') : (isAcademia ? 'Subir logo' : 'Subir foto')}
@@ -389,7 +390,7 @@ export default function PerfilClient({
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-neutral-900">Portada de la academia</h2>
-                <p className="text-xs text-neutral-500 mt-0.5">Se muestra en el banner superior de tu perfil público</p>
+                <p className="text-xs text-neutral-600 mt-0.5">Se muestra en el banner superior de tu perfil público</p>
               </div>
               {coverUrl && (
                 <button
@@ -598,10 +599,10 @@ export default function PerfilClient({
         {isTeacher && (
           <div id="contacto" className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
             <h2 className="text-lg font-bold text-neutral-900">Contacto y redes</h2>
-            <p className="text-xs text-neutral-400"><span className="text-red-500">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
+            <p className="text-xs text-neutral-400"><span className="text-red">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp <span className="text-red">*</span></label>
               <div className="flex gap-2">
                 <select
                   value={waCode}
@@ -620,7 +621,7 @@ export default function PerfilClient({
                   onChange={e => setWaNumber(e.target.value.replace(/\D/g, ''))}
                   placeholder="999 999 999"
                   className={`input flex-1 ${
-                    highlightField === 'whatsapp' ? '!border-amber-400 ring-2 ring-amber-200' : ''
+                    highlightField === 'whatsapp' ? '!border-amber ring-2 ring-amber/40' : ''
                   }`}
                 />
               </div>
@@ -629,7 +630,7 @@ export default function PerfilClient({
 
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                Instagram<span className="text-red-500 ml-0.5">*</span>
+                Instagram<span className="text-red ml-0.5">*</span>
               </label>
               <input
                 ref={instagramInputRef}
@@ -639,7 +640,7 @@ export default function PerfilClient({
                 onChange={e => setInstagram(e.target.value)}
                 placeholder="Tu instagram"
                 className={`input ${
-                  highlightField === 'instagram' ? '!border-amber-400 ring-2 ring-amber-200' : ''
+                  highlightField === 'instagram' ? '!border-amber ring-2 ring-amber/40' : ''
                 }`}
               />
             </div>
@@ -659,15 +660,13 @@ export default function PerfilClient({
           </div>
         )}
 
-        {error && (
-          <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">{error}</div>
-        )}
+        {error && <ErrorBanner>{error}</ErrorBanner>}
 
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="btn-dark disabled:opacity-50"
+            className="btn-dark"
           >
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saved ? '¡Guardado!' : isPending ? 'Guardando…' : 'Guardar cambios'}
@@ -675,7 +674,7 @@ export default function PerfilClient({
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-red-500 hover:bg-red-50 px-4 py-3 rounded-btn border border-neutral-200 transition-colors"
+            className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg px-4 py-3 rounded-btn border border-neutral-200 transition-colors"
           >
             <LogOut className="w-4 h-4" /> Cerrar sesión
           </button>

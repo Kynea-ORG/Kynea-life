@@ -110,6 +110,51 @@ export async function fetchPendingAcademiaRequests(): Promise<AcademiaRequestRow
   });
 }
 
+export type UserCounts = {
+  total: number;
+  alumno: number;
+  profesor: number;
+  academia: number;
+  /** De las `academia` — cuántas ya pasaron `approve_academia_request()`
+   * (academia_approved_at no nulo) vs. siguen pendientes de revisión. */
+  academiaApproved: number;
+  academiaPending: number;
+};
+
+// Conteo público (profiles_select es USING (true) — ver RLS), pero vive acá
+// en vez de lib/stats/queries.ts porque es para el dashboard de admin
+// (desglosado por rol), no para el contador combinado profesor+academia de
+// la home pública (fetchHomeStats).
+export async function fetchUserCounts(): Promise<UserCounts> {
+  const supabase = await createClient();
+  const [total, alumno, profesor, academia, academiaApproved] = await Promise.all([
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'alumno'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'profesor'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'academia'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'academia').not('academia_approved_at', 'is', null),
+  ]);
+
+  for (const [label, result] of [
+    ['total', total], ['alumno', alumno], ['profesor', profesor],
+    ['academia', academia], ['academiaApproved', academiaApproved],
+  ] as const) {
+    if (result.error) console.error(`fetchUserCounts (${label}) error:`, result.error.message);
+  }
+
+  const academiaCount = academia.count ?? 0;
+  const academiaApprovedCount = academiaApproved.count ?? 0;
+
+  return {
+    total: total.count ?? 0,
+    alumno: alumno.count ?? 0,
+    profesor: profesor.count ?? 0,
+    academia: academiaCount,
+    academiaApproved: academiaApprovedCount,
+    academiaPending: Math.max(academiaCount - academiaApprovedCount, 0),
+  };
+}
+
 export async function fetchIsAdmin(): Promise<boolean> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

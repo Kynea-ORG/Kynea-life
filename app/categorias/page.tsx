@@ -31,10 +31,10 @@ export default async function CategoriasPage() {
 
       <div className="max-w-[1200px] mx-auto px-6 pt-10 pb-20">
         <h1 className="text-[36px] font-black tracking-tight text-neutral-900 mb-2">Categorías</h1>
-        <p className="text-neutral-500 text-[15px] mb-10">Explora todos los estilos de baile disponibles en Kynea.</p>
+        <p className="text-neutral-600 text-[15px] mb-10">Explora todos los estilos de baile disponibles en Kynea.</p>
 
         {danceStyles.length === 0 ? (
-          <p className="text-neutral-500 text-sm">Todavía no hay categorías disponibles.</p>
+          <p className="text-neutral-600 text-sm">Todavía no hay categorías disponibles.</p>
         ) : (
           <>
             {featured.length > 0 && (
