@@ -5,7 +5,7 @@ import SmartImage from '@/components/SmartImage';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Search, MapPin, ArrowRight, Star, Check, CalendarCheck,
+  Search, MapPin, ArrowRight, ArrowLeft, Star, CalendarCheck,
   MessageCircle, ChevronLeft, ChevronRight, Loader2,
 } from 'lucide-react';
 import Header from '@/components/Header';
@@ -73,7 +73,7 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
         <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
           <div>
             <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">{style}</h2>
-            <p className="text-neutral-500 text-[15px] mt-1">Las clases de {style} más populares</p>
+            <p className="text-neutral-600 text-[15px] mt-1">Las clases de {style} más populares</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href={`/clases?style=${encodeURIComponent(style)}`} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
@@ -133,6 +133,25 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
   const [isSearching, setIsSearching]       = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
+  // ── Ciudad (segundo campo del buscador) — filtro cliente sobre
+  // stats.cityNames (ya viene de fetchHomeStats), sin query nueva.
+  const [city, setCity] = useState('');
+  const [cityOpen, setCityOpen] = useState(false);
+  const cityRef = useRef<HTMLDivElement>(null);
+  const filteredCities = stats.cityNames
+    .filter(c => c.toLowerCase().includes(city.trim().toLowerCase()))
+    .slice(0, 8);
+
+  // Estilos que matchean el texto tipeado — alimenta la sección "Estilos"
+  // del overlay mobile de búsqueda (filtro cliente, sin query nueva).
+  const matchingStyles = danceStyles
+    .filter(s => s.name.toLowerCase().includes(query.trim().toLowerCase()))
+    .slice(0, 4);
+
+  // Overlay de búsqueda a pantalla completa en mobile (patrón VRBO: tocar
+  // un campo abre pantalla completa en vez de un dropdown chico).
+  const [mobileSearch, setMobileSearch] = useState<null | 'style' | 'city'>(null);
+
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
@@ -171,6 +190,9 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
       }
+      if (cityRef.current && !cityRef.current.contains(e.target as Node)) {
+        setCityOpen(false);
+      }
     }
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
@@ -199,8 +221,10 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
   const navigateSearch = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.set('q', query.trim());
+    if (city.trim()) params.set('city', city.trim());
     router.push(`/clases?${params.toString()}`);
     setShowSuggestions(false);
+    setMobileSearch(null);
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -210,205 +234,414 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
   const hasSuggestions = query.trim().length >= 2 && (suggestions.classes.length > 0 || suggestions.profiles.length > 0);
 
+  // Compartidos entre el dropdown desktop y el overlay mobile (G2): cierran
+  // ambas UIs de búsqueda además de navegar.
+  function goToClass(cls: SearchClass) {
+    const mainStyle = (cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0])?.dance_styles?.[0];
+    router.push(`/${mainStyle?.slug ?? ''}/${cls.type}/${cls.slug}`);
+    setShowSuggestions(false);
+    setMobileSearch(null);
+  }
+  function goToProfile(p: SearchProfile) {
+    router.push(`/profesores/${p.slug}`);
+    setShowSuggestions(false);
+    setMobileSearch(null);
+  }
+  function pickStyle(name: string) {
+    setQuery(name);
+    setShowSuggestions(false);
+    setMobileSearch(null);
+  }
+  function pickCity(name: string) {
+    setCity(name);
+    setCityOpen(false);
+    setMobileSearch(null);
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <TopAnnouncementRibbon />
 
-      {/* ── HERO ── */}
-      <div className="hero-section">
-        <Header transparent={true} />
+      {/* ── HERO — desktop (A1) ── */}
+      <div className="hidden md:block relative bg-[#1A1A19] overflow-hidden min-h-[400px]">
+        <div className="absolute inset-0 h-[640px] overflow-hidden">
+          <Image
+            src="/BBkynea.jpg"
+            alt="Bailarina en movimiento"
+            fill
+            priority
+            sizes="1440px"
+            className="object-cover"
+            style={{ objectPosition: '50% 0%' }}
+          />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.55) 0%, rgba(13,13,13,.35) 38%, rgba(13,13,13,.72) 100%)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(138,17,188,.30) 0%, rgba(13,13,13,0) 55%)' }} />
+        </div>
 
-        <div className="max-w-[1200px] mx-auto px-6 pt-16 pb-24">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+        <Header transparent homeNav />
 
-            {/* Left */}
-            <div>
-              <div className="badge-black mb-8 text-xs tracking-wider uppercase">
-                🌎 Latinoamérica · Plataforma de danza
+        <div className="relative z-10 max-w-[1240px] mx-auto px-6 pt-[84px] text-center">
+          <h1 className="font-black text-[52px] leading-[1.08] tracking-[-0.03em] text-white mb-4">
+            Tu próxima clase de baile te está esperando.
+          </h1>
+          <p className="text-[17px] text-white/80 max-w-[700px] mx-auto mb-10 leading-relaxed">
+            Salsa, heels, bachata y más con profesores verificados en toda Latinoamérica.
+          </p>
+        </div>
+
+        <div className="relative z-20 max-w-[1080px] mx-auto px-6 flex items-center gap-[18px]">
+          <div className="shrink-0 bg-white rounded-2xl px-4 py-2.5 shadow-xl text-left">
+            <p className="font-black text-[20px] text-neutral-900 leading-none">{stats.classes}+</p>
+            <p className="text-[11px] text-neutral-500 mt-0.5 whitespace-nowrap">Clases</p>
+          </div>
+
+          <form onSubmit={handleSearch} className="flex-1 bg-white rounded-3xl shadow-2xl p-2 flex items-stretch gap-1">
+            <div className="flex-[1.6] relative flex items-center gap-3 px-5 py-2.5 rounded-2xl min-w-0" ref={searchRef}>
+              <Search className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
+              <div className="text-left min-w-0 flex-1">
+                <p className="font-bold text-[12px] text-neutral-900 leading-none">¿Qué quieres bailar?</p>
+                <input
+                  type="text"
+                  placeholder="Busca clases, academias, profesores…"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onFocus={() => setShowSuggestions(true)}
+                  className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
+                />
               </div>
+              {isSearching && <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0" />}
 
-              <h1 className="text-[48px] lg:text-[66px] font-black tracking-tighter text-white leading-none mb-6">
-                Donde la pasión<br />
-                por la danza<br />
-                cobra vida.
-              </h1>
+              {/* Autocomplete dropdown */}
+              {showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 overflow-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95">
 
-              <p className="text-[17px] text-white/80 mb-10 leading-relaxed max-w-md">
-                Encuentra clases de baile, audiciones, shows, eventos culturales y tiendas especializadas.
-              </p>
+                  {isSearching && (
+                    <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-neutral-400">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando…
+                    </div>
+                  )}
 
-              {/* ── Search bar with autocomplete ── */}
-              <div className="relative max-w-xl mb-8" ref={searchRef}>
-                <form
-                  onSubmit={handleSearch}
-                  className="bg-white rounded-full shadow-md border border-neutral-900 pl-5 pr-1.5 py-1.5 flex items-center gap-2"
-                >
-                  <div className="flex-1 flex items-center gap-2.5 min-w-0">
-                    <Search className="w-4 h-4 text-neutral-400 shrink-0" />
-                    <input
-                      type="text"
-                      placeholder="Salsa, heels, bachata, jazz funk…"
-                      value={query}
-                      onChange={e => setQuery(e.target.value)}
-                      onFocus={() => {
-                        if (query.trim().length >= 2 && hasSuggestions) setShowSuggestions(true);
-                      }}
-                      className="flex-1 min-w-0 text-[15px] text-neutral-800 placeholder:text-neutral-400 outline-none bg-transparent"
-                    />
-                    {isSearching && <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0" />}
-                  </div>
-                  <button type="submit" className="btn-hero text-[15px] px-6 py-3">
-                    Buscar
-                  </button>
-                </form>
+                  {!isSearching && !hasSuggestions && (
+                    <p className="px-4 py-3 text-[13px] text-neutral-400">
+                      Sin resultados para &ldquo;{query}&rdquo;
+                    </p>
+                  )}
 
-                {/* Autocomplete dropdown */}
-                {showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 overflow-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95">
-
-                    {isSearching && (
-                      <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-neutral-400">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando…
+                  {/* Classes */}
+                  {suggestions.classes.length > 0 && (
+                    <div>
+                      <div className="px-4 pt-3 pb-1">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Clases</span>
                       </div>
-                    )}
-
-                    {!isSearching && !hasSuggestions && (
-                      <p className="px-4 py-3 text-[13px] text-neutral-400">
-                        Sin resultados para &ldquo;{query}&rdquo;
-                      </p>
-                    )}
-
-                    {/* Classes */}
-                    {suggestions.classes.length > 0 && (
-                      <div>
-                        <div className="px-4 pt-3 pb-1">
-                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Clases</span>
-                        </div>
-                        {suggestions.classes.map(cls => {
-                          const mainStyle = (cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0])?.dance_styles?.[0];
-                          return (
-                            <button
-                              key={cls.id}
-                              type="button"
-                              onClick={() => { router.push(`/${mainStyle?.slug ?? ''}/${cls.type}/${cls.slug}`); setShowSuggestions(false); }}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
-                            >
-                              <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0 text-sm">
-                                💃
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[14px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                                <p className="text-[11px] text-neutral-400">{mainStyle?.name ?? ''} · {getTypeLabel(cls.type)}</p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Profiles */}
-                    {suggestions.profiles.length > 0 && (
-                      <div className={suggestions.classes.length > 0 ? 'border-t border-neutral-100' : ''}>
-                        <div className="px-4 pt-3 pb-1">
-                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Profesores</span>
-                        </div>
-                        {suggestions.profiles.map(p => (
+                      {suggestions.classes.map(cls => {
+                        const mainStyle = (cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0])?.dance_styles?.[0];
+                        return (
                           <button
-                            key={p.id}
+                            key={cls.id}
                             type="button"
-                            onClick={() => { router.push(`/profesores/${p.slug}`); setShowSuggestions(false); }}
+                            onClick={() => goToClass(cls)}
                             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
                           >
-                            {p.photo_url ? (
-                              <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
-                                <SmartImage src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
-                              </div>
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-500 shrink-0">
-                                {p.name.charAt(0)}
-                              </div>
-                            )}
+                            <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0 text-sm">
+                              💃
+                            </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}</p>
+                              <p className="text-[14px] font-semibold text-neutral-900 truncate">{cls.title}</p>
+                              <p className="text-[11px] text-neutral-400">{mainStyle?.name ?? ''} · {getTypeLabel(cls.type)}</p>
                             </div>
                           </button>
-                        ))}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
+                  )}
 
-                    {hasSuggestions && (
-                      <div className="border-t border-neutral-100 px-4 py-2.5">
+                  {/* Profiles */}
+                  {suggestions.profiles.length > 0 && (
+                    <div className={suggestions.classes.length > 0 ? 'border-t border-neutral-100' : ''}>
+                      <div className="px-4 pt-3 pb-1">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Profesores</span>
+                      </div>
+                      {suggestions.profiles.map(p => (
                         <button
+                          key={p.id}
                           type="button"
-                          onClick={navigateSearch}
-                          className="text-[13px] text-primary font-semibold hover:underline"
+                          onClick={() => goToProfile(p)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
                         >
-                          Ver todos los resultados de &ldquo;{query}&rdquo; →
+                          {p.photo_url ? (
+                            <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
+                              <SmartImage src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
+                              {p.name.charAt(0)}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
+                            <p className="text-[11px] text-neutral-400 capitalize">{p.role}</p>
+                          </div>
                         </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
 
-              {/* Trust items */}
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {['Profesores verificados', 'Contacto directo'].map(item => (
-                  <span key={item} className="flex items-center gap-1.5 text-[13px] text-white/70">
-                    <Check className="w-3.5 h-3.5 text-white" />
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Right — Cutout photo + floating stats */}
-            <div className="hidden lg:block relative h-[460px]">
-              {/* Glow behind the cutout — rendered outside the overflow-hidden
-                  wrapper below: the 420px circle only has ~20px of vertical
-                  clearance in this 460px-tall column, far less than the
-                  blur-3xl (64px) radius needs to fade out, so clipping it
-                  flattened the top/bottom into hard edges and made the glow
-                  look squarish instead of a soft circle. */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-[420px] h-[420px] rounded-full bg-white/20 blur-3xl" />
-              </div>
-
-              {/* Clipping scoped to just the photo (max-w-none lets it scale
-                  past its column's width) — kept off the whole hero-section
-                  so the search dropdown isn't cut off. */}
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute inset-0 flex items-end justify-center">
-                  <Image
-                    src="/img-portada-kynea.png"
-                    alt="Bailarina en movimiento"
-                    width={640}
-                    height={452}
-                    priority
-                    className="relative w-auto h-full max-w-none object-contain"
-                  />
+                  {hasSuggestions && (
+                    <div className="border-t border-neutral-100 px-4 py-2.5">
+                      <button
+                        type="button"
+                        onClick={navigateSearch}
+                        className="text-[13px] text-primary font-semibold hover:underline"
+                      >
+                        Ver todos los resultados de &ldquo;{query}&rdquo; →
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              <div className="absolute top-6 left-0 bg-white border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow">
-                <p className="text-[26px] font-black tracking-tighter text-neutral-900 leading-none">{stats.classes}+</p>
-                <p className="text-[12px] text-neutral-500 mt-0.5">Clases disponibles</p>
-              </div>
-
-              <div className="absolute top-6 right-0 bg-neutral-900 border border-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl animate-float-slow-2">
-                <p className="text-[26px] font-black tracking-tighter text-white leading-none">{stats.teachers}+</p>
-                <p className="text-[12px] text-neutral-400 mt-0.5">Profesores verificados</p>
-              </div>
-
-              <div className="absolute bottom-8 right-6 bg-white border border-neutral-900 rounded-2xl px-4.5 py-3 shadow-xl animate-float-slow [animation-delay:1s]">
-                <p className="text-[22px] font-black tracking-tighter text-neutral-900 leading-none">{stats.styles}</p>
-                <p className="text-[12px] text-neutral-500 mt-0.5">Estilos de baile</p>
-              </div>
+              )}
             </div>
+
+            <div className="w-px bg-neutral-200 my-2" />
+
+            <div className="flex-1 relative flex items-center gap-3 px-5 py-2.5 min-w-0" ref={cityRef}>
+              <MapPin className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
+              <div className="text-left min-w-0 flex-1">
+                <p className="font-bold text-[12px] text-neutral-900 leading-none">¿En qué ciudad?</p>
+                <input
+                  type="text"
+                  placeholder="¿Dónde bailas?"
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  onFocus={() => setCityOpen(true)}
+                  className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
+                />
+              </div>
+
+              {cityOpen && filteredCities.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50">
+                  {filteredCities.map(c => (
+                    <button key={c} type="button" onClick={() => pickCity(c)}
+                      className="w-full text-left px-4 py-2 text-[13.5px] text-neutral-700 hover:bg-neutral-50 transition-colors">
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button type="submit" className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] transition-colors">
+              <Search className="w-4 h-4" /> Buscar
+            </button>
+          </form>
+
+          <div className="shrink-0 bg-neutral-900 rounded-2xl px-4 py-2.5 shadow-xl text-left">
+            <p className="font-black text-[20px] text-white leading-none">{stats.teachers}+</p>
+            <p className="text-[11px] text-white/60 mt-0.5 whitespace-nowrap">Profesores</p>
+          </div>
+        </div>
+
+        <div className="relative z-10 max-w-[880px] mx-auto px-6 text-center mt-[22px] pb-9">
+          <Link href="/clases" className="inline-flex items-center gap-2 font-bold text-[14.5px] text-white underline underline-offset-4 hover:text-white/80 transition-colors">
+            Explorar todas las clases
+            <ArrowRight className="w-[15px] h-[15px]" />
+          </Link>
+        </div>
+      </div>
+
+      {/* ── HERO — mobile (F1) ── */}
+      <div className="md:hidden bg-white">
+        <Header transparent homeNav />
+
+        <div className="relative overflow-hidden pb-7">
+          <Image
+            src="/BBkynea.jpg"
+            alt="Bailarina en movimiento"
+            fill
+            priority
+            sizes="100vw"
+            className="absolute inset-0 object-cover"
+            style={{ objectPosition: '55% 25%' }}
+          />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.5) 0%, rgba(13,13,13,.15) 45%, rgba(13,13,13,0) 100%)' }} />
+
+          <div className="relative z-10 px-6 pt-10">
+            <h1 className="font-black text-[30px] leading-[1.1] tracking-[-0.03em] text-white">
+              Tu próxima clase<br />de baile te está<br />esperando.
+            </h1>
+          </div>
+
+          <div className="relative z-10 mx-5 mt-7 bg-white rounded-3xl shadow-xl p-5 flex flex-col gap-2.5">
+            <button type="button" onClick={() => setMobileSearch('style')}
+              className="w-full flex items-center gap-3 border border-neutral-200 rounded-2xl px-4 py-3 text-left">
+              <Search className="w-[19px] h-[19px] text-primary shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11.5px] text-neutral-400">¿Qué quieres bailar?</p>
+                <p className="text-[15px] text-neutral-900 mt-0.5 truncate">
+                  {query || 'Busca clases, academias, profesores…'}
+                </p>
+              </div>
+            </button>
+
+            <button type="button" onClick={() => setMobileSearch('city')}
+              className="w-full flex items-center gap-3 border border-neutral-200 rounded-2xl px-4 py-3 text-left">
+              <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11.5px] text-neutral-400">¿En qué ciudad?</p>
+                <p className="text-[15px] text-neutral-900 mt-0.5 truncate">
+                  {city || '¿Dónde bailas?'}
+                </p>
+              </div>
+            </button>
+
+            <button type="button" onClick={navigateSearch}
+              className="w-full font-black text-[15.5px] text-white bg-primary hover:bg-primary-dark rounded-full py-3.5 mt-1.5 transition-colors">
+              Buscar
+            </button>
+
+            <Link href="/clases" className="block text-center font-bold text-[13.5px] text-primary mt-1">
+              Explorar clases
+            </Link>
           </div>
         </div>
       </div>
+
+      {/* ── Overlay mobile: buscador de estilo (G2) ── */}
+      {mobileSearch === 'style' && (
+        <div className="md:hidden fixed inset-0 z-[60] bg-white flex flex-col">
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
+            <button type="button" onClick={() => setMobileSearch(null)} aria-label="Volver">
+              <ArrowLeft className="w-5 h-5 text-neutral-900" />
+            </button>
+            <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border-2 border-primary rounded-xl px-3.5 py-2.5">
+              <Search className="w-[17px] h-[17px] text-primary shrink-0" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Busca clases, academias, profesores…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className="flex-1 min-w-0 text-[15px] text-neutral-900 outline-none bg-transparent"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pb-8">
+            {matchingStyles.length > 0 && (
+              <div className="pt-4">
+                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Estilos</p>
+                {matchingStyles.map(s => (
+                  <button key={s.id} type="button" onClick={() => pickStyle(s.name)}
+                    className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
+                    <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0">
+                      <Search className="w-[17px] h-[17px] text-primary" />
+                    </div>
+                    <span className="text-[14.5px] text-neutral-900">{s.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {isSearching && (
+              <div className="flex items-center gap-2 px-5 py-4 text-[13px] text-neutral-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando…
+              </div>
+            )}
+
+            {!isSearching && suggestions.classes.length === 0 && suggestions.profiles.length === 0 && matchingStyles.length === 0 && query.trim().length >= 2 && (
+              <p className="px-5 py-4 text-[13px] text-neutral-400">Sin resultados para &ldquo;{query}&rdquo;</p>
+            )}
+
+            {suggestions.classes.length > 0 && (
+              <div className="pt-4">
+                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Clases</p>
+                {suggestions.classes.map(cls => {
+                  const mainStyle = (cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0])?.dance_styles?.[0];
+                  return (
+                    <button key={cls.id} type="button" onClick={() => goToClass(cls)}
+                      className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
+                      <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0 text-sm">💃</div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{cls.title}</p>
+                        <p className="text-[11.5px] text-neutral-400">{mainStyle?.name ?? ''} · {getTypeLabel(cls.type)}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {suggestions.profiles.length > 0 && (
+              <div className="pt-4">
+                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Profesores</p>
+                {suggestions.profiles.map(p => (
+                  <button key={p.id} type="button" onClick={() => goToProfile(p)}
+                    className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
+                    {p.photo_url ? (
+                      <div className="relative w-[34px] h-[34px] rounded-full overflow-hidden shrink-0">
+                        <SmartImage src={p.photo_url} alt={p.name} fill sizes="34px" className="object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-[34px] h-[34px] rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
+                        {p.name.charAt(0)}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{p.name}</p>
+                      <p className="text-[11.5px] text-neutral-400 capitalize">{p.role}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {hasSuggestions && (
+              <div className="px-5 pt-4">
+                <button type="button" onClick={navigateSearch} className="text-[13.5px] font-bold text-primary">
+                  Ver todos los resultados para &ldquo;{query}&rdquo; →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Overlay mobile: buscador de ciudad (G3) ── */}
+      {mobileSearch === 'city' && (
+        <div className="md:hidden fixed inset-0 z-[60] bg-white flex flex-col">
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
+            <button type="button" onClick={() => setMobileSearch(null)} aria-label="Volver">
+              <ArrowLeft className="w-5 h-5 text-neutral-900" />
+            </button>
+            <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border-2 border-primary rounded-xl px-3.5 py-2.5">
+              <MapPin className="w-[17px] h-[17px] text-primary shrink-0" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Busca tu ciudad…"
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                className="flex-1 min-w-0 text-[15px] text-neutral-900 outline-none bg-transparent"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pb-8">
+            <p className="px-5 pt-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">
+              {city.trim() ? 'Ciudades' : 'Ciudades populares'}
+            </p>
+            {filteredCities.length === 0 && (
+              <p className="px-5 py-3 text-[13px] text-neutral-400">Sin resultados para &ldquo;{city}&rdquo;</p>
+            )}
+            {filteredCities.map(c => (
+              <button key={c} type="button" onClick={() => pickCity(c)}
+                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-neutral-50 transition-colors text-left">
+                <MapPin className="w-[17px] h-[17px] text-neutral-400 shrink-0" />
+                <span className="text-[14.5px] font-semibold text-neutral-900">{c}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── CATEGORÍAS ── */}
       <section className="bg-white py-8">
@@ -446,7 +679,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 </div>
 
                 {/* Legibility + hover overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/0 transition-opacity duration-200 group-hover:from-black/60" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-primary/10 to-black/0 transition-opacity duration-200 group-hover:from-primary-dark/70" />
 
                 {/* Content: name bottom-left */}
                 <div className="relative z-10 p-4 h-full flex flex-col justify-end">
@@ -466,7 +699,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
           <div className="flex items-end justify-between mb-6">
             <div>
               <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases de baile para ti</h2>
-              <p className="text-neutral-500 text-[15px] mt-1">Seleccionadas para ti</p>
+              <p className="text-neutral-600 text-[15px] mt-1">Seleccionadas para ti</p>
             </div>
             <div className="hidden sm:flex items-center gap-3">
               <Link href="/clases" className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
@@ -580,7 +813,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                       )}
                     </div>
                     {t.nationality && (
-                      <p className="text-[13px] text-neutral-500 mb-2">
+                      <p className="text-[13px] text-neutral-600 mb-2">
                         <MapPin className="w-3 h-3 inline mr-0.5 -mt-px" />
                         {t.nationality}
                       </p>
@@ -611,7 +844,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
               <div>
                 <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Profesores destacados</h2>
-                <p className="text-neutral-500 text-[15px] mt-1">Los mejores instructores de Latinoamérica</p>
+                <p className="text-neutral-600 text-[15px] mt-1">Los mejores instructores de Latinoamérica</p>
               </div>
               <div className="flex items-center gap-3">
                 <Link href="/profesores" className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
@@ -694,7 +927,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="text-center mb-14">
             <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug mb-2">¿Cómo funciona?</h2>
-            <p className="text-neutral-500 text-[15px]">Encuentra tu clase en tres pasos simples</p>
+            <p className="text-neutral-600 text-[15px]">Encuentra tu clase en tres pasos simples</p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-0">
@@ -712,7 +945,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   </div>
                   <div>
                     <h3 className="font-bold text-neutral-900 text-[17px] mb-1.5">{item.title}</h3>
-                    <p className="text-[15px] text-neutral-500 leading-relaxed">{item.desc}</p>
+                    <p className="text-[15px] text-neutral-600 leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               );

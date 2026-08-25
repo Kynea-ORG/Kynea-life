@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Menu, X, User, Settings, LogOut,
-  LayoutDashboard, PlusCircle, ChevronDown, Building2,
+  LayoutDashboard, PlusCircle, ChevronDown, Building2, GraduationCap,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
@@ -31,6 +31,13 @@ const ROLE_LABEL: Record<Role, string> = {
 
 const NAV_LINKS = [
   { label: 'Explorar clases', href: '/clases' },
+];
+
+// Solo se agregan al panel del menú mobile cuando homeNav — el resto del
+// sitio (incl. /unete/beneficios, que también usa transparent) no las ve.
+const HOME_MENU_EXTRA_LINKS = [
+  { label: '¿Tienes una academia?', href: '/academias', Icon: Building2 },
+  { label: 'Sé profesor en Kynea', href: '/unete/beneficios', Icon: GraduationCap },
 ];
 
 function Avatar({
@@ -63,7 +70,7 @@ function Avatar({
   );
 }
 
-export default function Header({ transparent = false }: { transparent?: boolean }) {
+export default function Header({ transparent = false, homeNav = false }: { transparent?: boolean; homeNav?: boolean }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -112,6 +119,10 @@ export default function Header({ transparent = false }: { transparent?: boolean 
 
   const isLoggedIn = !!profile;
   const canPublish = profile?.role === 'profesor' || profile?.role === 'academia';
+  // El patrón de nav "home" (links de negocio junto al logo, CTA
+  // simplificado) solo tiene sentido para un visitante anónimo — logueado
+  // ya ve el flujo normal (Publicar clase / avatar) sin importar homeNav.
+  const showHomeAnon = homeNav && !authLoading && !isLoggedIn;
 
   async function logout() {
     const supabase = createClient();
@@ -129,37 +140,64 @@ export default function Header({ transparent = false }: { transparent?: boolean 
 
   return (
     <header className={
-      transparent
+      homeNav
+        ? 'bg-white border-b border-neutral-100 md:bg-transparent md:border-0 md:absolute md:top-0 md:left-0 md:right-0 md:z-50'
+        : transparent
         ? 'absolute top-0 left-0 right-0 z-50 bg-transparent'
         : 'bg-white border-b border-neutral-200 sticky top-0 z-50'
     }>
       <div className="max-w-[1200px] mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
 
-        {/* Logo */}
+        {/* Logo — en homeNav el mobile siempre es la barra blanca (logo
+            oscuro) y el desktop es el overlay transparente (logo blanco);
+            fuera de homeNav, una sola imagen según `transparent`. */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <Image
-            src={transparent ? '/logo-white.png' : '/logo.png'}
-            alt="Kynea"
-            width={110}
-            height={36}
-            priority
-            style={{ height: 'auto' }}
-          />
+          {homeNav ? (
+            <>
+              <Image src="/logo.png" alt="Kynea" width={110} height={36} priority style={{ height: 'auto' }} className="md:hidden" />
+              <Image src="/logo-white.png" alt="Kynea" width={110} height={36} priority style={{ height: 'auto' }} className="hidden md:block" />
+            </>
+          ) : (
+            <Image
+              src={transparent ? '/logo-white.png' : '/logo.png'}
+              alt="Kynea"
+              width={110}
+              height={36}
+              priority
+              style={{ height: 'auto' }}
+            />
+          )}
           {process.env.NEXT_PUBLIC_APP_ENV === 'development' && (
-            <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-400 text-amber-950 rounded px-1.5 py-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wide bg-amber text-amber-text rounded px-1.5 py-0.5">
               dev
             </span>
           )}
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1 flex-1">
-          {NAV_LINKS.map(item => (
-            <Link key={item.href} href={item.href} className={linkBase}>
-              {item.label}
+        {showHomeAnon && (
+          <div className="hidden md:flex items-center gap-5 flex-1">
+            <div className="w-px h-[22px] bg-white/25" />
+            <Link href="/academias" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_academia' })}
+              className="font-sans text-[14px] font-medium text-white/85 hover:text-white transition-colors">
+              ¿Tienes una academia?
             </Link>
-          ))}
-        </nav>
+            <Link href="/unete/beneficios" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_profesor' })}
+              className="font-sans text-[14px] font-medium text-white/85 hover:text-white transition-colors">
+              Sé profesor
+            </Link>
+          </div>
+        )}
+
+        {/* Desktop nav */}
+        {!showHomeAnon && (
+          <nav className="hidden md:flex items-center gap-1 flex-1">
+            {NAV_LINKS.map(item => (
+              <Link key={item.href} href={item.href} className={linkBase}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        )}
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
@@ -192,7 +230,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                     <p className={`font-sans text-[13px] font-bold leading-tight ${transparent ? 'text-white' : 'text-neutral-900'}`}>
                       {profile.name.split(' ')[0]}
                     </p>
-                    <p className={`font-sans text-[11px] leading-tight ${transparent ? 'text-white/70' : 'text-neutral-500'}`}>
+                    <p className={`font-sans text-[11px] leading-tight ${transparent ? 'text-white/70' : 'text-neutral-600'}`}>
                       {ROLE_LABEL[profile.role]}
                     </p>
                   </div>
@@ -205,7 +243,7 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                       <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-9 h-9" />
                       <div className="min-w-0">
                         <p className="font-sans text-[13px] font-bold text-neutral-900 truncate">{profile.name}</p>
-                        <p className="font-sans text-[11px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
+                        <p className="font-sans text-[11px] text-neutral-600">{ROLE_LABEL[profile.role]}</p>
                       </div>
                     </div>
                     <Link href="/dashboard" onClick={() => setUserMenuOpen(false)}
@@ -222,13 +260,24 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                     </Link>
                     <div className="border-t border-neutral-100">
                       <button onClick={logout}
-                        className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-500 hover:text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors">
+                        className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-600 hover:text-red hover:bg-red-bg active:bg-red-bg transition-colors">
                         <LogOut className="w-4 h-4 shrink-0" /> Cerrar sesión
                       </button>
                     </div>
                   </div>
                 )}
               </div>
+            </>
+          ) : showHomeAnon ? (
+            <>
+              <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_home_desktop' })}
+                className="font-sans text-[14.5px] font-bold px-4.5 py-2 rounded-full border border-white/55 text-white hover:bg-white/10 transition-colors active:scale-[0.97]">
+                Iniciar sesión
+              </Link>
+              <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_registro' })}
+                className="font-sans text-[14.5px] font-black px-5 py-2 rounded-full bg-white text-neutral-900 hover:bg-neutral-100 transition-colors active:scale-[0.97]">
+                Regístrate gratis
+              </Link>
             </>
           ) : (
             <>
@@ -251,9 +300,15 @@ export default function Header({ transparent = false }: { transparent?: boolean 
         {/* Mobile: avatar + hamburger */}
         <div className="md:hidden flex items-center gap-2">
           {!authLoading && isLoggedIn && <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-8 h-8" className="border-2 border-neutral-200" />}
+          {showHomeAnon && (
+            <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_mobile_registro' })}
+              className="font-sans text-[13px] font-bold text-primary border border-neutral-200 rounded-full px-3.5 py-2">
+              Regístrate
+            </Link>
+          )}
           <button
             className={`p-2 rounded-md transition-colors active:scale-90 ${
-              transparent ? 'text-white hover:bg-white/10' : 'text-neutral-700 hover:bg-neutral-100'
+              homeNav ? 'text-neutral-700 hover:bg-neutral-100' : transparent ? 'text-white hover:bg-white/10' : 'text-neutral-700 hover:bg-neutral-100'
             }`}
             onClick={() => setMobileOpen(v => !v)}
             aria-label="Menú"
@@ -273,12 +328,12 @@ export default function Header({ transparent = false }: { transparent?: boolean 
               <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-11 h-11" />
               <div>
                 <p className="font-sans text-[15px] font-bold text-neutral-900">{profile.name}</p>
-                <p className="font-sans text-[13px] text-neutral-500">{ROLE_LABEL[profile.role]}</p>
+                <p className="font-sans text-[13px] text-neutral-600">{ROLE_LABEL[profile.role]}</p>
               </div>
             </div>
           ) : (
             <div className="px-5 py-4 border-b border-neutral-100">
-              <p className="font-sans text-[14px] text-neutral-500">Encuentra clases de baile en Latinoamérica</p>
+              <p className="font-sans text-[14px] text-neutral-600">Encuentra clases de baile en Latinoamérica</p>
             </div>
           )}
 
@@ -288,6 +343,12 @@ export default function Header({ transparent = false }: { transparent?: boolean 
               <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                 className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
                 {item.label}
+              </Link>
+            ))}
+            {homeNav && HOME_MENU_EXTRA_LINKS.map(item => (
+              <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
+                <item.Icon className="w-4 h-4 shrink-0 text-primary" /> {item.label}
               </Link>
             ))}
           </div>
@@ -315,9 +376,20 @@ export default function Header({ transparent = false }: { transparent?: boolean 
                   </Link>
                 )}
                 <button onClick={logout}
-                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-500 hover:text-red-500 hover:bg-red-50 active:bg-red-100 w-full transition-colors mt-1">
+                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-600 hover:text-red hover:bg-red-bg active:bg-red-bg w-full transition-colors mt-1">
                   <LogOut className="w-4 h-4 shrink-0" /> Cerrar sesión
                 </button>
+              </>
+            ) : homeNav ? (
+              <>
+                <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'header_home_mobile' }); setMobileOpen(false); }}
+                  className="font-sans flex items-center justify-center mt-1 mb-2 text-[15px] font-semibold px-5 py-3 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 active:scale-[0.97] transition-[background-color]">
+                  Iniciar sesión
+                </Link>
+                <Link href="/registro" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_home_mobile_registro' }); setMobileOpen(false); }}
+                  className="font-sans flex items-center justify-center mb-1 text-[15px] font-bold px-5 py-3 bg-primary text-white rounded-btn hover:bg-primary-dark active:scale-[0.97] transition-[background-color]">
+                  Regístrate gratis
+                </Link>
               </>
             ) : (
               <>
