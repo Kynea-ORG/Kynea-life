@@ -70,7 +70,15 @@ function Avatar({
   );
 }
 
-export default function Header({ transparent = false, homeNav = false }: { transparent?: boolean; homeNav?: boolean }) {
+export default function Header({
+  transparent = false,
+  homeNav = false,
+  className = '',
+}: {
+  transparent?: boolean;
+  homeNav?: boolean;
+  className?: string;
+}) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -141,10 +149,10 @@ export default function Header({ transparent = false, homeNav = false }: { trans
   return (
     <header className={
       homeNav
-        ? 'bg-white border-b border-neutral-100 md:bg-transparent md:border-0 md:absolute md:top-0 md:left-0 md:right-0 md:z-50'
+        ? `bg-white border-b border-neutral-100 md:bg-transparent md:border-0 md:absolute md:top-0 md:left-0 md:right-0 md:z-50 ${className}`
         : transparent
-        ? 'absolute top-0 left-0 right-0 z-50 bg-transparent'
-        : 'bg-white border-b border-neutral-200 sticky top-0 z-50'
+        ? `absolute top-0 left-0 right-0 z-50 bg-transparent ${className}`
+        : `bg-white border-b border-neutral-200 sticky top-0 z-50 ${className}`
     }>
       <div className="max-w-[1200px] mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
 
