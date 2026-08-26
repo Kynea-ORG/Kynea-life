@@ -21,7 +21,7 @@ export default async function ContactosPage() {
     <div className="p-6 lg:p-8 max-w-4xl">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-neutral-900">Contactos e interacciones</h1>
-        <p className="text-neutral-500 text-sm mt-1">
+        <p className="text-neutral-600 text-sm mt-1">
           Métricas reales de tus {published.length} clase{published.length !== 1 ? 's' : ''} publicadas
         </p>
       </div>
@@ -38,7 +38,7 @@ export default async function ContactosPage() {
             <div key={stat.label} className={`${stat.bg} rounded-xl p-5 border border-neutral-200`}>
               <Icon className={`w-5 h-5 ${stat.color} mb-3`} />
               <p className={`text-[28px] font-black ${stat.color}`}>{stat.value}</p>
-              <p className="text-[13px] font-medium text-neutral-500 mt-0.5">{stat.label}</p>
+              <p className="text-[13px] font-medium text-neutral-600 mt-0.5">{stat.label}</p>
             </div>
           );
         })}
@@ -48,14 +48,14 @@ export default async function ContactosPage() {
       {published.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-xl border border-neutral-200">
           <TrendingUp className="w-10 h-10 mx-auto mb-3 text-neutral-300" />
-          <p className="font-semibold text-neutral-500">Aún no tienes clases publicadas</p>
+          <p className="font-semibold text-neutral-600">Aún no tienes clases publicadas</p>
           <p className="text-sm text-neutral-400 mt-1">Publica tu primera clase para ver las métricas aquí</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
           <div className="divide-y divide-neutral-100">
             {/* Header */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-neutral-50 text-[12px] font-semibold text-neutral-500 uppercase tracking-wide">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-neutral-50 text-[12px] font-semibold text-neutral-600 uppercase tracking-wide">
               <span>Clase</span>
               <span className="w-20 text-center">Contactos</span>
               <span className="w-16 text-center">Vistas</span>

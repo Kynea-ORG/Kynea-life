@@ -57,7 +57,7 @@ export default async function DashboardPage() {
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-[24px] font-black text-neutral-900 tracking-snug">Hola, {firstName} 👋</h1>
-          <p className="text-neutral-500 text-[15px] mt-1">Aquí tienes el resumen de tu actividad</p>
+          <p className="text-neutral-600 text-[15px] mt-1">Aquí tienes el resumen de tu actividad</p>
         </div>
         <div className="hidden sm:flex gap-3">
           <Link href="/dashboard/importar-csv" className="btn-outline btn-sm flex items-center gap-2">
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
                 <Icon className={`w-4 h-4 ${m.text}`} />
               </div>
               <p className={`text-[24px] font-black ${m.text}`}>{m.value}</p>
-              <p className="text-[13px] font-medium text-neutral-500 mt-0.5">{m.label}</p>
+              <p className="text-[13px] font-medium text-neutral-600 mt-0.5">{m.label}</p>
             </div>
           );
         })}
@@ -127,12 +127,12 @@ export default async function DashboardPage() {
                     {getStatusLabel(cls.status)}
                   </span>
                 </div>
-                <p className="text-[13px] text-neutral-500 mt-0.5 truncate">{formatTimeSlots(cls.timeSlots)}</p>
+                <p className="text-[13px] text-neutral-600 mt-0.5 truncate">{formatTimeSlots(cls.timeSlots)}</p>
                 <div className="hidden sm:flex items-center gap-4 mt-1.5">
-                  <span className="text-[13px] text-neutral-500 flex items-center gap-1">
+                  <span className="text-[13px] text-neutral-600 flex items-center gap-1">
                     <Eye className="w-3 h-3" /> {cls.metrics.views} vistas
                   </span>
-                  <span className="text-[13px] text-neutral-500 flex items-center gap-1">
+                  <span className="text-[13px] text-neutral-600 flex items-center gap-1">
                     <MessageCircle className="w-3 h-3" /> {cls.metrics.contacts} contactos
                   </span>
                   <span className="text-[13px] font-semibold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
                   <span className="text-[13px] font-semibold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
                 </div>
               </div>
-              <Link href={classUrl(cls)} className="text-[13px] text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors shrink-0">
+              <Link href={classUrl(cls)} className="text-[13px] text-neutral-600 hover:text-neutral-900 flex items-center gap-1 transition-colors shrink-0">
                 Ver <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -167,7 +167,7 @@ export default async function DashboardPage() {
           </div>
           <div>
             <p className="font-bold text-[15px]">Subir clases masivas</p>
-            <p className="text-[13px] text-neutral-500">Desde un archivo CSV</p>
+            <p className="text-[13px] text-neutral-600">Desde un archivo CSV</p>
           </div>
           <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
         </Link>

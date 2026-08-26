@@ -5,6 +5,7 @@ import Image from 'next/image';
 import SmartImage from '@/components/SmartImage';
 import { Loader2, Eye, EyeOff, Check, X } from 'lucide-react';
 import GoogleIcon from '@/components/GoogleIcon';
+import ErrorBanner from '@/components/ErrorBanner';
 
 const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: 'Mínimo 8 caracteres',       test: pw => pw.length >= 8 },
@@ -131,15 +132,11 @@ function RegistroPageContent() {
         <div className="relative z-10 -mt-7 lg:mt-0 flex-1 flex items-start lg:items-center justify-center px-5 pt-8 pb-12 lg:py-16 bg-white rounded-t-[28px] lg:rounded-none">
           <div className="w-full max-w-md">
             <h1 className="hidden lg:block text-[28px] font-black text-neutral-900 tracking-tight mb-1">Crear cuenta</h1>
-            <p className="hidden lg:block text-[15px] text-neutral-500 mb-7">
+            <p className="hidden lg:block text-[15px] text-neutral-600 mb-7">
               Regístrate gratis para contactar profesores y guardar tus clases favoritas.
             </p>
 
-            {error && (
-              <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in mb-4">
-                {error}
-              </div>
-            )}
+            {error && <ErrorBanner className="mb-4">{error}</ErrorBanner>}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-5">
               <div>
@@ -192,7 +189,7 @@ function RegistroPageContent() {
                 {form.password.length > 0 && (
                   <ul className="flex flex-col gap-1 mt-2 animate-fade-in">
                     {passwordChecks.map(c => (
-                      <li key={c.label} className={`flex items-center gap-2 text-[12px] font-figtree ${c.ok ? 'text-green-600' : 'text-neutral-400'}`}>
+                      <li key={c.label} className={`flex items-center gap-2 text-[12px] font-figtree ${c.ok ? 'text-green' : 'text-neutral-400'}`}>
                         {c.ok
                           ? <Check className="w-3.5 h-3.5 shrink-0" />
                           : <X className="w-3.5 h-3.5 shrink-0" />
@@ -212,7 +209,7 @@ function RegistroPageContent() {
                   onChange={e => { setTermsAccepted(e.target.checked); shift(); }}
                   className="mt-0.5 w-4 h-4 accent-neutral-900 shrink-0"
                 />
-                <span className="text-[13px] text-neutral-500 leading-relaxed">
+                <span className="text-[13px] text-neutral-600 leading-relaxed">
                   Acepto los{' '}
                   <a href="/terminos" target="_blank" rel="noopener noreferrer" className="text-neutral-900 font-semibold hover:underline">
                     Términos y condiciones
@@ -229,7 +226,7 @@ function RegistroPageContent() {
                 type="submit"
                 disabled={loading || !passwordValid || !termsAccepted}
                 onClick={shift}
-                className="btn-primary w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="btn-primary w-full mt-1 flex items-center justify-center gap-2"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? 'Creando cuenta…' : 'Crear cuenta'}
@@ -240,7 +237,7 @@ function RegistroPageContent() {
               type="button"
               onClick={() => { handleGoogle(); shift(); }}
               disabled={googleLoading}
-              className="w-full btn-outline disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full btn-outline flex items-center justify-center gap-2"
             >
               {googleLoading
                 ? <Loader2 className="w-4 h-4 animate-spin" />

@@ -159,7 +159,7 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
         <div className="p-4 border-t border-neutral-200">
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-neutral-500 hover:text-red-500 hover:bg-red-50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Cerrar sesión

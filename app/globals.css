@@ -40,8 +40,26 @@
   --color-neutral-800: #1A1A19;
   --color-neutral-900: #0D0D0D;
 
-  --color-red:    #DC2626;
-  --color-red-bg: #FEF2F2;
+  --color-red:      #DC2626;
+  --color-red-dark: #B91C1C;
+  --color-red-text: #991B1B;
+  --color-red-bg:   #FEF2F2;
+
+  /* Ámbar — estados de warning/pendiente (ej. "En revisión"). Distinto de
+     --color-yellow: ese es el acento de marca (badges "últimos cupos", CTA
+     ring), no un color semántico de alerta — así que no se reutiliza aquí. */
+  --color-amber:      #D97706;
+  --color-amber-dark: #B45309;
+  --color-amber-text: #92400E;
+  --color-amber-bg:   #FFFBEB;
+
+  /* Marcas externas (WhatsApp, Instagram) — no son parte de la paleta de
+     Kynea, se documentan aparte para que dejen de repetirse como hex suelto
+     en cada componente que arma un botón de contacto. */
+  --color-whatsapp:       #25D366;
+  --color-whatsapp-dark:  #20BC5A;
+  --color-instagram:      #E1306C;
+  --color-instagram-dark: #C9225A;
 
   /* TIPOGRAFÍA ── */
   --font-sans:    'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -275,7 +293,8 @@
            px-7 py-[14px] rounded-btn border
            bg-primary border-neutral-900 text-white
            transition-[transform,background-color] duration-200 ease-out cursor-pointer
-           hover:bg-primary-dark active:scale-[0.97];
+           hover:bg-primary-dark active:scale-[0.97]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary disabled:active:scale-100;
   }
 
   .btn-outline {
@@ -284,7 +303,8 @@
            px-7 py-[14px] rounded-btn border
            bg-transparent border-neutral-900 text-neutral-900
            transition-[transform,background-color] duration-200 ease-out cursor-pointer
-           hover:bg-neutral-50 active:scale-[0.97];
+           hover:bg-neutral-50 active:scale-[0.97]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:active:scale-100;
   }
 
   .btn-dark {
@@ -293,7 +313,8 @@
            px-7 py-[14px] rounded-btn border
            bg-neutral-900 border-neutral-900 text-white
            transition-[transform,background-color,border-color] duration-200 ease-out cursor-pointer
-           hover:bg-neutral-800 hover:border-neutral-800 active:scale-[0.97];
+           hover:bg-neutral-800 hover:border-neutral-800 active:scale-[0.97]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-neutral-900 disabled:hover:border-neutral-900 disabled:active:scale-100;
   }
 
   .btn-sm {

@@ -360,7 +360,7 @@ function OnboardingContent() {
           {step === 0 && (
             <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Tus datos públicos</h2>
-              <p className="text-sm text-neutral-500 mb-6">Esto es lo que verán los alumnos en tu perfil</p>
+              <p className="text-sm text-neutral-600 mb-6">Esto es lo que verán los alumnos en tu perfil</p>
               <div className="space-y-4">
                 <div className="flex flex-col items-center gap-3 mb-4">
                   <input
@@ -423,7 +423,7 @@ function OnboardingContent() {
                   <div key={field.key}>
                     <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
                       {field.label}
-                      {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                      {field.required && <span className="text-red ml-0.5">*</span>}
                     </label>
                     {field.type === 'textarea' ? (
                       <textarea
@@ -446,7 +446,7 @@ function OnboardingContent() {
                 ))}
                 <div>
                   <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                    Nacionalidad <span className="text-red-500">*</span>
+                    Nacionalidad <span className="text-red">*</span>
                   </label>
                   <select
                     value={form.nationality}
@@ -465,11 +465,11 @@ function OnboardingContent() {
           {step === 1 && (
             <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Contacto y redes</h2>
-              <p className="text-sm text-neutral-500 mb-6">Los alumnos te contactarán por estos canales</p>
+              <p className="text-sm text-neutral-600 mb-6">Los alumnos te contactarán por estos canales</p>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                    WhatsApp <span className="text-red-500">*</span>
+                    WhatsApp <span className="text-red">*</span>
                   </label>
                   <div className="flex gap-2">
                     <select
@@ -506,7 +506,7 @@ function OnboardingContent() {
                   <div key={f.key}>
                     <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
                       {f.label}
-                      {f.required && <span className="text-red-500 ml-0.5">*</span>}
+                      {f.required && <span className="text-red ml-0.5">*</span>}
                     </label>
                     <input
                       type="text"
@@ -518,7 +518,7 @@ function OnboardingContent() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-neutral-400 mt-4"><span className="text-red-500">*</span> Al menos uno es obligatorio</p>
+              <p className="text-xs text-neutral-400 mt-4"><span className="text-red">*</span> Al menos uno es obligatorio</p>
             </div>
           )}
 
@@ -526,8 +526,8 @@ function OnboardingContent() {
           {step === 2 && (
             <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Tu especialidad</h2>
-              <p className="text-sm text-neutral-500 mb-4">
-                ¿Qué estilos enseñas? <span className="text-red-500">*</span>
+              <p className="text-sm text-neutral-600 mb-4">
+                ¿Qué estilos enseñas? <span className="text-red">*</span>
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
                 {availableStyles.map(s => (
@@ -562,7 +562,7 @@ function OnboardingContent() {
           {role === 'academia' && step === 3 && (
             <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Tu academia</h2>
-              <p className="text-sm text-neutral-500 mb-6">Esto ayuda a los alumnos a ubicarte y a Kynea a revisar tu cuenta más rápido — todo es opcional</p>
+              <p className="text-sm text-neutral-600 mb-6">Esto ayuda a los alumnos a ubicarte y a Kynea a revisar tu cuenta más rápido — todo es opcional</p>
               <div className="space-y-4">
                 {[
                   { key: 'ruc', label: 'RUC (opcional)', placeholder: '20123456789' },
@@ -712,35 +712,35 @@ function OnboardingContent() {
           {step === STEPS.length - 1 && (
             <div className="animate-fade-in">
               <h2 className="text-xl font-black text-neutral-900 mb-2">Confirmar y guardar</h2>
-              <p className="text-sm text-neutral-500 mb-6">Revisa tu información antes de guardar</p>
+              <p className="text-sm text-neutral-600 mb-6">Revisa tu información antes de guardar</p>
               <div className="space-y-3">
                 {form.publicName && (
                   <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
-                    <span className="text-neutral-500">Nombre</span>
+                    <span className="text-neutral-600">Nombre</span>
                     <span className="font-semibold text-neutral-900">{form.publicName}</span>
                   </div>
                 )}
                 {form.nationality && (
                   <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
-                    <span className="text-neutral-500">Nacionalidad</span>
+                    <span className="text-neutral-600">Nacionalidad</span>
                     <span className="font-semibold text-neutral-900">{form.nationality}</span>
                   </div>
                 )}
                 {form.styles.length > 0 && (
                   <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
-                    <span className="text-neutral-500">Estilos</span>
+                    <span className="text-neutral-600">Estilos</span>
                     <span className="font-semibold text-neutral-900">{form.styles.join(', ')}</span>
                   </div>
                 )}
                 {waNumber && (
                   <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
-                    <span className="text-neutral-500">WhatsApp</span>
+                    <span className="text-neutral-600">WhatsApp</span>
                     <span className="font-semibold text-neutral-900">{waCode} {waNumber}</span>
                   </div>
                 )}
                 {(form.instagram || form.tiktok || form.youtube) && (
                   <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
-                    <span className="text-neutral-500">Redes</span>
+                    <span className="text-neutral-600">Redes</span>
                     <span className="font-semibold text-neutral-900">
                       {[form.instagram, form.tiktok, form.youtube].filter(Boolean).join(' · ')}
                     </span>
@@ -767,7 +767,7 @@ function OnboardingContent() {
 
           {/* Navigation */}
           {error && (
-            <p className="mt-6 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3 animate-fade-in">{error}</p>
+            <p className="mt-6 text-xs text-red font-medium bg-red-bg border border-red rounded-xl px-4 py-3 animate-fade-in">{error}</p>
           )}
           <div className="flex gap-3 mt-4">
             {step > 0 && (
@@ -781,7 +781,7 @@ function OnboardingContent() {
             <button
               onClick={step === STEPS.length - 1 ? handleFinish : handleNext}
               disabled={loading}
-              className="btn-dark flex-1 disabled:opacity-60"
+              className="btn-dark flex-1"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Guardando…' : step === STEPS.length - 1 ? 'Guardar y entrar' : 'Continuar'}

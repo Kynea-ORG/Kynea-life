@@ -164,7 +164,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
         <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95 ${
           toastOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         } ${
-          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-neutral-900 text-white'
+          toast.type === 'error' ? 'bg-red text-white' : 'bg-neutral-900 text-white'
         }`}>
           <span>{toast.msg}</span>
           {toast.href && (
@@ -178,7 +178,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-black text-neutral-900">Mis clases</h1>
-          <p className="text-neutral-500 text-sm mt-1">{classes.length} clases en total</p>
+          <p className="text-neutral-600 text-sm mt-1">{classes.length} clases en total</p>
         </div>
         <Link href="/dashboard/crear-clase" className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-btn transition-colors">
           <PlusCircle className="w-4 h-4" /> Nueva clase
@@ -186,11 +186,11 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
       </div>
 
       {academiaPending && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-6 flex items-start gap-3">
+        <div className="bg-amber-bg border border-amber rounded-xl p-4 mb-6 flex items-start gap-3">
           <span className="text-xl shrink-0">⏳</span>
           <div>
-            <p className="text-xs font-bold text-amber-900 mb-0.5">Academia en proceso de revisión</p>
-            <p className="text-xs text-amber-800 leading-relaxed">
+            <p className="text-xs font-bold text-amber-text mb-0.5">Academia en proceso de revisión</p>
+            <p className="text-xs text-amber-text leading-relaxed">
               Tu cuenta de academia está siendo revisada por el equipo de Kynea. Durante este periodo puedes crear y guardar todas tus clases como borrador. En cuanto tu cuenta sea aprobada, podrás publicarlas inmediatamente.
             </p>
           </div>
@@ -204,11 +204,11 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
           return (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${
-                activeTab === tab.key ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+                activeTab === tab.key ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-700'
               }`}>
               {tab.label}
               {count > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'}`}>
                   {count}
                 </span>
               )}
@@ -221,7 +221,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
         <div className="text-center py-20">
           <div className="text-5xl mb-4">📋</div>
           <h3 className="text-lg font-bold text-neutral-900 mb-2">Sin clases en esta categoría</h3>
-          <p className="text-neutral-500 text-sm mb-6">Aún no tienes clases aquí.</p>
+          <p className="text-neutral-600 text-sm mb-6">Aún no tienes clases aquí.</p>
           <Link href="/dashboard/crear-clase" className="btn-outline text-sm">Crear clase</Link>
         </div>
       )}
@@ -231,7 +231,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
         <div role="table" aria-label="Mis clases" className="hidden md:block bg-white rounded-xl shadow-sm border border-neutral-900 overflow-hidden">
           <div
             role="row"
-            className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-500 uppercase tracking-wide"
+            className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-600 uppercase tracking-wide"
             style={{ gridTemplateColumns: '2.2fr 0.9fr 1fr 1.3fr 0.8fr 0.9fr 1.6fr' }}
           >
             <span role="columnheader">Clase</span>
@@ -260,7 +260,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                   )}
                   <div className="min-w-0">
                     <p className="font-semibold text-neutral-900 text-sm truncate">{cls.title}</p>
-                    <p className="text-xs text-neutral-500 truncate">{cls.style} · {cls.level}</p>
+                    <p className="text-xs text-neutral-600 truncate">{cls.style} · {cls.level}</p>
                   </div>
                 </div>
                 <div role="cell">
@@ -284,10 +284,10 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                   {confirmDelete === cls.id ? (
                     <div className="flex items-center gap-2 animate-fade-in">
                       <span className="text-xs text-neutral-600 whitespace-nowrap">¿Eliminar?</span>
-                      <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red-600 hover:text-red-700 whitespace-nowrap">
+                      <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red hover:text-red-text whitespace-nowrap">
                         Sí, eliminar
                       </button>
-                      <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-neutral-500 hover:text-neutral-700 whitespace-nowrap">
+                      <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-neutral-600 hover:text-neutral-700 whitespace-nowrap">
                         Cancelar
                       </button>
                     </div>
@@ -298,10 +298,10 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                           <button
                             type="button"
                             onClick={() => showToast('Tu academia todavía está en revisión. Podrás publicar tus clases en cuanto sea aprobada.', 'info')}
-                            className="text-xs px-2.5 py-1.5 rounded-btn border border-amber-300 bg-amber-50 text-amber-900 font-semibold hover:bg-amber-100 transition-colors flex items-center gap-1"
+                            className="text-xs px-2.5 py-1.5 rounded-btn border border-amber bg-amber-bg text-amber-text font-semibold hover:bg-amber/15 transition-colors flex items-center gap-1"
                             title="Tu academia todavía está en revisión"
                           >
-                            Publicar <span className="text-[10px] bg-amber-200/80 text-amber-900 font-bold px-1 py-0.2 rounded">En revisión</span>
+                            Publicar <span className="text-[10px] bg-amber-bg/80 text-amber-text font-bold px-1 py-0.2 rounded">En revisión</span>
                           </button>
                         ) : (
                           <button onClick={() => publishClass(cls.id)} disabled={isPending}
@@ -332,12 +332,12 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                       </button>
                       {cls.status === 'published' && (
                         <Link href={classUrl(cls)} title="Ver publicación" target="_blank"
-                          className="p-1.5 hover:bg-green-50 rounded-lg text-neutral-400 hover:text-green-600 transition-colors active:scale-90">
+                          className="p-1.5 hover:bg-green-bg rounded-lg text-neutral-400 hover:text-green transition-colors active:scale-90">
                           <ExternalLink className="w-4 h-4" />
                         </Link>
                       )}
                       <button title="Eliminar" onClick={() => setConfirmDelete(cls.id)}
-                        className="p-1.5 hover:bg-red-50 rounded-lg text-neutral-400 hover:text-red-500 transition-colors active:scale-90">
+                        className="p-1.5 hover:bg-red-bg rounded-lg text-neutral-400 hover:text-red transition-colors active:scale-90">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -365,7 +365,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-bold text-neutral-900 text-sm">{cls.title}</p>
-                    <p className="text-xs text-neutral-500">{cls.style} · {cls.level}</p>
+                    <p className="text-xs text-neutral-600">{cls.style} · {cls.level}</p>
                   </div>
                   <button onClick={() => setOpenMenu(openMenu === cls.id ? null : cls.id)} className="p-1 text-neutral-400">
                     <MoreHorizontal className="w-5 h-5" />
@@ -377,7 +377,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                   </span>
                   <span className="text-xs text-neutral-900 font-semibold">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
                 </div>
-                <p className="text-xs text-neutral-500 mt-1">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
+                <p className="text-xs text-neutral-600 mt-1">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
               </div>
             </div>
 
@@ -392,7 +392,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                           showToast('Tu academia todavía está en revisión. Podrás publicar tus clases en cuanto sea aprobada.', 'info');
                           setOpenMenu(null);
                         }}
-                        className="text-xs font-bold text-amber-900 flex items-center gap-1 border border-amber-300 bg-amber-50 px-3 py-1.5 rounded-btn hover:bg-amber-100 transition-colors"
+                        className="text-xs font-bold text-amber-text flex items-center gap-1 border border-amber bg-amber-bg px-3 py-1.5 rounded-btn hover:bg-amber/15 transition-colors"
                       >
                         <Eye className="w-3 h-3" /> Publicar (En revisión)
                       </button>
@@ -427,19 +427,19 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                   </button>
                   {cls.status === 'published' && (
                     <Link href={classUrl(cls)} target="_blank"
-                      className="text-xs font-medium text-green-700 flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
+                      className="text-xs font-medium text-green-text flex items-center gap-1 bg-green-bg px-3 py-1.5 rounded-lg">
                       <ExternalLink className="w-3 h-3" /> Ver
                     </Link>
                   )}
                   {confirmDelete === cls.id ? (
                     <div className="flex items-center gap-2 w-full mt-1 animate-fade-in">
                       <span className="text-xs text-neutral-600">¿Eliminar esta clase?</span>
-                      <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red-600">Sí</button>
-                      <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-neutral-500">No</button>
+                      <button onClick={() => handleDelete(cls.id)} className="text-xs font-semibold text-red">Sí</button>
+                      <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-neutral-600">No</button>
                     </div>
                   ) : (
                     <button onClick={() => setConfirmDelete(cls.id)}
-                      className="text-xs font-medium text-red-600 flex items-center gap-1 bg-red-50 px-3 py-1.5 rounded-lg animate-fade-in">
+                      className="text-xs font-medium text-red flex items-center gap-1 bg-red-bg px-3 py-1.5 rounded-lg animate-fade-in">
                       <Trash2 className="w-3 h-3" /> Eliminar
                     </button>
                   )}

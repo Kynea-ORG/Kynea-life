@@ -25,7 +25,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
   return (
     <div className="fixed inset-0 z-50">
       <div
-        className={`absolute inset-0 bg-[#0D0D0D]/45 transition-opacity duration-[250ms] ease-out starting:opacity-0 ${closing ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute inset-0 bg-neutral-900/45 transition-opacity duration-[250ms] ease-out starting:opacity-0 ${closing ? 'opacity-0' : 'opacity-100'}`}
         onClick={handleClose}
       />
 
@@ -40,7 +40,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
             <button
               onClick={handleClose}
               aria-label="Cerrar"
-              className="absolute top-6 right-6 w-9 h-9 rounded-full bg-[#F2F1EE] flex items-center justify-center hover:bg-neutral-200 transition-colors active:scale-90"
+              className="absolute top-6 right-6 w-9 h-9 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors active:scale-90"
             >
               <X className="w-4 h-4 text-neutral-900" />
             </button>
@@ -52,11 +52,11 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
             <h1 className="text-[32px] font-black text-neutral-900 tracking-tight leading-[1.08] mb-3.5">
               Contacta a tu profesor
             </h1>
-            <p className="font-figtree text-[15px] text-[#4A4A47] leading-[1.55] mb-6 max-w-[380px]">
+            <p className="font-figtree text-[15px] text-neutral-600 leading-[1.55] mb-6 max-w-[380px]">
               Crea una cuenta o inicia sesión para ver el contacto del profesor y coordinar directamente.
             </p>
 
-            <div className="flex items-center gap-3.5 bg-[#F9F8F6] border border-[#E5E4E0] rounded-xl px-4 py-3.5 mb-7 max-w-[380px]">
+            <div className="flex items-center gap-3.5 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3.5 mb-7 max-w-[380px]">
               <div className="relative w-14 h-14 rounded-[14px] overflow-hidden shrink-0 bg-neutral-900 flex items-center justify-center">
                 {cls.teacher.photo ? (
                   <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" />
@@ -66,7 +66,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
               </div>
               <div className="min-w-0 flex-1">
                 <div className="font-extrabold text-[16px] text-neutral-900">{cls.teacher.name}</div>
-                <div className="font-figtree text-[12px] text-[#6B6A67] whitespace-nowrap overflow-hidden text-ellipsis">{teacherMeta}</div>
+                <div className="font-figtree text-[12px] text-neutral-600 whitespace-nowrap overflow-hidden text-ellipsis">{teacherMeta}</div>
               </div>
             </div>
 
@@ -74,7 +74,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
               <Link
                 href={`/registro?redirect=${classUrl(cls)}`}
                 onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'contact_modal_desktop' }); onClose(); }}
-                className="flex-1 text-center py-[15px] rounded-xl border border-neutral-900 text-white font-extrabold text-[15px] bg-[#8613B9] hover:bg-[#6d0d97] transition-colors active:scale-[0.97]"
+                className="flex-1 text-center py-[15px] rounded-xl border border-neutral-900 text-white font-extrabold text-[15px] bg-primary hover:bg-primary-dark transition-colors active:scale-[0.97]"
               >
                 Registrarme gratis
               </Link>
@@ -135,7 +135,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
                 <ShieldCheck className="w-3 h-3" /> Profesor verificado
               </div>
               <span className="font-extrabold text-[16px] text-neutral-900">{cls.teacher.name}</span>
-              <div className="font-figtree text-[12px] text-[#4A4A47] whitespace-nowrap overflow-hidden text-ellipsis">{teacherMeta}</div>
+              <div className="font-figtree text-[12px] text-neutral-600 whitespace-nowrap overflow-hidden text-ellipsis">{teacherMeta}</div>
             </div>
           </div>
 
@@ -145,7 +145,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
             <Link
               href={`/registro?redirect=${classUrl(cls)}`}
               onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'contact_modal_mobile' }); onClose(); }}
-              className="w-full text-center py-[15px] rounded-xl border border-neutral-900 text-white font-extrabold text-[15px] bg-[#8613B9] active:scale-[0.97] transition-colors"
+              className="w-full text-center py-[15px] rounded-xl border border-neutral-900 text-white font-extrabold text-[15px] bg-primary active:scale-[0.97] transition-colors"
             >
               Registrarme gratis
             </Link>
@@ -253,21 +253,21 @@ function ExistingGate({
                   <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
                 </div>
               ) : (
-                <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-500">
+                <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-600">
                   {cls.teacher.name.charAt(0)}
                 </div>
               )}
               <div>
                 <p className="font-bold text-neutral-900 text-[15px]">{cls.teacher.name}</p>
-                <p className="text-[13px] text-neutral-500">{cls.title}</p>
+                <p className="text-[13px] text-neutral-600">{cls.title}</p>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
-              <p className="text-[14px] font-semibold text-amber-800 mb-1">
+            <div className="bg-amber-bg border border-amber rounded-xl p-4 mb-5">
+              <p className="text-[14px] font-semibold text-amber-text mb-1">
                 {contactType === 'instagram' ? 'Instagram no disponible' : 'WhatsApp no disponible'}
               </p>
-              <p className="text-[13px] text-amber-700 leading-relaxed">
+              <p className="text-[13px] text-amber-text leading-relaxed">
                 Este profesor aún no ha agregado su {contactType === 'instagram' ? 'Instagram' : 'número de WhatsApp'}. Intenta más tarde o explora otras clases similares.
               </p>
             </div>
@@ -283,13 +283,13 @@ function ExistingGate({
                   <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="48px" className="object-cover" />
                 </div>
               ) : (
-                <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-500">
+                <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-lg font-bold text-neutral-600">
                   {cls.teacher.name.charAt(0)}
                 </div>
               )}
               <div>
                 <p className="font-bold text-neutral-900 text-[15px]">{cls.teacher.name}</p>
-                <p className="text-[13px] text-neutral-500">{cls.title}</p>
+                <p className="text-[13px] text-neutral-600">{cls.title}</p>
               </div>
             </div>
 
@@ -297,8 +297,8 @@ function ExistingGate({
               <>
                 <div className="bg-pink-50 border border-pink-100 rounded-xl p-4 mb-5">
                   <div className="flex items-center gap-2 mb-1">
-                    <InstagramIcon className="w-4 h-4 text-[#E1306C]" />
-                    <span className="text-[13px] font-semibold text-[#E1306C]">Instagram del profesor</span>
+                    <InstagramIcon className="w-4 h-4 text-instagram" />
+                    <span className="text-[13px] font-semibold text-instagram">Instagram del profesor</span>
                   </div>
                   <p className="text-[20px] font-bold text-neutral-900">{cls.teacher.instagram}</p>
                 </div>
@@ -307,7 +307,7 @@ function ExistingGate({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={handleContactClick}
-                  className="w-full flex items-center justify-center gap-2 bg-[#E1306C] hover:bg-[#c9225a] text-white font-bold py-3.5 rounded-btn transition-colors active:scale-[0.97]"
+                  className="w-full flex items-center justify-center gap-2 bg-instagram hover:bg-instagram-dark text-white font-bold py-3.5 rounded-btn transition-colors active:scale-[0.97]"
                 >
                   {confirmed ? <Check className="w-5 h-5 animate-fade-in" /> : <InstagramIcon className="w-5 h-5" />}
                   {confirmed ? 'Abriendo…' : 'Abrir Instagram'}
@@ -327,7 +327,7 @@ function ExistingGate({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={handleContactClick}
-                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20BC5A] text-white font-bold py-3.5 rounded-btn transition-colors active:scale-[0.97]"
+                  className="w-full flex items-center justify-center gap-2 bg-whatsapp hover:bg-whatsapp-dark text-white font-bold py-3.5 rounded-btn transition-colors active:scale-[0.97]"
                 >
                   {confirmed ? <Check className="w-5 h-5 animate-fade-in" /> : <MessageCircle className="w-5 h-5" />}
                   {confirmed ? 'Abriendo…' : 'Abrir WhatsApp'}

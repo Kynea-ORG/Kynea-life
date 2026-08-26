@@ -55,12 +55,12 @@ export default function ImportarCSVClient() {
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/dashboard" className="p-2 hover:bg-neutral-100 rounded-xl transition-colors text-neutral-500">
+        <Link href="/dashboard" className="p-2 hover:bg-neutral-100 rounded-xl transition-colors text-neutral-600">
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <div>
           <h1 className="text-2xl font-black text-neutral-900">Importar clases por CSV</h1>
-          <p className="text-neutral-500 text-sm mt-0.5">Sube un archivo CSV con tus clases, horarios, precios y ubicaciones</p>
+          <p className="text-neutral-600 text-sm mt-0.5">Sube un archivo CSV con tus clases, horarios, precios y ubicaciones</p>
         </div>
       </div>
 
@@ -102,7 +102,7 @@ export default function ImportarCSVClient() {
               <Upload className="w-8 h-8 text-neutral-400" />
             </div>
             <h3 className="text-lg font-bold text-neutral-900 mb-2">Arrastra tu archivo CSV aquí</h3>
-            <p className="text-sm text-neutral-500 mb-4">o haz clic para seleccionar</p>
+            <p className="text-sm text-neutral-600 mb-4">o haz clic para seleccionar</p>
             <button className="text-sm font-semibold text-neutral-900 border border-neutral-200 px-6 py-2.5 rounded-btn hover:bg-neutral-100 transition-colors">
               Seleccionar archivo
             </button>
@@ -118,7 +118,7 @@ export default function ImportarCSVClient() {
                 { label: 'Separador', value: 'Coma (,)' },
               ].map(req => (
                 <div key={req.label} className="bg-neutral-50 rounded-xl p-3 text-center">
-                  <p className="text-xs text-neutral-500">{req.label}</p>
+                  <p className="text-xs text-neutral-600">{req.label}</p>
                   <p className="font-bold text-neutral-900 text-sm mt-0.5">{req.value}</p>
                 </div>
               ))}
@@ -139,12 +139,12 @@ export default function ImportarCSVClient() {
         <div key="preview" className="space-y-5 animate-fade-in">
           {/* File info */}
           <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-              <FileText className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 bg-green-bg rounded-xl flex items-center justify-center">
+              <FileText className="w-5 h-5 text-green" />
             </div>
             <div className="flex-1">
               <p className="font-semibold text-neutral-900 text-sm">{fileName}</p>
-              <p className="text-xs text-neutral-500">{MOCK_PREVIEW.length} filas detectadas</p>
+              <p className="text-xs text-neutral-600">{MOCK_PREVIEW.length} filas detectadas</p>
             </div>
             <button onClick={() => setImportStep('upload')} className="text-neutral-400 hover:text-neutral-600">
               <X className="w-5 h-5" />
@@ -153,26 +153,26 @@ export default function ImportarCSVClient() {
 
           {/* Summary */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-green-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-black text-green-700">{validRows}</p>
-              <p className="text-xs text-green-600 mt-0.5">Válidas</p>
+            <div className="bg-green-bg rounded-xl p-4 text-center">
+              <p className="text-2xl font-black text-green-text">{validRows}</p>
+              <p className="text-xs text-green mt-0.5">Válidas</p>
             </div>
-            <div className="bg-red-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-black text-red-600">{errorRows}</p>
-              <p className="text-xs text-red-500 mt-0.5">Con errores</p>
+            <div className="bg-red-bg rounded-xl p-4 text-center">
+              <p className="text-2xl font-black text-red">{errorRows}</p>
+              <p className="text-xs text-red mt-0.5">Con errores</p>
             </div>
-            <div className="bg-yellow-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-black text-yellow-700">{warningRows}</p>
-              <p className="text-xs text-yellow-600 mt-0.5">Con avisos</p>
+            <div className="bg-amber-bg rounded-xl p-4 text-center">
+              <p className="text-2xl font-black text-amber-text">{warningRows}</p>
+              <p className="text-xs text-amber mt-0.5">Con avisos</p>
             </div>
           </div>
 
           {errorRows > 0 && (
-            <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div className="bg-red-bg border border-red rounded-xl p-4 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-red shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-red-700">Se encontraron {errorRows} filas con errores</p>
-                <p className="text-xs text-red-600 mt-0.5">Las filas con errores no se importarán. Corrígelas en tu archivo CSV y vuelve a subirlo.</p>
+                <p className="text-sm font-semibold text-red-text">Se encontraron {errorRows} filas con errores</p>
+                <p className="text-xs text-red mt-0.5">Las filas con errores no se importarán. Corrígelas en tu archivo CSV y vuelve a subirlo.</p>
               </div>
             </div>
           )}
@@ -186,54 +186,54 @@ export default function ImportarCSVClient() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-neutral-50 text-left">
-                    <th className="px-4 py-3 font-semibold text-neutral-500">#</th>
-                    <th className="px-4 py-3 font-semibold text-neutral-500">Título</th>
-                    <th className="px-4 py-3 font-semibold text-neutral-500">Estilo</th>
-                    <th className="px-4 py-3 font-semibold text-neutral-500">Nivel</th>
-                    <th className="px-4 py-3 font-semibold text-neutral-500">Días</th>
-                    <th className="px-4 py-3 font-semibold text-neutral-500">Hora</th>
-                    <th className="px-4 py-3 font-semibold text-neutral-500">Precio</th>
-                    <th className="px-4 py-3 font-semibold text-neutral-500">Estado</th>
-                    <th className="px-4 py-3 font-semibold text-neutral-500">Validación</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">#</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">Título</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">Estilo</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">Nivel</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">Días</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">Hora</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">Precio</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">Estado</th>
+                    <th className="px-4 py-3 font-semibold text-neutral-600">Validación</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-50">
                   {MOCK_PREVIEW.map(row => (
-                    <tr key={row.row} className={row.status === 'error' ? 'bg-red-50/40' : row.status === 'warning' ? 'bg-yellow-50/40' : ''}>
+                    <tr key={row.row} className={row.status === 'error' ? 'bg-red-bg/40' : row.status === 'warning' ? 'bg-amber-bg/40' : ''}>
                       <td className="px-4 py-3 text-neutral-400">{row.row}</td>
                       <td className="px-4 py-3 font-medium text-neutral-900">
-                        {row.titulo || <span className="text-red-500 italic">vacío</span>}
+                        {row.titulo || <span className="text-red italic">vacío</span>}
                       </td>
                       <td className="px-4 py-3 text-neutral-600">{row.estilo}</td>
                       <td className="px-4 py-3 text-neutral-600">{row.nivel}</td>
                       <td className="px-4 py-3 text-neutral-600">{row.dias}</td>
-                      <td className={`px-4 py-3 ${row.hora_inicio === '25:00' ? 'text-red-500' : 'text-neutral-600'}`}>
+                      <td className={`px-4 py-3 ${row.hora_inicio === '25:00' ? 'text-red' : 'text-neutral-600'}`}>
                         {row.hora_inicio}
                       </td>
-                      <td className={`px-4 py-3 ${isNaN(Number(row.precio_monto)) ? 'text-red-500' : 'text-neutral-600'}`}>
+                      <td className={`px-4 py-3 ${isNaN(Number(row.precio_monto)) ? 'text-red' : 'text-neutral-600'}`}>
                         {row.precio_monto}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          row.estado === 'active' ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'
+                          row.estado === 'active' ? 'bg-green-bg text-green-text' : 'bg-neutral-100 text-neutral-600'
                         }`}>
                           {row.estado === 'active' ? 'Activa' : 'Borrador'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         {row.status === 'ok' && (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          <CheckCircle className="w-4 h-4 text-green" />
                         )}
                         {row.status === 'error' && (
                           <div className="flex items-center gap-1">
-                            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                            <span className="text-red-600 text-xs">{row.errors[0]}</span>
+                            <AlertCircle className="w-4 h-4 text-red shrink-0" />
+                            <span className="text-red text-xs">{row.errors[0]}</span>
                           </div>
                         )}
                         {row.status === 'warning' && (
                           <div className="flex items-center gap-1">
-                            <AlertCircle className="w-4 h-4 text-yellow-500 shrink-0" />
-                            <span className="text-yellow-600 text-xs">{row.errors[0]}</span>
+                            <AlertCircle className="w-4 h-4 text-amber shrink-0" />
+                            <span className="text-amber text-xs">{row.errors[0]}</span>
                           </div>
                         )}
                       </td>
@@ -271,13 +271,13 @@ export default function ImportarCSVClient() {
       {/* Step: Success */}
       {importStep === 'success' && (
         <div key="success" className="text-center py-16 animate-fade-in">
-          <div className="w-20 h-20 bg-green-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-green-600" />
+          <div className="w-20 h-20 bg-green-bg rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-green" />
           </div>
           <h2 className="text-2xl font-black text-neutral-900 mb-2">¡Importación exitosa!</h2>
-          <p className="text-neutral-500 mb-2">Se importaron {validRows + warningRows} clases correctamente.</p>
+          <p className="text-neutral-600 mb-2">Se importaron {validRows + warningRows} clases correctamente.</p>
           {errorRows > 0 && (
-            <p className="text-sm text-red-500 mb-6">{errorRows} fila{errorRows !== 1 ? 's' : ''} con errores no se importó.</p>
+            <p className="text-sm text-red mb-6">{errorRows} fila{errorRows !== 1 ? 's' : ''} con errores no se importó.</p>
           )}
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
             <Link

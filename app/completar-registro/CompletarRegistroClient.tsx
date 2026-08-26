@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { User, BookOpen, Building2, Loader2, Check } from 'lucide-react';
 import { completeOAuthRegistration } from '@/lib/auth/actions';
+import ErrorBanner from '@/components/ErrorBanner';
 import { safeRedirectPath } from '@/lib/utils';
 import { trackAuthAttempt } from '@/lib/analytics';
 
@@ -74,14 +75,14 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
               )}
               <div className="min-w-0">
                 <p className="text-[14px] font-semibold text-neutral-900 truncate">{userName}</p>
-                <p className="text-[12px] text-neutral-500 truncate">{userEmail}</p>
+                <p className="text-[12px] text-neutral-600 truncate">{userEmail}</p>
               </div>
             </div>
 
             <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-1">
               ¿Cómo usarás Kynea?
             </h1>
-            <p className="text-[15px] text-neutral-500 mb-6">
+            <p className="text-[15px] text-neutral-600 mb-6">
               Elige tu tipo de cuenta para personalizar tu experiencia.
             </p>
 
@@ -102,13 +103,13 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
                     }`}
                   >
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                      isSelected ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
+                      isSelected ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'
                     }`}>
                       <Icon className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-neutral-900 text-[15px]">{r.label}</p>
-                      <p className="text-[13px] text-neutral-500">{r.description}</p>
+                      <p className="text-[13px] text-neutral-600">{r.description}</p>
                     </div>
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-[background-color,border-color] ${
                       isSelected ? 'bg-neutral-900 border-neutral-900' : 'border-neutral-300'
@@ -128,7 +129,7 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
                 onChange={e => setTermsAccepted(e.target.checked)}
                 className="mt-0.5 w-4 h-4 accent-neutral-900 shrink-0"
               />
-              <span className="text-[13px] text-neutral-500 leading-relaxed">
+              <span className="text-[13px] text-neutral-600 leading-relaxed">
                 Acepto los{' '}
                 <a href="/terminos" target="_blank" rel="noopener noreferrer" className="text-neutral-900 font-semibold hover:underline">
                   Términos y condiciones
@@ -141,17 +142,13 @@ export default function CompletarRegistroClient({ userName, userEmail, userAvata
               </span>
             </label>
 
-            {error && (
-              <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 mb-4 animate-fade-in">
-                {error}
-              </div>
-            )}
+            {error && <ErrorBanner className="mb-4">{error}</ErrorBanner>}
 
             <button
               type="button"
               onClick={handleContinue}
               disabled={!selected || !termsAccepted || loading}
-              className="btn-dark w-full flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn-dark w-full flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Guardando…' : 'Continuar'}
