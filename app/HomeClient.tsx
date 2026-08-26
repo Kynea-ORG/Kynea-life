@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
   Search, MapPin, ArrowRight, ArrowLeft, Star, CalendarCheck,
-  MessageCircle, ChevronLeft, ChevronRight, Loader2,
+  MessageCircle, ChevronLeft, ChevronRight, Loader2, X,
 } from 'lucide-react';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
@@ -18,9 +18,13 @@ import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES, CATEGORY_GRADIENTS } from '@/li
 import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
 import type { HomeStats } from '@/lib/stats/queries';
 
-// ── Types ─────────────────────────────────────────────────────────────────
-type SearchClass   = { id: string; slug: string; title: string; type: string; class_styles: { is_main: boolean; dance_styles: { name: string; slug: string }[] | null }[] | null };
-type SearchProfile = { id: string; slug: string; name: string; role: string; photo_url: string | null };
+export type SearchClass   = { id: string; slug: string; title: string; type: string; class_styles: { is_main: boolean; dance_styles: { name: string; slug: string } | null }[] | null };
+export type SearchProfile = { id: string; slug: string; name: string; role: string; photo_url: string | null };
+
+export function getMainStyle(cls: SearchClass) {
+  const styleRow = cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0];
+  return styleRow?.dance_styles ?? null;
+}
 
 const AVATAR_PALETTE = [
   { bg: 'bg-primary-bg',     text: 'text-primary' },
@@ -131,12 +135,16 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
   const [suggestions, setSuggestions]       = useState<{ classes: SearchClass[]; profiles: SearchProfile[] }>({ classes: [], profiles: [] });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching]       = useState(false);
+  const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  const activeSuggestions = query.trim().length >= 2 ? suggestions : { classes: [] as SearchClass[], profiles: [] as SearchProfile[] };
 
   // ── Ciudad (segundo campo del buscador) — filtro cliente sobre
   // stats.cityNames (ya viene de fetchHomeStats), sin query nueva.
   const [city, setCity] = useState('');
   const [cityOpen, setCityOpen] = useState(false);
+  const [activeCityIndex, setActiveCityIndex] = useState(-1);
   const cityRef = useRef<HTMLDivElement>(null);
   const filteredCities = stats.cityNames
     .filter(c => c.toLowerCase().includes(city.trim().toLowerCase()))
@@ -152,11 +160,25 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
   // un campo abre pantalla completa en vez de un dropdown chico).
   const [mobileSearch, setMobileSearch] = useState<null | 'style' | 'city'>(null);
 
+  // Bloqueo de scroll en body mientras el overlay mobile esté abierto
+  useEffect(() => {
+    if (mobileSearch) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [mobileSearch]);
+
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
-      return;
-    }
+    if (q.length < 2) return;
+
+    let active = true;
+    const safeQ = q.replace(/[,()%_\\]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (safeQ.length < 2) return;
+
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
@@ -167,31 +189,48 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             .select('id, slug, title, type, class_styles(is_main, dance_styles(name, slug))')
             .eq('status', 'published')
             .or('end_date.is.null,end_date.gte.today')
-            .ilike('title', `%${q}%`)
+            .ilike('title', `%${safeQ}%`)
             .limit(4),
           supabase
             .from('profiles')
             .select('id, slug, name, role, photo_url')
             .in('role', ['profesor', 'academia'])
-            .ilike('name', `%${q}%`)
+            .ilike('name', `%${safeQ}%`)
             .limit(3),
         ]);
-        setSuggestions({ classes: classes ?? [], profiles: profiles ?? [] });
-        setShowSuggestions(true);
+        if (active) {
+          setSuggestions({
+            classes: (classes as unknown as SearchClass[]) ?? [],
+            profiles: profiles ?? [],
+          });
+          setShowSuggestions(true);
+        }
+      } catch {
+        if (active) {
+          setSuggestions({ classes: [], profiles: [] });
+        }
       } finally {
-        setIsSearching(false);
+        if (active) {
+          setIsSearching(false);
+        }
       }
     }, 300);
-    return () => clearTimeout(timer);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
+        setActiveOptionIndex(-1);
       }
       if (cityRef.current && !cityRef.current.contains(e.target as Node)) {
         setCityOpen(false);
+        setActiveCityIndex(-1);
       }
     }
     document.addEventListener('mousedown', onClickOutside);
@@ -218,12 +257,18 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
     return () => clearInterval(interval);
   }, []);
 
+  const numClasses = activeSuggestions.classes.length;
+  const numProfiles = activeSuggestions.profiles.length;
+  const hasSuggestions = numClasses > 0 || numProfiles > 0;
+  const totalSearchOptions = hasSuggestions ? numClasses + numProfiles + 1 : 0;
+
   const navigateSearch = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.set('q', query.trim());
     if (city.trim()) params.set('city', city.trim());
     router.push(`/clases?${params.toString()}`);
     setShowSuggestions(false);
+    setActiveOptionIndex(-1);
     setMobileSearch(null);
   };
 
@@ -232,29 +277,92 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
     navigateSearch();
   };
 
-  const hasSuggestions = query.trim().length >= 2 && (suggestions.classes.length > 0 || suggestions.profiles.length > 0);
+  const handleQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      setShowSuggestions(true);
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (totalSearchOptions > 0) {
+        setActiveOptionIndex(prev => (prev + 1) % totalSearchOptions);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (totalSearchOptions > 0) {
+        setActiveOptionIndex(prev => (prev <= 0 ? totalSearchOptions - 1 : prev - 1));
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setActiveOptionIndex(-1);
+    } else if (e.key === 'Enter') {
+      if (showSuggestions && activeOptionIndex >= 0) {
+        e.preventDefault();
+        if (activeOptionIndex < numClasses) {
+          goToClass(activeSuggestions.classes[activeOptionIndex]);
+        } else if (activeOptionIndex < numClasses + numProfiles) {
+          goToProfile(activeSuggestions.profiles[activeOptionIndex - numClasses]);
+        } else {
+          navigateSearch();
+        }
+      }
+    }
+  };
+
+  const handleCityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!cityOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      setCityOpen(true);
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (filteredCities.length > 0) {
+        setActiveCityIndex(prev => (prev + 1) % filteredCities.length);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (filteredCities.length > 0) {
+        setActiveCityIndex(prev => (prev <= 0 ? filteredCities.length - 1 : prev - 1));
+      }
+    } else if (e.key === 'Escape') {
+      setCityOpen(false);
+      setActiveCityIndex(-1);
+    } else if (e.key === 'Enter') {
+      if (cityOpen && activeCityIndex >= 0 && activeCityIndex < filteredCities.length) {
+        e.preventDefault();
+        pickCity(filteredCities[activeCityIndex]);
+      }
+    }
+  };
 
   // Compartidos entre el dropdown desktop y el overlay mobile (G2): cierran
   // ambas UIs de búsqueda además de navegar.
   function goToClass(cls: SearchClass) {
-    const mainStyle = (cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0])?.dance_styles?.[0];
-    router.push(`/${mainStyle?.slug ?? ''}/${cls.type}/${cls.slug}`);
+    const mainStyle = getMainStyle(cls);
+    const categorySlug = mainStyle?.slug || 'clase';
+    router.push(`/${categorySlug}/${cls.type}/${cls.slug}`);
     setShowSuggestions(false);
+    setActiveOptionIndex(-1);
     setMobileSearch(null);
   }
   function goToProfile(p: SearchProfile) {
     router.push(`/profesores/${p.slug}`);
     setShowSuggestions(false);
+    setActiveOptionIndex(-1);
     setMobileSearch(null);
   }
   function pickStyle(name: string) {
     setQuery(name);
     setShowSuggestions(false);
+    setActiveOptionIndex(-1);
     setMobileSearch(null);
   }
   function pickCity(name: string) {
     setCity(name);
     setCityOpen(false);
+    setActiveCityIndex(-1);
     setMobileSearch(null);
   }
 
@@ -263,8 +371,8 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       <TopAnnouncementRibbon />
 
       {/* ── HERO — desktop (A1) ── */}
-      <div className="hidden md:block relative bg-[#1A1A19] overflow-hidden min-h-[400px]">
-        <div className="absolute inset-0 h-[640px] overflow-hidden">
+      <div className="hidden md:block relative bg-[#1A1A19] min-h-[400px] z-20">
+        <div className="absolute inset-0 overflow-hidden">
           <Image
             src="/BBkynea.jpg"
             alt="Bailarina en movimiento"
@@ -296,7 +404,20 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
           </div>
 
           <form onSubmit={handleSearch} className="flex-1 bg-white rounded-3xl shadow-2xl p-2 flex items-stretch gap-1">
-            <div className="flex-[1.6] relative flex items-center gap-3 px-5 py-2.5 rounded-2xl min-w-0" ref={searchRef}>
+            <div
+              className="flex-[1.6] relative flex items-center gap-3 px-5 py-2.5 rounded-2xl min-w-0"
+              ref={searchRef}
+              onFocusCapture={() => {
+                setCityOpen(false);
+                setActiveCityIndex(-1);
+              }}
+              onBlur={e => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setShowSuggestions(false);
+                  setActiveOptionIndex(-1);
+                }
+              }}
+            >
               <Search className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
               <div className="text-left min-w-0 flex-1">
                 <p className="font-bold text-[12px] text-neutral-900 leading-none">¿Qué quieres bailar?</p>
@@ -304,16 +425,41 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   type="text"
                   placeholder="Busca clases, academias, profesores…"
                   value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  onFocus={() => setShowSuggestions(true)}
+                  onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
+                  onFocus={() => {
+                    setShowSuggestions(true);
+                    setCityOpen(false);
+                    setActiveCityIndex(-1);
+                  }}
+                  onKeyDown={handleQueryKeyDown}
+                  role="combobox"
+                  aria-expanded={showSuggestions && (hasSuggestions || isSearching || query.trim().length >= 2)}
+                  aria-autocomplete="list"
+                  aria-controls="query-autocomplete-list"
+                  aria-activedescendant={activeOptionIndex >= 0 ? `query-option-${activeOptionIndex}` : undefined}
                   className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
                 />
               </div>
+              {query.length > 0 && !isSearching && (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => { setQuery(''); setActiveOptionIndex(-1); }}
+                  aria-label="Limpiar búsqueda"
+                  className="text-neutral-400 hover:text-neutral-600 p-1 rounded-full transition-colors shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
               {isSearching && <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0" />}
 
               {/* Autocomplete dropdown */}
               {showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 overflow-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95">
+                <div
+                  id="query-autocomplete-list"
+                  role="listbox"
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 max-h-[420px] overflow-y-auto overflow-x-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95"
+                >
 
                   {isSearching && (
                     <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-neutral-400">
@@ -328,26 +474,33 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   )}
 
                   {/* Classes */}
-                  {suggestions.classes.length > 0 && (
+                  {activeSuggestions.classes.length > 0 && (
                     <div>
                       <div className="px-4 pt-3 pb-1">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Clases</span>
                       </div>
-                      {suggestions.classes.map(cls => {
-                        const mainStyle = (cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0])?.dance_styles?.[0];
+                      {activeSuggestions.classes.map((cls, i) => {
+                        const mainStyle = getMainStyle(cls);
+                        const isActive = activeOptionIndex === i;
                         return (
                           <button
                             key={cls.id}
+                            id={`query-option-${i}`}
+                            role="option"
+                            aria-selected={isActive}
                             type="button"
+                            onMouseDown={e => e.preventDefault()}
                             onClick={() => goToClass(cls)}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
+                              isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'
+                            }`}
                           >
                             <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0 text-sm">
                               💃
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-[14px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                              <p className="text-[11px] text-neutral-400">{mainStyle?.name ?? ''} · {getTypeLabel(cls.type)}</p>
+                              <p className="text-[11px] text-neutral-400">{mainStyle?.name ? `${mainStyle.name} · ` : ''}{getTypeLabel(cls.type)}</p>
                             </div>
                           </button>
                         );
@@ -356,42 +509,56 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   )}
 
                   {/* Profiles */}
-                  {suggestions.profiles.length > 0 && (
-                    <div className={suggestions.classes.length > 0 ? 'border-t border-neutral-100' : ''}>
+                  {activeSuggestions.profiles.length > 0 && (
+                    <div className={activeSuggestions.classes.length > 0 ? 'border-t border-neutral-100' : ''}>
                       <div className="px-4 pt-3 pb-1">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Profesores</span>
                       </div>
-                      {suggestions.profiles.map(p => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => goToProfile(p)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
-                        >
-                          {p.photo_url ? (
-                            <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
-                              <SmartImage src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
+                      {activeSuggestions.profiles.map((p, pIdx) => {
+                        const globalIdx = numClasses + pIdx;
+                        const isActive = activeOptionIndex === globalIdx;
+                        return (
+                          <button
+                            key={p.id}
+                            id={`query-option-${globalIdx}`}
+                            role="option"
+                            aria-selected={isActive}
+                            type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => goToProfile(p)}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
+                              isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'
+                            }`}
+                          >
+                            {p.photo_url ? (
+                              <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
+                                <SmartImage src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
+                                {p.name.charAt(0)}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
+                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}</p>
                             </div>
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
-                              {p.name.charAt(0)}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                            <p className="text-[11px] text-neutral-400 capitalize">{p.role}</p>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
                   {hasSuggestions && (
-                    <div className="border-t border-neutral-100 px-4 py-2.5">
+                    <div className={`border-t border-neutral-100 px-4 py-2.5 ${activeOptionIndex === numClasses + numProfiles ? 'bg-neutral-100' : ''}`}>
                       <button
                         type="button"
+                        id={`query-option-${numClasses + numProfiles}`}
+                        role="option"
+                        aria-selected={activeOptionIndex === numClasses + numProfiles}
+                        onMouseDown={e => e.preventDefault()}
                         onClick={navigateSearch}
-                        className="text-[13px] text-primary font-semibold hover:underline"
+                        className="text-[13px] text-primary font-semibold hover:underline w-full text-left"
                       >
                         Ver todos los resultados de &ldquo;{query}&rdquo; →
                       </button>
@@ -403,7 +570,20 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
             <div className="w-px bg-neutral-200 my-2" />
 
-            <div className="flex-1 relative flex items-center gap-3 px-5 py-2.5 min-w-0" ref={cityRef}>
+            <div
+              className="flex-1 relative flex items-center gap-3 px-5 py-2.5 min-w-0"
+              ref={cityRef}
+              onFocusCapture={() => {
+                setShowSuggestions(false);
+                setActiveOptionIndex(-1);
+              }}
+              onBlur={e => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setCityOpen(false);
+                  setActiveCityIndex(-1);
+                }
+              }}
+            >
               <MapPin className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
               <div className="text-left min-w-0 flex-1">
                 <p className="font-bold text-[12px] text-neutral-900 leading-none">¿En qué ciudad?</p>
@@ -411,25 +591,73 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   type="text"
                   placeholder="¿Dónde bailas?"
                   value={city}
-                  onChange={e => setCity(e.target.value)}
-                  onFocus={() => setCityOpen(true)}
+                  onChange={e => { setCity(e.target.value); setActiveCityIndex(-1); }}
+                  onFocus={() => {
+                    setCityOpen(true);
+                    setShowSuggestions(false);
+                    setActiveOptionIndex(-1);
+                  }}
+                  onKeyDown={handleCityKeyDown}
+                  role="combobox"
+                  aria-expanded={cityOpen && filteredCities.length > 0}
+                  aria-autocomplete="list"
+                  aria-controls="city-autocomplete-list"
+                  aria-activedescendant={activeCityIndex >= 0 ? `city-option-${activeCityIndex}` : undefined}
                   className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
                 />
               </div>
 
+              {city.length > 0 && (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => { setCity(''); setActiveCityIndex(-1); }}
+                  aria-label="Limpiar ciudad"
+                  className="text-neutral-400 hover:text-neutral-600 p-1 rounded-full transition-colors shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+
               {cityOpen && filteredCities.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50">
-                  {filteredCities.map(c => (
-                    <button key={c} type="button" onClick={() => pickCity(c)}
-                      className="w-full text-left px-4 py-2 text-[13.5px] text-neutral-700 hover:bg-neutral-50 transition-colors">
-                      {c}
-                    </button>
-                  ))}
+                <div
+                  id="city-autocomplete-list"
+                  role="listbox"
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50 max-h-[280px] overflow-y-auto overflow-x-hidden"
+                >
+                  {filteredCities.map((c, idx) => {
+                    const isActive = activeCityIndex === idx;
+                    return (
+                      <button
+                        key={c}
+                        id={`city-option-${idx}`}
+                        role="option"
+                        aria-selected={isActive}
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => pickCity(c)}
+                        className={`w-full text-left px-4 py-2.5 text-[13.5px] transition-colors ${
+                          isActive ? 'bg-neutral-100 font-bold text-neutral-900' : 'text-neutral-700 hover:bg-neutral-50'
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            <button type="submit" className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] transition-colors">
+            <button
+              type="submit"
+              onFocus={() => {
+                setCityOpen(false);
+                setShowSuggestions(false);
+                setActiveCityIndex(-1);
+                setActiveOptionIndex(-1);
+              }}
+              className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] transition-colors"
+            >
               <Search className="w-4 h-4" /> Buscar
             </button>
           </form>
@@ -522,6 +750,16 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 onChange={e => setQuery(e.target.value)}
                 className="flex-1 min-w-0 text-[15px] text-neutral-900 outline-none bg-transparent"
               />
+              {query.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  aria-label="Limpiar búsqueda"
+                  className="text-neutral-400 hover:text-neutral-600 p-1 shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -547,22 +785,22 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               </div>
             )}
 
-            {!isSearching && suggestions.classes.length === 0 && suggestions.profiles.length === 0 && matchingStyles.length === 0 && query.trim().length >= 2 && (
+            {!isSearching && activeSuggestions.classes.length === 0 && activeSuggestions.profiles.length === 0 && matchingStyles.length === 0 && query.trim().length >= 2 && (
               <p className="px-5 py-4 text-[13px] text-neutral-400">Sin resultados para &ldquo;{query}&rdquo;</p>
             )}
 
-            {suggestions.classes.length > 0 && (
+            {activeSuggestions.classes.length > 0 && (
               <div className="pt-4">
                 <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Clases</p>
-                {suggestions.classes.map(cls => {
-                  const mainStyle = (cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0])?.dance_styles?.[0];
+                {activeSuggestions.classes.map(cls => {
+                  const mainStyle = getMainStyle(cls);
                   return (
                     <button key={cls.id} type="button" onClick={() => goToClass(cls)}
                       className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
                       <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0 text-sm">💃</div>
                       <div className="min-w-0 flex-1">
                         <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                        <p className="text-[11.5px] text-neutral-400">{mainStyle?.name ?? ''} · {getTypeLabel(cls.type)}</p>
+                        <p className="text-[11.5px] text-neutral-400">{mainStyle?.name ? `${mainStyle.name} · ` : ''}{getTypeLabel(cls.type)}</p>
                       </div>
                     </button>
                   );
@@ -570,10 +808,10 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               </div>
             )}
 
-            {suggestions.profiles.length > 0 && (
+            {activeSuggestions.profiles.length > 0 && (
               <div className="pt-4">
                 <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Profesores</p>
-                {suggestions.profiles.map(p => (
+                {activeSuggestions.profiles.map(p => (
                   <button key={p.id} type="button" onClick={() => goToProfile(p)}
                     className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
                     {p.photo_url ? (
@@ -622,6 +860,16 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 onChange={e => setCity(e.target.value)}
                 className="flex-1 min-w-0 text-[15px] text-neutral-900 outline-none bg-transparent"
               />
+              {city.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCity('')}
+                  aria-label="Limpiar ciudad"
+                  className="text-neutral-400 hover:text-neutral-600 p-1 shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
