@@ -5,9 +5,10 @@ import SmartImage from '@/components/SmartImage';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Menu, X, User, Settings, LogOut,
+  Menu, X, User, Settings, LogOut, Search, BookOpen,
   LayoutDashboard, PlusCircle, ChevronDown, Building2, GraduationCap,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { trackAuthCtaClick } from '@/lib/analytics';
@@ -29,16 +30,32 @@ const ROLE_LABEL: Record<Role, string> = {
   academia: 'Academia',
 };
 
+// Nav horizontal de desktop (barra superior, fuera del drawer mobile) — se
+// mantiene angosto a propósito, igual que siempre.
 const NAV_LINKS = [
   { label: 'Explorar clases', href: '/clases' },
 ];
 
-// Solo se agregan al panel del menú mobile cuando homeNav — el resto del
-// sitio (incl. /unete/beneficios, que también usa transparent) no las ve.
-const HOME_MENU_EXTRA_LINKS = [
-  { label: '¿Tienes una academia?', href: '/academias', Icon: Building2 },
-  { label: 'Sé profesor en Kynea', href: '/unete/beneficios', Icon: GraduationCap },
+// Estilo compartido por cada fila del drawer mobile (diseño G1).
+const MENU_ITEM_CLASS = 'font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors';
+
+type DrawerLink = { href: string; label: string; Icon: LucideIcon };
+
+// Upsell de conversión — se ve para el visitante anónimo y para el alumno
+// (todavía no tiene ningún camino de conversión en la app); profesor y
+// academia no lo necesitan.
+const CONVERSION_LINKS: DrawerLink[] = [
+  { href: '/academias', label: '¿Tienes una academia?', Icon: Building2 },
+  { href: '/unete/beneficios', label: 'Sé profesor en Kynea', Icon: GraduationCap },
 ];
+
+function MenuLink({ href, label, Icon, onClick }: DrawerLink & { onClick: () => void }) {
+  return (
+    <Link href={href} onClick={onClick} className={MENU_ITEM_CLASS}>
+      <Icon className="w-4 h-4 shrink-0 text-primary" /> {label}
+    </Link>
+  );
+}
 
 function Avatar({
   photoUrl,
@@ -145,6 +162,93 @@ export default function Header({
   const linkBase = transparent
     ? 'font-sans text-[15px] font-medium text-white/90 px-3.5 py-1.5 rounded-md hover:bg-white/10 active:opacity-70 transition-[background-color,color]'
     : 'font-sans nav-link';
+
+  // Piezas del drawer mobile (diseño G1, ahora en todo el sitio — ya no
+  // condicionado a homeNav): user info solo si hay sesión (el mock no
+  // cubre logueado, pero identificar la cuenta ahí sí vale la pena);
+  // links y auth son siempre los mismos 3 bloques.
+  const userInfoBlock = isLoggedIn && (
+    <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100 shrink-0">
+      <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-11 h-11" />
+      <div>
+        <p className="font-sans text-[15px] font-bold text-neutral-900">{profile.name}</p>
+        <p className="font-sans text-[13px] text-neutral-600">{ROLE_LABEL[profile.role]}</p>
+      </div>
+    </div>
+  );
+
+  // Accesos de dashboard mostrados en el drawer para cada rol — mismos
+  // items y orden que NAV_BY_ROLE en app/dashboard/DashboardSidebar.tsx
+  // (se omite "Subir clases masivas" acá, ya vive dentro de "Mi panel").
+  const isAlumno = profile?.role === 'alumno';
+
+  const roleLinks: DrawerLink[] = !isLoggedIn ? [] : isAlumno ? [
+    { href: '/dashboard/alumno', label: 'Mis clases', Icon: BookOpen },
+    { href: '/dashboard/perfil', label: 'Perfil', Icon: User },
+    { href: '/dashboard/configuracion', label: 'Configuración', Icon: Settings },
+  ] : [
+    { href: '/dashboard', label: 'Mi panel', Icon: LayoutDashboard },
+    { href: '/dashboard/mis-clases', label: 'Mis clases', Icon: BookOpen },
+    { href: '/dashboard/crear-clase', label: 'Crear clase', Icon: PlusCircle },
+    { href: '/dashboard/perfil', label: 'Perfil', Icon: User },
+    { href: '/dashboard/configuracion', label: 'Configuración', Icon: Settings },
+  ];
+
+  // Upsell tras los accesos de rol: el visitante anónimo y el alumno (sin
+  // ningún camino de conversión propio todavía) ven el upsell genérico de
+  // academia/profesor; un profesor ve el flujo real de conversión a
+  // academia; una academia no ve nada más, ya es el estado final.
+  const trailingLinks: DrawerLink[] =
+    !isLoggedIn || isAlumno ? CONVERSION_LINKS
+    : profile?.role === 'profesor' ? [{ href: '/convertir-academia', label: 'Convierte tu cuenta en academia', Icon: Building2 }]
+    : [];
+
+  const navLinksBlock = (
+    <div className="px-3 py-2">
+      <MenuLink href="/clases" label="Explorar clases" Icon={Search} onClick={() => setMobileOpen(false)} />
+      {roleLinks.map(item => (
+        <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
+      ))}
+      {trailingLinks.length > 0 && (
+        <>
+          {roleLinks.length > 0 && <div className="h-px bg-neutral-100 my-2 mx-3" />}
+          {trailingLinks.map(item => (
+            <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+
+  const authActionsBlock = (
+    <div className="px-3 pb-4 border-t border-neutral-100">
+      {isLoggedIn ? (
+        <>
+          {canPublish && (
+            <Link href="/dashboard/crear-clase" onClick={() => setMobileOpen(false)}
+              className="font-sans flex items-center justify-center gap-2 mt-1 mb-2 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
+              <PlusCircle className="w-4 h-4" /> Publicar clase
+            </Link>
+          )}
+          <button onClick={logout}
+            className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-600 hover:text-red hover:bg-red-bg active:bg-red-bg w-full transition-colors">
+            <LogOut className="w-4 h-4 shrink-0" /> Cerrar sesión
+          </button>
+        </>
+      ) : (
+        <>
+          <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'header_mobile' }); setMobileOpen(false); }}
+            className="font-sans flex items-center justify-center mt-1 mb-2 text-[15px] font-semibold px-5 py-3 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 active:scale-[0.97] transition-[background-color]">
+            Iniciar sesión
+          </Link>
+          <Link href="/registro" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_registro' }); setMobileOpen(false); }}
+            className="font-sans flex items-center justify-center mb-1 text-[15px] font-bold px-5 py-3 bg-primary text-white rounded-btn hover:bg-primary-dark active:scale-[0.97] transition-[background-color]">
+            Regístrate gratis
+          </Link>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <header className={
@@ -326,95 +430,34 @@ export default function Header({
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — drawer lateral con scrim (diseño G1), igual en todo
+          el sitio, no solo en el home. */}
       {shouldRenderMobileMenu && (
-        <div className={`md:hidden bg-white border-t border-neutral-200 flex flex-col transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:-translate-y-2 ${mobileOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
-
-          {/* User info */}
-          {isLoggedIn ? (
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
-              <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-11 h-11" />
-              <div>
-                <p className="font-sans text-[15px] font-bold text-neutral-900">{profile.name}</p>
-                <p className="font-sans text-[13px] text-neutral-600">{ROLE_LABEL[profile.role]}</p>
-              </div>
+        <div className="md:hidden fixed inset-0 z-[60]">
+          {/* Scrim — deja ver la página oscurecida detrás, como en el mock */}
+          <div
+            className={`absolute inset-0 bg-neutral-900/55 transition-opacity duration-200 ease-out starting:opacity-0 ${mobileOpen ? 'opacity-100' : 'opacity-0'}`}
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Panel — 3 bloques exactos del diseño G1: cerrar / links / auth,
+              con el bloque del medio absorbiendo el espacio sobrante para
+              que auth quede siempre anclado al fondo (el "flex:1" del mock).
+              Logueado, se agrega la identificación de cuenta arriba de los
+              links — el mock no cubre ese estado, pero omitirla ahí dejaría
+              el drawer sin ninguna pista de qué cuenta está activa. */}
+          <div className={`absolute top-0 right-0 bottom-0 w-[300px] max-w-[85vw] bg-white shadow-[-12px_0_32px_rgba(13,13,13,.25)] flex flex-col transition-transform duration-200 ease-out starting:translate-x-full ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="px-5 py-4 flex items-center justify-end border-b border-neutral-100 shrink-0">
+              <button onClick={() => setMobileOpen(false)} aria-label="Cerrar menú" className="p-1 -m-1 text-neutral-900 hover:bg-neutral-100 rounded-md transition-colors active:scale-90">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          ) : (
-            <div className="px-5 py-4 border-b border-neutral-100">
-              <p className="font-sans text-[14px] text-neutral-600">Encuentra clases de baile en Latinoamérica</p>
+            <div className="flex-1 overflow-y-auto">
+              {userInfoBlock}
+              {navLinksBlock}
             </div>
-          )}
-
-          {/* Nav links */}
-          <div className="px-3 py-2">
-            {NAV_LINKS.map(item => (
-              <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
-                {item.label}
-              </Link>
-            ))}
-            {homeNav && HOME_MENU_EXTRA_LINKS.map(item => (
-              <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
-                <item.Icon className="w-4 h-4 shrink-0 text-primary" /> {item.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Auth-dependent actions */}
-          <div className="px-3 pb-4 border-t border-neutral-100">
-            {isLoggedIn ? (
-              <>
-                <Link href="/dashboard" onClick={() => setMobileOpen(false)}
-                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
-                  <LayoutDashboard className="w-4 h-4 shrink-0 text-neutral-400" /> Mi panel
-                </Link>
-                <Link href="/dashboard/perfil" onClick={() => setMobileOpen(false)}
-                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
-                  <User className="w-4 h-4 shrink-0 text-neutral-400" /> Perfil
-                </Link>
-                <Link href="/dashboard/configuracion" onClick={() => setMobileOpen(false)}
-                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
-                  <Settings className="w-4 h-4 shrink-0 text-neutral-400" /> Configuración
-                </Link>
-                {canPublish && (
-                  <Link href="/dashboard/crear-clase" onClick={() => setMobileOpen(false)}
-                    className="font-sans flex items-center justify-center gap-2 mt-2 mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
-                    <PlusCircle className="w-4 h-4" /> Publicar clase
-                  </Link>
-                )}
-                <button onClick={logout}
-                  className="font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-600 hover:text-red hover:bg-red-bg active:bg-red-bg w-full transition-colors mt-1">
-                  <LogOut className="w-4 h-4 shrink-0" /> Cerrar sesión
-                </button>
-              </>
-            ) : homeNav ? (
-              <>
-                <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'header_home_mobile' }); setMobileOpen(false); }}
-                  className="font-sans flex items-center justify-center mt-1 mb-2 text-[15px] font-semibold px-5 py-3 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 active:scale-[0.97] transition-[background-color]">
-                  Iniciar sesión
-                </Link>
-                <Link href="/registro" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_home_mobile_registro' }); setMobileOpen(false); }}
-                  className="font-sans flex items-center justify-center mb-1 text-[15px] font-bold px-5 py-3 bg-primary text-white rounded-btn hover:bg-primary-dark active:scale-[0.97] transition-[background-color]">
-                  Regístrate gratis
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'header_mobile' }); setMobileOpen(false); }}
-                  className="font-sans flex items-center justify-center mt-1 mb-2 text-[15px] font-semibold px-5 py-3 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 active:scale-[0.97] transition-[background-color]">
-                  Iniciar sesión
-                </Link>
-                <Link href="/unete/beneficios" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_profesor' }); setMobileOpen(false); }}
-                  className="font-sans flex items-center justify-center mb-1 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
-                  Únete como profesor
-                </Link>
-                <Link href="/academias" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_academia' }); setMobileOpen(false); }}
-                  className="font-sans flex items-center justify-center gap-1.5 text-[13px] font-bold text-pink-600 hover:text-pink-700 active:opacity-70 transition-colors py-2">
-                  <Building2 className="w-3.5 h-3.5" /> ¿Tienes una academia? Regístrate aquí
-                </Link>
-              </>
-            )}
+            <div className="shrink-0">
+              {authActionsBlock}
+            </div>
           </div>
         </div>
       )}

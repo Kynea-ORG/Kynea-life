@@ -14,6 +14,7 @@ import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibb
 import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { trackAuthCtaClick } from '@/lib/analytics';
+import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES, CATEGORY_GRADIENTS } from '@/lib/catalog/styleImages';
 import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
 import type { HomeStats } from '@/lib/stats/queries';
@@ -25,6 +26,9 @@ export function getMainStyle(cls: SearchClass) {
   const styleRow = cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0];
   return styleRow?.dance_styles ?? null;
 }
+
+// Estilo compartido por los dos campos-botón del buscador mobile (F1).
+const MOBILE_SEARCH_TRIGGER_CLASS = 'w-full flex items-center gap-3 border border-neutral-200 rounded-2xl px-4 py-3 text-left cursor-pointer transition-[background-color,border-color,transform] duration-150 hover:border-neutral-300 active:scale-[0.98] active:bg-primary-bg active:border-primary/30';
 
 const AVATAR_PALETTE = [
   { bg: 'bg-primary-bg',     text: 'text-primary' },
@@ -61,6 +65,7 @@ interface Props {
   initialAcademias:   Teacher[];
   danceStyles:        DbDanceStyle[];
   stats:              HomeStats;
+  userRole:           'alumno' | 'profesor' | 'academia' | null;
 }
 
 // ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
@@ -119,7 +124,7 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats }: Props) {
+export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats, userRole }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
 
@@ -157,8 +162,12 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
     .slice(0, 4);
 
   // Overlay de búsqueda a pantalla completa en mobile (patrón VRBO: tocar
-  // un campo abre pantalla completa en vez de un dropdown chico).
+  // un campo abre pantalla completa en vez de un dropdown chico). Un
+  // useDelayedUnmount por overlay (mismo patrón que ya usa Header.tsx) en
+  // vez de una sola bandera + ref "recordando" cuál estaba abierto.
   const [mobileSearch, setMobileSearch] = useState<null | 'style' | 'city'>(null);
+  const shouldRenderStyleSearch = useDelayedUnmount(mobileSearch === 'style', 200);
+  const shouldRenderCitySearch = useDelayedUnmount(mobileSearch === 'city', 200);
 
   // Bloqueo de scroll en body mientras el overlay mobile esté abierto
   useEffect(() => {
@@ -467,10 +476,33 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                     </div>
                   )}
 
-                  {!isSearching && !hasSuggestions && (
+                  {!isSearching && !hasSuggestions && matchingStyles.length === 0 && (
                     <p className="px-4 py-3 text-[13px] text-neutral-400">
                       Sin resultados para &ldquo;{query}&rdquo;
                     </p>
+                  )}
+
+                  {/* Styles */}
+                  {matchingStyles.length > 0 && (
+                    <div>
+                      <div className="px-4 pt-3 pb-1">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Estilos</span>
+                      </div>
+                      {matchingStyles.map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => pickStyle(s.name)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0">
+                            <Search className="w-4 h-4 text-primary" />
+                          </div>
+                          <span className="text-[14px] font-semibold text-neutral-900">{s.name}</span>
+                        </button>
+                      ))}
+                    </div>
                   )}
 
                   {/* Classes */}
@@ -623,7 +655,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 <div
                   id="city-autocomplete-list"
                   role="listbox"
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50 max-h-[280px] overflow-y-auto overflow-x-hidden"
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50 max-h-[280px] overflow-y-auto overflow-x-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95"
                 >
                   {filteredCities.map((c, idx) => {
                     const isActive = activeCityIndex === idx;
@@ -656,7 +688,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 setActiveCityIndex(-1);
                 setActiveOptionIndex(-1);
               }}
-              className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] transition-colors"
+              className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-colors active:scale-[0.98]"
             >
               <Search className="w-4 h-4" /> Buscar
             </button>
@@ -700,7 +732,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
           <div className="relative z-10 mx-5 mt-7 bg-white rounded-3xl shadow-xl p-5 flex flex-col gap-2.5">
             <button type="button" onClick={() => setMobileSearch('style')}
-              className="w-full flex items-center gap-3 border border-neutral-200 rounded-2xl px-4 py-3 text-left">
+              className={MOBILE_SEARCH_TRIGGER_CLASS}>
               <Search className="w-[19px] h-[19px] text-primary shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-[11.5px] text-neutral-400">¿Qué quieres bailar?</p>
@@ -711,7 +743,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             </button>
 
             <button type="button" onClick={() => setMobileSearch('city')}
-              className="w-full flex items-center gap-3 border border-neutral-200 rounded-2xl px-4 py-3 text-left">
+              className={MOBILE_SEARCH_TRIGGER_CLASS}>
               <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-[11.5px] text-neutral-400">¿En qué ciudad?</p>
@@ -722,11 +754,11 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             </button>
 
             <button type="button" onClick={navigateSearch}
-              className="w-full font-black text-[15.5px] text-white bg-primary hover:bg-primary-dark rounded-full py-3.5 mt-1.5 transition-colors">
+              className="w-full font-black text-[15.5px] text-white bg-primary hover:bg-primary-dark active:bg-primary-dark rounded-full py-3.5 mt-1.5 shadow-[0_6px_16px_rgba(138,17,188,.35)] cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]">
               Buscar
             </button>
 
-            <Link href="/clases" className="block text-center font-bold text-[13.5px] text-primary mt-1">
+            <Link href="/clases" className="block text-center font-bold text-[13.5px] text-primary mt-1 py-1 active:opacity-60 transition-opacity">
               Explorar clases
             </Link>
           </div>
@@ -734,8 +766,8 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       </div>
 
       {/* ── Overlay mobile: buscador de estilo (G2) ── */}
-      {mobileSearch === 'style' && (
-        <div className="md:hidden fixed inset-0 z-[60] bg-white flex flex-col">
+      {shouldRenderStyleSearch && (
+        <div className={`md:hidden fixed inset-0 z-[60] bg-white flex flex-col transition-transform duration-200 ease-out starting:translate-y-full ${mobileSearch === 'style' ? 'translate-y-0' : 'translate-y-full'}`}>
           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
             <button type="button" onClick={() => setMobileSearch(null)} aria-label="Volver">
               <ArrowLeft className="w-5 h-5 text-neutral-900" />
@@ -844,8 +876,8 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       )}
 
       {/* ── Overlay mobile: buscador de ciudad (G3) ── */}
-      {mobileSearch === 'city' && (
-        <div className="md:hidden fixed inset-0 z-[60] bg-white flex flex-col">
+      {shouldRenderCitySearch && (
+        <div className={`md:hidden fixed inset-0 z-[60] bg-white flex flex-col transition-transform duration-200 ease-out starting:translate-y-full ${mobileSearch === 'city' ? 'translate-y-0' : 'translate-y-full'}`}>
           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
             <button type="button" onClick={() => setMobileSearch(null)} aria-label="Volver">
               <ArrowLeft className="w-5 h-5 text-neutral-900" />
@@ -1207,19 +1239,21 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       </section>
 
       {/* ── CTA PROFESORES ── */}
-      <section className="hero-section py-20">
-        <div className="max-w-[880px] mx-auto px-6 text-center">
-          <h2 className="text-[38px] font-black tracking-snug text-white mb-4">
-            ¿Eres profesor o academia?
-          </h2>
-          <p className="text-[17px] text-white/80 mb-10 max-w-xl mx-auto leading-relaxed">
-            Publica tus clases gratis y llega a cientos de alumnos en toda Latinoamérica. Sin comisiones.
-          </p>
-          <div className="flex justify-center">
-            <Link href="/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
+      {userRole !== 'profesor' && userRole !== 'academia' && (
+        <section className="hero-section py-20">
+          <div className="max-w-[880px] mx-auto px-6 text-center">
+            <h2 className="text-[38px] font-black tracking-snug text-white mb-4">
+              ¿Eres profesor o academia?
+            </h2>
+            <p className="text-[17px] text-white/80 mb-10 max-w-xl mx-auto leading-relaxed">
+              Publica tus clases gratis y llega a cientos de alumnos en toda Latinoamérica. Sin comisiones.
+            </p>
+            <div className="flex justify-center">
+              <Link href="/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── FOOTER ── */}
       <footer className="border-t border-neutral-200 py-10">
