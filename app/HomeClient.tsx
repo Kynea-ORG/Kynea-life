@@ -406,13 +406,8 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
           </p>
         </div>
 
-        <div className="relative z-20 max-w-[1080px] mx-auto px-6 flex items-center gap-[18px]">
-          <div className="shrink-0 bg-white rounded-2xl px-4 py-2.5 shadow-xl text-left">
-            <p className="font-black text-[20px] text-neutral-900 leading-none">{stats.classes}+</p>
-            <p className="text-[11px] text-neutral-500 mt-0.5 whitespace-nowrap">Clases</p>
-          </div>
-
-          <form onSubmit={handleSearch} className="flex-1 bg-white rounded-3xl shadow-2xl p-2 flex items-stretch gap-1">
+        <div className="relative z-20 max-w-[880px] mx-auto px-6">
+          <form onSubmit={handleSearch} className="w-full bg-white rounded-3xl shadow-2xl p-2 flex items-stretch gap-1">
             <div
               className="flex-[1.6] relative flex items-center gap-3 px-5 py-2.5 rounded-2xl min-w-0"
               ref={searchRef}
@@ -693,11 +688,6 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               <Search className="w-4 h-4" /> Buscar
             </button>
           </form>
-
-          <div className="shrink-0 bg-neutral-900 rounded-2xl px-4 py-2.5 shadow-xl text-left">
-            <p className="font-black text-[20px] text-white leading-none">{stats.teachers}+</p>
-            <p className="text-[11px] text-white/60 mt-0.5 whitespace-nowrap">Profesores</p>
-          </div>
         </div>
 
         <div className="relative z-10 max-w-[880px] mx-auto px-6 text-center mt-[22px] pb-9">
