@@ -383,7 +383,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       <div className="hidden md:block relative bg-[#1A1A19] min-h-[400px] z-20">
         <div className="absolute inset-0 overflow-hidden">
           <Image
-            src="/BBkynea.jpg"
+            src="/Background.webp"
             alt="Bailarina en movimiento"
             fill
             priority
@@ -704,7 +704,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
         <div className="relative overflow-hidden pb-7">
           <Image
-            src="/BBkynea.jpg"
+            src="/Background-Mobile.webp"
             alt="Bailarina en movimiento"
             fill
             priority
