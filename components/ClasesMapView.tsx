@@ -126,10 +126,10 @@ export default function ClasesMapView({
               <div className="flex-1 min-w-0 flex flex-col pr-6">
                 <p className="text-[11px] font-bold text-primary">{cls.style}</p>
                 <h3 className="font-bold text-neutral-900 text-[14px] leading-snug line-clamp-2 mt-0.5 group-hover:text-primary transition-colors">{cls.title}</h3>
-                <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name} · {cls.district}</p>
+                <p className="text-[12px] text-neutral-600 mt-0.5">{cls.teacher.name} · {cls.district}</p>
                 <div className="mt-auto pt-1.5">
                   <span className="text-[14px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.offerPrice ?? cls.price, cls.currency)}</span>
-                  <p className="text-[11px] text-neutral-500 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
+                  <p className="text-[11px] text-neutral-600 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
                 </div>
               </div>
             </div>
@@ -170,7 +170,7 @@ export default function ClasesMapView({
             <div className="flex-1 min-w-0">
               <span className="badge-pink text-[10px]">Academia</span>
               <h3 className="font-bold text-neutral-900 text-[14px] leading-snug mt-0.5 line-clamp-1 group-hover:text-primary transition-colors">{academia.name}</h3>
-              <p className="text-[12px] text-neutral-500 mt-0.5">{academia.venueDistrict}</p>
+              <p className="text-[12px] text-neutral-600 mt-0.5">{academia.venueDistrict}</p>
             </div>
           </div>
           <div className="flex items-center justify-center gap-1 text-[12px] font-semibold text-primary group-hover:text-primary-dark pt-2.5 mt-2.5 border-t border-neutral-100">
@@ -186,7 +186,7 @@ export default function ClasesMapView({
       <div className="text-center py-24">
         <p className="text-4xl mb-4">🗺️</p>
         <h3 className="text-[20px] font-bold text-neutral-900 mb-2">Nada con ubicación por ahora</h3>
-        <p className="text-neutral-500 text-[14px] max-w-sm mx-auto">
+        <p className="text-neutral-600 text-[14px] max-w-sm mx-auto">
           Ninguna clase o academia con estos filtros tiene una dirección con coordenadas todavía.
         </p>
       </div>

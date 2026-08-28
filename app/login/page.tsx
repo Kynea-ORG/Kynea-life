@@ -11,6 +11,7 @@ import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { safeRedirectPath } from '@/lib/utils';
 import { trackAuthCtaClick, trackAuthAttempt, trackLoginSuccess } from '@/lib/analytics';
+import ErrorBanner from '@/components/ErrorBanner';
 
 function errorMessageFromParam(errorParam: string | null): string {
   if (errorParam === 'cuenta_incompleta') {
@@ -132,13 +133,13 @@ function LoginPageContent() {
         <div className="relative z-10 -mt-7 lg:mt-0 flex-1 flex items-end lg:items-center justify-center px-5 pt-8 pb-12 lg:py-16 bg-white rounded-t-[28px] lg:rounded-none">
           <div className="w-full max-w-md">
             <h1 className="hidden lg:block text-[28px] font-black text-neutral-900 tracking-tight mb-1">Iniciar sesión</h1>
-            <p className="hidden lg:block text-[15px] text-neutral-500 mb-7">Bienvenido de vuelta a Kynea</p>
+            <p className="hidden lg:block text-[15px] text-neutral-600 mb-7">Bienvenido de vuelta a Kynea</p>
 
             {forgotMode ? (
               resetSent ? (
                 <div key="reset-sent" className="flex flex-col items-center gap-4 py-4 animate-fade-in">
                   <p className="text-[15px] font-semibold text-neutral-900 text-center">Revisa tu correo</p>
-                  <p className="text-[13px] text-neutral-500 text-center">
+                  <p className="text-[13px] text-neutral-600 text-center">
                     Te enviamos un enlace a <span className="font-semibold text-neutral-700">{resetEmail}</span> para restablecer tu contraseña.
                   </p>
                   <button
@@ -151,12 +152,8 @@ function LoginPageContent() {
                 </div>
               ) : (
                 <form key="reset-form" onSubmit={handleResetPassword} className="flex flex-col gap-4 animate-fade-in">
-                  <p className="text-[15px] text-neutral-500">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
-                  {resetError && (
-                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">
-                      {resetError}
-                    </div>
-                  )}
+                  <p className="text-[15px] text-neutral-600">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+                  {resetError && <ErrorBanner>{resetError}</ErrorBanner>}
                   <div>
                     <label className="block text-[13px] font-semibold text-neutral-700 mb-1.5">Correo electrónico</label>
                     <input
@@ -176,7 +173,7 @@ function LoginPageContent() {
                   <button
                     type="button"
                     onClick={() => { setForgotMode(false); shift(); }}
-                    className="text-[13px] text-neutral-500 hover:text-neutral-700 text-center"
+                    className="text-[13px] text-neutral-600 hover:text-neutral-700 text-center"
                   >
                     ← Volver
                   </button>
@@ -184,7 +181,7 @@ function LoginPageContent() {
               )
             ) : (
               <div key="login-form" className="animate-fade-in">
-                <button type="button" onClick={() => { handleGoogle(); shift(); }} disabled={googleLoading} className="w-full btn-outline mb-4 flex items-center justify-center gap-2 disabled:opacity-50">
+                <button type="button" onClick={() => { handleGoogle(); shift(); }} disabled={googleLoading} className="w-full btn-outline mb-4 flex items-center justify-center gap-2">
                   {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-4 h-4" />}
                   Continuar con Google
                 </button>
@@ -198,9 +195,7 @@ function LoginPageContent() {
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                   {error && (
                     <div className="animate-fade-in">
-                      <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700">
-                        {error}
-                      </div>
+                      <ErrorBanner>{error}</ErrorBanner>
                       {loginFailed && (
                         <p className="text-[12px] text-neutral-400 mt-1.5 px-1">
                           ¿Te registraste con Google? Usa el botón de Google para ingresar.
@@ -258,7 +253,7 @@ function LoginPageContent() {
                       onChange={e => { setRememberMe(e.target.checked); shift(); }}
                       className="w-4 h-4 accent-primary shrink-0"
                     />
-                    <span className="text-[13px] text-neutral-500">Recuérdame en este dispositivo</span>
+                    <span className="text-[13px] text-neutral-600">Recuérdame en este dispositivo</span>
                   </label>
 
                   <button type="submit" disabled={loading} onClick={shift} className="btn-primary w-full mt-1 flex items-center justify-center gap-2">

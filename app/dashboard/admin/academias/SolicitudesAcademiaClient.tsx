@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Loader2, Check, X } from 'lucide-react';
 import type { AcademiaRequestRow } from '@/lib/admin/queries';
 import { approveAcademiaRequest } from '@/lib/admin/actions';
+import ErrorBanner from '@/components/ErrorBanner';
 
 const KIND_LABELS: Record<AcademiaRequestRow['kind'], string> = {
   signup: 'Alta nueva',
@@ -35,19 +36,15 @@ export default function SolicitudesAcademiaClient({ requests: initialRequests }:
     <div className="p-6 lg:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-neutral-900">Solicitudes de academia</h1>
-        <p className="text-neutral-500 text-sm mt-1">{requests.length} pendiente{requests.length !== 1 ? 's' : ''} de revisión</p>
+        <p className="text-neutral-600 text-sm mt-1">{requests.length} pendiente{requests.length !== 1 ? 's' : ''} de revisión</p>
       </div>
 
-      {error && (
-        <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in mb-4">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner className="mb-4">{error}</ErrorBanner>}
 
       {requests.length === 0 ? (
         <div className="text-center py-20">
           <h3 className="text-lg font-bold text-neutral-900 mb-2">No hay solicitudes pendientes</h3>
-          <p className="text-neutral-500 text-sm">Las altas nuevas de academia y las conversiones de profesor van a aparecer acá.</p>
+          <p className="text-neutral-600 text-sm">Las altas nuevas de academia y las conversiones de profesor van a aparecer acá.</p>
         </div>
       ) : (
         <>
@@ -55,7 +52,7 @@ export default function SolicitudesAcademiaClient({ requests: initialRequests }:
           <div role="table" aria-label="Solicitudes de academia" className="hidden md:block bg-white rounded-xl shadow-sm border border-neutral-900 overflow-hidden">
             <div
               role="row"
-              className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-500 uppercase tracking-wide"
+              className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-600 uppercase tracking-wide"
               style={{ gridTemplateColumns: '1.6fr 1.3fr 1fr 1.2fr 1.6fr' }}
             >
               <span role="columnheader">Nombre</span>
@@ -114,7 +111,7 @@ export default function SolicitudesAcademiaClient({ requests: initialRequests }:
                     <span className="text-xs text-neutral-600 bg-neutral-100 px-2 py-1 rounded-full">{KIND_LABELS[req.kind]}</span>
                     <span className="text-xs text-neutral-600">{formatDate(req.createdAt)}</span>
                   </div>
-                  {req.ruc && <p className="text-xs text-neutral-500 mt-1">RUC: {req.ruc}</p>}
+                  {req.ruc && <p className="text-xs text-neutral-600 mt-1">RUC: {req.ruc}</p>}
                   <div className="flex items-center gap-2 mt-3">
                     <button
                       onClick={() => handleDecision(req.id, true)}

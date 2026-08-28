@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/profiles/actions';
 import { deleteAccount } from '@/lib/auth/actions';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
+import ErrorBanner from '@/components/ErrorBanner';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -85,11 +86,7 @@ function ChangePasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
       {success && (
         <div className="flex items-center gap-2 bg-green-bg border-l-4 border-green text-[13px] font-medium px-4 py-3 rounded-lg text-green-text animate-fade-in">
           <Check className="w-4 h-4 shrink-0" /> Contraseña actualizada.
@@ -143,7 +140,7 @@ function ChangePasswordForm() {
             value={confirm}
             onChange={e => setConfirm(e.target.value)}
             required
-            className={`input pr-11 ${confirmMismatch ? 'border-red-400 focus:border-red-400' : ''}`}
+            className={`input pr-11 ${confirmMismatch ? 'border-red focus:border-red' : ''}`}
           />
           <button
             type="button"
@@ -154,13 +151,13 @@ function ChangePasswordForm() {
           </button>
         </div>
         {confirmMismatch && (
-          <p className="text-xs text-red-500 mt-1 animate-fade-in">Las contraseñas no coinciden</p>
+          <p className="text-xs text-red mt-1 animate-fade-in">Las contraseñas no coinciden</p>
         )}
       </div>
       <button
         type="submit"
         disabled={loading || confirmMismatch}
-        className="btn-dark flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-dark flex items-center justify-center gap-2"
       >
         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
         {loading ? 'Guardando…' : 'Cambiar contraseña'}
@@ -258,7 +255,7 @@ export default function ConfiguracionClient({
         <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold transition-[opacity,transform] duration-200 ease-out ${
           toastOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         } ${
-          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-neutral-900 text-white'
+          toast.type === 'error' ? 'bg-red text-white' : 'bg-neutral-900 text-white'
         }`}>
           <span>{toast.msg}</span>
         </div>
@@ -266,7 +263,7 @@ export default function ConfiguracionClient({
 
       <div className="mb-6">
         <h1 className="text-2xl font-black text-neutral-900">Configuración</h1>
-        <p className="text-neutral-500 text-sm mt-1">Administra tus preferencias y seguridad</p>
+        <p className="text-neutral-600 text-sm mt-1">Administra tus preferencias y seguridad</p>
       </div>
 
       <div className="space-y-6">
@@ -278,7 +275,7 @@ export default function ConfiguracionClient({
               </div>
               <div>
                 <h2 className="font-bold text-neutral-900">Visibilidad</h2>
-                <p className="text-xs text-neutral-500">Controla cómo apareces en el buscador</p>
+                <p className="text-xs text-neutral-600">Controla cómo apareces en el buscador</p>
               </div>
             </div>
             <div className="space-y-4">
@@ -319,7 +316,7 @@ export default function ConfiguracionClient({
             </div>
             <div>
               <h2 className="font-bold text-neutral-900">Privacidad y seguridad</h2>
-              <p className="text-xs text-neutral-500">Gestiona tu contraseña y datos personales</p>
+              <p className="text-xs text-neutral-600">Gestiona tu contraseña y datos personales</p>
             </div>
           </div>
           <ChangePasswordForm />
@@ -338,17 +335,17 @@ export default function ConfiguracionClient({
         </div>
 
         {/* Danger zone */}
-        <div className="bg-red-50 rounded-xl border border-red-100 p-6">
-          <h2 className="font-bold text-red-700 mb-2">Zona de peligro</h2>
-          <p className="text-sm text-red-600 mb-4">Esta acción es irreversible. Procede con cuidado.</p>
+        <div className="bg-red-bg rounded-xl border border-red p-6">
+          <h2 className="font-bold text-red-text mb-2">Zona de peligro</h2>
+          <p className="text-sm text-red mb-4">Esta acción es irreversible. Procede con cuidado.</p>
           {confirmDeleteAccount ? (
             <div className="flex items-center gap-3 flex-wrap animate-fade-in">
-              <span className="text-sm font-semibold text-red-700">¿Seguro que quieres eliminar tu cuenta? Se borrará todo tu contenido.</span>
+              <span className="text-sm font-semibold text-red-text">¿Seguro que quieres eliminar tu cuenta? Se borrará todo tu contenido.</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDeleteAccount}
                   disabled={deletingAccount}
-                  className="text-sm font-semibold text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl transition-colors active:scale-[0.97] disabled:opacity-60 flex items-center gap-2"
+                  className="text-sm font-semibold text-white bg-red hover:bg-red-dark px-4 py-2 rounded-xl transition-colors active:scale-[0.97] disabled:opacity-60 flex items-center gap-2"
                 >
                   {deletingAccount && <Loader2 className="w-4 h-4 animate-spin" />}
                   {deletingAccount ? 'Eliminando…' : 'Sí, eliminar mi cuenta'}
@@ -365,7 +362,7 @@ export default function ConfiguracionClient({
           ) : (
             <button
               onClick={() => setConfirmDeleteAccount(true)}
-              className="text-sm font-semibold text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl transition-colors active:scale-[0.97]"
+              className="text-sm font-semibold text-white bg-red hover:bg-red-dark px-4 py-2 rounded-xl transition-colors active:scale-[0.97]"
             >
               Eliminar mi cuenta
             </button>

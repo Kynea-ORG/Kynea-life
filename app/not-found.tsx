@@ -10,7 +10,7 @@ export default function NotFound() {
         </div>
         <h1 className="text-6xl font-black text-neutral-900 mb-4">404</h1>
         <h2 className="text-xl font-bold text-neutral-900 mb-2">Esta página no existe</h2>
-        <p className="text-neutral-500 mb-8">Parece que esta clase ya terminó o fue removida. Pero hay muchas más esperándote.</p>
+        <p className="text-neutral-600 mb-8">Parece que esta clase ya terminó o fue removida. Pero hay muchas más esperándote.</p>
         <Link
           href="/"
           className="inline-flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold px-8 py-3 rounded-btn transition-colors active:scale-[0.97]"

@@ -7,6 +7,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { trackAuthCtaClick } from '@/lib/analytics';
+import ErrorBanner from '@/components/ErrorBanner';
 
 function getResetErrorMessage(msg: string): string {
   const m = msg.toLowerCase();
@@ -96,7 +97,7 @@ function ResetPasswordContent() {
             ) : !hasSession ? (
               <div key="invalid" className="flex flex-col items-center gap-4 py-4 text-center animate-fade-in">
                 <p className="text-[17px] font-black text-neutral-900">Enlace inválido o expirado</p>
-                <p className="text-[14px] text-neutral-500">
+                <p className="text-[14px] text-neutral-600">
                   Este enlace ya no es válido. Solicita un nuevo correo de recuperación desde el login.
                 </p>
                 <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'reset_password_page' })} className="btn-dark mt-2 inline-block px-6">
@@ -106,14 +107,10 @@ function ResetPasswordContent() {
             ) : (
               <div key="form" className="animate-fade-in">
                 <h1 className="text-[24px] font-black text-neutral-900 tracking-snug mb-1">Nueva contraseña</h1>
-                <p className="text-[15px] text-neutral-500 mb-6">Elige una contraseña segura para tu cuenta</p>
+                <p className="text-[15px] text-neutral-600 mb-6">Elige una contraseña segura para tu cuenta</p>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                  {error && (
-                    <div className="bg-red-bg border-l-4 border-red text-[13px] font-medium px-4 py-3 rounded-lg text-red-700 animate-fade-in">
-                      {error}
-                    </div>
-                  )}
+                  {error && <ErrorBanner>{error}</ErrorBanner>}
                   <div>
                     <label className="block text-[13px] font-semibold text-neutral-700 mb-1.5">Nueva contraseña</label>
                     <div className="relative">
@@ -144,7 +141,7 @@ function ResetPasswordContent() {
                         onChange={e => setConfirm(e.target.value)}
                         placeholder="Repite la contraseña"
                         required
-                        className={`input pr-11 ${confirmMismatch ? 'border-red-400 focus:border-red-400' : ''}`}
+                        className={`input pr-11 ${confirmMismatch ? 'border-red focus:border-red' : ''}`}
                       />
                       <button
                         type="button"
@@ -155,11 +152,11 @@ function ResetPasswordContent() {
                       </button>
                     </div>
                     {confirmMismatch && (
-                      <p className="text-[12px] text-red-500 mt-1 animate-fade-in">Las contraseñas no coinciden</p>
+                      <p className="text-[12px] text-red mt-1 animate-fade-in">Las contraseñas no coinciden</p>
                     )}
                   </div>
 
-                  <button type="submit" disabled={loading || confirmMismatch} className="btn-dark w-full mt-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button type="submit" disabled={loading || confirmMismatch} className="btn-dark w-full mt-1 flex items-center justify-center gap-2">
                     {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                     {loading ? 'Guardando…' : 'Guardar contraseña'}
                   </button>

@@ -39,7 +39,7 @@ export default function AcademiaWelcomeModal({ name }: { name: string }) {
         <h2 className="text-2xl font-black text-neutral-900 tracking-tight mb-1.5">
           ¡Felicidades, {firstName}!
         </h2>
-        <p className="text-[15px] text-neutral-500 mb-6">
+        <p className="text-[15px] text-neutral-600 mb-6">
           Tu academia fue aprobada — ya eres parte de Kynea como academia.
         </p>
 
@@ -57,7 +57,7 @@ export default function AcademiaWelcomeModal({ name }: { name: string }) {
         <button
           onClick={handleDismiss}
           disabled={dismissing}
-          className="btn-dark w-full flex items-center justify-center gap-2 disabled:opacity-60"
+          className="btn-dark w-full flex items-center justify-center gap-2"
         >
           {dismissing && <Loader2 className="w-4 h-4 animate-spin" />}
           Empezar a publicar

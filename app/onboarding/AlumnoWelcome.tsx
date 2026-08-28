@@ -63,7 +63,7 @@ export default function AlumnoWelcome({ redirectTo = '/clases' }: { redirectTo?:
             type="button"
             onClick={() => { finish(true); shift(); }}
             disabled={loading}
-            className="text-sm font-semibold text-neutral-500 hover:text-neutral-700 transition-colors disabled:opacity-50"
+            className="text-sm font-semibold text-neutral-600 hover:text-neutral-700 transition-colors disabled:opacity-50"
           >
             Omitir
           </button>
@@ -77,7 +77,7 @@ export default function AlumnoWelcome({ redirectTo = '/clases' }: { redirectTo?:
                   <Icon className="w-8 h-8 text-primary" />
                 </div>
                 <h2 className="text-xl font-black text-neutral-900 mb-2">{title}</h2>
-                <p className="text-sm text-neutral-500 leading-relaxed">{description}</p>
+                <p className="text-sm text-neutral-600 leading-relaxed">{description}</p>
               </div>
 
               <div className="flex gap-1.5 justify-center mt-8 mb-6">
@@ -95,7 +95,7 @@ export default function AlumnoWelcome({ redirectTo = '/clases' }: { redirectTo?:
                 type="button"
                 onClick={() => { if (isLast) { finish(false); } else { setSlide(s => s + 1); } shift(); }}
                 disabled={loading}
-                className="btn-dark w-full flex items-center justify-center gap-2 disabled:opacity-60"
+                className="btn-dark w-full flex items-center justify-center gap-2"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? 'Cargando…' : isLast ? 'Explorar clases →' : 'Siguiente →'}

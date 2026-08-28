@@ -105,7 +105,7 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
           <button
             onClick={() => setSaved(!saved)}
             className={`absolute bottom-3 right-3 p-2 rounded-full shadow transition-[background-color,color] active:scale-90 ${
-              saved ? 'bg-neutral-900 text-white' : 'bg-white/90 text-neutral-500 hover:text-neutral-900 backdrop-blur-sm'
+              saved ? 'bg-neutral-900 text-white' : 'bg-white/90 text-neutral-600 hover:text-neutral-900 backdrop-blur-sm'
             }`}
             title={saved ? 'Guardado' : 'Guardar clase'}
           >
@@ -137,13 +137,13 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
 
           <div>
             <h3 className="font-bold text-neutral-900 text-[15px] leading-snug">{cls.title}</h3>
-            <p className="text-[13px] text-neutral-500 mt-0.5">
+            <p className="text-[13px] text-neutral-600 mt-0.5">
               {cls.teacher.name} · <span className="text-neutral-400">{cls.level}</span>
             </p>
           </div>
 
           {!compact && (
-            <p className="text-[13px] text-neutral-500 line-clamp-2 leading-relaxed">{cls.shortDescription}</p>
+            <p className="text-[13px] text-neutral-600 line-clamp-2 leading-relaxed">{cls.shortDescription}</p>
           )}
 
           <div className="flex flex-col gap-1.5">
@@ -153,16 +153,16 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
                 Inicia {formatFriendlyDate(cls.startDate)}
               </span>
             )}
-            <span className="flex items-center gap-1.5 text-[13px] text-neutral-500">
+            <span className="flex items-center gap-1.5 text-[13px] text-neutral-600">
               <MapPin className="w-3.5 h-3.5 text-neutral-400" />
               {cls.venueName ? `${cls.venueName} · ` : ''}{cls.district}, {cls.city}
             </span>
-            <span className="flex items-center gap-1.5 text-[13px] text-neutral-500">
+            <span className="flex items-center gap-1.5 text-[13px] text-neutral-600">
               <Clock className="w-3.5 h-3.5 text-neutral-400" />
               {formatTimeSlots(cls.timeSlots).split(' | ')[0]}
             </span>
             {!compact && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
-              <span className="flex items-center gap-1.5 text-[13px] text-neutral-500">
+              <span className="flex items-center gap-1.5 text-[13px] text-neutral-600">
                 <Users className="w-3.5 h-3.5 text-neutral-400" />
                 {spotsLeft} cupos disponibles
               </span>

@@ -105,7 +105,7 @@ export default function ConvertirAcademiaClient({
     <div className="min-h-screen bg-neutral-50 flex flex-col">
       <header className="bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-center relative">
         <Image src="/logo.png" alt="Kynea" width={100} height={32} />
-        <Link href="/dashboard" className="absolute left-6 top-1/2 -translate-y-1/2 text-sm text-neutral-500 hover:text-neutral-800 flex items-center gap-1">
+        <Link href="/dashboard" className="absolute left-6 top-1/2 -translate-y-1/2 text-sm text-neutral-600 hover:text-neutral-800 flex items-center gap-1">
           <ChevronLeft className="w-4 h-4" /> Dashboard
         </Link>
       </header>
@@ -118,7 +118,7 @@ export default function ConvertirAcademiaClient({
             </div>
             <div>
               <h1 className="text-xl font-black text-neutral-900">Convertir a academia</h1>
-              <p className="text-sm text-neutral-500">No pierdes tus clases ni tu perfil actual — todo es opcional</p>
+              <p className="text-sm text-neutral-600">No pierdes tus clases ni tu perfil actual — todo es opcional</p>
             </div>
           </div>
 
@@ -138,7 +138,7 @@ export default function ConvertirAcademiaClient({
 
           <div className="bg-white rounded-[20px] border border-neutral-900 shadow-xl p-8">
             {error && (
-              <p className="mb-4 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3 animate-fade-in">{error}</p>
+              <p className="mb-4 text-xs text-red font-medium bg-red-bg border border-red rounded-xl px-4 py-3 animate-fade-in">{error}</p>
             )}
 
             {step === 0 && (
@@ -333,7 +333,7 @@ export default function ConvertirAcademiaClient({
               <button
                 onClick={step === STEPS.length - 1 ? handleSubmit : () => setStep(s => s + 1)}
                 disabled={submitting}
-                className="btn-dark flex-1 disabled:opacity-60"
+                className="btn-dark flex-1"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {submitting ? 'Enviando…' : step === STEPS.length - 1 ? 'Enviar solicitud' : 'Continuar'}

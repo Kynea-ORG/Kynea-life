@@ -139,7 +139,7 @@ export default function ImagePositionPicker({
 
       {(!compact || isModified) && (
         <div className={`flex items-center mt-1.5 w-full ${compact ? 'justify-end' : 'justify-between'}`}>
-          {!compact && <p className="text-xs text-neutral-500">Arrastra la foto para centrarla</p>}
+          {!compact && <p className="text-xs text-neutral-600">Arrastra la foto para centrarla</p>}
           {isModified && (
             <button
               type="button"
