@@ -115,7 +115,7 @@ export default function ClassBrowser({
               value={query}
               onChange={e => handleQueryChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="flex-1 min-w-0 text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none"
+              className="flex-1 min-w-0 text-[16px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none"
             />
             {query && (
               <button onClick={() => handleQueryChange('')} className="text-neutral-400 hover:text-neutral-600">

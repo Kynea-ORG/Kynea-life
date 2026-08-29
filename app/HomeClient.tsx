@@ -770,7 +770,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 placeholder="Busca clases, academias, profesores…"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                className="flex-1 min-w-0 text-[15px] text-neutral-900 outline-none bg-transparent"
+                className="flex-1 min-w-0 text-[16px] text-neutral-900 outline-none bg-transparent"
               />
               {query.length > 0 && (
                 <button
@@ -880,7 +880,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 placeholder="Busca tu ciudad…"
                 value={city}
                 onChange={e => setCity(e.target.value)}
-                className="flex-1 min-w-0 text-[15px] text-neutral-900 outline-none bg-transparent"
+                className="flex-1 min-w-0 text-[16px] text-neutral-900 outline-none bg-transparent"
               />
               {city.length > 0 && (
                 <button
