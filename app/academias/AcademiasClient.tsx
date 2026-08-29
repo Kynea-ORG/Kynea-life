@@ -161,7 +161,7 @@ export default function AcademiasClient({ teacherCount }: { teacherCount: number
             </p>
             <p className="text-center text-[13px] text-neutral-400 mt-2">
               ¿Eres profesor independiente?{' '}
-              <Link href="/unete" className="text-neutral-900 font-semibold hover:underline">
+              <Link href="/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'academias_page' })} className="text-neutral-900 font-semibold hover:underline">
                 Regístrate aquí
               </Link>
             </p>

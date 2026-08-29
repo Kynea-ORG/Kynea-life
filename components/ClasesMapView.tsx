@@ -6,6 +6,7 @@ import GoogleMap, { type MapPin } from '@/components/GoogleMap';
 import { MapPin as MapPinIcon, Building2, X, ChevronRight, List } from 'lucide-react';
 import { formatPrice, formatPriceShort, formatTimeSlots } from '@/lib/utils';
 import { classUrl } from '@/lib/classes/helpers';
+import { trackSelectItem, trackSelectProfile } from '@/lib/analytics';
 import type { DanceClass, Teacher } from '@/lib/types';
 
 // Vista dividida tipo Airbnb: mapa real (un solo load de Maps JS por
@@ -21,6 +22,7 @@ export default function ClasesMapView({
   classes,
   academias = [],
   onShowList,
+  listName,
 }: {
   classes: DanceClass[];
   academias?: Teacher[];
@@ -30,6 +32,9 @@ export default function ClasesMapView({
    * (ClassBrowser) to switch to its own Lista view instead. Desktop is
    * unaffected: the list panel is always visible there regardless. */
   onShowList: () => void;
+  /** Identifies this surface for trackSelectItem on the class links below
+   * (popup + sidebar list) — see ClassBrowser, which passes `${listName}_mapa`. */
+  listName: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Hover en desktop solo resalta el pin (sin abrir tarjeta ni mover el
@@ -99,6 +104,14 @@ export default function ClasesMapView({
     if (id) itemRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  function handleSelectClass(cls: DanceClass) {
+    trackSelectItem({ classId: cls.id, className: cls.title, classStyle: cls.style, teacherId: cls.teacher.id, listName });
+  }
+
+  function handleSelectAcademia(academia: Teacher) {
+    trackSelectProfile({ role: 'academia', profileId: academia.id, profileName: academia.name, listName });
+  }
+
   function renderPopup(pinId: string, close: () => void) {
     if (pinId.startsWith('clase-')) {
       const cls = validClasses.find(c => `clase-${c.id}` === pinId);
@@ -118,7 +131,7 @@ export default function ClasesMapView({
             <X className="w-4 h-4" />
           </button>
 
-          <Link href={classUrl(cls)} className="block p-3">
+          <Link href={classUrl(cls)} onClick={() => handleSelectClass(cls)} className="block p-3">
             <div className="flex gap-3">
               <div className="relative w-28 shrink-0 rounded-lg overflow-hidden">
                 <SmartImage src={cls.coverImage || '/logo.png'} alt={cls.title} fill sizes="112px" className="object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -158,7 +171,7 @@ export default function ClasesMapView({
           <X className="w-4 h-4" />
         </button>
 
-        <Link href={`/profesores/${academia.slug}`} className="block p-3">
+        <Link href={`/profesores/${academia.slug}`} onClick={() => handleSelectAcademia(academia)} className="block p-3">
           <div className="flex items-start gap-3 pr-6">
             <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-neutral-100 flex items-center justify-center">
               {academia.photo ? (
@@ -256,7 +269,7 @@ export default function ClasesMapView({
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-[10px] font-bold uppercase tracking-wide text-primary-dark bg-primary-bg px-2 py-0.5 rounded-full">{cls.style}</span>
-                    <Link href={classUrl(cls)} className="block font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1 mt-1">
+                    <Link href={classUrl(cls)} onClick={() => handleSelectClass(cls)} className="block font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1 mt-1">
                       {cls.title}
                     </Link>
                     <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name}</p>
@@ -291,7 +304,7 @@ export default function ClasesMapView({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Link href={`/profesores/${academia.slug}`} className="font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1">
+                    <Link href={`/profesores/${academia.slug}`} onClick={() => handleSelectAcademia(academia)} className="font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1">
                       {academia.name}
                     </Link>
                     <span className="badge-pink text-[10px] mt-0.5 inline-block">Academia</span>

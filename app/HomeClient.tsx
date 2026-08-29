@@ -13,7 +13,7 @@ import ClassCard from '@/components/ClassCard';
 import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
 import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
-import { trackAuthCtaClick } from '@/lib/analytics';
+import { trackAuthCtaClick, trackSearch, trackSelectProfile } from '@/lib/analytics';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES, CATEGORY_GRADIENTS } from '@/lib/catalog/styleImages';
 import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
@@ -272,9 +272,12 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
   const totalSearchOptions = hasSuggestions ? numClasses + numProfiles + 1 : 0;
 
   const navigateSearch = () => {
+    const trimmedQuery = query.trim();
+    const trimmedCity = city.trim();
     const params = new URLSearchParams();
-    if (query.trim()) params.set('q', query.trim());
-    if (city.trim()) params.set('city', city.trim());
+    if (trimmedQuery) params.set('q', trimmedQuery);
+    if (trimmedCity) params.set('city', trimmedCity);
+    if (trimmedQuery || trimmedCity) trackSearch({ searchTerm: trimmedQuery, city: trimmedCity });
     router.push(`/clases?${params.toString()}`);
     setShowSuggestions(false);
     setActiveOptionIndex(-1);
@@ -357,6 +360,10 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
     setMobileSearch(null);
   }
   function goToProfile(p: SearchProfile) {
+    trackSelectProfile({
+      role: p.role === 'academia' ? 'academia' : 'profesor',
+      profileId: p.id, profileName: p.name, listName: 'home_search_autocomplete',
+    });
     router.push(`/profesores/${p.slug}`);
     setShowSuggestions(false);
     setActiveOptionIndex(-1);
@@ -1052,6 +1059,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 <Link
                   key={t.id}
                   href={`/profesores/${t.slug}`}
+                  onClick={() => trackSelectProfile({ role: 'academia', profileId: t.id, profileName: t.name, listName: 'home_academias' })}
                   className="card-hover flex items-start gap-4 group"
                 >
                   <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 transition-transform duration-300 group-hover:scale-105">
@@ -1150,6 +1158,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   <Link
                     key={t.id}
                     href={`/profesores/${t.slug}`}
+                    onClick={() => trackSelectProfile({ role: 'profesor', profileId: t.id, profileName: t.name, listName: 'home_profesores' })}
                     className="shrink-0 w-[210px] rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
                     style={{ scrollSnapAlign: 'start' }}
                   >

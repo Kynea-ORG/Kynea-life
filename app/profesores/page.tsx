@@ -1,7 +1,7 @@
-import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import Header from '@/components/Header';
+import TrackedProfileLink from '@/components/TrackedProfileLink';
 
 export default async function ProfesoresPage() {
   const [teachers, academias] = await Promise.all([
@@ -21,8 +21,9 @@ export default async function ProfesoresPage() {
             <h2 className="text-[20px] font-bold text-neutral-900 mb-5">Profesores</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
               {teachers.map(t => (
-                <Link key={t.id} href={`/profesores/${t.slug}`}
-                  className="border border-neutral-200 rounded-2xl overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98] group">
+                <TrackedProfileLink key={t.id} href={`/profesores/${t.slug}`}
+                  role="profesor" profileId={t.id} profileName={t.name} listName="profesores_directorio"
+                  className="border border-neutral-200 rounded-2xl overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98] group block">
                   {/* Hover zoom lives on this wrapper, not the <Image> — an
                       inline transform for the saved crop zoom would override
                       any transform utility class placed on the image itself. */}
@@ -49,7 +50,7 @@ export default async function ProfesoresPage() {
                       ))}
                     </div>
                   </div>
-                </Link>
+                </TrackedProfileLink>
               ))}
             </div>
           </section>
@@ -60,7 +61,8 @@ export default async function ProfesoresPage() {
             <h2 className="text-[20px] font-bold text-neutral-900 mb-5">Academias</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {academias.map(t => (
-                <Link key={t.id} href={`/profesores/${t.slug}`}
+                <TrackedProfileLink key={t.id} href={`/profesores/${t.slug}`}
+                  role="academia" profileId={t.id} profileName={t.name} listName="profesores_directorio"
                   className="flex items-start gap-4 border border-neutral-200 rounded-2xl p-4 transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98] group">
                   <div className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-neutral-200">
                     {t.photo ? (
@@ -82,7 +84,7 @@ export default async function ProfesoresPage() {
                       ))}
                     </div>
                   </div>
-                </Link>
+                </TrackedProfileLink>
               ))}
             </div>
           </section>
