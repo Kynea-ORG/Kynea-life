@@ -11,7 +11,7 @@ import MapPreview from '@/components/MapPreview';
 import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
-import { trackGenerateLead, trackAuthCtaClick, trackViewItem } from '@/lib/analytics';
+import { trackGenerateLead, trackAuthCtaClick, trackViewItem, trackSaveClass, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const router = useRouter();
@@ -50,6 +50,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cls.id]);
 
+  const socialClick = (channel: 'instagram' | 'tiktok' | 'website') =>
+    trackTeacherSocialClick({ channel, teacherId: cls.teacher.id, teacherName: cls.teacher.name, surface: 'clase_detail' });
+
+  // Los 5 links al perfil del profesor de esta página (nombre en la cabecera,
+  // avatar y nombre del bloque "profesor", en su versión desktop y mobile)
+  // apuntan todos al mismo destino — un solo handler para no repetirlo.
+  const selectTeacherProfile = () =>
+    trackSelectProfile({
+      role: cls.teacher.type === 'academia' ? 'academia' : 'profesor',
+      profileId: cls.teacher.id, profileName: cls.teacher.name, listName: 'clase_detail',
+    });
+
   const toggleSave = async () => {
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
@@ -66,7 +78,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     } else {
       const { error } = await supabase.from('saved_classes').insert({ user_id: session.user.id, class_id: cls.id });
       // 23505 = already saved (stale local state, e.g. another tab) — treat as success.
-      if (!error || error.code === '23505') setSaved(true);
+      if (!error || error.code === '23505') {
+        setSaved(true);
+        trackSaveClass({ classId: cls.id, className: cls.title, classStyle: cls.style, teacherId: cls.teacher.id });
+      }
     }
     setSaving(false);
   };
@@ -187,7 +202,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   Nivel {cls.level}
                 </span>
                 <span>·</span>
-                <Link href={`/profesores/${cls.teacher.slug}`} className="hover:text-neutral-900 font-medium transition-colors hover:underline">
+                <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="hover:text-neutral-900 font-medium transition-colors hover:underline">
                   {cls.teacher.name}
                 </Link>
                 {cls.teacher.rating && (
@@ -299,7 +314,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             <div className="hidden lg:block border border-neutral-200 rounded-xl p-6">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
               <div className="flex items-start gap-4">
-                <Link href={`/profesores/${cls.teacher.slug}`} className="shrink-0">
+                <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
                       <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
@@ -311,7 +326,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   )}
                 </Link>
                 <div className="flex-1">
-                  <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
+                  <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
                   <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
@@ -331,6 +346,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                         href={buildInstagramUrl(cls.teacher.instagram)}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => socialClick('instagram')}
                         className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
                       >
                         <InstagramIcon className="w-3.5 h-3.5" /> {cls.teacher.instagram}
@@ -341,13 +357,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                         href={buildTikTokUrl(cls.teacher.tiktok)}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => socialClick('tiktok')}
                         className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
                       >
                         <TikTokIcon className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
                       </a>
                     )}
                     {cls.teacher.website && (
-                      <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
+                      <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
                         <Globe className="w-3.5 h-3.5" /> Sitio web
                       </a>
                     )}
@@ -493,7 +510,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             <div className="lg:hidden border border-neutral-200 rounded-xl p-6 mt-6">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
               <div className="flex items-start gap-4">
-                <Link href={`/profesores/${cls.teacher.slug}`} className="shrink-0">
+                <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
                       <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
@@ -505,7 +522,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   )}
                 </Link>
                 <div className="flex-1">
-                  <Link href={`/profesores/${cls.teacher.slug}`} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
+                  <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
                     {cls.teacher.name}
                   </Link>
                   <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
@@ -525,6 +542,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                         href={buildInstagramUrl(cls.teacher.instagram)}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => socialClick('instagram')}
                         className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
                       >
                         <InstagramIcon className="w-3.5 h-3.5" /> {cls.teacher.instagram}
@@ -535,13 +553,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                         href={buildTikTokUrl(cls.teacher.tiktok)}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => socialClick('tiktok')}
                         className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
                       >
                         <TikTokIcon className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
                       </a>
                     )}
                     {cls.teacher.website && (
-                      <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
+                      <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
                         <Globe className="w-3.5 h-3.5" /> Sitio web
                       </a>
                     )}

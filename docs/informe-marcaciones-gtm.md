@@ -5,6 +5,17 @@ Este documento resume todo lo conversado e implementado sobre medición/analíti
 > **v2 (2026-08-05):** el embudo de auth cambió desde la primera versión de este documento — antes login/registro de alumno y profesor vivían en una sola pantalla; ahora están separados (`/registro` solo alumno, `/unete/beneficios` → `/unete` solo profesor). Se aprovechó la actualización para mapear también onboarding, creación de clases y visualización de clases, que antes no estaban cubiertos. Las secciones 2.1–2.4 (eventos ya implementados) siguen vigentes tal cual — solo se actualizó la tabla de `cta_location`. Las secciones 3.5–3.7 son **propuestas nuevas, todavía sin código** — ver sección 4 para qué falta implementar antes de poder configurarlas en GTM.
 >
 > **v3 (2026-08-06):** deep-dive específico sobre auth (login + registro) pedido para resolver una duda concreta: *¿cómo se determina el rol (alumno/profesor/academia) en el login, si el formulario de login no lo pide?* Ver sección 9 — cubre el mecanismo real de resolución de rol, un gap de código encontrado en `redirectByRole.ts`, el problema arquitectónico del callback de Google (server-side, sin acceso a `dataLayer`), el doble-conteo de `auth_cta_click` en el camino profesor vía `/unete/beneficios`, el detalle de qué se mide hoy del OTP, y la spec completa de un evento nuevo (`login_success`) más un candidato adicional (`otp_verify_failed`). Escrito para pasarse a otra conversación de Claude y volver después solo a ejecutar.
+>
+> **v4 (2026-08-28):** re-análisis completo pedido tras el rediseño del Home (hero desktop/mobile con buscador estilo VRBO, header con prop `homeNav`, drawer mobile universal role-aware) y la aparición de `/academias` como tercer flujo de registro directo (antes solo alumno/profesor). Verificado línea por línea contra el código real de `lib/analytics.ts` y todos sus call sites:
+> - **4 regresiones/huecos reales encontrados y arreglados:** (1) el drawer mobile rediseñado (`components/Header.tsx`) dejó de trackear sus dos links de upsell (`¿Tienes una academia?` / `Sé profesor en Kynea`) — el `header_mobile_profesor` que documentaba v1-v3 llevaba tiempo sin disparar nada; (2) el link "Regístrate aquí" de `/academias` hacia `/unete` nunca tuvo tracking; (3) el toggle Lista/Mapa de `/clases` y `/categorias/[slug]` (estado local de React, sin cambio de URL) no disparaba nada — ni un pageview automático lo veía; (4) los links "Ver clase" del popup y la lista lateral del mapa (`ClasesMapView.tsx`) no disparaban `select_item` — el `listName='mapa'` fijo que documentaba v1-v3 nunca se migró cuando `/mapa` (CSS falso) fue reemplazado por el mapa real embebido en `/clases`. Ver 3.3/9.2 (1-2) y 3.8/3.11 (3-4).
+> - **Tabla de `cta_location` reescrita** — 7 ubicaciones nuevas del hero rediseñado del Home (`header_home_desktop_*`, `header_home_mobile_registro`) y de `/academias` que no existían en v1-v3.
+> - **Cambio de comportamiento (no de tracking) en `home_teacher_cta`:** ahora se oculta para profesor/academia ya logueados — el evento sigue igual, pero quien puede dispararlo cambió; relevante al interpretar tendencias históricas.
+> - **3 eventos nuevos implementados**, dos de la lista de candidatos pendientes (sección 7) y uno encontrado en esta misma ronda: `search` (3.9) y `save_class` (3.10) maduraron de "quizás algún día" a "vale la pena" con el buscador VRBO-style nuevo; `map_view_toggle` (3.11) mide el toggle Lista/Mapa, pedido explícitamente al revisar el estado de la medición del mapa. El buscador de filtro-en-vivo de `/clases` (`ClassBrowser.tsx`) queda deliberadamente fuera de esta ronda — necesita lógica de debounce-y-disparar-una-vez que no se pudo resolver reusando un handler existente, a diferencia del Home donde `navigateSearch()` ya es un único punto de convergencia real.
+>
+> **v5 (2026-08-28, misma fecha que v4):** segundo pase de análisis pedido con foco en tres preguntas de negocio — *¿medimos registros de academias/profesores/alumnos?*, *¿cuántas clases se visualizan?*, *¿cuánta gente se conecta con el profesor?* — más una petición de recomendaciones. Las dos primeras ya estaban cubiertas (`sign_up`+`role`, `select_item`/`view_item`); la tercera reveló que **todo el embudo estaba construido sobre la clase como unidad y el perfil no tenía equivalente**, que es exactamente el lado que le importa a una academia:
+> - **`view_profile` + `select_profile` (3.12)** — el espejo de `view_item`/`select_item` para perfiles de profesor y academia. 6 superficies de clic que no medían nada (Home ×3, directorio `/profesores`, detalle de clase, mapa) y la vista de perfil en sí, que nunca se contó. Sin esto no se podía responder "¿cuántas visitas tuvo el perfil de esta academia?".
+> - **`teacher_social_click` (3.13)** — los links de Instagram/TikTok/web del profesor llevaban a dominios externos sin ningún tracking: el visitante se iba de Kynea a contactarlo y no quedaba rastro.
+> - **Recomendaciones registradas, no implementadas** (ver sección 7, priorizadas): `search_no_results` (la lista de compras de qué profesores/estilos captar), `filter_applied` (demanda real por estilo/nivel/día, independiente del catálogo publicado), `search` en `/clases`, y eventos de retención del lado profesor (`class_status_changed`, edición de clase).
 
 ## 1. Contexto general de la implementación
 
@@ -39,7 +50,16 @@ Header "Únete como profesor" → /unete/beneficios (landing de valor)
   → /dashboard
 ```
 
-`/completar-registro` es el único punto donde el rol se elige explícitamente (Google sin rol preseleccionado, ej. si entró por `/login` en vez de `/registro` o `/unete`) — ahí el usuario elige Alumno o Profesor manualmente.
+**Academia (nuevo desde v4 — ya existía en código, no estaba mapeado):**
+```
+Header/drawer "¿Tienes una academia?" → /academias (form directo, sin selector de rol — role: 'academia' hardcodeado)
+  → [Google: /auth/callback]  |  [Email: /confirmar-email (OTP)]
+  → /onboarding?new=1  (mismo wizard de 4 pasos que profesor)
+  → /dashboard
+```
+`/academias` usa el mismo hook `useSignupForm(role)` que `/unete` (`lib/auth/useSignupForm.ts`), solo con `role: 'academia'` en vez de `'profesor'` — mismo mecanismo de resolución de rol, mismos eventos (`auth_attempt`, `sign_up`, `onboarding_step_complete`, `onboarding_complete`) ya cubiertos por el código compartido. No es una landing de valor como `/unete/beneficios` — es el formulario de registro en sí, análogo a `/registro`/`/unete`.
+
+`/completar-registro` es el único punto donde el rol se elige explícitamente (Google sin rol preseleccionado, ej. si entró por `/login` en vez de `/registro`, `/unete` o `/academias`) — ahí el usuario elige entre las 3 opciones (Alumno/Profesor/Academia) manualmente.
 
 ## 3. Eventos — implementados vs. propuestos
 
@@ -72,22 +92,33 @@ Header "Únete como profesor" → /unete/beneficios (landing de valor)
 
   | `cta_location` | Dónde está | Estado |
   |---|---|---|
-  | `header_desktop_profesor` | "Únete como profesor" del Header (desktop) — **ahora lleva a `/unete/beneficios`**, ya no directo a `/unete` | actualizado |
-  | `header_mobile_profesor` | Mismo botón, menú mobile | actualizado |
-  | `beneficios_hero` | "Publica tu primera clase →", hero de `/unete/beneficios` (lleva a `/unete`) | **nuevo** |
-  | `beneficios_cta_final` | CTA de cierre al fondo de `/unete/beneficios` | **nuevo** |
-  | `home_teacher_cta` | "Publicar mi primera clase →" (sección "¿Eres profesor o academia?" del Home) | vigente — **pero ojo:** este todavía salta directo a `/unete`, sin pasar por la landing de beneficios. Inconsistente con el Header; a definir si se quiere unificar (no lo cambié, es decisión de producto). |
+  | `header_desktop_profesor` | "Únete como profesor" del Header estándar (páginas fuera del Home) — lleva a `/unete/beneficios` | vigente |
+  | `header_desktop_academia` | "¿Tienes una academia?" del Header estándar (páginas fuera del Home) — lleva a `/academias` | **v4, nuevo** |
+  | `header_desktop` | "Iniciar sesión" del Header estándar (páginas fuera del Home) | **v4, nuevo** — no estaba documentado, ya existía |
+  | `header_mobile` | "Iniciar sesión" del drawer mobile (todo el sitio) | **v4, nuevo** — no estaba documentado, ya existía |
+  | `header_mobile_registro` | "Regístrate gratis" del drawer mobile (todo el sitio) | **v4, nuevo** — no estaba documentado, ya existía |
+  | `header_mobile_profesor` | "Sé profesor en Kynea" del drawer mobile (todo el sitio) — lleva a `/unete/beneficios` | **v4, regresión arreglada** — el drawer rediseñado (`components/Header.tsx`, `CONVERSION_LINKS`) había dejado de disparar esto; restaurado con el mismo nombre |
+  | `header_mobile_academia` | "¿Tienes una academia?" del drawer mobile (todo el sitio) — lleva a `/academias` | **v4, nuevo** (mismo fix que la fila anterior) |
+  | `header_home_desktop` | "Iniciar sesión" del hero del Home (desktop, `homeNav`) | **v4, nuevo** |
+  | `header_home_desktop_registro` | "Regístrate gratis" del hero del Home (desktop, `homeNav`) | **v4, nuevo** |
+  | `header_home_desktop_profesor` | "Sé profesor" junto al logo del hero del Home (desktop, `homeNav`) — lleva a `/unete/beneficios` | **v4, nuevo** — distinto del `header_desktop_profesor` de arriba (mismo destino, superficie distinta) |
+  | `header_home_desktop_academia` | "¿Tienes una academia?" junto al logo del hero del Home (desktop, `homeNav`) — lleva a `/academias` | **v4, nuevo** |
+  | `header_home_mobile_registro` | Pill "Regístrate" junto al hamburger del hero del Home (mobile, `homeNav`) | **v4, nuevo** |
+  | `beneficios_hero` | "Publica tu primera clase →", hero de `/unete/beneficios` (lleva a `/unete`) | vigente |
+  | `beneficios_cta_final` | CTA de cierre al fondo de `/unete/beneficios` | vigente |
+  | `home_teacher_cta` | "Publicar mi primera clase →" (sección "¿Eres profesor o academia?" del Home) | vigente, pero **desde el rediseño del Home ahora está oculta para profesor/academia ya logueados** (antes visible siempre) — el evento no cambió, solo quién puede dispararlo. Sigue saltando directo a `/unete` sin pasar por la landing de beneficios; inconsistencia de producto no resuelta (decisión pendiente, ver 3.3 v1-v3). |
   | `home_bottom_ribbon` | "Registrarme gratis" del banner morado fijo al fondo del Home (solo sin sesión) | vigente |
   | `contact_modal_desktop` / `contact_modal_mobile` | Botones del modal de contacto cuando no hay sesión | vigente |
   | `registro_page` | Link "Inicia sesión" dentro de `/registro` | vigente |
   | `unete_page` | Link "Inicia sesión" dentro de `/unete` | vigente |
+  | `academias_page` | Links "Inicia sesión" (`login`) y "Regístrate aquí" hacia `/unete` (`registro`) dentro de `/academias` | **v4** — `login` ya existía; el link de `registro` era un hueco real, arreglado en v4 |
   | `login_page` | Link "Regístrate gratis" dentro de `/login` | vigente |
   | `confirmar_email_page` | Links "Volver al registro" en la pantalla de confirmación | vigente |
   | `reset_password_page` | Link "Ir al login" en enlace de recuperación inválido/expirado | vigente |
   | `auth_error_banner` | Banner de error de autenticación tras un enlace roto | vigente |
   | `save_class_gate` | Botón "Guardar clase" sin sesión | vigente |
 
-  No existe un `cta_location` para el link "Conoce todos los beneficios →" que aparece dentro de `/unete` hacia `/unete/beneficios` — no es un CTA de auth (no lleva a login/registro), así que queda fuera del alcance de este evento. Si se quiere medir ese tránsito, sería un evento aparte (ej. `select_content`), no cubierto en este documento salvo que lo pidan.
+  No existe un `cta_location` para el link "Conoce todos los beneficios →" que aparece dentro de `/unete` hacia `/unete/beneficios` — no es un CTA de auth (no lleva a login/registro), así que queda fuera del alcance de este evento. Lo mismo aplica al link "Convierte tu cuenta en academia" del drawer mobile para un profesor logueado (`/convertir-academia`) — no lleva a login/registro, así que no lleva `ctaLocation` a propósito. Si se quiere medir alguno de estos tránsitos, sería un evento aparte (ej. `select_content`), no cubierto en este documento salvo que lo pidan.
 
 ### 3.4 `auth_attempt` — intento real de registro/login (implementado, sin cambios)
 
@@ -97,17 +128,18 @@ Header "Únete como profesor" → /unete/beneficios (landing de valor)
 
 ---
 
-### 3.5 `onboarding_step_complete` — progreso dentro del wizard (PROPUESTO, sin código todavía)
+### 3.5 `onboarding_step_complete` — progreso dentro del wizard (implementado — corrección de estado, v4: esta sección decía "PROPUESTO" pero ya estaba en código sin que el documento se actualizara)
 
-- **Por qué falta:** hoy `sign_up` mide "cuenta creada", pero nada mide si la persona efectivamente avanza o abandona el onboarding — que para un profesor es un wizard real de 4 pasos con datos obligatorios (WhatsApp o Instagram, al menos un estilo). Es la pieza que le falta al mapeo "todo lo que le cuesta llegar a registrarse" que pediste.
-- **Dónde implementarlo:** `app/onboarding/page.tsx`, dentro de `handleNext()` — justo después de que `validateStep()` pasa y antes de `setStep(s => s + 1)`.
-- **Parámetros propuestos:** `role` (`profesor`/`academia`), `step_number` (0-indexed, o 1-indexed a definir), `step_name` (`Datos públicos` / `Contacto` / `Especialidad` — el paso 3 "Validación" no aplica, ese lo cubre 3.6).
-- **Alumno:** su "onboarding" es el carrusel de `AlumnoWelcome.tsx` (3 slides informativos, sin datos) — mucho más liviano. Ahí lo relevante no es tanto el progreso paso a paso sino si la persona **completa el carrusel o lo omite** (botón "Omitir" existe explícitamente). Propuesta más simple para alumno: no replicar `onboarding_step_complete` slide por slide (bajo valor), sino capturar eso directamente en 3.6 con un parámetro `skipped`.
+- **Por qué faltaba (contexto original):** hoy `sign_up` mide "cuenta creada", pero nada mide si la persona efectivamente avanza o abandona el onboarding — que para un profesor es un wizard real de 4 pasos con datos obligatorios (WhatsApp o Instagram, al menos un estilo).
+- **Dónde está:** `lib/analytics.ts` (`trackOnboardingStepComplete`), disparado en `app/onboarding/page.tsx:214`, dentro de `handleNext()`, justo después de que `validateStep()` pasa y antes de `setStep(s => s + 1)`.
+- **Parámetros:** `role` (`profesor`/`academia`), `step_number` (0-indexed), `step_name` (`Datos públicos` / `Contacto` / `Especialidad` — el paso 3 "Validación" no dispara esto, lo cubre 3.6).
+- **Alumno:** no tiene este evento — su "onboarding" es el carrusel de `AlumnoWelcome.tsx` (3 slides informativos, sin datos), cubierto directamente por 3.6 con el parámetro `skipped`.
+- **Matiz de interpretación verificado tras implementar:** ver 9.10 — el conteo mide *veces que se superó un paso*, no *personas únicas que llegaron a ese paso*; en GA4 conviene leer usuarios únicos, no conteo de eventos.
 
-### 3.6 `onboarding_complete` — perfil/cuenta lista para usar (PROPUESTO, sin código todavía)
+### 3.6 `onboarding_complete` — perfil/cuenta lista para usar (implementado — misma corrección de estado que 3.5)
 
-- **Qué mediría:** el cierre real del embudo de registro — cuando el perfil queda utilizable (profesor: perfil guardado con `updateProfile()`, justo antes de `router.push('/dashboard')` en `handleFinish()`; alumno: `finish()` en `AlumnoWelcome.tsx`, justo antes de `router.push(redirectTo)`).
-- **Parámetros propuestos:** `role`, y para alumno específicamente `skipped: boolean` (true si vino del botón "Omitir" en vez de completar los 3 slides).
+- **Qué mide:** el cierre real del embudo de registro — cuando el perfil queda utilizable. Profesor/academia: `app/onboarding/page.tsx:301`, dentro de `handleFinish()`, después de que `updateProfile()` guarda. Alumno: `app/onboarding/AlumnoWelcome.tsx:44`, dentro de `finish()`, sea que completó los 3 slides o tocó "Omitir".
+- **Parámetros:** `role`, y `skipped: boolean` (siempre `false` para profesor/academia; para alumno, `true` si vino del botón "Omitir").
 - **Con esto, el embudo completo de registro queda:**
   ```
   auth_cta_click → auth_attempt → sign_up → onboarding_step_complete (×2-3, solo profesor/academia) → onboarding_complete
@@ -126,7 +158,8 @@ Header "Únete como profesor" → /unete/beneficios (landing de valor)
 ### 3.8 Visualización de clases (implementado 2026-08-06)
 
 - **Por qué faltaba:** no había forma de ver en GA4 qué clases se ven más, ni desde qué parte del sitio llega el tráfico a cada detalle de clase.
-- **`view_item`** — `trackViewItem`, en un `useEffect` de `app/clases/[id]/ClaseDetailClient.tsx:44` (dependiente de `cls.id`). Parámetros: `class_id`, `class_name`, `class_style`, `class_type`, `teacher_id`, `price`.
+- **`view_item`** — `trackViewItem`, en un `useEffect` de `ClaseDetailClient.tsx:46` (dependiente de `cls.id`). Parámetros: `class_id`, `class_name`, `class_style`, `class_type`, `teacher_id`, `price`.
+  - **Nota v4:** el archivo vivía en `app/clases/[id]/ClaseDetailClient.tsx` cuando se escribió esta sección; la ruta pública cambió a `app/[categoria]/[tipo]/[slug]/ClaseDetailClient.tsx` (slugs por categoría/tipo, no `[id]`) — mismo componente, mismo evento, solo la ruta física cambió. Referencias de archivo en el resto del documento ya actualizadas.
 - **`select_item`** — `trackSelectItem`, con `listName` como prop nuevo y obligatorio de `ClassCard` (`components/ClassCard.tsx`).
   - **Hallazgo importante — la tabla de orígenes del informe original estaba equivocada en un punto:** `/mapa` **no usa `ClassCard`** — tiene su propio popup/bottom-sheet con markup independiente (`app/mapa/MapaClient.tsx`). Solo hay **4 usos reales de `ClassCard`**, no 5. El quinto `listName` (`mapa`) se instrumentó directo en el Link "Ver clase" propio de `MapaClient.tsx:182` (compartido entre el popup desktop y el bottom-sheet mobile — no hay `md:` en ese wrapper, así que un solo punto cubre ambos viewports).
   - Dentro de `ClassCard` hay **dos** puntos de navegación hacia `/clases/[id]` (el `Link` de la imagen y el botón "Ver clase") — ambos disparan `select_item`, para no perder los clics hechos sobre la imagen.
@@ -137,27 +170,76 @@ Header "Únete como profesor" → /unete/beneficios (landing de valor)
     | Home — filas de estilo destacado | `home_featured_{style}` | `app/HomeClient.tsx:138` (dentro de `FeaturedCategoryRow`) |
     | `/clases` (grid con filtros) | `clases_grid` | `app/clases/ClasesContent.tsx:303` |
     | `/profesores/[slug]` (clases del profesor) | `profesor_detail` | `app/profesores/[slug]/ProfesorDetailClient.tsx:146` |
-    | `/mapa` (popup/bottom-sheet) | `mapa` | `app/mapa/MapaClient.tsx:182` (Link propio, no `ClassCard`) |
+    | Vista Mapa (popup + lista lateral), cualquier superficie | `{listName}_mapa` (ej. `clases_grid_mapa`, `categorias_grid_mapa`) | **v4, reescrito** — ver nota abajo |
+  - **Nota v4 — `app/mapa/MapaClient.tsx` ya no existe.** El `/mapa` standalone (CSS falso, sin Google Maps real) fue reemplazado por una vista Mapa embebida dentro de `/clases` y `/categorias/[slug]` (`ClasesMapView.tsx`, toggle Lista/Mapa en `ClassBrowser.tsx`) — `app/mapa/page.tsx` ahora solo redirige a `/clases?vista=mapa` para no romper links viejos. El `listName` fijo `'mapa'` que documentaba v1-v3 **nunca se migró** a la nueva vista — los links "Ver clase" del popup y de la lista lateral del mapa no disparaban `select_item` en absoluto hasta este fix. Ahora `ClasesMapView` recibe `listName` como prop desde `ClassBrowser` (`${listName}_mapa`), así se puede distinguir en GA4 un clic hecho desde la grilla normal de uno hecho desde el mapa, en la misma página.
   - Parámetros de `select_item`: `class_id`, `class_name`, `class_style`, `teacher_id`, `list_name` (no estaban explícitos en la spec original más allá de exigir `listName` — se completó con el mismo criterio de `generate_lead`/`view_item` para que el evento sea útil sin depender de un join externo).
 - Con `select_item` + `view_item` + `generate_lead` juntos se arma el embudo completo de descubrimiento: *dónde vio la clase → entró al detalle → contactó*.
 
+### 3.9 `search` — búsqueda enviada desde el Home (implementado 2026-08-28)
+
+- **Por qué faltaba:** era un candidato descartado en la lista original (sección 7) por bajo valor — con el rediseño del buscador del Home a estilo VRBO (overlays mobile a pantalla completa, autocomplete con sección "Estilos" en desktop, campo de ciudad independiente) pasó a valer la pena: hoy no hay forma de ver en GA4 cuánta gente usa el buscador ni qué términos no encuentran resultados.
+- **Dónde está:** `trackSearch`, `lib/analytics.ts`, disparado dentro de `navigateSearch()` en `app/HomeClient.tsx` — el único punto real de convergencia de las 3 formas de enviar una búsqueda (submit del form desktop, botón "Buscar" mobile, link "Ver todos los resultados →" del dropdown/overlay). Escribir o navegar el autocomplete **no** dispara esto — solo un envío real, igual que el criterio ya usado para `auth_attempt`/`sign_up`.
+- **Parámetros:** `search_term` (texto del campo de estilo/clase/profesor, puede venir vacío si solo se llenó ciudad), `city` (puede venir vacío si solo se buscó por estilo). No se dispara si ambos campos están vacíos.
+- **Deliberadamente fuera de esta ronda:** el buscador de filtro-en-vivo de `/clases` (`components/ClassBrowser.tsx`) no tiene un "submit" — filtra en cada tecla (`handleQueryChange`). Instrumentarlo bien requiere debounce-y-disparar-solo-al-asentarse (patrón GA4 recomendado para no generar un evento por tecla), que no se pudo resolver reusando un handler existente como en el Home. Queda como candidato pendiente (ver sección 7).
+
+### 3.10 `save_class` — clase guardada como favorita (implementado 2026-08-28)
+
+- **Por qué faltaba:** era un candidato descartado en la lista original (sección 7) — el botón de guardar (ícono de marcador) ya existía en `ClaseDetailClient.tsx`, con `saved_classes` como tabla real en Supabase, pero nunca se medía. La rama sin sesión de ese mismo botón sí estaba cubierta (`auth_cta_click({ location: 'save_class_gate' })`).
+- **Dónde está:** `trackSaveClass`, `lib/analytics.ts`, disparado en `toggleSave()` de `ClaseDetailClient.tsx`, justo después de un insert exitoso en `saved_classes` (incluye el caso `23505` — ya estaba guardado en otra pestaña, tratado como éxito). **No se dispara al des-guardar** — mide la intención de favorito, no cada toggle.
+- **Parámetros:** `class_id`, `class_name`, `class_style`, `teacher_id` — mismo criterio que `generate_lead`/`select_item`, útil sin depender de un join externo.
+
+### 3.11 `map_view_toggle` — cambio entre vista Lista/Mapa (implementado 2026-08-28)
+
+- **Por qué faltaba:** preguntado directamente — "cuántas veces seleccionan mapa al explorar clases". El toggle Lista/Mapa (`ClassBrowser.tsx`) es estado local de React (`useState`), no cambia la URL, así que ni un pageview automático de GA4 lo detectaba. Es un hueco encontrado en esta misma ronda, no un candidato de la lista original.
+- **Dónde está:** `trackMapViewToggle`, `lib/analytics.ts`, disparado desde un wrapper único `changeView()` en `ClassBrowser.tsx` que reemplaza las 4 formas de cambiar de vista (el switch Lista/Mapa de escritorio, el botón flotante "Mapa" de mobile, el botón "Volver a lista" de mobile, y el callback `onShowList` que le pasa a `ClasesMapView`) — un solo punto, sin duplicar el `pushEvent` cuatro veces. **No se dispara** en la vista inicial resuelta desde `?vista=mapa` al montar, ni al tocar la opción ya activa (guard `if (next === view) return`).
+- **Parámetros:** `view_type` (`'lista'`/`'mapa'`, el destino del cambio), `list_name` (misma superficie que `select_item`/`view_item` — `clases_grid`, `categorias_grid` — para poder comparar el uso del mapa entre `/clases` y `/categorias/[slug]`).
+- **Relacionado:** ver la nota de 3.8 sobre `select_item` en el mapa — mismo hallazgo (vista embebida nueva, sin migrar el tracking viejo), arreglado en el mismo pase.
+
+### 3.12 `view_profile` / `select_profile` — el lado profesor/academia del embudo de descubrimiento (implementado 2026-08-28)
+
+- **Por qué faltaba:** el hallazgo más importante del re-análisis de v5. Todo el embudo de descubrimiento estaba construido alrededor de la **clase** como unidad (`select_item` → `view_item` → `generate_lead`), y el **perfil** — que para una academia *es* su vidriera en Kynea — no tenía ningún equivalente. No se podía responder "¿cuántas visitas tuvo el perfil de esta academia este mes?", que es justamente el argumento con el que se capta y se retiene una academia.
+- **`view_profile`** — `trackViewProfile`, en un `useEffect` de `app/profesores/[slug]/ProfesorDetailClient.tsx` (dependiente de `teacher.id`), el espejo exacto de `view_item`. Parámetros: `role` (`profesor`/`academia`), `profile_id`, `profile_name`.
+  - **Por qué un evento aparte y no `view_item` con un parámetro:** un perfil no es un ítem de catálogo — no tiene `price` ni `class_type`, y mezclarlos rompería cualquier embudo o métrica de e-commerce armada sobre `view_item`. Mismo criterio que ya se aplicó al separar `save_class` de `generate_lead`.
+- **`select_profile`** — `trackSelectProfile`, el espejo de `select_item`. Parámetros: `role`, `profile_id`, `profile_name`, `list_name`. Los 6 puntos donde un perfil se puede clickear desde un listado, ninguno de los cuales medía nada antes:
+  | Origen | `listName` | Archivo |
+  |---|---|---|
+  | Home — grid de academias | `home_academias` | `app/HomeClient.tsx` |
+  | Home — carrusel de profesores | `home_profesores` | `app/HomeClient.tsx` |
+  | Home — autocomplete del buscador (`goToProfile`) | `home_search_autocomplete` | `app/HomeClient.tsx` |
+  | Directorio `/profesores` (profesores y academias) | `profesores_directorio` | `app/profesores/page.tsx` vía `components/TrackedProfileLink.tsx` |
+  | Detalle de clase → perfil del profesor (5 links: nombre en cabecera, avatar y nombre del bloque profesor, en desktop y mobile) | `clase_detail` | `ClaseDetailClient.tsx` |
+  | Mapa — popup y lista lateral de academias | `{listName}` (ej. `clases_grid_mapa`) | `components/ClasesMapView.tsx` |
+  - **Nota de implementación:** `app/profesores/page.tsx` es un Server Component, así que no puede llevar un `onClick`. Se agregó `components/TrackedProfileLink.tsx`, un wrapper cliente mínimo (href + params de tracking + className + children) — mismo patrón que ya usa el repo para cruzar la frontera server/client sin convertir toda la página a cliente.
+
+### 3.13 `teacher_social_click` — clic a los canales propios del profesor (implementado 2026-08-28)
+
+- **Por qué faltaba:** en el detalle de clase y en el perfil del profesor se muestran sus links de Instagram, TikTok y sitio web. Son enlaces a dominios externos: el visitante **se va de Kynea hacia el profesor y no queda ningún rastro**. Es contacto real que ocurrió, invisible en GA4 — una fuga silenciosa de la conversión principal del marketplace.
+- **Dónde está:** `trackTeacherSocialClick`, disparado en los 3 links de `ProfesorDetailClient.tsx` (`surface: 'profesor_detail'`) y en los mismos 3 de `ClaseDetailClient.tsx`, que existen duplicados en su bloque desktop y en el mobile (`surface: 'clase_detail'`).
+- **Parámetros:** `social_channel` (`instagram`/`tiktok`/`website`), `teacher_id`, `teacher_name`, `surface`.
+- **Deliberadamente NO es `generate_lead`:** ese evento es la conversión de negocio (alguien decidió contactar por el canal que Kynea le ofrece) y debe quedar limpio. Un clic al Instagram del profesor es exploratorio — puede terminar en contacto o no. Meterlo en `generate_lead` inflaría la conversión con intención mucho más débil. Si más adelante se quiere una métrica combinada de "contacto total", se suman los dos eventos en el reporte, que es reversible; contaminar el evento no lo es.
+
 ## 4. Qué falta programar antes de poder configurar todo esto en GTM
 
-GTM solo puede reaccionar a eventos que **ya se están empujando al `dataLayer`**. El orden correcto es:
+GTM solo puede reaccionar a eventos que **ya se están empujando al `dataLayer`**. Estado al cierre de v5: **los 16 eventos de la sección 3 (3.1–3.13) ya están en código** — no queda ningún evento "propuesto sin código". El orden correcto para lo que falta:
 
-1. **Implementar en código** (`lib/analytics.ts` + los componentes listados arriba) los 5 eventos nuevos de las secciones 3.5–3.8: `onboarding_step_complete`, `onboarding_complete`, `create_class_step_complete`, `class_created`, `view_item`, `select_item` (6 eventos en total, agrupados en 4 secciones).
-2. **Deploy a producción** — igual que los 4 eventos actuales, no se ven en ningún lado (ni siquiera en GTM Preview) hasta que `NEXT_PUBLIC_APP_ENV=production` sirva ese código.
-3. **Recién ahí**, configurar en GTM (sección 5) — Variables + Trigger + Tag por cada evento, Preview, Publicar.
+1. **Deploy a producción** de los cambios de v4+v5 (fixes de `auth_cta_click` en el drawer mobile y `/academias`, fix de `select_item` en el mapa, más `search`/`save_class`/`map_view_toggle`/`view_profile`/`select_profile`/`teacher_social_click` nuevos) — igual que todo lo anterior, nada de esto se ve en ningún lado (ni siquiera en GTM Preview) hasta que `NEXT_PUBLIC_APP_ENV=production` sirva ese código.
+2. **Configurar en GTM** (sección 6) — Variables + Trigger + Tag por cada evento que todavía no tenga su configuración, Preview, Publicar.
 
-Los eventos ya implementados (3.1–3.4) se pueden configurar en GTM **ya mismo**, sin esperar nada de código.
+Los eventos de 3.1–3.8 (y sus ubicaciones nuevas de `auth_cta_click` de la tabla de 3.3) se pueden configurar en GTM **ya mismo** una vez desplegados — no dependen de ningún cambio de código adicional. Los 6 de v4/v5 (`search`, `save_class`, `map_view_toggle`, `view_profile`, `select_profile`, `teacher_social_click`) son punta a punta nuevos: código y configuración de GTM, ambos pendientes.
 
 ## 5. El embudo completo que esto permite armar en GA4
 
 ```
-Registro:      auth_cta_click → auth_attempt → sign_up → onboarding_step_complete (×N) → onboarding_complete
-Creación:      create_class_step_complete (×N) → class_created
-Descubrimiento: select_item → view_item → generate_lead
+Registro:                auth_cta_click → auth_attempt → sign_up → onboarding_step_complete (×N) → onboarding_complete
+Creación:                create_class_step_complete (×N) → class_created
+Descubrimiento (clase):  search / map_view_toggle → select_item   → view_item    → generate_lead → save_class
+Descubrimiento (perfil): search / map_view_toggle → select_profile → view_profile → generate_lead / teacher_social_click
 ```
+
+Dos aclaraciones para leer bien estos embudos:
+
+- **`map_view_toggle` es paralelo a `search`, no secuencial** — son dos formas alternativas de entrar al descubrimiento (buscar algo puntual vs. explorar visualmente por zona), no pasos uno-después-del-otro.
+- **Los dos embudos de descubrimiento convergen en `generate_lead`**, que no distingue si el contacto salió de una clase o de un perfil (sí trae `class_id` cuando viene de una clase, así que se puede separar en el reporte). El embudo de perfil es el que importa para el lado academia: `select_profile → view_profile` es literalmente "cuánta exposición le dio Kynea a esta academia".
 
 Con `cta_location` / `step_name` / `list_name` puedes comparar qué punto de entrada, paso o superficie convierte mejor — y ver exactamente dónde se cae la gente en cada uno de los tres embudos.
 
@@ -177,12 +259,24 @@ Por cada evento:
 
 (Opcional) En GA4 → Admin → Eventos, marcar `sign_up`, `onboarding_complete`, `class_created` y `generate_lead` como conversiones — son las métricas de negocio reales de cada lado (alumno se registra, termina de armar su perfil / profesor publica su primera clase / alumno contacta). Los demás son pasos de embudo/diagnóstico.
 
+**No marcar como conversión** `teacher_social_click` (3.13) ni `view_profile` (3.12), aunque tenga la tentación: el primero es intención exploratoria más débil que `generate_lead` y marcarlo inflaría la métrica de contacto; el segundo es una vista, no una acción. `view_profile` sí conviene tenerlo a mano como **métrica de reporte para academias** (cuántas visitas tuvo su perfil), que es un uso distinto de una conversión.
+
 ## 7. Candidatos descartados o pendientes de re-priorizar
 
-De la lista original de candidatos no implementados, `view_item` y `select_item` pasaron a la sección 3.8 (ahora en alcance). Quedan sin mapear, a definir si interesan más adelante:
-- `search` — alguien usa la barra de búsqueda (Home o `/clases`).
-- `save_class` — alguien guarda/marca una clase como favorita.
-- Eventos específicos del lado profesor más allá de crear clase (editar clase, pausar clase, etc.).
+De la lista original de candidatos no implementados, `view_item` y `select_item` pasaron a la sección 3.8, y `search`/`save_class` pasaron a 3.9/3.10 (ambos en alcance ahora). Lo que queda, **priorizado** (recomendaciones de v5, discutidas y registradas pero todavía sin implementar):
+
+**Prioridad media — insight de producto puro, el mejor retorno por esfuerzo:**
+
+| Candidato | Qué respondería | Dónde iría |
+|---|---|---|
+| `search_no_results` | **El más valioso del grupo:** qué busca la gente que Kynea *no tiene*. Es literalmente la lista de compras de qué profesores/estilos/ciudades captar. Hoy esa demanda insatisfecha se pierde en silencio. | Rama "Sin resultados" de `ClassBrowser.tsx` y del overlay/dropdown del buscador del Home |
+| `filter_applied` (`filter_type`, `filter_value`) | Demanda real por estilo/nivel/día/modalidad, **independiente de lo que hay publicado** — complementa a `search_no_results`. Hoy los 6 filtros de `/clases` no miden nada. (Matiz: los filtros sí van a la URL vía `router.replace`, así que algo podría inferirse de `page_view`, pero queda enterrado en query params, no como dimensión usable.) | `useClassFilters.ts` / `FilterPanel.tsx` |
+| `search` en `/clases` | Completa el par con el buscador del Home (3.9). Requiere debounce-y-disparar-una-vez: filtra en vivo, sin submit, así que sin debounce genera un evento por tecla. | `components/ClassBrowser.tsx` |
+
+**Prioridad baja — retención del lado profesor, para cuando haya más volumen:**
+- `class_status_changed` (publicar / pausar / archivar en `MisClasesClient.tsx`) — señal temprana de que un profesor se está por ir.
+- Edición de clase — hoy solo se mide la creación (`class_created` nunca dispara en `updateClassFromForm`).
+- Des-guardar una clase (`toggleSave()` con `saved`=true) — 3.10 solo mide guardar; bajo valor salvo que interese medir abandono de favoritos específicamente.
 
 ## 8. Cosas a tener en cuenta antes de activar todo esto en GTM
 
@@ -205,14 +299,18 @@ Lo correcto: **un solo evento con `role` (o `auth_action`) como dimensión**, y 
 | Método de entrada | ¿Dónde se conoce el `role`? | Archivo:línea |
 |---|---|---|
 | Registro por correo en `/registro` | Hardcodeado `role: 'alumno'` en el propio `signUp()` | `app/registro/page.tsx:76` |
-| Registro por correo en `/unete` | Hardcodeado `role: 'profesor'` en el propio `signUp()` | `app/unete/UneteClient.tsx:76` |
+| Registro por correo en `/unete` | `role: 'profesor'`, pasado a `useSignupForm('profesor')` | `app/unete/UneteClient.tsx`, `lib/auth/useSignupForm.ts:62-66` (`signUp()` compartido) |
+| Registro por correo en `/academias` (**v4, nuevo**) | `role: 'academia'`, pasado a `useSignupForm('academia')` — mismo hook y mismo `signUp()` que `/unete`, solo cambia el argumento | `app/academias/AcademiasClient.tsx`, `lib/auth/useSignupForm.ts:62-66` |
 | Google desde `/registro` | Viaja como query param `?role=alumno` en la URL de callback | `app/registro/page.tsx:104` |
-| Google desde `/unete` | Viaja como query param `?role=profesor` en la URL de callback | `app/unete/UneteClient.tsx:101` |
-| Google desde `/login` (sin rol preseleccionado) | **No se conoce hasta después** — si el perfil ya tiene `role` en BD, se usa ese; si no (usuario nuevo), se manda a `/completar-registro` para que el usuario lo elija manualmente | `app/auth/callback/route.ts:44-68`, `app/completar-registro/CompletarRegistroClient.tsx:38-40` |
+| Google desde `/unete` | Viaja como query param `?role=profesor` en la URL de callback | `lib/auth/useSignupForm.ts:90-91` |
+| Google desde `/academias` (**v4, nuevo**) | Viaja como query param `?role=academia` en la URL de callback — mismo mecanismo, mismo código | `lib/auth/useSignupForm.ts:90-91` |
+| Google desde `/login` (sin rol preseleccionado) | **No se conoce hasta después** — si el perfil ya tiene `role` en BD, se usa ese; si no (usuario nuevo), se manda a `/completar-registro`, que ahora ofrece las 3 opciones (Alumno/Profesor/Academia) | `app/auth/callback/route.ts:44-68`, `app/completar-registro/CompletarRegistroClient.tsx:15-17,38-40` |
 | Login por correo (`/login`) | **No se conoce en el submit** — se resuelve después, con una consulta a `profiles.role` | `lib/auth/redirectByRole.ts:24-28` |
 | Login por Google (`/login`) | Igual que arriba, pero la consulta ocurre **server-side**, en un Route Handler | `app/auth/callback/route.ts:36-41` |
 
-**Conclusión clave:** para los 4 flujos de *registro* (fila 1-4), el rol siempre se conoce en el momento del intento (`auth_attempt`) — o está hardcodeado por la página, o viaja explícito en la URL. El problema real está exclusivamente en **login** (filas 6-7) y en el caso borde de Google-sin-rol-preseleccionado (fila 5): ahí el rol se resuelve *después* de autenticar, vía una consulta a `profiles`, nunca antes.
+**Nota v4:** `UneteClient.tsx` ya no tiene su propio `signUp()` — el `role` hardcodeado que citaba v1-v3 (`app/unete/UneteClient.tsx:76`) vive ahora en el hook compartido `lib/auth/useSignupForm.ts`, factorizado para que `/academias` lo reuse tal cual. Referencia corregida arriba.
+
+**Conclusión clave (sin cambios):** para los flujos de *registro* directo (filas 1-3), el rol siempre se conoce en el momento del intento (`auth_attempt`) — o está hardcodeado por la página, o viaja explícito en la URL. El problema real está exclusivamente en **login** (filas 7-8) y en el caso borde de Google-sin-rol-preseleccionado (fila 6): ahí el rol se resuelve *después* de autenticar, vía una consulta a `profiles`, nunca antes.
 
 ### 9.3 El código exacto de `redirectByRole` — y el gap que tiene
 

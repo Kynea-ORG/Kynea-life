@@ -5,6 +5,18 @@
 // cuando cover_image_url es null.
 export const DEFAULT_ACADEMIA_COVER = '/img-portada-kynea.png';
 
+// Trims freeform bio/description textarea input to a meta-description-sized
+// snippet — cuts on a word boundary (never mid-word) so search engines don't
+// render a truncated word, and collapses newlines since textareas allow
+// them but a single-line <meta description> shouldn't include raw \n.
+export function truncateForMeta(text: string, maxLength = 155): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat.length <= maxLength) return flat;
+  const cut = flat.slice(0, maxLength);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim()}…`;
+}
+
 export function getStatusLabel(status: string): string {
   const map: Record<string, string> = {
     published: 'Publicada',
