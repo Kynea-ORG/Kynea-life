@@ -21,7 +21,7 @@ type Phase = 'typing' | 'deleting';
  */
 export function useRotatingPlaceholder(items: string[], paused = false) {
   const [itemIndex, setItemIndex] = useState(0);
-  const [charCount, setCharCount] = useState(0);
+  const [charCount, setCharCount] = useState(() => items[0]?.length ?? 0);
   const [phase, setPhase] = useState<Phase>('typing');
   const [cursorOn, setCursorOn] = useState(true);
 

@@ -140,7 +140,8 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
 export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats, userRole }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
-  const rotatingPlaceholder = useRotatingPlaceholder(SEARCH_PLACEHOLDER_EXAMPLES, query.trim().length > 0);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const rotatingPlaceholder = useRotatingPlaceholder(SEARCH_PLACEHOLDER_EXAMPLES, isSearchFocused || query.trim().length > 0);
 
   // Home category strip: fixed display order (HOME_CATEGORY_SLUGS), not the
   // catalog's own ord — falls back to the first 9 by ord if a slug isn't
@@ -452,10 +453,12 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   value={query}
                   onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
                   onFocus={() => {
+                    setIsSearchFocused(true);
                     setShowSuggestions(true);
                     setCityOpen(false);
                     setActiveCityIndex(-1);
                   }}
+                  onBlur={() => setIsSearchFocused(false)}
                   onKeyDown={handleQueryKeyDown}
                   role="combobox"
                   aria-expanded={showSuggestions && (hasSuggestions || isSearching || query.trim().length >= 2)}
@@ -794,6 +797,8 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 placeholder={rotatingPlaceholder}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
                 className="flex-1 min-w-0 min-h-[22px] text-[16px] leading-[22px] text-neutral-900 placeholder:text-neutral-700 outline-none bg-transparent"
               />
               {query.length > 0 && (
