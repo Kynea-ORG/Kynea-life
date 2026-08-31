@@ -449,7 +449,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 <p className="font-bold text-[12px] text-neutral-900 leading-none">¿Qué quieres bailar?</p>
                 <input
                   type="text"
-                  placeholder={rotatingPlaceholder}
+                  placeholder={isSearchFocused ? '' : rotatingPlaceholder}
                   value={query}
                   onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
                   onFocus={() => {
@@ -794,7 +794,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               <input
                 autoFocus
                 type="text"
-                placeholder={rotatingPlaceholder}
+                placeholder={isSearchFocused ? '' : rotatingPlaceholder}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
