@@ -1,9 +1,17 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { fetchPublishedClasses } from '@/lib/classes/queries';
 import type { ClassFilters } from '@/lib/classes/types';
 import { fetchDanceStyles, fetchClassLevels } from '@/lib/catalog/queries';
 import { fetchAcademiasWithLocation } from '@/lib/profiles/queries';
+import { SITE_URL } from '@/lib/constants';
 import ClasesContent from './ClasesContent';
+
+export const metadata: Metadata = {
+  title: 'Clases de baile en Latinoamérica — Kynea',
+  description: 'Explora y filtra clases de danza por estilo, nivel, modalidad y ciudad. Encuentra tu próxima clase de baile en Kynea.',
+  alternates: { canonical: `${SITE_URL}/clases` },
+};
 
 function asArray(v: string | string[] | undefined): string[] {
   if (!v) return [];

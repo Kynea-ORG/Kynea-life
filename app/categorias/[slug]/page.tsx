@@ -1,12 +1,32 @@
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { fetchPublishedClasses } from '@/lib/classes/queries';
 import type { ClassFilters } from '@/lib/classes/types';
 import { fetchDanceStyles, fetchClassLevels } from '@/lib/catalog/queries';
+import { SITE_URL } from '@/lib/constants';
 import CategoriaDetailContent from './CategoriaDetailContent';
 
 function asArray(v: string | string[] | undefined): string[] {
   if (!v) return [];
   return Array.isArray(v) ? v : [v];
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const danceStyles = await fetchDanceStyles();
+  const style = danceStyles.find(s => s.slug === slug);
+  if (!style) return { title: 'Categoría no encontrada — Kynea' };
+
+  const title = `Clases de ${style.name} — Kynea`;
+  const description = `Encuentra clases de ${style.name} cerca de ti: horarios, niveles y profesores verificados en Kynea.`;
+  const canonical = `${SITE_URL}/categorias/${slug}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: { title, description, url: canonical, type: 'website' },
+  };
 }
 
 export default async function CategoriaDetailPage({

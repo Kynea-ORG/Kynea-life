@@ -1,7 +1,15 @@
+import type { Metadata } from 'next';
 import SmartImage from '@/components/SmartImage';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import Header from '@/components/Header';
 import TrackedProfileLink from '@/components/TrackedProfileLink';
+import { SITE_URL } from '@/lib/constants';
+
+export const metadata: Metadata = {
+  title: 'Profesores y academias de danza — Kynea',
+  description: 'Descubre profesores y academias de danza verificados en Latinoamérica. Encuentra tu instructor ideal en Kynea.',
+  alternates: { canonical: `${SITE_URL}/profesores` },
+};
 
 export default async function ProfesoresPage() {
   const [teachers, academias] = await Promise.all([
