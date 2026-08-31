@@ -15,6 +15,7 @@ import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile } from '@/lib/analytics';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
+import { useRotatingPlaceholder } from '@/lib/hooks/useRotatingPlaceholder';
 import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES, CATEGORY_GRADIENTS } from '@/lib/catalog/styleImages';
 import type { DanceClass, DanceStyle, Teacher, DbDanceStyle } from '@/lib/types';
 import type { HomeStats } from '@/lib/stats/queries';
@@ -29,6 +30,18 @@ export function getMainStyle(cls: SearchClass) {
 
 // Estilo compartido por los dos campos-botón del buscador mobile (F1).
 const MOBILE_SEARCH_TRIGGER_CLASS = 'w-full flex items-center gap-3 border border-neutral-200 rounded-2xl px-4 py-3 text-left cursor-pointer transition-[background-color,border-color,transform] duration-150 hover:border-neutral-300 active:scale-[0.98] active:bg-primary-bg active:border-primary/30';
+
+// Ejemplos que rotan en el placeholder del buscador — comunican que se puede
+// buscar por estilo+zona, profesor o academia, no solo por clase. El primero
+// es el texto estático de siempre, para que el primer paint (antes de que
+// el hook empiece a rotar) sea idéntico al de antes.
+const SEARCH_PLACEHOLDER_EXAMPLES = [
+  'Busca clases, academias, profesores…',
+  'Salsa en Miraflores…',
+  'Busca a tu profesor favorito…',
+  'Bachata los sábados…',
+  'Nombre de tu academia…',
+];
 
 const AVATAR_PALETTE = [
   { bg: 'bg-primary-bg',     text: 'text-primary' },
@@ -127,6 +140,7 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
 export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats, userRole }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
+  const rotatingPlaceholder = useRotatingPlaceholder(SEARCH_PLACEHOLDER_EXAMPLES, query.trim().length > 0);
 
   // Home category strip: fixed display order (HOME_CATEGORY_SLUGS), not the
   // catalog's own ord — falls back to the first 9 by ord if a slug isn't
@@ -430,11 +444,11 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               }}
             >
               <Search className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
-              <div className="text-left min-w-0 flex-1">
+              <div className="text-left min-w-0 flex-1 min-h-[34px]">
                 <p className="font-bold text-[12px] text-neutral-900 leading-none">¿Qué quieres bailar?</p>
                 <input
                   type="text"
-                  placeholder="Busca clases, academias, profesores…"
+                  placeholder={rotatingPlaceholder}
                   value={query}
                   onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
                   onFocus={() => {
@@ -448,7 +462,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                   aria-autocomplete="list"
                   aria-controls="query-autocomplete-list"
                   aria-activedescendant={activeOptionIndex >= 0 ? `query-option-${activeOptionIndex}` : undefined}
-                  className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
+                  className="w-full mt-0.5 min-h-[20px] text-[14.5px] leading-[20px] text-neutral-500 placeholder:text-neutral-700 outline-none bg-transparent truncate"
                 />
               </div>
               {query.length > 0 && !isSearching && (
@@ -731,10 +745,13 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             <button type="button" onClick={() => setMobileSearch('style')}
               className={MOBILE_SEARCH_TRIGGER_CLASS}>
               <Search className="w-[19px] h-[19px] text-primary shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11.5px] text-neutral-400">¿Qué quieres bailar?</p>
-                <p className="text-[15px] text-neutral-900 mt-0.5 truncate">
-                  {query || 'Busca clases, academias, profesores…'}
+              <div className="min-w-0 flex-1 min-h-[38px]">
+                <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿Qué quieres bailar?</p>
+                <p className="text-[15px] leading-[20px] mt-0.5 truncate">
+                  {query
+                    ? <span className="text-neutral-900">{query}</span>
+                    : <span className="text-neutral-700">{rotatingPlaceholder}</span>
+                  }
                 </p>
               </div>
             </button>
@@ -742,9 +759,9 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             <button type="button" onClick={() => setMobileSearch('city')}
               className={MOBILE_SEARCH_TRIGGER_CLASS}>
               <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11.5px] text-neutral-400">¿En qué ciudad?</p>
-                <p className="text-[15px] text-neutral-900 mt-0.5 truncate">
+              <div className="min-w-0 flex-1 min-h-[38px]">
+                <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿En qué ciudad?</p>
+                <p className="text-[15px] leading-[20px] text-neutral-900 mt-0.5 truncate">
                   {city || '¿Dónde bailas?'}
                 </p>
               </div>
@@ -774,10 +791,10 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               <input
                 autoFocus
                 type="text"
-                placeholder="Busca clases, academias, profesores…"
+                placeholder={rotatingPlaceholder}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                className="flex-1 min-w-0 text-[16px] text-neutral-900 outline-none bg-transparent"
+                className="flex-1 min-w-0 min-h-[22px] text-[16px] leading-[22px] text-neutral-900 placeholder:text-neutral-700 outline-none bg-transparent"
               />
               {query.length > 0 && (
                 <button
