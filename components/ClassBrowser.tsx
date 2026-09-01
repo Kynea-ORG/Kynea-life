@@ -9,6 +9,7 @@ import type { DanceClass, Teacher } from '@/lib/types';
 import { useClassFilters } from '@/lib/hooks/useClassFilters';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import ClasesMapView from '@/components/ClasesMapView';
+import { trackMapViewToggle } from '@/lib/analytics';
 
 interface ClassBrowserProps {
   /** Route to sync filters into via router.replace, e.g. '/clases' or '/categorias/heels'. */
@@ -61,6 +62,15 @@ export default function ClassBrowser({
 
   const isMapView = enableMapView && view === 'mapa';
 
+  // Wraps setView so every trigger point (segmented control, mobile floating
+  // button, mobile back button, ClasesMapView's own callback) tracks the
+  // same way without duplicating the call — see trackMapViewToggle.
+  function changeView(next: 'lista' | 'mapa') {
+    if (next === view) return;
+    setView(next);
+    trackMapViewToggle({ viewType: next, listName });
+  }
+
   const {
     query,
     filters,
@@ -100,7 +110,7 @@ export default function ClassBrowser({
           {isMapView && (
             <button
               type="button"
-              onClick={() => setView('lista')}
+              onClick={() => changeView('lista')}
               className="lg:hidden p-2 -ml-1 rounded-full text-neutral-700 hover:bg-neutral-100 active:scale-95 transition-transform shrink-0"
               aria-label="Volver a lista"
             >
@@ -115,7 +125,7 @@ export default function ClassBrowser({
               value={query}
               onChange={e => handleQueryChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="flex-1 min-w-0 text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none"
+              className="flex-1 min-w-0 text-[16px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none"
             />
             {query && (
               <button onClick={() => handleQueryChange('')} className="text-neutral-400 hover:text-neutral-600">
@@ -133,7 +143,7 @@ export default function ClassBrowser({
               {(['lista', 'mapa'] as const).map(v => (
                 <button
                   key={v}
-                  onClick={() => setView(v)}
+                  onClick={() => changeView(v)}
                   className={`flex items-center gap-1.5 text-[13px] font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
                     view === v ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-700'
                   }`}
@@ -280,7 +290,7 @@ export default function ClassBrowser({
               </button>
             </div>
           ) : enableMapView && view === 'mapa' ? (
-            <ClasesMapView classes={results} academias={academias} onShowList={() => setView('lista')} />
+            <ClasesMapView classes={results} academias={academias} onShowList={() => changeView('lista')} listName={`${listName}_mapa`} />
           ) : (
             // `pb-20` en mobile deja espacio para el botón flotante "Mapa"
             // de abajo — si no, tapa la última fila (mismo problema que ya
@@ -299,7 +309,7 @@ export default function ClassBrowser({
       {enableMapView && view === 'lista' && (
         <button
           type="button"
-          onClick={() => setView('mapa')}
+          onClick={() => changeView('mapa')}
           className="lg:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-neutral-900 text-white text-[13px] font-semibold px-4 py-2.5 rounded-full shadow-lg active:scale-[0.97] transition-transform"
         >
           <MapIcon className="w-4 h-4" /> Mapa

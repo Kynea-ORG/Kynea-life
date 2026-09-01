@@ -164,3 +164,80 @@ export function trackSelectItem(params: {
     list_name: params.listName,
   });
 }
+
+// Fired once per actual search submission on the Home hero — the single
+// convergence point (navigateSearch(), app/HomeClient.tsx) that the desktop
+// form, the mobile "Buscar" button and "Ver todos los resultados" all funnel
+// through. Typing/autocomplete browsing never fires this on its own — GA4's
+// `search` is meant for a completed search, not a keystroke.
+export function trackSearch(params: { searchTerm: string; city: string }) {
+  pushEvent('search', { search_term: params.searchTerm, city: params.city });
+}
+
+// Fired once a class is actually added to saved_classes (not on unsave) —
+// app/[categoria]/[tipo]/[slug]/ClaseDetailClient.tsx's toggleSave(). The
+// logged-out branch of that same handler already fires
+// auth_cta_click({ location: 'save_class_gate' }) instead.
+export function trackSaveClass(params: { classId: string; className: string; classStyle: string; teacherId: string }) {
+  pushEvent('save_class', {
+    class_id: params.classId,
+    class_name: params.className,
+    class_style: params.classStyle,
+    teacher_id: params.teacherId,
+  });
+}
+
+// Fired when the visitor switches between the Lista/Mapa toggle in
+// components/ClassBrowser.tsx (any of its 4 trigger points — the desktop
+// segmented control, the mobile floating "Mapa" button, the mobile "Volver
+// a lista" button, and ClasesMapView's own "Ver lista" callback) — never on
+// the initial view resolved from ?vista=mapa on mount, and never when
+// clicking the already-active option. listName identifies the surface
+// (clases_grid, categorias_grid), same convention as trackSelectItem.
+export function trackMapViewToggle(params: { viewType: 'lista' | 'mapa'; listName: string }) {
+  pushEvent('map_view_toggle', { view_type: params.viewType, list_name: params.listName });
+}
+
+// The profesor/academia counterpart of trackViewItem — fired once
+// app/profesores/[slug]/ProfesorDetailClient.tsx mounts. Deliberately a
+// separate event from view_item (a profile is not a listing item and has no
+// price/class_type), so a funnel over classes stays uncontaminated. For an
+// academia this is its storefront view count — the one metric that answers
+// "how much exposure did Kynea give my academia this month?".
+export function trackViewProfile(params: { role: 'profesor' | 'academia'; profileId: string; profileName: string }) {
+  pushEvent('view_profile', { role: params.role, profile_id: params.profileId, profile_name: params.profileName });
+}
+
+// The profesor/academia counterpart of trackSelectItem — fired when a
+// profile card/link is clicked from a listing, before navigating to it.
+// listName identifies the surface (home_academias, home_profesores,
+// profesores_directorio, home_search_autocomplete, clases_grid_mapa), so the
+// discovery funnel for profiles reads the same way the one for classes does.
+export function trackSelectProfile(params: { role: 'profesor' | 'academia'; profileId: string; profileName: string; listName: string }) {
+  pushEvent('select_profile', {
+    role: params.role,
+    profile_id: params.profileId,
+    profile_name: params.profileName,
+    list_name: params.listName,
+  });
+}
+
+// Fired when a visitor clicks a teacher's own social/web link (Instagram,
+// TikTok, website) shown on a class detail or profile page. Deliberately NOT
+// generate_lead: those links leave Kynea toward the teacher's own channels
+// and are exploratory, so folding them into the conversion event would
+// inflate it. Tracking them at all is what makes this contact visible —
+// otherwise the visitor leaves the site with no trace.
+export function trackTeacherSocialClick(params: {
+  channel: 'instagram' | 'tiktok' | 'website';
+  teacherId: string;
+  teacherName: string;
+  surface: string;
+}) {
+  pushEvent('teacher_social_click', {
+    social_channel: params.channel,
+    teacher_id: params.teacherId,
+    teacher_name: params.teacherName,
+    surface: params.surface,
+  });
+}

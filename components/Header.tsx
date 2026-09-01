@@ -39,19 +39,27 @@ const NAV_LINKS = [
 // Estilo compartido por cada fila del drawer mobile (diseño G1).
 const MENU_ITEM_CLASS = 'font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors';
 
-type DrawerLink = { href: string; label: string; Icon: LucideIcon };
+type DrawerLink = { href: string; label: string; Icon: LucideIcon; ctaLocation?: string };
 
 // Upsell de conversión — se ve para el visitante anónimo y para el alumno
 // (todavía no tiene ningún camino de conversión en la app); profesor y
-// academia no lo necesitan.
+// academia no lo necesitan. ctaLocation restaura el tracking que tenía el
+// menú mobile viejo (header_mobile_profesor) — ver docs/informe-marcaciones-gtm.md.
 const CONVERSION_LINKS: DrawerLink[] = [
-  { href: '/academias', label: '¿Tienes una academia?', Icon: Building2 },
-  { href: '/unete/beneficios', label: 'Sé profesor en Kynea', Icon: GraduationCap },
+  { href: '/academias', label: '¿Tienes una academia?', Icon: Building2, ctaLocation: 'header_mobile_academia' },
+  { href: '/unete/beneficios', label: 'Sé profesor en Kynea', Icon: GraduationCap, ctaLocation: 'header_mobile_profesor' },
 ];
 
-function MenuLink({ href, label, Icon, onClick }: DrawerLink & { onClick: () => void }) {
+function MenuLink({ href, label, Icon, ctaLocation, onClick }: DrawerLink & { onClick: () => void }) {
   return (
-    <Link href={href} onClick={onClick} className={MENU_ITEM_CLASS}>
+    <Link
+      href={href}
+      onClick={() => {
+        if (ctaLocation) trackAuthCtaClick({ action: 'registro', location: ctaLocation });
+        onClick();
+      }}
+      className={MENU_ITEM_CLASS}
+    >
       <Icon className="w-4 h-4 shrink-0 text-primary" /> {label}
     </Link>
   );

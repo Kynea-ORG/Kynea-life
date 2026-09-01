@@ -1,9 +1,47 @@
 import { notFound, permanentRedirect } from 'next/navigation';
+import type { Metadata } from 'next';
 import { fetchClassBySlug, fetchClassById } from '@/lib/classes/queries';
 import { classUrl } from '@/lib/classes/helpers';
+import { SITE_URL } from '@/lib/constants';
+import { truncateForMeta } from '@/lib/utils';
 import ClaseDetailClient from './ClaseDetailClient';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function resolveClass(slug: string) {
+  let cls = await fetchClassBySlug(slug);
+  if (!cls && UUID_RE.test(slug)) cls = await fetchClassById(slug);
+  return cls;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ categoria: string; tipo: string; slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const cls = await resolveClass(slug);
+  if (!cls || cls.status !== 'published') return { title: 'Clase no encontrada — Kynea' };
+
+  const title = `${cls.title} — ${cls.style} en ${cls.city} | Kynea`;
+  const description = cls.shortDescription
+    ? truncateForMeta(cls.shortDescription)
+    : `Clase de ${cls.style} en ${cls.city} con ${cls.teacher.name}. Reserva tu lugar en Kynea.`;
+  const canonical = `${SITE_URL}${classUrl(cls)}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: 'website',
+      ...(cls.coverImage && { images: [{ url: cls.coverImage.startsWith('http') ? cls.coverImage : `${SITE_URL}${cls.coverImage}` }] }),
+    },
+  };
+}
 
 export default async function ClaseDetailPage({
   params,
@@ -11,12 +49,7 @@ export default async function ClaseDetailPage({
   params: Promise<{ categoria: string; tipo: string; slug: string }>;
 }) {
   const { categoria, tipo, slug } = await params;
-  let cls = await fetchClassBySlug(slug);
-
-  // Links a los ids planos que los profesores ya compartieron antes del
-  // cambio a slug — en vez de 404, redirige de forma permanente a la URL
-  // canónica para no romper lo que ya está publicado por ahí.
-  if (!cls && UUID_RE.test(slug)) cls = await fetchClassById(slug);
+  const cls = await resolveClass(slug);
 
   if (!cls || cls.status !== 'published') notFound();
 
@@ -26,5 +59,28 @@ export default async function ClaseDetailPage({
   const canonical = classUrl(cls);
   if (canonical !== `/${categoria}/${tipo}/${slug}`) permanentRedirect(canonical);
 
-  return <ClaseDetailClient cls={cls} />;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Course',
+    name: cls.title,
+    description: cls.shortDescription || cls.fullDescription || undefined,
+    provider: {
+      '@type': cls.teacher.type === 'academia' ? 'Organization' : 'Person',
+      name: cls.teacher.name,
+      url: `${SITE_URL}/profesores/${cls.teacher.slug}`,
+    },
+    offers: {
+      '@type': 'Offer',
+      price: cls.price,
+      priceCurrency: cls.currency,
+      url: `${SITE_URL}${classUrl(cls)}`,
+    },
+  };
+
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <ClaseDetailClient cls={cls} />
+    </>
+  );
 }

@@ -1,12 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { ChevronLeft, Star, MapPin, Globe, MessageCircle, Users, Building2 } from 'lucide-react';
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import ClassCard from '@/components/ClassCard';
-import { trackGenerateLead } from '@/lib/analytics';
+import { trackGenerateLead, trackViewProfile, trackTeacherSocialClick } from '@/lib/analytics';
 import { buildInstagramUrl, buildTikTokUrl, formatExperience, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import type { Teacher, DanceClass } from '@/lib/types';
 
@@ -18,6 +18,14 @@ export default function ProfesorDetailClient({
   classes: DanceClass[];
 }) {
   const [activeTab, setActiveTab] = useState<'clases' | 'bio'>('clases');
+
+  useEffect(() => {
+    trackViewProfile({ role: teacher.type, profileId: teacher.id, profileName: teacher.name });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teacher.id]);
+
+  const socialClick = (channel: 'instagram' | 'tiktok' | 'website') =>
+    trackTeacherSocialClick({ channel, teacherId: teacher.id, teacherName: teacher.name, surface: 'profesor_detail' });
 
   return (
     <div className="min-h-screen bg-white">
@@ -135,6 +143,7 @@ export default function ProfesorDetailClient({
                     href={buildInstagramUrl(teacher.instagram)}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => socialClick('instagram')}
                     className="text-[12.5px] text-white/80 flex items-center gap-1.5 hover:text-white transition-colors"
                   >
                     <InstagramIcon className="w-3.5 h-3.5" /> {teacher.instagram}
@@ -145,13 +154,14 @@ export default function ProfesorDetailClient({
                     href={buildTikTokUrl(teacher.tiktok)}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => socialClick('tiktok')}
                     className="text-[12.5px] text-white/80 flex items-center gap-1.5 hover:text-white transition-colors"
                   >
                     <TikTokIcon className="w-3.5 h-3.5" /> {teacher.tiktok}
                   </a>
                 )}
                 {teacher.website && (
-                  <a href={teacher.website} target="_blank" rel="noopener noreferrer" className="text-[12.5px] text-white flex items-center gap-1.5 hover:underline font-bold">
+                  <a href={teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[12.5px] text-white flex items-center gap-1.5 hover:underline font-bold">
                     <Globe className="w-3.5 h-3.5" /> Sitio web
                   </a>
                 )}
