@@ -732,7 +732,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             alt="Bailarina en movimiento"
             fill
             priority
-            sizes="100vw"
+            sizes="(max-width: 768px) 100vw, 0vw"
             className="absolute inset-0 object-cover"
             style={{ objectPosition: '55% 25%' }}
           />

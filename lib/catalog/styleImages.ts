@@ -2,20 +2,20 @@
 // more get uploaded to public/categorias/. Styles without an entry yet fall
 // back to FALLBACK_CATEGORY_IMAGES (round-robin) so nothing ever 404s.
 export const STYLE_IMAGES: Record<string, string> = {
-  'salsa':         '/categorias/salsa.jpg',
-  'bachata':       '/categorias/bachata.jpg',
-  'heels':         '/categorias/hills.jpg',
-  'reggaeton':     '/categorias/Reggaeton.jpg',
-  'hip-hop':       '/categorias/hiphop.jpeg',
-  'urbano':        '/categorias/urbano.jpg',
-  'contemporaneo': '/categorias/comtempo.jpeg',
-  'ballet':        '/categorias/ballet.jpg',
-  'jazz-funk':     '/categorias/jazzfunk.png',
+  'salsa':         '/categorias/salsa.webp',
+  'bachata':       '/categorias/bachata.webp',
+  'heels':         '/categorias/hills.webp',
+  'reggaeton':     '/categorias/Reggaeton.webp',
+  'hip-hop':       '/categorias/hiphop.webp',
+  'urbano':        '/categorias/urbano.webp',
+  'contemporaneo': '/categorias/comtempo.webp',
+  'ballet':        '/categorias/ballet.webp',
+  'jazz-funk':     '/categorias/jazzfunk.webp',
 };
 
 export const FALLBACK_CATEGORY_IMAGES = [
-  '/categorias/rainier-ridao-GRDpPpKczdY-unsplash.jpg',
-  '/categorias/barrett-smith-uB4cOqtOf90-unsplash.jpg',
+  '/categorias/rainier-ridao-GRDpPpKczdY-unsplash.webp',
+  '/categorias/barrett-smith-uB4cOqtOf90-unsplash.webp',
 ];
 
 // Fallback gradients shown behind the photo while it loads (also color variety across cards)
