@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { ChevronRight, ChevronLeft, Upload, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { updateProfile } from '@/lib/profiles/actions';
+import { updateProfile, upgradeToProfesor } from '@/lib/profiles/actions';
 import { uploadProfileImage } from '@/lib/profiles/imageActions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
@@ -38,6 +38,16 @@ function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = safeRedirectPath(searchParams.get('redirect'));
+  // Un alumno pasando a profesor llega acá con ?upgrade=profesor (ver
+  // BecomeTeacherModal.tsx) — ve el wizard normal de profesor en vez del
+  // carrusel de AlumnoWelcome. Ver migración 45 y el plan de esta feature.
+  const isUpgradeToProfesor = searchParams.get('upgrade') === 'profesor';
+  // Distinto del flag de arriba: solo se prende si el perfil cargado desde
+  // la DB era realmente 'alumno' — así, si alguien que ya no es alumno (un
+  // profesor real, con perfil incompleto) visita la URL con el param a
+  // mano, handleFinish no intenta voltear un rol que no corresponde y
+  // simplemente termina su onboarding normal, tal cual.
+  const [pendingRoleFlip, setPendingRoleFlip] = useState(false);
   const [step, setStep] = useState(0);
   const [role, setRole] = useState('');
   const STEPS = role === 'academia' ? STEPS_ACADEMIA : STEPS_PROFESOR;
@@ -108,7 +118,13 @@ function OnboardingContent() {
         .eq('id', user.id)
         .single();
       if (profile?.role) {
-        setRole(profile.role);
+        // Un alumno en modo upgrade se trata como profesor de acá en
+        // adelante (pasos, validación, campos de handleFinish) — el rol
+        // real en la DB sigue siendo 'alumno' hasta que upgradeToProfesor()
+        // lo voltee al terminar el wizard.
+        const isAlumnoUpgrade = isUpgradeToProfesor && profile.role === 'alumno';
+        if (isAlumnoUpgrade) setPendingRoleFlip(true);
+        setRole(isAlumnoUpgrade ? 'profesor' : profile.role);
         // `new=1` is only ever set by the four signup completion points
         // (registro, confirmar-email, completar-registro, auth/callback) —
         // proxy.ts's own redirect back here for an unfinished onboarding
@@ -123,7 +139,7 @@ function OnboardingContent() {
           // AlumnoWelcome should send the user once they finish.
           router.replace(redirectTarget ? `/onboarding?redirect=${encodeURIComponent(redirectTarget)}` : '/onboarding');
         }
-        if (profile.role === 'alumno') {
+        if (profile.role === 'alumno' && !isUpgradeToProfesor) {
           // Alumno's onboarding is a pure intro carousel (AlumnoWelcome) with
           // no fields to backfill or validate — the only thing worth checking
           // is whether they've already seen it, to avoid replaying it on a
@@ -241,6 +257,12 @@ function OnboardingContent() {
     shift();
     try {
       const supabase = createClient();
+      // Voltea el rol antes que nada — si esto falla (p.ej. ya no es
+      // alumno, la cuenta cambió en otra pestaña), el catch de abajo corta
+      // acá y no llega a tocar el resto del perfil.
+      if (pendingRoleFlip) {
+        await upgradeToProfesor();
+      }
       // Persist representante in user metadata for academia accounts (no DB column needed)
       if (role === 'academia' && form.representante) {
         await supabase.auth.updateUser({ data: { representante: form.representante } });

@@ -12,6 +12,7 @@ import type { LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { trackAuthCtaClick } from '@/lib/analytics';
+import BecomeTeacherModal from '@/components/BecomeTeacherModal';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -109,6 +110,7 @@ export default function Header({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [becomeTeacherOpen, setBecomeTeacherOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const shouldRenderUserMenu = useDelayedUnmount(userMenuOpen, 200);
   const shouldRenderMobileMenu = useDelayedUnmount(mobileOpen, 200);
@@ -202,12 +204,13 @@ export default function Header({
     { href: '/dashboard/configuracion', label: 'Configuración', Icon: Settings },
   ];
 
-  // Upsell tras los accesos de rol: el visitante anónimo y el alumno (sin
-  // ningún camino de conversión propio todavía) ven el upsell genérico de
-  // academia/profesor; un profesor ve el flujo real de conversión a
-  // academia; una academia no ve nada más, ya es el estado final.
+  // Upsell tras los accesos de rol: el visitante anónimo ve el upsell
+  // genérico de academia/profesor; un alumno ve su propio camino real de
+  // conversión a profesor (ver BecomeTeacherModal.tsx) más el link público
+  // de academia; un profesor ve el flujo real de conversión a academia;
+  // una academia no ve nada más, ya es el estado final.
   const trailingLinks: DrawerLink[] =
-    !isLoggedIn || isAlumno ? CONVERSION_LINKS
+    !isLoggedIn ? CONVERSION_LINKS
     : profile?.role === 'profesor' ? [{ href: '/convertir-academia', label: 'Convierte tu cuenta en academia', Icon: Building2 }]
     : [];
 
@@ -217,9 +220,21 @@ export default function Header({
       {roleLinks.map(item => (
         <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
       ))}
-      {trailingLinks.length > 0 && (
+      {(trailingLinks.length > 0 || isAlumno) && (
         <>
           {roleLinks.length > 0 && <div className="h-px bg-neutral-100 my-2 mx-3" />}
+          {isAlumno && (
+            <>
+              <MenuLink href="/academias" label="¿Tienes una academia?" Icon={Building2} ctaLocation="header_mobile_academia" onClick={() => setMobileOpen(false)} />
+              <button
+                type="button"
+                onClick={() => { setMobileOpen(false); setBecomeTeacherOpen(true); }}
+                className={`${MENU_ITEM_CLASS} w-full text-left`}
+              >
+                <GraduationCap className="w-4 h-4 shrink-0 text-primary" /> Conviértete en profesor
+              </button>
+            </>
+          )}
           {trailingLinks.map(item => (
             <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
           ))}
@@ -378,6 +393,15 @@ export default function Header({
                       className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
                       <Settings className="w-4 h-4 shrink-0" /> Configuración
                     </Link>
+                    {isAlumno && (
+                      <button
+                        type="button"
+                        onClick={() => { setUserMenuOpen(false); setBecomeTeacherOpen(true); }}
+                        className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors"
+                      >
+                        <GraduationCap className="w-4 h-4 shrink-0 text-primary" /> Conviértete en profesor
+                      </button>
+                    )}
                     <div className="border-t border-neutral-100">
                       <button onClick={logout}
                         className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-600 hover:text-red hover:bg-red-bg active:bg-red-bg transition-colors">
@@ -469,6 +493,8 @@ export default function Header({
           </div>
         </div>
       )}
+
+      {becomeTeacherOpen && <BecomeTeacherModal onClose={() => setBecomeTeacherOpen(false)} />}
     </header>
   );
 }
