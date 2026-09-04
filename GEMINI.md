@@ -28,7 +28,11 @@ Este archivo proporciona contexto, directrices de arquitectura y reglas de desar
 
 ---
 
-## ⚠️ Regla Crítica: Apertura de Pull Requests
+## ⚠️ Regla Crítica: Flujo de Git y Apertura de Pull Requests
+
+> [!CAUTION]
+> **NUNCA hacer `git commit`, `git push` ni crear Pull Requests de forma autónoma.**
+> Siempre se debe implementar, probar y validar los cambios localmente, y luego presentarlos al usuario. **Esperar siempre la confirmación o instrucción explícita del usuario antes de realizar cualquier commit, push o PR.**
 
 > [!IMPORTANT]
 > **Todo PR en este repo que modifique `lib/`, `supabase/` o `proxy.ts` DEBE ser creado con la cuenta bot `joseniquen08-pr`** (nunca con `joseniquen08`).
