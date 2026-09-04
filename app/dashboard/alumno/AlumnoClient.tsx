@@ -5,6 +5,7 @@ import { Bookmark, BookOpen, MapPin, Clock, ArrowRight } from 'lucide-react';
 import { formatPrice, formatTimeSlots } from '@/lib/utils';
 import { classUrl } from '@/lib/classes/helpers';
 import type { DanceClass } from '@/lib/types';
+import ProfesorConversionCard from '../ProfesorConversionCard';
 
 export default function AlumnoClient({
   savedClasses,
@@ -17,41 +18,37 @@ export default function AlumnoClient({
 
   return (
     <div className="p-6 lg:p-8 w-full">
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-[24px] font-black text-neutral-900 tracking-tight">
+          <h1 className="text-[28px] sm:text-[32px] font-black text-neutral-900 tracking-tight">
             Hola, {firstName} 👋
           </h1>
-          <p className="text-neutral-600 text-[15px] mt-1">Descubre y guarda tus clases favoritas</p>
+          <div className="flex flex-wrap items-center gap-2.5 mt-2">
+            <p className="text-neutral-600 text-[15px]">Descubre y guarda tus clases favoritas</p>
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-blue-pastel-text bg-blue-pastel-bg px-2.5 py-1 rounded-full">
+              <Bookmark className="w-3 h-3" /> {savedClasses.length} guardada{savedClasses.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
-        <Link href="/clases" className="btn-dark btn-sm hidden sm:flex items-center gap-2">
+        <Link href="/clases" className="btn-outline btn-sm hidden sm:flex items-center gap-2">
           Explorar clases →
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-8 max-w-sm">
-        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mb-2">
-            <Bookmark className="w-4 h-4 text-blue-700" />
-          </div>
-          <p className="text-[22px] font-black text-blue-700">{savedClasses.length}</p>
-          <p className="text-[12px] font-medium text-neutral-600 mt-0.5">Clases guardadas</p>
-        </div>
-      </div>
+      <ProfesorConversionCard />
 
       {/* Saved classes */}
       <section className="mb-8">
         <h2 className="text-[17px] font-bold text-neutral-900 mb-4">Clases guardadas</h2>
 
         {savedClasses.length === 0 ? (
-          <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-10 text-center animate-fade-in">
+          <div className="card-muted p-10 text-center animate-fade-in">
             <Bookmark className="w-10 h-10 text-neutral-300 mx-auto mb-3 animate-pop" />
             <p className="font-semibold text-neutral-700 mb-1">Sin clases guardadas aún</p>
             <p className="text-sm text-neutral-600 mb-5">
               Explora clases y presiona el botón &ldquo;Guardar clase&rdquo; para encontrarlas aquí.
             </p>
-            <Link href="/clases" className="btn-dark btn-sm inline-flex items-center gap-2">
+            <Link href="/clases" className="btn-outline btn-sm inline-flex items-center gap-2">
               Explorar clases <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -61,7 +58,7 @@ export default function AlumnoClient({
               <Link
                 key={cls.id}
                 href={classUrl(cls)}
-                className="bg-white border border-neutral-200 rounded-xl p-4 flex items-start gap-4 hover:border-neutral-400 transition-colors block"
+                className="bg-white card-dash p-4 flex items-start gap-4 hover:shadow-md transition-shadow block"
               >
                 {cls.coverImage ? (
                   <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0">
@@ -103,10 +100,10 @@ export default function AlumnoClient({
       </section>
 
       {/* Explore CTA */}
-      <div className="bg-neutral-900 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-primary card-dash p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <p className="text-white font-bold text-[17px]">Descubre más clases</p>
-          <p className="text-neutral-400 text-[14px] mt-0.5">Salsa, bachata, heels y más estilos cerca de ti</p>
+          <p className="text-white/70 text-[14px] mt-0.5">Salsa, bachata, heels y más estilos cerca de ti</p>
         </div>
         <Link
           href="/clases"

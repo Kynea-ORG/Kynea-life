@@ -3,9 +3,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import SmartImage from '@/components/SmartImage';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
-  Settings, LogOut, Shield,
+  Settings, LogOut, Shield, Loader2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -20,7 +21,7 @@ interface Profile {
 }
 
 const BADGE = {
-  alumno:   { label: 'Alumno',   bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-100' },
+  alumno:   { label: 'Alumno',   bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', border: 'border-blue-pastel/30' },
   profesor: { label: 'Profesor', bg: 'bg-neutral-100', text: 'text-neutral-700', border: 'border-neutral-200' },
   academia: { label: 'Academia', bg: 'bg-pink-50',     text: 'text-pink-600',    border: 'border-pink-100' },
 };
@@ -73,10 +74,10 @@ function NavLinks({
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium mb-1 transition-[background-color,color,transform] active:scale-[0.98] ${
               active
-                ? 'bg-neutral-900 text-white'
-                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+                ? 'bg-primary text-white active:bg-primary-dark'
+                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 active:bg-neutral-200'
             }`}
           >
             <Icon className="w-4 h-4" />
@@ -99,7 +100,10 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
     ? [...NAV_BY_ROLE[profile.role], { href: '/dashboard/admin', label: 'Admin', icon: Shield }]
     : NAV_BY_ROLE[profile.role];
 
+  const [loggingOut, setLoggingOut] = useState(false);
+
   async function logout() {
+    setLoggingOut(true);
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/');
@@ -125,14 +129,14 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white shrink-0">
-        <div className="p-6 border-b border-neutral-900">
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-neutral-100 shrink-0">
+        <div className="p-6 border-b border-neutral-100">
           <Link href="/" className="flex items-center">
             <Image src="/logo.png" alt="Kynea" width={100} height={32} priority />
           </Link>
         </div>
 
-        <div className="px-4 py-4 border-b border-neutral-200">
+        <Link href="/dashboard/perfil" className="px-4 py-4 border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
           <div className="flex items-center gap-3">
             {profile.photo_url ? (
               <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0">
@@ -150,19 +154,20 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
               </span>
             </div>
           </div>
-        </div>
+        </Link>
 
         <nav className="flex-1 py-4 px-3">
           <NavLinks items={NAV} pathname={pathname} isEditingClass={isEditingClass} />
         </nav>
 
-        <div className="p-4 border-t border-neutral-200">
+        <div className="p-4 border-t border-neutral-100">
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg transition-colors"
+            disabled={loggingOut}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg transition-[background-color,color,transform] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
           >
-            <LogOut className="w-4 h-4" />
-            Cerrar sesión
+            {loggingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+            {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
           </button>
         </div>
       </aside>
@@ -183,12 +188,12 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-colors ${
-                    active ? 'text-neutral-900' : 'text-neutral-400'
+                  className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-[background-color,color,transform] active:scale-90 ${
+                    active ? 'bg-primary-bg text-primary' : 'text-neutral-400 active:text-primary'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
-                  <span className="text-xs">{item.label.split(' ')[0]}</span>
+                  <span className="text-[11px] font-medium">{item.label.split(' ')[0]}</span>
                 </Link>
               );
             });

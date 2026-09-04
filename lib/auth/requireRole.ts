@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/auth/getUser';
+import { getCurrentProfile } from '@/lib/profiles/queries';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -10,15 +11,10 @@ type Role = 'alumno' | 'profesor' | 'academia';
  * and users with a missing profile row.
  */
 export async function requireRole(allowed: Role[]) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const profile = await getCurrentProfile();
 
   if (!profile?.role || !allowed.includes(profile.role)) {
     redirect('/dashboard/alumno');

@@ -268,7 +268,9 @@ export default function PerfilClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [loggingOut, setLoggingOut] = useState(false);
   const handleLogout = async () => {
+    setLoggingOut(true);
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/');
@@ -324,7 +326,7 @@ export default function PerfilClient({
 
       <div className="space-y-6">
         {/* Photo / Logo */}
-        <div className="bg-white rounded-xl border border-neutral-900 p-6">
+        <div className="bg-white card-dash p-6">
           <h2 className="text-lg font-bold text-neutral-900">{isAcademia ? 'Logo de la academia' : isTeacher ? 'Foto / Logo' : 'Foto de perfil'}</h2>
           {isTeacher && (
             <p className="text-xs text-neutral-600 mt-0.5 mb-4">Esto es lo que verán los alumnos en tu perfil público</p>
@@ -386,7 +388,7 @@ export default function PerfilClient({
 
         {/* Cover Photo (Academia only) */}
         {isAcademia && (
-          <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+          <div className="bg-white card-dash p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-neutral-900">Portada de la academia</h2>
@@ -461,7 +463,7 @@ export default function PerfilClient({
 
         {/* Corporate details (Academia only) */}
         {isAcademia && (
-          <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+          <div className="bg-white card-dash p-6 space-y-4">
             <div className="flex items-center gap-2 mb-1">
               <Building2 className="w-5 h-5 text-pink-600" />
               <h2 className="text-lg font-bold text-neutral-900">Datos de la academia</h2>
@@ -546,7 +548,7 @@ export default function PerfilClient({
         )}
 
         {/* Basic info */}
-        <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+        <div className="bg-white card-dash p-6 space-y-4">
           <h2 className="text-lg font-bold text-neutral-900">Información pública</h2>
           <div>
             <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
@@ -582,7 +584,7 @@ export default function PerfilClient({
 
         {/* Styles */}
         {isTeacher && (
-          <div className="bg-white rounded-xl border border-neutral-900 p-6">
+          <div className="bg-white card-dash p-6">
             <h2 className="text-lg font-bold text-neutral-900 mb-4">{isAcademia ? 'Estilos que ofrece la academia' : 'Estilos que enseñas'}</h2>
             <div className="flex flex-wrap gap-2">
               {danceStyles.map(s => (
@@ -597,7 +599,7 @@ export default function PerfilClient({
 
         {/* Contact & social */}
         {isTeacher && (
-          <div id="contacto" className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+          <div id="contacto" className="bg-white card-dash p-6 space-y-4">
             <h2 className="text-lg font-bold text-neutral-900">Contacto y redes</h2>
             <p className="text-xs text-neutral-400"><span className="text-red">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
 
@@ -666,7 +668,7 @@ export default function PerfilClient({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="btn-dark"
+            className="btn-primary"
           >
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saved ? '¡Guardado!' : isPending ? 'Guardando…' : 'Guardar cambios'}
@@ -674,9 +676,11 @@ export default function PerfilClient({
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg px-4 py-3 rounded-btn border border-neutral-200 transition-colors"
+            disabled={loggingOut}
+            className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg px-4 py-3 rounded-btn border border-neutral-200 transition-[background-color,color,transform] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
           >
-            <LogOut className="w-4 h-4" /> Cerrar sesión
+            {loggingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+            {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
           </button>
         </div>
       </div>

@@ -1,20 +1,16 @@
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/auth/getUser';
+import { getCurrentProfile } from '@/lib/profiles/queries';
 import DashboardSidebar from './DashboardSidebar';
 import NoticeBar from './NoticeBar';
 import AcademiaWelcomeModal from './AcademiaWelcomeModal';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, name, role, photo_url, is_admin, academia_approved_at, academia_welcome_seen_at')
-    .eq('id', user.id)
-    .single();
+  const profile = await getCurrentProfile();
 
   // User authenticated but no profile row (trigger failed) — redirect with error param to break loop
   if (!profile) redirect('/login?error=cuenta_incompleta');

@@ -1,13 +1,12 @@
-import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth/requireRole';
+import { getUser } from '@/lib/auth/getUser';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { MessageCircle, Eye, Bookmark, TrendingUp } from 'lucide-react';
 
 export default async function ContactosPage() {
   await requireRole(['profesor', 'academia']);
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) return null;
 
   const allClasses = await fetchTeacherClasses(user.id);
@@ -30,12 +29,12 @@ export default async function ContactosPage() {
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
           { label: 'Contactos totales', value: totalContacts, icon: MessageCircle, color: 'text-green-text', bg: 'bg-green-bg' },
-          { label: 'Vistas totales',    value: totalViews,    icon: Eye,           color: 'text-blue-700',  bg: 'bg-blue-pastel-bg' },
+          { label: 'Vistas totales',    value: totalViews,    icon: Eye,           color: 'text-blue-pastel-text', bg: 'bg-blue-pastel-bg' },
           { label: 'Guardados',         value: totalSaved,    icon: Bookmark,      color: 'text-neutral-700', bg: 'bg-neutral-50' },
         ].map(stat => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className={`${stat.bg} rounded-xl p-5 border border-neutral-200`}>
+            <div key={stat.label} className={`${stat.bg} card-dash p-5`}>
               <Icon className={`w-5 h-5 ${stat.color} mb-3`} />
               <p className={`text-[28px] font-black ${stat.color}`}>{stat.value}</p>
               <p className="text-[13px] font-medium text-neutral-600 mt-0.5">{stat.label}</p>
@@ -46,13 +45,13 @@ export default async function ContactosPage() {
 
       {/* Classes table */}
       {published.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border border-neutral-200">
+        <div className="text-center py-20 bg-white card-dash">
           <TrendingUp className="w-10 h-10 mx-auto mb-3 text-neutral-300" />
           <p className="font-semibold text-neutral-600">Aún no tienes clases publicadas</p>
           <p className="text-sm text-neutral-400 mt-1">Publica tu primera clase para ver las métricas aquí</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
+        <div className="bg-white card-dash overflow-hidden">
           <div className="divide-y divide-neutral-100">
             {/* Header */}
             <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-neutral-50 text-[12px] font-semibold text-neutral-600 uppercase tracking-wide">

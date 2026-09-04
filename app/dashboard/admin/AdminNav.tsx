@@ -10,7 +10,7 @@ export default function AdminNav({ pendingCount }: { pendingCount: number }) {
   const isUsuarios = !isResumen && !isAcademias && pathname.startsWith('/dashboard/admin');
 
   const tabClass = (active: boolean) =>
-    `text-sm font-semibold px-3 py-2.5 border-b-2 transition-colors ${
+    `text-sm font-semibold px-3 py-2.5 border-b-2 transition-colors active:opacity-60 ${
       active
         ? 'border-neutral-900 text-neutral-900 font-bold'
         : 'border-transparent text-neutral-600 hover:text-neutral-900 hover:border-neutral-300'

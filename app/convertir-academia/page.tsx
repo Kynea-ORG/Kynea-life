@@ -1,11 +1,13 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/auth/getUser';
 import ConvertirAcademiaClient from './ConvertirAcademiaClient';
 
 export default async function ConvertirAcademiaPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect('/login');
+
+  const supabase = await createClient();
 
   const { data: profile } = await supabase
     .from('profiles')

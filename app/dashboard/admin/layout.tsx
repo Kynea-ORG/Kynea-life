@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/auth/getUser';
 import { fetchIsAdmin, fetchPendingAcademiaRequests } from '@/lib/admin/queries';
 import AdminNav from './AdminNav';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect('/login');
 
   // Silent redirect on purpose — no 404, no "forbidden" page, no hint that
