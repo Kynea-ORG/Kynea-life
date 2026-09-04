@@ -9,6 +9,7 @@ import ClassCard from '@/components/ClassCard';
 import { trackGenerateLead, trackViewProfile, trackTeacherSocialClick } from '@/lib/analytics';
 import { buildInstagramUrl, buildTikTokUrl, formatExperience, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import type { Teacher, DanceClass } from '@/lib/types';
+import LinkifiedText from '@/components/LinkifiedText';
 
 export default function ProfesorDetailClient({
   teacher,
@@ -28,7 +29,7 @@ export default function ProfesorDetailClient({
     trackTeacherSocialClick({ channel, teacherId: teacher.id, teacherName: teacher.name, surface: 'profesor_detail' });
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-clip">
       <Header />
 
       {/* Artistic profile banner — academia gets a real cover photo behind a
@@ -63,10 +64,10 @@ export default function ProfesorDetailClient({
               )}
             </div>
 
-            <div className="flex-1 min-w-[260px] pt-2">
+            <div className="flex-1 min-w-0 sm:min-w-[260px] pt-2">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h1 className="text-[30px] font-black text-white tracking-tight">{teacher.name}</h1>
+                  <h1 className="text-[30px] font-black text-white tracking-tight break-words">{teacher.name}</h1>
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className={`text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${
                       teacher.type === 'academia' ? 'bg-pink-50 text-pink-600' : 'bg-white text-neutral-700'
@@ -204,8 +205,8 @@ export default function ProfesorDetailClient({
             </div>
           )
         ) : (
-          <div className="max-w-2xl">
-            <p className="text-neutral-600 leading-relaxed mb-6">{teacher.bio || 'Sin biografía aún.'}</p>
+          <div className="max-w-2xl min-w-0">
+            <p className="text-neutral-600 leading-relaxed mb-6 whitespace-pre-line break-words [overflow-wrap:anywhere]"><LinkifiedText text={teacher.bio || 'Sin biografía aún.'} /></p>
             {teacher.whatsapp && (
               <div className="bg-neutral-50 rounded-2xl border border-neutral-900 p-6">
                 <h3 className="font-extrabold text-neutral-900 mb-2.5">Contacto</h3>
