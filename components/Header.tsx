@@ -274,17 +274,17 @@ export default function Header({
         <Link href="/" className="flex items-center gap-2 shrink-0">
           {homeNav ? (
             <>
-              <Image src="/logo.png" alt="Kynea" width={110} height={36} priority style={{ height: 'auto' }} className="md:hidden" />
-              <Image src="/logo-white.png" alt="Kynea" width={110} height={36} priority style={{ height: 'auto' }} className="hidden md:block" />
+              <Image src="/logo.png" alt="Kynea" width={110} height={37} priority style={{ width: '110px', height: 'auto' }} className="md:hidden" />
+              <Image src="/logo-white.png" alt="Kynea" width={110} height={37} priority style={{ width: '110px', height: 'auto' }} className="hidden md:block" />
             </>
           ) : (
             <Image
               src={transparent ? '/logo-white.png' : '/logo.png'}
               alt="Kynea"
               width={110}
-              height={36}
+              height={37}
               priority
-              style={{ height: 'auto' }}
+              style={{ width: '110px', height: 'auto' }}
             />
           )}
           {process.env.NEXT_PUBLIC_APP_ENV === 'development' && (

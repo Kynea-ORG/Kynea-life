@@ -35,7 +35,11 @@ export async function uploadClassImage(formData: FormData): Promise<{ url?: stri
   const ext = EXT_BY_MIME[file.type as AllowedImageMime];
   const path = `${user.id}/${Date.now()}.${ext}`;
 
-  const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file);
+  const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file, {
+    cacheControl: '31536000',
+    contentType: file.type,
+    upsert: false,
+  });
   if (uploadErr) return { error: uploadErr.message };
 
   const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);

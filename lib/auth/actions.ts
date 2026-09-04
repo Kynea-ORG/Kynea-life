@@ -1,4 +1,6 @@
 'use server';
+import { revalidatePath } from 'next/cache';
+import { safeRevalidateTag } from '@/lib/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -30,6 +32,14 @@ export async function deleteAccount() {
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(user.id);
   if (error) throw new Error(error.message);
+
+  safeRevalidateTag('classes', 'max');
+  safeRevalidateTag('profiles', 'max');
+  safeRevalidateTag('stats', 'max');
+  safeRevalidateTag('catalog', 'max');
+  revalidatePath('/');
+  revalidatePath('/clases');
+  revalidatePath('/profesores');
 
   await supabase.auth.signOut();
 }

@@ -10,6 +10,7 @@ import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
+import { compressImage } from '@/lib/images/compressImage';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { trackSignUp, trackOnboardingStepComplete, trackOnboardingComplete } from '@/lib/analytics';
 import { safeRedirectPath, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
@@ -173,8 +174,9 @@ function OnboardingContent() {
     }
     setUploadingPhoto(true);
     try {
+      const fileToUpload = await compressImage(file);
       const formData = new FormData();
-      formData.set('file', file);
+      formData.set('file', fileToUpload);
       const { url } = await uploadProfileImage(formData, 'photo');
       setPhotoUrl(url);
       setPhotoPosition('50% 50%');
@@ -191,8 +193,9 @@ function OnboardingContent() {
     setError('');
     setUploadingCover(true);
     try {
+      const fileToUpload = await compressImage(file);
       const formData = new FormData();
-      formData.set('file', file);
+      formData.set('file', fileToUpload);
       const { url } = await uploadProfileImage(formData, 'cover');
       setCoverUrl(url);
       setCoverPosition('50% 50%');

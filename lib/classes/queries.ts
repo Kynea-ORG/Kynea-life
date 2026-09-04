@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { getPublicClient } from '@/lib/supabase/public';
+import { safeCache } from '@/lib/cache';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { mapTeacher } from '@/lib/profiles/queries';
 import { DAY_MAP } from './helpers';
@@ -194,8 +196,22 @@ async function resolveQueryVenueIds(
 
 // ── Class queries ─────────────────────────────────────────────────────────────
 
-export async function fetchPublishedClasses(filters?: ClassFilters): Promise<DanceClass[]> {
-  const supabase = await createClient();
+function serializeFilters(filters?: ClassFilters): string {
+  if (!filters) return '';
+  const norm: Record<string, unknown> = {};
+  if (filters.query?.trim())       norm.query = filters.query.trim().toLowerCase();
+  if (filters.styles?.length)      norm.styles = [...filters.styles].sort();
+  if (filters.levels?.length)      norm.levels = [...filters.levels].sort();
+  if (filters.modalities?.length)  norm.modalities = [...filters.modalities].sort();
+  if (filters.types?.length)       norm.types = [...filters.types].sort();
+  if (filters.days?.length)        norm.days = [...filters.days].sort();
+  if (filters.city?.trim())        norm.city = filters.city.trim().toLowerCase();
+  if (filters.withSpots)           norm.withSpots = true;
+  return Object.keys(norm).length ? JSON.stringify(norm) : '';
+}
+
+async function queryPublishedClasses(filters?: ClassFilters): Promise<DanceClass[]> {
+  const supabase = getPublicClient();
   const safeQuery = filters?.query ? sanitizeForOrFilter(filters.query) : undefined;
 
   // Resolve join-based filters in parallel — null means inactive, [] means no matches
@@ -249,6 +265,20 @@ export async function fetchPublishedClasses(filters?: ClassFilters): Promise<Dan
   return (data ?? []).map(row => mapDbClassToType(row as unknown as DbClassRow));
 }
 
+const getCachedPublishedClasses = safeCache(
+  async (filterKey: string): Promise<DanceClass[]> => {
+    const filters = filterKey ? (JSON.parse(filterKey) as ClassFilters) : undefined;
+    return queryPublishedClasses(filters);
+  },
+  ['published_classes'],
+  { revalidate: 300, tags: ['classes'] }
+);
+
+export async function fetchPublishedClasses(filters?: ClassFilters): Promise<DanceClass[]> {
+  const filterKey = serializeFilters(filters);
+  return getCachedPublishedClasses(filterKey);
+}
+
 export async function fetchClassById(id: string): Promise<DanceClass | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -260,8 +290,8 @@ export async function fetchClassById(id: string): Promise<DanceClass | null> {
   return mapDbClassToType(data as unknown as DbClassRow);
 }
 
-export async function fetchClassBySlug(slug: string): Promise<DanceClass | null> {
-  const supabase = await createClient();
+async function getClassBySlug(slug: string): Promise<DanceClass | null> {
+  const supabase = getPublicClient();
   const { data, error } = await supabase
     .from('classes')
     .select(CLASS_SELECT)
@@ -270,6 +300,12 @@ export async function fetchClassBySlug(slug: string): Promise<DanceClass | null>
   if (error || !data) return null;
   return mapDbClassToType(data as unknown as DbClassRow);
 }
+
+export const fetchClassBySlug = safeCache(
+  getClassBySlug,
+  ['class_by_slug'],
+  { revalidate: 300, tags: ['classes'] }
+);
 
 export async function fetchSavedClasses(userId: string): Promise<DanceClass[]> {
   const supabase = await createClient();
