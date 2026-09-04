@@ -16,6 +16,11 @@ Este documento resume todo lo conversado e implementado sobre medición/analíti
 > - **`view_profile` + `select_profile` (3.12)** — el espejo de `view_item`/`select_item` para perfiles de profesor y academia. 6 superficies de clic que no medían nada (Home ×3, directorio `/profesores`, detalle de clase, mapa) y la vista de perfil en sí, que nunca se contó. Sin esto no se podía responder "¿cuántas visitas tuvo el perfil de esta academia?".
 > - **`teacher_social_click` (3.13)** — los links de Instagram/TikTok/web del profesor llevaban a dominios externos sin ningún tracking: el visitante se iba de Kynea a contactarlo y no quedaba rastro.
 > - **Recomendaciones registradas, no implementadas** (ver sección 7, priorizadas): `search_no_results` (la lista de compras de qué profesores/estilos captar), `filter_applied` (demanda real por estilo/nivel/día, independiente del catálogo publicado), `search` en `/clases`, y eventos de retención del lado profesor (`class_status_changed`, edición de clase).
+>
+> **v6 (2026-08-31):** auditoría directa contra las APIs reales de GTM y GA4 (no contra código), pedida para saber qué faltaba configurar de la sección 4. Resultado: **la premisa de la sección 4 (secciones 6.x) está desactualizada — la configuración de GTM ya está completa y publicada**, no pendiente:
+> - GTM (`GTM-KVGV4DR9`, cuenta `6302043360`, container `223876296`): el workspace activo es byte-idéntico a la versión live **8**, nombrada *"19 eventos Kynea - marcaciones completas"* — sin cambios sin publicar. Los **19** eventos custom (no 16 — el conteo de la sección 3 agrupaba distinto) tienen los tres: trigger de evento personalizado, tag de GA4 Event, y variables de capa de datos por cada parámetro. Ningún trigger huérfano, ningún tag mal enlazado. Único detalle esperado: el tag de `otp_verify_failed` no manda parámetros — coincide con 9.8 (implementado sin params a propósito), no es un bug.
+> - **El hueco real está del lado de GA4, no de GTM**: de los 26 nombres de parámetro distintos que los 19 eventos envían, **solo `lead_channel` está registrado como dimensión personalizada** en GA4 (Admin → Custom Definitions). Los otros 25 (`role`, `method`, `class_id`, `teacher_id`, `step_name`, `cta_location`, `search_term`, `city`, `profile_id`, `list_name`, etc.) llegan a GA4 vía GTM pero **no se pueden usar como dimensión en Informes estándar ni en Explore** hasta registrarlos — quedan atrapados en el parámetro de evento crudo. Sin este registro, los funnels de la sección 5 no se pueden armar en la UI de GA4 aunque los eventos ya estén llegando bien.
+> - Ver sección 4.1 (nueva) para la lista priorizada de qué registrar. El MCP de GA4 disponible es de solo lectura (reporting) — este registro es un paso manual en GA4 Admin, no automatizable desde acá.
 
 ## 1. Contexto general de la implementación
 
@@ -220,12 +225,61 @@ Header/drawer "¿Tienes una academia?" → /academias (form directo, sin selecto
 
 ## 4. Qué falta programar antes de poder configurar todo esto en GTM
 
-GTM solo puede reaccionar a eventos que **ya se están empujando al `dataLayer`**. Estado al cierre de v5: **los 16 eventos de la sección 3 (3.1–3.13) ya están en código** — no queda ningún evento "propuesto sin código". El orden correcto para lo que falta:
+GTM solo puede reaccionar a eventos que **ya se están empujando al `dataLayer`**. Estado al cierre de v5: **los 16 eventos de la sección 3 (3.1–3.13) ya están en código** — no queda ningún evento "propuesto sin código".
 
-1. **Deploy a producción** de los cambios de v4+v5 (fixes de `auth_cta_click` en el drawer mobile y `/academias`, fix de `select_item` en el mapa, más `search`/`save_class`/`map_view_toggle`/`view_profile`/`select_profile`/`teacher_social_click` nuevos) — igual que todo lo anterior, nada de esto se ve en ningún lado (ni siquiera en GTM Preview) hasta que `NEXT_PUBLIC_APP_ENV=production` sirva ese código.
-2. **Configurar en GTM** (sección 6) — Variables + Trigger + Tag por cada evento que todavía no tenga su configuración, Preview, Publicar.
+**Actualización v6 — esta sección quedó obsoleta, ver 4.1:** el paso 2 de abajo (configurar Variables/Trigger/Tag en GTM) **ya se hizo y está publicado** (versión live 8, "19 eventos Kynea - marcaciones completas"). Se deja el texto original como registro histórico:
+
+1. ~~**Deploy a producción** de los cambios de v4+v5 (fixes de `auth_cta_click` en el drawer mobile y `/academias`, fix de `select_item` en el mapa, más `search`/`save_class`/`map_view_toggle`/`view_profile`/`select_profile`/`teacher_social_click` nuevos) — igual que todo lo anterior, nada de esto se ve en ningún lado (ni siquiera en GTM Preview) hasta que `NEXT_PUBLIC_APP_ENV=production` sirva ese código.~~
+2. ~~**Configurar en GTM** (sección 6) — Variables + Trigger + Tag por cada evento que todavía no tenga su configuración, Preview, Publicar.~~
 
 Los eventos de 3.1–3.8 (y sus ubicaciones nuevas de `auth_cta_click` de la tabla de 3.3) se pueden configurar en GTM **ya mismo** una vez desplegados — no dependen de ningún cambio de código adicional. Los 6 de v4/v5 (`search`, `save_class`, `map_view_toggle`, `view_profile`, `select_profile`, `teacher_social_click`) son punta a punta nuevos: código y configuración de GTM, ambos pendientes.
+
+### 4.1 Registrar dimensiones personalizadas en GA4 (v6) — ✅ completado 2026-09-01
+
+GTM ya publica los 19 eventos con sus parámetros hacia GA4 — confirmado por auditoría directa de la API (workspace de GTM sin cambios pendientes, idéntico a la versión live 8). Lo que faltaba **no era código ni GTM, era configuración de GA4 Admin → Custom definitions**: sin registrar un parámetro ahí, GA4 lo recibe pero no lo deja usar como dimensión en Informes estándar ni en Explorer (Funnel Exploration, Free-form) — que es justo donde se arman los embudos de la sección 5.
+
+**Estado al auditar (2026-08-31):** de 26 nombres de parámetro distintos que envían los 19 eventos, solo `lead_channel` estaba registrado (como "Canal de contacto"). Los otros 25 quedaban sin registrar.
+
+**Cerrado (2026-09-01):** las 24 dimensiones de las tablas de abajo (alta + media) y la métrica `price` quedaron registradas manualmente en GA4 Admin — el MCP de GA4 conectado acá es de solo lectura, así que este paso no se pudo automatizar, se hizo a mano guiado por un checklist. Todas de alcance **Evento** (event-scoped) — el límite de GA4 es 50 dimensiones event-scoped por propiedad, sobra margen. Un matiz encontrado en el camino que vale la pena dejar anotado para la próxima vez que alguien haga esto: el formulario de "Crear dimensión personalizada" abre con **Alcance = Usuario por defecto**, no Evento — hay que cambiarlo a mano en cada fila o el formulario pide "Propiedad de usuario" en vez de "Parámetro de evento" y no aplica a nada de esta lista.
+
+Lista priorizada para registrar (nombre del parámetro tal cual lo manda GTM → nombre de dimensión sugerido):
+
+**Prioridad alta — necesarios para los 3 embudos de la sección 5:**
+| Parámetro | Eventos que lo usan | Dimensión sugerida |
+|---|---|---|
+| `role` | sign_up, onboarding_step_complete, onboarding_complete, view_profile, select_profile, login_success | Rol de usuario |
+| `method` | sign_up, login_success | Método de auth |
+| `auth_action` | auth_cta_click, auth_attempt | Acción de auth |
+| `cta_location` | auth_cta_click | Ubicación del CTA |
+| `auth_method` | auth_attempt | Método de auth (intento) |
+| `step_name` | onboarding_step_complete, create_class_step_complete | Nombre del paso |
+| `step_number` | onboarding_step_complete, create_class_step_complete | Número del paso |
+| `list_name` | select_item, map_view_toggle, select_profile | Nombre de la lista |
+| `class_id` | generate_lead, view_item, select_item, save_class | ID de clase |
+| `teacher_id` | generate_lead, view_item, select_item, save_class, teacher_social_click | ID de profesor |
+| `profile_id` | view_profile, select_profile | ID de perfil |
+
+**Prioridad media — enriquecen el reporte pero no bloquean el embudo básico:**
+`class_name`, `class_style`, `class_type`, `teacher_name`, `profile_name`, `status`, `is_edit`, `search_term`, `city`, `view_type`, `social_channel`, `surface`, `skipped`.
+
+**Nota aparte — `price`:** viene de `view_item` como número. **No mide dinero que pase por Kynea** (la plataforma no procesa pagos, ver `docs/TASKS.md`) — es el precio que el profesor puso en el listado, útil para analizar si las clases más baratas convierten distinto a las caras. Se registró como **métrica personalizada** (custom metric, no dimensión) en la pestaña separada "Métricas personalizadas" de Definiciones personalizadas, con Unidad de medida = Moneda — así se puede promediar/sumar en reportes en vez de solo agruparlo como texto.
+
+`otp_verify_failed` no manda parámetros (a propósito, ver 9.8) — nada que registrar para ese evento.
+
+**Actualizado 2026-09-01 — verificado indirectamente** (el MCP de GA4 es de solo lectura, sin endpoint que liste key events directo; se infirió cruzando `eventCount` vs. `conversions` de los últimos 90 días vía Data API):
+
+| Evento | Se disparó (90d) | ¿Marcado como conversión? |
+|---|---|---|
+| `sign_up` | 53 | ✅ Sí (52 conversiones) |
+| `generate_lead` | 64 | ✅ Sí (60 conversiones) |
+| `onboarding_complete` | 0 | ✅ **Marcado 2026-09-01** |
+| `class_created` | 0 | ✅ **Marcado 2026-09-01** |
+
+**Cómo se marcaron (nota de UI):** en la versión actual de GA4, "Eventos clave" ya no es una página aparte con botón "Nuevo evento clave" — se fusionó dentro de `Administrar → Eventos`, que ahora tiene dos pestañas ("Eventos clave" / "Eventos recientes") y un botón "Crear evento" arriba. Se usó ese flujo para declarar ambos nombres de antemano sin que hubieran ocurrido todavía. **Verificado en vivo (2026-09-01, navegando la UI real, no por API):** ambos aparecen en la pestaña "Eventos clave" con la estrella dorada activada, "No se han detectado datos de flujo" (esperado, aún no se disparan en producción), y el menú de opciones (⋮) muestra las mismas acciones que cualquier evento clave normal (Cambiar método de recuento, Definir valor predeterminado, Marcar como ANP, Desmarcar como evento clave) — sin señales de una regla de coincidencia rara ni de un evento duplicado. Búsqueda por nombre exacto confirma una sola entrada para cada uno, no dos.
+
+**Nota que vale la pena confirmar:** `sign_up` ya se disparó 53 veces (o sea, 53 personas llegaron a `/onboarding`), pero `onboarding_complete` tiene 0 — 100% de abandono hasta ahora. Puede ser real en esta etapa, pero antes de asumirlo conviene una prueba real en producción (registrarse y terminar el onboarding) verificando en Realtime/DebugView que el evento efectivamente se dispara, para descartar un gap de tracking.
+
+Ver el checklist del artifact (GA4 Patch Panel) para la sección nueva de "Marcar como conversión" con estos dos. Ver también la sección 10 — el mismo chequeo destapó dos eventos de conversión de un sistema completamente distinto (Google Ads), no relacionado a este informe.
 
 ## 5. El embudo completo que esto permite armar en GA4
 
@@ -412,3 +466,49 @@ Ya implementado (ver checklist de implementación aparte) — este es un matiz d
 - ¿`login_success` se debe marcar como conversión en GA4 (Admin → Eventos)? Depende de si el negocio quiere medir "logins recurrentes" como señal de retención, o solo le importan las conversiones de *primera vez* (`sign_up`, `class_created`, `generate_lead`).
 - ¿Vale la pena `otp_verify_failed` ahora, o se pospone hasta tener más volumen de datos que justifique ese nivel de detalle?
 - ¿El doble-conteo de `auth_cta_click` en el camino profesor (9.5) se resuelve a nivel de reporte en GA4 (usuarios únicos) o conviene además unificar el producto para que `home_teacher_cta` también pase por `/unete/beneficios` (decisión de producto, no de tracking, ya señalada como pendiente en la sección 3.3)?
+
+## 10. Hallazgo aparte (2026-09-01): conversiones de Google Ads fuera de este sistema
+
+Al verificar qué eventos están marcados como conversión en GA4 (pendiente de la sección 4.1) apareció algo que **no tiene nada que ver con el `lib/analytics.ts` / GTM que documenta el resto de este informe** — otro sistema de medición corriendo en paralelo, probablemente configurado por quien administra la cuenta de Google Ads, no por desarrollo.
+
+**Cómo se encontró:** un reporte de la Data API de GA4 (`eventName` × `eventCount` × `conversions`, últimos 90 días) mostró dos eventos que no existen en ningún lado — ni en `lib/analytics.ts`, ni entre los 19 eventos publicados en GTM (`grep` sobre el código, cero resultados):
+
+| Evento | Se disparó (90d) | Contó como conversión |
+|---|---|---|
+| `Profesores_Registrados` | **1,546** | 1,546 (100%) |
+| `Registros_Onboarding` | **95** | 95 (100%) |
+
+Confirmado por `list_google_ads_links`: hay una cuenta de Google Ads vinculada a esta propiedad GA4 (`customer_id 1165283145`, vínculo creado 2026-07-31 por `kynea.life@gmail.com`). La explicación más probable es que estos son **"eventos creados"** (GA4 Admin → Eventos → Crear evento — deriva un evento nuevo de uno existente por condición de coincidencia, sin tocar código ni GTM) configurados directo ahí para alimentar conversiones de Google Ads.
+
+**Por qué es un problema, no solo una curiosidad:** en el mismo rango de 90 días, `sign_up` (el evento real de "cuenta creada", cualquier rol) solo se disparó **53 veces en total**. Si `Profesores_Registrados` pretende medir "un profesor se registró", dispararse **~29x más** que el total de registros reales de cualquier rol es una señal fuerte de que su condición de coincidencia está enganchada a algo mucho más frecuente que un registro real (ej. un `page_view`, un `auth_cta_click`, o similar) — no a la conversión real. Si Google Ads está pujando/optimizando campañas usando esa "conversión" como señal, está optimizando hacia datos que no representan profesores registrados de verdad.
+
+**Tercer evento del mismo tipo, encontrado al verificar en vivo (2026-09-01):** navegando `Administrar → Eventos → Eventos clave` directamente en la UI (no por API) apareció un tercero, tampoco presente en el reporte de 90 días de la Data API ni en el código: `Page_Views_Fichas_de_clase`, marcado como evento clave, "No se han detectado datos de flujo" en los últimos 28 días. Mismo patrón que los otros dos — nombre en español con guiones bajos, ajeno a la convención `snake_case` en inglés de `lib/analytics.ts`, casi seguro del mismo origen (Google Ads / cuenta `kynea.life@gmail.com`). No se pudo evaluar su volumen histórico por no tener datos recientes, pero por el nombre ("vistas de fichas de clase") probablemente pretende contar visitas al detalle de una clase — que ya mide `view_item` (sección 3.8) correctamente vía código. Vale la pena que quien administra Google Ads confirme si los tres (`Profesores_Registrados`, `Registros_Onboarding`, `Page_Views_Fichas_de_clase`) siguen siendo necesarios o son remanentes de una medición anterior al sistema actual.
+
+**Estado:** no verificable a más detalle desde acá — el MCP de GA4 disponible es de solo lectura y no expone la condición de coincidencia de un evento creado. Queda pendiente que alguien con acceso a GA4 Admin → Eventos abra `Profesores_Registrados` y revise su regla, o le pregunte a quien administra `kynea.life@gmail.com` / la cuenta de Google Ads qué se configuró y con qué intención.
+
+## 11. Los 3 embudos de GA4 Explore (2026-09-01)
+
+Construidos directamente en GA4 → Explorar, navegando la UI real (no por API — el MCP de GA4 conectado es de solo lectura). Los tres cubren rango **17 jul – 1 sep 2026** (toda la vida de la propiedad). Los tres están accesibles en GA4 → Explorar, en la lista de exploraciones guardadas.
+
+### 11.1 `Embudo de registro (por rol)`
+
+Existía ya como "Embudo de conversión Kynea" (creado por el usuario 28 ago 2026, plantilla por defecto sin terminar de ajustar) — se completó en vez de duplicar:
+- Se quitó el paso 1 genérico (`page_view`) que traía la plantilla.
+- Pasos finales: `auth_cta_click` (Interés) → `auth_attempt` (Intento) → `sign_up` (Registro completado) → `onboarding_complete` (Onboarding completado, agregado nuevo).
+- Desglose cambiado de "Categoría de dispositivo" a **`role`** (dimensión personalizada).
+- Resultado real observado: 100% → 54,8% → 52,4% → **0%** — confirma en vivo, con otra fuente de datos, el hallazgo de la sección 4.1 (nadie ha completado `onboarding_complete` todavía).
+
+### 11.2 `Embudo de contacto (por profesor)`
+
+Existía ya como "Lead a profesores" (creado por el usuario 28 ago 2026) — **tenía un bug real que lo dejaba en 0% siempre**:
+- El paso 2 (`generate_lead`) tenía dos condiciones de parámetro — `Canal de contacto contiene instagram` **Y** `Canal de contacto contiene whatsapp` — unidas con **Y** (AND). Ningún evento puede cumplir las dos a la vez (el canal es uno u otro, nunca ambos), así que el paso daba 0 siempre desde que se creó. Se corrigió quitando ambos filtros — el paso ahora es `generate_lead` sin condición de canal, contando cualquier contacto.
+- El paso 1 (`page_view` genérico) se cambió por `view_item` (vista de clase) — más relevante para el embudo de descubrimiento.
+- **Se activó "Abrir el embudo de conversión"** (open funnel): dado el hallazgo de 3.2/9 de que la mayoría de `generate_lead` salen directo del botón "Contactar" de la tarjeta sin pasar por `view_item`, un embudo cerrado (secuencial estricto) mostraba 0 en el paso 2 aunque hubiera 33 contactos reales en el rango — con el embudo abierto, cada paso cuenta a quien lo alcanzó por cualquier camino, no solo a quien vino del paso anterior.
+- Desglose cambiado a **`ID de profesor`** (dimensión personalizada) — permite ver qué profesores convierten mejor.
+- Intentar combinar `view_item` **O** `view_profile` en un solo paso 1 no se logró en esta sesión — GA4 sí soporta condiciones "O BIEN" dentro de un paso (confirmado: la plantilla por defecto de embudos trae `first_open` O BIEN `first_visit` en su paso 1), pero el toggle Y/O no respondió a los clics intentados en el paso editado a mano; quedó pendiente si alguien quiere sumar `view_profile` a este embudo más adelante.
+
+### 11.3 `Embudo de publicación de clase`
+
+Creado desde cero (no existía nada similar). Dos pasos: `create_class_step_complete` (Paso del wizard) → `class_created` (Clase publicada), sin desglose especial.
+
+**Hallazgo al verificar con datos reales:** el paso 1 muestra solo **1 usuario único** en todo el rango (17 jul–1 sep), pese a que el reporte de 90 días de la sección 10 mostraba **35 eventos** `create_class_step_complete`. Esto es consistente con 3.7 (el wizard no valida antes de avanzar, así que un mismo intento genera varios eventos de paso) y con el hallazgo de la sección de "Pulso de Kynea": una sola persona probablemente generó los 35 eventos abandonando y reintentando el wizard, sin llegar nunca a publicar. Refuerza la recomendación de esa sección: antes de asumir un problema de producto, vale la pena una prueba real de punta a punta del flujo de creación de clase.
