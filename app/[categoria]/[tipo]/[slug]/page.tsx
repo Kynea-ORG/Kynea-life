@@ -28,11 +28,16 @@ export async function generateMetadata({
     ? truncateForMeta(cls.shortDescription)
     : `Clase de ${cls.style} en ${cls.city} con ${cls.teacher.name}. Reserva tu lugar en Kynea.`;
   const canonical = `${SITE_URL}${classUrl(cls)}`;
+  // Vencida: se excluye del sitemap y los listados (fetchPublishedClasses),
+  // pero la URL sigue accesible por link directo — sin noindex quedaba
+  // huérfana e indexada, inflando el sitio con contenido obsoleto ante Google.
+  const isExpired = !!cls.endDate && cls.endDate < new Date().toISOString().slice(0, 10);
 
   return {
     title,
     description,
     alternates: { canonical },
+    ...(isExpired && { robots: { index: false, follow: true } }),
     openGraph: {
       title,
       description,

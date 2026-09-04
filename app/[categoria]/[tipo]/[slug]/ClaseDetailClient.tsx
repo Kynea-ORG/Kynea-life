@@ -574,8 +574,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
       {/* Mobile sticky bottom CTA */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 z-40 flex items-center gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5">
+        <div className="shrink-0 max-w-[42%] min-w-0">
+          <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5 truncate">
             {cls.priceType === 'Gratis' ? (
               <span className="text-neutral-900">Gratis</span>
             ) : cls.offerPrice ? (
@@ -589,31 +589,34 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               <span className="text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
             )}
           </p>
-          {cls.level && <p className="text-[12px] text-neutral-600 mt-0.5">Nivel {cls.level}</p>}
+          {cls.level && <p className="text-[12px] text-neutral-600 mt-0.5 truncate">Nivel {cls.level}</p>}
         </div>
-        <div className="flex gap-2 shrink-0">
+        {/* Botones a flex-1: cuando hay dos canales activos, se reparten el
+            ancho sobrante en vez de encogerse a solo ícono (ver el bloque de
+            arriba, que ahora es shrink-0 con un tope de ancho). */}
+        <div className="flex-1 flex items-center gap-2 min-w-0">
           {showWa && (
             <button
               onClick={handleWhatsAppClick}
               disabled={isFullyBooked}
-              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
+              className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
               }`}
             >
-              {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
-              {!showIg && (isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'Contactar')}
+              {justContacted === 'whatsapp' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <MessageCircle className="w-4 h-4 shrink-0" />}
+              <span className="truncate">{isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}</span>
             </button>
           )}
           {showIg && (
             <button
               onClick={handleInstagramClick}
               disabled={isFullyBooked}
-              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
+              className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
               }`}
             >
-              {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
-              {!showWa && (isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Contactar')}
+              {justContacted === 'instagram' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <InstagramIcon className="w-4 h-4 shrink-0" />}
+              <span className="truncate">{isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}</span>
             </button>
           )}
         </div>
