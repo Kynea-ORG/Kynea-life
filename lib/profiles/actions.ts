@@ -1,5 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
+import { safeRevalidateTag } from '@/lib/cache';
 import { createClient } from '@/lib/supabase/server';
 
 export async function updateProfile(updates: {
@@ -131,6 +132,10 @@ export async function updateProfile(updates: {
   // client-side nav within /dashboard/*, so a plain 'page' revalidation
   // of '/dashboard' alone wouldn't refresh it.
   revalidatePath('/dashboard', 'layout');
+  revalidatePath('/profesores');
+  revalidatePath('/');
+  safeRevalidateTag('profiles', 'max');
+  safeRevalidateTag('classes', 'max');
 }
 
 // A profesor requesting to become an academia — see docs/TASKS.md sección 8.
