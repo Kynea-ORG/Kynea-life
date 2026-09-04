@@ -44,12 +44,13 @@ function buildImageKitUrl({ src, width, quality = 75 }: ImageLoaderParams): stri
     return buildWsrvUrl({ src, width, quality });
   }
 
+  const cleanEndpoint = endpoint.replace(/\/+$/, '');
   const transformations = `tr=w-${width},q-${quality},f-auto`;
 
   // Variante "web proxy": ImageKit hace fetch de la URL remota de Supabase
   // y la transforma al vuelo. No requiere configurar un origin en el
   // dashboard de ImageKit, solo tener el URL-endpoint de la cuenta.
-  return `${endpoint}/${encodeURIComponent(src)}?${transformations}`;
+  return `${cleanEndpoint}/${encodeURIComponent(src)}?${transformations}`;
 
   // Variante alternativa "external storage": si en el dashboard de ImageKit
   // se configura un origin apuntando directo al bucket de Supabase Storage,

@@ -10,6 +10,7 @@ import ImagePositionPicker from '@/components/ImagePositionPicker';
 import SmartImage from '@/components/SmartImage';
 import PlacesAddressField from '@/components/PlacesAddressField';
 import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
+import { compressImage } from '@/lib/images/compressImage';
 
 const STEPS = ['Sobre tu academia', 'Ubicación y marca'];
 
@@ -61,8 +62,9 @@ export default function ConvertirAcademiaClient({
     setError('');
     setLoading(true);
     try {
+      const fileToUpload = await compressImage(file);
       const formData = new FormData();
-      formData.set('file', file);
+      formData.set('file', fileToUpload);
       const { url } = await uploadProfileImage(formData, suffix);
       onDone(url);
     } catch (err) {

@@ -9,6 +9,7 @@ import ImagePositionPicker from '@/components/ImagePositionPicker';
 import SmartImage from '@/components/SmartImage';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
+import { compressImage } from '@/lib/images/compressImage';
 import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import ErrorBanner from '@/components/ErrorBanner';
 
@@ -163,9 +164,10 @@ export default function PerfilClient({
     }
     setUploadingPhoto(true);
     try {
+      const fileToUpload = await compressImage(file);
       const previousPath = storagePathFromUrl(photoUrl);
       const formData = new FormData();
-      formData.set('file', file);
+      formData.set('file', fileToUpload);
       const { url } = await uploadProfileImage(formData, 'photo');
       setPhotoUrl(url);
       setPhotoPosition('50% 50%');
@@ -209,9 +211,10 @@ export default function PerfilClient({
     if (file.size > 5 * 1024 * 1024) { setError('La portada debe ser menor a 5MB'); return; }
     setUploadingCover(true);
     try {
+      const fileToUpload = await compressImage(file);
       const previousPath = storagePathFromUrl(coverUrl);
       const formData = new FormData();
-      formData.set('file', file);
+      formData.set('file', fileToUpload);
       const { url } = await uploadProfileImage(formData, 'cover');
       setCoverUrl(url);
       setCoverPosition('50% 50%');
