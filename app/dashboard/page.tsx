@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { PlusCircle, Upload, BookOpen, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight } from 'lucide-react';
+import { PlusCircle, Upload, BookOpen, Clock, Eye, Users, MessageCircle, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getUser } from '@/lib/auth/getUser';
 import { getCurrentProfile } from '@/lib/profiles/queries';
@@ -45,9 +45,17 @@ export default async function DashboardPage() {
   // Sin métrica de 'Profesores' — el roster de academia corre sobre datos
   // mock por ahora, mostrar un conteo real inexistente sería engañoso. Ver
   // docs/TASKS.md sección 8.8.
+  //
+  // "Visitas a tu perfil" y "Vistas de tus clases" son dos cosas distintas
+  // (alguien puede ver tu perfil sin abrir ninguna clase, o llegar directo a
+  // una clase sin pasar por tu perfil) pero ligadas — comparten el mismo
+  // tratamiento visual (azul) para que se lean como la misma categoría de
+  // "atención recibida", a diferencia de "Publicadas" que es un conteo de
+  // contenido, no de interés de terceros.
   const METRICS = [
-    { label: 'Visualizaciones', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
-    { label: 'Publicadas',      value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
+    { label: 'Visitas a tu perfil', value: profile?.views_count ?? 0, icon: Users,    bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
+    { label: 'Vistas de tus clases', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
+    { label: 'Publicadas',           value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
   ];
 
   const firstName = profile?.name?.split(' ')[0] ?? 'profe';
@@ -72,7 +80,7 @@ export default async function DashboardPage() {
       {profile?.role === 'profesor' && <AcademiaConversionCard initialStatus={conversionStatus} />}
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
