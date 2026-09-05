@@ -7,7 +7,9 @@ import { uploadProfileImage } from '@/lib/profiles/imageActions';
 import { createClient } from '@/lib/supabase/client';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import SmartImage from '@/components/SmartImage';
-import { NATIONALITIES } from '@/lib/nationalities';
+import CountrySelect from '@/components/CountrySelect';
+import PhoneCountrySelect from '@/components/PhoneCountrySelect';
+import { parsePhonePrefix, getPhonePlaceholder, getPhoneExample } from '@/lib/countries';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
 import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
@@ -22,24 +24,6 @@ function storagePathFromUrl(url: string): string | null {
   return idx === -1 ? null : url.slice(idx + marker.length);
 }
 
-// Single source of truth for WhatsApp country codes — both the <select>
-// options and parseWa() read from this, so adding/removing a code can't
-// desync the two and silently reintroduce the number-truncation bug below.
-const WA_CODES = [
-  { code: '+51', flag: '🇵🇪' },
-  { code: '+1', flag: '🇺🇸' },
-  { code: '+34', flag: '🇪🇸' },
-  { code: '+57', flag: '🇨🇴' },
-  { code: '+56', flag: '🇨🇱' },
-  { code: '+54', flag: '🇦🇷' },
-  { code: '+52', flag: '🇲🇽' },
-  { code: '+58', flag: '🇻🇪' },
-  { code: '+593', flag: '🇪🇨' },
-] as const;
-// Longest code first: matching must try "+593" before "+51" etc., or a
-// shorter code that happens to be a prefix would match first and steal
-// leading digits from the actual phone number.
-const WA_CODES_BY_LENGTH = [...WA_CODES].sort((a, b) => b.code.length - a.code.length);
 
 interface ProfileStyleRow {
   style_id: number;
@@ -130,15 +114,7 @@ export default function PerfilClient({
   const [district, setDistrict] = useState(primaryVenue?.district ?? '');
   const [city, setCity] = useState(primaryVenue?.city ?? 'Lima');
 
-  const parseWa = (wa: string) => {
-    if (!wa) return { code: '+51', number: '' };
-    const match = WA_CODES_BY_LENGTH.find(c => wa.startsWith(c.code));
-    if (match) {
-      return { code: match.code, number: wa.slice(match.code.length).replace(/\D/g, '') };
-    }
-    return { code: '+51', number: wa.replace(/\D/g, '') };
-  };
-  const parsed = parseWa(profile.whatsapp ?? '');
+  const parsed = parsePhonePrefix(profile.whatsapp ?? '');
   const [waCode, setWaCode] = useState(parsed.code);
   const [waNumber, setWaNumber] = useState(parsed.number);
   const [instagram, setInstagram] = useState(profile.instagram ?? '');
@@ -567,14 +543,10 @@ export default function PerfilClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Nacionalidad</label>
-            <select
+            <CountrySelect
               value={nationality}
-              onChange={e => setNationality(e.target.value)}
-              className="input appearance-none cursor-pointer"
-            >
-              <option value="">Seleccionar…</option>
-              {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
+              onChange={setNationality}
+            />
           </div>
           {isTeacher && !isAcademia && (
             <div>
@@ -609,28 +581,23 @@ export default function PerfilClient({
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp <span className="text-red">*</span></label>
               <div className="flex gap-2">
-                <select
+                <PhoneCountrySelect
                   value={waCode}
-                  onChange={e => setWaCode(e.target.value)}
-                  className="input appearance-none cursor-pointer w-auto shrink-0"
-                >
-                  {WA_CODES.map(({ code, flag }) => (
-                    <option key={code} value={code}>{flag} {code}</option>
-                  ))}
-                </select>
+                  onChange={setWaCode}
+                />
                 <input
                   ref={waInputRef}
                   id="field-whatsapp"
                   type="tel"
                   value={waNumber}
                   onChange={e => setWaNumber(e.target.value.replace(/\D/g, ''))}
-                  placeholder="999 999 999"
+                  placeholder={getPhonePlaceholder(waCode)}
                   className={`input flex-1 ${
                     highlightField === 'whatsapp' ? '!border-amber ring-2 ring-amber/40' : ''
                   }`}
                 />
               </div>
-              <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales ni guiones. Ej: 999999999</p>
+              <p className="text-xs text-neutral-400 mt-1">Solo números locales, sin código de país, espacios ni guiones. {getPhoneExample(waCode)}</p>
             </div>
 
             <div>
