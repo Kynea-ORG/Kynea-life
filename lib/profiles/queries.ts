@@ -1,6 +1,29 @@
+import { cache } from 'react';
+import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/auth/getUser';
 import { getPublicClient } from '@/lib/supabase/public';
 import { safeCache } from '@/lib/cache';
 import type { Teacher, DanceStyle } from '@/lib/types';
+
+// The caller's own dashboard profile — columns shared by DashboardLayout,
+// AdminLayout/fetchIsAdmin, and most /dashboard/* pages (role, name,
+// photo_url, is_admin, academia status, contact-visibility toggles).
+// Memoized per-request like getUser(): before this, each of those files ran
+// its own SELECT for a handful of these same columns, so one navigation
+// could trigger 3-4 near-identical 'profiles' queries in series. Pages
+// needing a richer profile (e.g. Perfil, with bio/redes/profile_styles)
+// still run their own dedicated query — this only covers the common subset.
+export const getCurrentProfile = cache(async () => {
+  const user = await getUser();
+  if (!user) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, name, role, photo_url, is_admin, academia_approved_at, academia_welcome_seen_at, show_whatsapp, show_spots, views_count')
+    .eq('id', user.id)
+    .single();
+  return data;
+});
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapTeacher(t: any): Teacher {

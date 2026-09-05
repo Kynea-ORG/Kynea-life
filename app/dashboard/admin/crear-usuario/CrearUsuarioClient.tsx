@@ -73,13 +73,13 @@ export default function CrearUsuarioClient() {
       </div>
 
       {created ? (
-        <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6 animate-fade-in">
+        <div className="bg-white card-dash p-6 animate-fade-in">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 bg-green-bg rounded-xl flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-green-text" />
             </div>
             <div>
-              <h2 className="font-bold text-neutral-900">Cuenta creada</h2>
+              <h2 className="text-lg font-bold text-neutral-900">Cuenta creada</h2>
               <p className="text-xs text-neutral-600">{created.name}</p>
             </div>
           </div>

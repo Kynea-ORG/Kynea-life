@@ -40,6 +40,8 @@ están implementados** en el código actual:
   `lib/actions/classes.ts` fueron borrados. Filtrado de `/clases` ahora es server-side.
 - **Páginas legales** — `/terminos` (Términos y condiciones) y `/terminos-publicacion` (Reglas de
   publicación para profesores).
+- **Rate limiting híbrido (Upstash Redis + UX de Frontend)** — `lib/ratelimit.ts`, rate limit por IP en `proxy.ts` para rutas de autenticación (omitiendo prefetch), límites en Server Actions (`uploadClassImage`, `uploadProfileImage`, `createClass`), cooldowns de 60s en `/confirmar-email` y `/login`, y deduplicación por sesión para contadores de vistas y contactos.
+- **SEO para Google Sitelinks y Datos Estructurados JSON-LD** — Esquemas `WebSite` (con SearchAction), `Organization`, `SiteNavigationElement` (Sitelinks principales) y `FAQPage` (People Also Ask) en `app/page.tsx`, `metadataBase` en `app/layout.tsx`, y metadatos dedicados en `app/login/layout.tsx` y `app/registro/layout.tsx`.
 - **NoticeBar** — `app/dashboard/NoticeBar.tsx`: modal de aviso `cuenta_existente` que se activa
   cuando un usuario OAuth intenta registrarse con un rol distinto al que ya tiene.
 
@@ -244,6 +246,24 @@ trigger SQL que cambie el status a `finished` cuando `end_date < now()`, si en a
 necesita que el estado en DB refleje esto (ej. para que el profesor vea "finalizada" en Mis
 Clases, o para excluirla de `fetchTeacherClasses`).
 
+**Impacto en SEO encontrado el 2026-09-01, auditando producción vía Search Console:** de 163
+clases en prod, **94 (58%) tienen `end_date` vencido** pero siguen con `status='published'` — el
+link directo vive fuera del sitemap/listados (opción A) pero sin ningún `noindex`, así que quedan
+huérfanas y aun así indexables: Google las había indexado cuando estaban activas, dejaron de tener
+enlaces internos, y terminan como "excluida, sin motivo claro" en Search Console (~112 páginas en
+ese estado el día de la auditoría). Se agregó `robots: { index: false, follow: true }` en
+`generateMetadata` de `app/[categoria]/[tipo]/[slug]/page.tsx` cuando `endDate` ya pasó — soluciona
+esto sin tocar la DB ni la opción B de arriba. Mismo patrón aplicado a
+`app/categorias/[slug]/page.tsx` para las categorías sin ninguna clase (36 de 60 estilos del
+catálogo no tienen ninguna clase asociada — contenido vacío, nunca debieron ser indexables).
+
+**Pendiente de decisión de producto, no aplicado:** de 82 perfiles (78 profesores + 4 academias),
+solo 22 tienen una clase activa hoy; **26 nunca publicaron ninguna clase** (ni vencida) y los 82
+están en el sitemap sin filtrar. No se les puso `noindex` — a diferencia de una clase vencida o una
+categoría vacía, un perfil sí puede tener contenido real (bio, foto, redes) aunque no tenga clases,
+así que es una decisión de negocio (¿noindexar perfiles fantasma? ¿priorizar que publiquen su
+primera clase?) más que un bug técnico claro.
+
 ### 4.4 ⬜ Importación CSV — implementar el parseo
 
 `app/dashboard/importar-csv/page.tsx` usa `MOCK_PREVIEW` hardcodeado. El `handleFileDrop`
@@ -279,10 +299,19 @@ horaria (mañana/tarde/noche). Se aplican después del fetch en `ClasesContent.t
 se vuelve lento. **Tarea:** `limit`/`offset` con `.range()` de Supabase + "Cargar más" en
 `app/clases/page.tsx`.
 
-### 5.3 ⬜ SEO — metadata dinámica
+### 5.3 ✅ SEO — metadata dinámica
 
-Ni `app/clases/[id]/page.tsx` ni `app/profesores/[id]/page.tsx` tienen `generateMetadata`.
-**Tarea:** exportar `generateMetadata` en ambas rutas (título, descripción, imagen OG).
+**Desactualizado — ya implementado.** `app/[categoria]/[tipo]/[slug]/page.tsx` y
+`app/profesores/[slug]/page.tsx` exportan `generateMetadata` (título, descripción, canonical, Open
+Graph), y ambos tienen JSON-LD (`Course` y `Person`/`Organization` respectivamente) con datos
+reales. `/clases`, `/profesores` y `/categorias/[slug]` también. Sitemap dinámico en
+`app/sitemap.ts` y `app/robots.ts` correctos. Auditado y verificado en vivo el 2026-09-01 — ver el
+hallazgo de indexación real en 4.3 (clases vencidas y categorías vacías quedaban indexables sin
+`noindex`, ya corregido).
+
+**Pendiente, menor:** meta tags de Twitter Card (no existen en ningún lado), `BreadcrumbList`/
+`ItemList` en las páginas de listado, imagen OG en Home, y `lastModified` en las entradas de perfil
+del sitemap (`app/sitemap.ts` — `teacherEntries` no lo setea, a diferencia de `classEntries`).
 
 ---
 

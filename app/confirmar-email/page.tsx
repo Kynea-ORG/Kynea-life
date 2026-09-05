@@ -29,8 +29,34 @@ function ConfirmarEmailContent() {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [error, setError] = useState('');
+  const [cooldown, setCooldown] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const savedUntil = sessionStorage.getItem('kynea_resend_until');
+      if (savedUntil) {
+        const remaining = Math.ceil((parseInt(savedUntil, 10) - Date.now()) / 1000);
+        if (remaining > 0) return remaining;
+        sessionStorage.removeItem('kynea_resend_until');
+      }
+    } catch {}
+    return 0;
+  });
 
   const code = digits.join('');
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const interval = setInterval(() => {
+      setCooldown(c => {
+        if (c <= 1) {
+          sessionStorage.removeItem('kynea_resend_until');
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldown]);
 
   useEffect(() => {
     if (code.length === CODE_LENGTH && !verifying) {
@@ -107,6 +133,7 @@ function ConfirmarEmailContent() {
   }
 
   async function handleResend() {
+    if (cooldown > 0 || resending) return;
     setResending(true);
     setError('');
     setResent(false);
@@ -116,6 +143,9 @@ function ConfirmarEmailContent() {
       setError(resendError.message);
     } else {
       setResent(true);
+      const until = Date.now() + 60000;
+      sessionStorage.setItem('kynea_resend_until', String(until));
+      setCooldown(60);
     }
     setResending(false);
   }
@@ -193,21 +223,21 @@ function ConfirmarEmailContent() {
               </button>
             </form>
 
-            {resent ? (
+            {resent && (
               <div key="resent" className="bg-green-bg border border-green-dark/20 text-green-text text-[13px] font-semibold px-4 py-3 rounded-lg mb-4 animate-fade-in">
                 ¡Código reenviado! Revisa tu bandeja de entrada.
               </div>
-            ) : (
-              <button
-                key="resend-btn"
-                onClick={handleResend}
-                disabled={resending}
-                className="w-full btn-outline flex items-center justify-center gap-2 mb-4 animate-fade-in"
-              >
-                {resending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                {resending ? 'Enviando…' : 'Reenviar código'}
-              </button>
             )}
+
+            <button
+              key="resend-btn"
+              onClick={handleResend}
+              disabled={resending || cooldown > 0}
+              className="w-full btn-outline flex items-center justify-center gap-2 mb-4 animate-fade-in disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {resending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {resending ? 'Enviando…' : cooldown > 0 ? `Reenviar código (${cooldown}s)` : 'Reenviar código'}
+            </button>
 
             <p className="text-[12px] text-neutral-400 mb-3">
               Revisa también la carpeta de spam. El código expira en 1 hora.

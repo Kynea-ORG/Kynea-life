@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import SmartImage from '@/components/SmartImage';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { UserPlus, CalendarPlus, MessageCircle, ChevronDown, ShieldCheck } from 'lucide-react';
 import { trackAuthCtaClick } from '@/lib/analytics';
 
@@ -328,24 +328,7 @@ export default function BeneficiosClient({
         </Reveal>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-neutral-200 py-10">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <Image src="/logo.png" alt="Kynea" width={90} height={30} />
-            <p className="text-[13px] text-neutral-400">© 2026 Kynea. La primera plataforma integral de danza en Latinoamérica.</p>
-            <div className="flex gap-6 text-[13px] text-neutral-400">
-              {[
-                { label: 'Términos', href: '/terminos' },
-                { label: 'Privacidad', href: '/privacidad' },
-                { label: 'Contacto', href: 'mailto:hola@kynea.pe' },
-              ].map(l => (
-                <Link key={l.label} href={l.href} className="hover:text-neutral-700 transition-colors">{l.label}</Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

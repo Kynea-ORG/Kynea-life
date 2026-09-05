@@ -9,6 +9,7 @@ import {
   MessageCircle, ChevronLeft, ChevronRight, Loader2, X,
 } from 'lucide-react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
 import { getTypeLabel, formatExperience } from '@/lib/utils';
@@ -26,6 +27,17 @@ export type SearchProfile = { id: string; slug: string; name: string; role: stri
 export function getMainStyle(cls: SearchClass) {
   const styleRow = cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0];
   return styleRow?.dance_styles ?? null;
+}
+
+// Sorteo sin reemplazo — alimenta el subset "en frío" de estilos sugeridos
+// (ver randomStyles más abajo), re-sorteado cada vez que se abre el buscador.
+function pickRandomStyles(list: DbDanceStyle[], n: number): DbDanceStyle[] {
+  const arr = [...list];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, n);
 }
 
 // Estilo compartido por los dos campos-botón del buscador mobile (F1).
@@ -170,11 +182,32 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
     .filter(c => c.toLowerCase().includes(city.trim().toLowerCase()))
     .slice(0, 8);
 
+  // Estilos con al menos una clase publicada — evita sugerir estilos
+  // "fantasma" sin nada que mostrar si se eligen. Misma fuente que
+  // featuredCategories en app/page.tsx (initialClasses), sin pedir una
+  // query aparte.
+  const styleNamesWithClasses = new Set<string>();
+  for (const cls of initialClasses) {
+    styleNamesWithClasses.add(cls.style);
+    for (const s of cls.secondaryStyles ?? []) styleNamesWithClasses.add(s);
+  }
+  const danceStylesWithClasses = danceStyles.filter(s => styleNamesWithClasses.has(s.name));
+
+  // Sugerencia "en frío" (sin texto tipeado) de la sección "Estilos": un
+  // subset al azar de 4, re-sorteado cada vez que se abre el buscador — para
+  // no mostrar siempre los mismos 4 primeros por orden alfabético.
+  const [randomStyles, setRandomStyles] = useState<DbDanceStyle[]>(
+    () => danceStylesWithClasses.slice(0, 4)
+  );
+
   // Estilos que matchean el texto tipeado — alimenta la sección "Estilos"
-  // del overlay mobile de búsqueda (filtro cliente, sin query nueva).
-  const matchingStyles = danceStyles
-    .filter(s => s.name.toLowerCase().includes(query.trim().toLowerCase()))
-    .slice(0, 4);
+  // del dropdown desktop y el overlay mobile de búsqueda (filtro cliente,
+  // sin query nueva). Sin texto tipeado, usa el subset al azar de arriba.
+  const matchingStyles = query.trim().length > 0
+    ? danceStylesWithClasses
+        .filter(s => s.name.toLowerCase().includes(query.trim().toLowerCase()))
+        .slice(0, 4)
+    : randomStyles;
 
   // Overlay de búsqueda a pantalla completa en mobile (patrón VRBO: tocar
   // un campo abre pantalla completa en vez de un dropdown chico). Un
@@ -457,6 +490,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                     setShowSuggestions(true);
                     setCityOpen(false);
                     setActiveCityIndex(-1);
+                    setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4));
                   }}
                   onBlur={() => setIsSearchFocused(false)}
                   onKeyDown={handleQueryKeyDown}
@@ -745,7 +779,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
           </div>
 
           <div className="relative z-10 mx-5 mt-7 bg-white rounded-3xl shadow-xl p-5 flex flex-col gap-2.5">
-            <button type="button" onClick={() => setMobileSearch('style')}
+            <button type="button" onClick={() => { setMobileSearch('style'); setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4)); }}
               className={MOBILE_SEARCH_TRIGGER_CLASS}>
               <Search className="w-[19px] h-[19px] text-primary shrink-0" />
               <div className="min-w-0 flex-1 min-h-[38px]">
@@ -1276,24 +1310,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
         </section>
       )}
 
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-neutral-200 py-10">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <Image src="/logo.png" alt="Kynea" width={90} height={30} />
-            <p className="text-[13px] text-neutral-400">© 2026 Kynea. La primera plataforma integral de danza en Latinoamérica.</p>
-            <div className="flex gap-6 text-[13px] text-neutral-400">
-              {[
-                { label: 'Términos', href: '/terminos' },
-                { label: 'Privacidad', href: '/privacidad' },
-                { label: 'Contacto', href: 'mailto:hola@kynea.pe' },
-              ].map(l => (
-                <Link key={l.label} href={l.href} className="hover:text-neutral-700 transition-colors">{l.label}</Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       <BottomSignupRibbon />
     </div>

@@ -91,6 +91,7 @@ La lógica de negocio y datos está modularizada por dominio (feature-sliced):
 | [`lib/classes/`](file:///Users/joseniquen/Documents/Freelos/Repos/kynea/Kynea-life/lib/classes) | Consultas y mutaciones de clases (`'use server'`), helpers y tipos |
 | [`lib/profiles/`](file:///Users/joseniquen/Documents/Freelos/Repos/kynea/Kynea-life/lib/profiles) | Consultas y mutaciones de perfiles de usuario |
 | [`lib/stats/`](file:///Users/joseniquen/Documents/Freelos/Repos/kynea/Kynea-life/lib/stats) | Consultas para métricas y dashboards |
+| [`lib/ratelimit.ts`](file:///Users/joseniquen/Documents/Freelos/Repos/kynea/Kynea-life/lib/ratelimit.ts) | Rate limiting centralizado con Upstash Redis (Fail-Open, Sliding Window, ephemeralCache) |
 | [`lib/utils.ts`](file:///Users/joseniquen/Documents/Freelos/Repos/kynea/Kynea-life/lib/utils.ts) | Utilidades compartidas |
 
 ### Convenciones de Código
@@ -122,6 +123,8 @@ Copia `.env.example` a `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=... # Opcional: si falta, el campo de dirección degrada a un input estándar
+UPSTASH_REDIS_REST_URL=https://<database>.upstash.io # Opcional en dev: si falta, rate limiting degrada a fail-open
+UPSTASH_REDIS_REST_TOKEN=AY...
 ```
 
 ---

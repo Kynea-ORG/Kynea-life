@@ -15,11 +15,11 @@ export default async function ProfesoresPage() {
         <h1 className="text-2xl font-black text-neutral-900">Profesores</h1>
         <p className="text-neutral-600 text-sm mt-1">Gestiona el equipo de tu academia</p>
       </div>
-      <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-10 text-center">
+      <div className="bg-white card-dash p-10 text-center">
         <div className="w-12 h-12 bg-pink-50 rounded-xl flex items-center justify-center mx-auto mb-4">
           <Users className="w-6 h-6 text-pink-600" />
         </div>
-        <h2 className="font-bold text-neutral-900 mb-2">Próximamente</h2>
+        <h2 className="text-lg font-bold text-neutral-900 mb-2">Próximamente</h2>
         <p className="text-neutral-600 text-sm max-w-sm mx-auto">
           Estamos construyendo la forma de invitar y gestionar profesores dentro de tu academia. Mientras tanto, puedes seguir publicando clases directamente desde tu cuenta.
         </p>

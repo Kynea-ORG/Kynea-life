@@ -27,7 +27,7 @@ export default async function AdminResumenPage() {
       </div>
 
       {counts.academia > 0 && (
-        <div className="mt-4 bg-white rounded-xl border border-neutral-900 p-6 shadow-sm">
+        <div className="mt-4 bg-white card-dash p-6">
           <p className="text-sm font-bold text-neutral-900 mb-4">Academias por estado</p>
           <div className="flex items-center gap-8">
             <div>

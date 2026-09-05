@@ -1,19 +1,15 @@
 import { Suspense } from 'react';
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { getUser } from '@/lib/auth/getUser';
+import { getCurrentProfile } from '@/lib/profiles/queries';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
 import MisClasesClient from './MisClasesClient';
 
 export default async function MisClasesPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, academia_approved_at')
-    .eq('id', user.id)
-    .single();
+  const profile = await getCurrentProfile();
 
   if (!profile?.role || !['profesor', 'academia'].includes(profile.role)) {
     redirect('/dashboard/alumno');

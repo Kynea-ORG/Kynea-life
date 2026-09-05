@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import SmartImage from '@/components/SmartImage';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import TrackedProfileLink from '@/components/TrackedProfileLink';
 import { SITE_URL } from '@/lib/constants';
 
@@ -105,6 +106,7 @@ export default async function ProfesoresPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

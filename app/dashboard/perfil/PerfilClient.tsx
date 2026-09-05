@@ -7,7 +7,9 @@ import { uploadProfileImage } from '@/lib/profiles/imageActions';
 import { createClient } from '@/lib/supabase/client';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import SmartImage from '@/components/SmartImage';
-import { NATIONALITIES } from '@/lib/nationalities';
+import CountrySelect from '@/components/CountrySelect';
+import PhoneCountrySelect from '@/components/PhoneCountrySelect';
+import { parsePhonePrefix, getPhonePlaceholder, getPhoneExample } from '@/lib/countries';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
 import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
@@ -22,24 +24,6 @@ function storagePathFromUrl(url: string): string | null {
   return idx === -1 ? null : url.slice(idx + marker.length);
 }
 
-// Single source of truth for WhatsApp country codes — both the <select>
-// options and parseWa() read from this, so adding/removing a code can't
-// desync the two and silently reintroduce the number-truncation bug below.
-const WA_CODES = [
-  { code: '+51', flag: '🇵🇪' },
-  { code: '+1', flag: '🇺🇸' },
-  { code: '+34', flag: '🇪🇸' },
-  { code: '+57', flag: '🇨🇴' },
-  { code: '+56', flag: '🇨🇱' },
-  { code: '+54', flag: '🇦🇷' },
-  { code: '+52', flag: '🇲🇽' },
-  { code: '+58', flag: '🇻🇪' },
-  { code: '+593', flag: '🇪🇨' },
-] as const;
-// Longest code first: matching must try "+593" before "+51" etc., or a
-// shorter code that happens to be a prefix would match first and steal
-// leading digits from the actual phone number.
-const WA_CODES_BY_LENGTH = [...WA_CODES].sort((a, b) => b.code.length - a.code.length);
 
 interface ProfileStyleRow {
   style_id: number;
@@ -130,15 +114,7 @@ export default function PerfilClient({
   const [district, setDistrict] = useState(primaryVenue?.district ?? '');
   const [city, setCity] = useState(primaryVenue?.city ?? 'Lima');
 
-  const parseWa = (wa: string) => {
-    if (!wa) return { code: '+51', number: '' };
-    const match = WA_CODES_BY_LENGTH.find(c => wa.startsWith(c.code));
-    if (match) {
-      return { code: match.code, number: wa.slice(match.code.length).replace(/\D/g, '') };
-    }
-    return { code: '+51', number: wa.replace(/\D/g, '') };
-  };
-  const parsed = parseWa(profile.whatsapp ?? '');
+  const parsed = parsePhonePrefix(profile.whatsapp ?? '');
   const [waCode, setWaCode] = useState(parsed.code);
   const [waNumber, setWaNumber] = useState(parsed.number);
   const [instagram, setInstagram] = useState(profile.instagram ?? '');
@@ -271,7 +247,9 @@ export default function PerfilClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [loggingOut, setLoggingOut] = useState(false);
   const handleLogout = async () => {
+    setLoggingOut(true);
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/');
@@ -327,7 +305,7 @@ export default function PerfilClient({
 
       <div className="space-y-6">
         {/* Photo / Logo */}
-        <div className="bg-white rounded-xl border border-neutral-900 p-6">
+        <div className="bg-white card-dash p-6">
           <h2 className="text-lg font-bold text-neutral-900">{isAcademia ? 'Logo de la academia' : isTeacher ? 'Foto / Logo' : 'Foto de perfil'}</h2>
           {isTeacher && (
             <p className="text-xs text-neutral-600 mt-0.5 mb-4">Esto es lo que verán los alumnos en tu perfil público</p>
@@ -389,7 +367,7 @@ export default function PerfilClient({
 
         {/* Cover Photo (Academia only) */}
         {isAcademia && (
-          <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+          <div className="bg-white card-dash p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-neutral-900">Portada de la academia</h2>
@@ -464,7 +442,7 @@ export default function PerfilClient({
 
         {/* Corporate details (Academia only) */}
         {isAcademia && (
-          <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+          <div className="bg-white card-dash p-6 space-y-4">
             <div className="flex items-center gap-2 mb-1">
               <Building2 className="w-5 h-5 text-pink-600" />
               <h2 className="text-lg font-bold text-neutral-900">Datos de la academia</h2>
@@ -549,7 +527,7 @@ export default function PerfilClient({
         )}
 
         {/* Basic info */}
-        <div className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+        <div className="bg-white card-dash p-6 space-y-4">
           <h2 className="text-lg font-bold text-neutral-900">Información pública</h2>
           <div>
             <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
@@ -565,14 +543,10 @@ export default function PerfilClient({
           </div>
           <div>
             <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Nacionalidad</label>
-            <select
+            <CountrySelect
               value={nationality}
-              onChange={e => setNationality(e.target.value)}
-              className="input appearance-none cursor-pointer"
-            >
-              <option value="">Seleccionar…</option>
-              {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
+              onChange={setNationality}
+            />
           </div>
           {isTeacher && !isAcademia && (
             <div>
@@ -585,7 +559,7 @@ export default function PerfilClient({
 
         {/* Styles */}
         {isTeacher && (
-          <div className="bg-white rounded-xl border border-neutral-900 p-6">
+          <div className="bg-white card-dash p-6">
             <h2 className="text-lg font-bold text-neutral-900 mb-4">{isAcademia ? 'Estilos que ofrece la academia' : 'Estilos que enseñas'}</h2>
             <div className="flex flex-wrap gap-2">
               {danceStyles.map(s => (
@@ -600,35 +574,30 @@ export default function PerfilClient({
 
         {/* Contact & social */}
         {isTeacher && (
-          <div id="contacto" className="bg-white rounded-xl border border-neutral-900 p-6 space-y-4">
+          <div id="contacto" className="bg-white card-dash p-6 space-y-4">
             <h2 className="text-lg font-bold text-neutral-900">Contacto y redes</h2>
             <p className="text-xs text-neutral-400"><span className="text-red">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
 
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp <span className="text-red">*</span></label>
               <div className="flex gap-2">
-                <select
+                <PhoneCountrySelect
                   value={waCode}
-                  onChange={e => setWaCode(e.target.value)}
-                  className="input appearance-none cursor-pointer w-auto shrink-0"
-                >
-                  {WA_CODES.map(({ code, flag }) => (
-                    <option key={code} value={code}>{flag} {code}</option>
-                  ))}
-                </select>
+                  onChange={setWaCode}
+                />
                 <input
                   ref={waInputRef}
                   id="field-whatsapp"
                   type="tel"
                   value={waNumber}
                   onChange={e => setWaNumber(e.target.value.replace(/\D/g, ''))}
-                  placeholder="999 999 999"
+                  placeholder={getPhonePlaceholder(waCode)}
                   className={`input flex-1 ${
                     highlightField === 'whatsapp' ? '!border-amber ring-2 ring-amber/40' : ''
                   }`}
                 />
               </div>
-              <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales ni guiones. Ej: 999999999</p>
+              <p className="text-xs text-neutral-400 mt-1">Solo números locales, sin código de país, espacios ni guiones. {getPhoneExample(waCode)}</p>
             </div>
 
             <div>
@@ -669,7 +638,7 @@ export default function PerfilClient({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="btn-dark"
+            className="btn-primary"
           >
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saved ? '¡Guardado!' : isPending ? 'Guardando…' : 'Guardar cambios'}
@@ -677,9 +646,11 @@ export default function PerfilClient({
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg px-4 py-3 rounded-btn border border-neutral-200 transition-colors"
+            disabled={loggingOut}
+            className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg px-4 py-3 rounded-btn border border-neutral-200 transition-[background-color,color,transform] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
           >
-            <LogOut className="w-4 h-4" /> Cerrar sesión
+            {loggingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+            {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
           </button>
         </div>
       </div>

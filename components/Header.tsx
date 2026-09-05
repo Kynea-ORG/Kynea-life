@@ -12,6 +12,7 @@ import type { LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { trackAuthCtaClick } from '@/lib/analytics';
+import BecomeTeacherModal from '@/components/BecomeTeacherModal';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -37,7 +38,7 @@ const NAV_LINKS = [
 ];
 
 // Estilo compartido por cada fila del drawer mobile (diseño G1).
-const MENU_ITEM_CLASS = 'font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors';
+const MENU_ITEM_CLASS = 'font-sans flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors cursor-pointer';
 
 type DrawerLink = { href: string; label: string; Icon: LucideIcon; ctaLocation?: string };
 
@@ -109,6 +110,7 @@ export default function Header({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [becomeTeacherOpen, setBecomeTeacherOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const shouldRenderUserMenu = useDelayedUnmount(userMenuOpen, 200);
   const shouldRenderMobileMenu = useDelayedUnmount(mobileOpen, 200);
@@ -202,12 +204,13 @@ export default function Header({
     { href: '/dashboard/configuracion', label: 'Configuración', Icon: Settings },
   ];
 
-  // Upsell tras los accesos de rol: el visitante anónimo y el alumno (sin
-  // ningún camino de conversión propio todavía) ven el upsell genérico de
-  // academia/profesor; un profesor ve el flujo real de conversión a
-  // academia; una academia no ve nada más, ya es el estado final.
+  // Upsell tras los accesos de rol: el visitante anónimo ve el upsell
+  // genérico de academia/profesor; un alumno ve su propio camino real de
+  // conversión a profesor (ver BecomeTeacherModal.tsx) más el link público
+  // de academia; un profesor ve el flujo real de conversión a academia;
+  // una academia no ve nada más, ya es el estado final.
   const trailingLinks: DrawerLink[] =
-    !isLoggedIn || isAlumno ? CONVERSION_LINKS
+    !isLoggedIn ? CONVERSION_LINKS
     : profile?.role === 'profesor' ? [{ href: '/convertir-academia', label: 'Convierte tu cuenta en academia', Icon: Building2 }]
     : [];
 
@@ -217,9 +220,21 @@ export default function Header({
       {roleLinks.map(item => (
         <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
       ))}
-      {trailingLinks.length > 0 && (
+      {(trailingLinks.length > 0 || isAlumno) && (
         <>
           {roleLinks.length > 0 && <div className="h-px bg-neutral-100 my-2 mx-3" />}
+          {isAlumno && (
+            <>
+              <MenuLink href="/academias" label="¿Tienes una academia?" Icon={Building2} ctaLocation="header_mobile_academia" onClick={() => setMobileOpen(false)} />
+              <button
+                type="button"
+                onClick={() => { setMobileOpen(false); setBecomeTeacherOpen(true); }}
+                className={`${MENU_ITEM_CLASS} w-full text-left`}
+              >
+                <GraduationCap className="w-4 h-4 shrink-0 text-primary" /> Conviértete en profesor
+              </button>
+            </>
+          )}
           {trailingLinks.map(item => (
             <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
           ))}
@@ -341,7 +356,7 @@ export default function Header({
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setUserMenuOpen(v => !v)}
-                  className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl transition-colors active:opacity-70 ${
+                  className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl cursor-pointer transition-colors active:opacity-70 ${
                     transparent ? 'hover:bg-white/10' : 'hover:bg-neutral-100'
                   }`}
                 >
@@ -358,29 +373,58 @@ export default function Header({
                 </button>
 
                 {shouldRenderUserMenu && (
-                  <div className={`absolute right-0 top-full mt-2 w-56 bg-white border border-neutral-200 rounded-xl shadow-lg py-1 z-50 overflow-hidden origin-top-right transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:-translate-y-1 ${userMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}>
+                  <div className={`absolute right-0 top-full mt-2 w-64 bg-white border border-neutral-200 rounded-2xl shadow-xl py-1.5 z-50 overflow-hidden origin-top-right transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:-translate-y-1 ${userMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}>
                     <div className="px-4 py-3 border-b border-neutral-100 flex items-center gap-3">
                       <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-9 h-9" />
                       <div className="min-w-0">
-                        <p className="font-sans text-[13px] font-bold text-neutral-900 truncate">{profile.name}</p>
+                        <p className="font-sans text-[13px] font-bold text-neutral-900 truncate" title={profile.name}>{profile.name}</p>
                         <p className="font-sans text-[11px] text-neutral-600">{ROLE_LABEL[profile.role]}</p>
                       </div>
                     </div>
-                    <Link href="/dashboard" onClick={() => setUserMenuOpen(false)}
-                      className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
-                      <LayoutDashboard className="w-4 h-4 shrink-0" /> Mi panel
-                    </Link>
+
+                    {isAlumno ? (
+                      <Link href="/dashboard/alumno" onClick={() => setUserMenuOpen(false)}
+                        className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors cursor-pointer">
+                        <BookOpen className="w-4 h-4 shrink-0" /> Mis clases
+                      </Link>
+                    ) : (
+                      <>
+                        <Link href="/dashboard" onClick={() => setUserMenuOpen(false)}
+                          className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors cursor-pointer">
+                          <LayoutDashboard className="w-4 h-4 shrink-0" /> Mi panel
+                        </Link>
+                        <Link href="/dashboard/mis-clases" onClick={() => setUserMenuOpen(false)}
+                          className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors cursor-pointer">
+                          <BookOpen className="w-4 h-4 shrink-0" /> Mis clases
+                        </Link>
+                      </>
+                    )}
+
                     <Link href="/dashboard/perfil" onClick={() => setUserMenuOpen(false)}
-                      className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
+                      className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors cursor-pointer">
                       <User className="w-4 h-4 shrink-0" /> Perfil
                     </Link>
                     <Link href="/dashboard/configuracion" onClick={() => setUserMenuOpen(false)}
-                      className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors">
+                      className="font-sans flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 active:bg-neutral-100 transition-colors cursor-pointer">
                       <Settings className="w-4 h-4 shrink-0" /> Configuración
                     </Link>
-                    <div className="border-t border-neutral-100">
+
+                    {isAlumno && (
+                      <>
+                        <div className="border-t border-neutral-100 my-1" />
+                        <button
+                          type="button"
+                          onClick={() => { setUserMenuOpen(false); setBecomeTeacherOpen(true); }}
+                          className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-primary-bg/40 hover:text-primary active:bg-primary-bg transition-colors cursor-pointer"
+                        >
+                          <GraduationCap className="w-4 h-4 shrink-0 text-primary" /> Conviértete en profesor
+                        </button>
+                      </>
+                    )}
+
+                    <div className="border-t border-neutral-100 my-1">
                       <button onClick={logout}
-                        className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-600 hover:text-red hover:bg-red-bg active:bg-red-bg transition-colors">
+                        className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-600 hover:text-red hover:bg-red-bg active:bg-red-bg transition-colors cursor-pointer">
                         <LogOut className="w-4 h-4 shrink-0" /> Cerrar sesión
                       </button>
                     </div>
@@ -469,6 +513,8 @@ export default function Header({
           </div>
         </div>
       )}
+
+      {becomeTeacherOpen && <BecomeTeacherModal onClose={() => setBecomeTeacherOpen(false)} />}
     </header>
   );
 }

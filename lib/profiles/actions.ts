@@ -224,6 +224,32 @@ export async function requestAcademiaConversion(input: {
   revalidatePath('/dashboard');
 }
 
+// Un alumno pasando a profesor — ver migración 45 y el plan de esta
+// feature. A diferencia de requestAcademiaConversion(), no crea ninguna
+// solicitud: el cambio de rol es inmediato, sin aprobación de admin (la
+// razón que sí exige revisión para "academia" — identidad institucional —
+// no aplica a un profesor individual, que ya puede registrarse así desde
+// cero sin ningún filtro).
+export async function upgradeToProfesor() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+
+  const { error } = await supabase.rpc('upgrade_alumno_to_profesor');
+  if (error) throw new Error(error.message);
+
+  // Sync role to user_metadata so proxy.ts / el resto de la app puede
+  // leerlo del JWT sin una query — mismo patrón que completeOAuthRegistration()
+  // en lib/auth/actions.ts.
+  await supabase.auth.updateUser({ data: { role: 'profesor' } });
+
+  revalidatePath('/dashboard', 'layout');
+  revalidatePath('/profesores');
+  revalidatePath('/');
+  safeRevalidateTag('profiles', 'max');
+  safeRevalidateTag('stats', 'max');
+}
+
 // Marca la pantalla de bienvenida de academia como vista — ver migración 42
 // y AcademiaWelcomeModal.tsx. Se llama una sola vez, al cerrar el modal.
 export async function dismissAcademiaWelcome() {

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 
 const NOTICES: Record<string, { title: string; body: string }> = {
@@ -51,7 +51,7 @@ export default function NoticeBar() {
           <X className="w-5 h-5" />
         </button>
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-bg mb-4">
-          <span className="text-2xl">⚠️</span>
+          <AlertTriangle className="w-6 h-6 text-amber-text" />
         </div>
         <h3 className="text-[17px] font-black text-neutral-900 mb-2">{notice.title}</h3>
         <p className="text-[14px] text-neutral-600 leading-relaxed mb-5">{notice.body}</p>

@@ -1,4 +1,6 @@
-export const NATIONALITIES = [
-  'Perú', 'Colombia', 'Chile', 'Argentina', 'México', 'Venezuela', 'Ecuador',
-  'Bolivia', 'España', 'Estados Unidos', 'Otro',
+import { COUNTRIES } from './countries';
+
+export const NATIONALITIES: string[] = [
+  ...COUNTRIES.map(c => c.name),
+  'Otro',
 ];

@@ -6,6 +6,7 @@ import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import ContactModal from '@/components/ContactModal';
 import MapPreview from '@/components/MapPreview';
 import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
@@ -48,6 +49,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       classId: cls.id, className: cls.title, classStyle: cls.style,
       classType: cls.type, teacherId: cls.teacher.id, price: cls.price,
     });
+    // Contador propio (dashboard), separado del evento GA4 de arriba — ver
+    // increment_class_views (migración 46). .then() para forzar el fetch.
+    // Deduplicación por sesión: evita incrementar vistas repetidamente en recargas (F5).
+    const viewKey = `kynea_viewed_class_${cls.id}`;
+    if (!sessionStorage.getItem(viewKey)) {
+      sessionStorage.setItem(viewKey, '1');
+      createClient().rpc('increment_class_views', { target_class_id: cls.id }).then(() => {}, () => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cls.id]);
 
@@ -87,13 +96,26 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     setSaving(false);
   };
 
+  const triggerContactIncrement = (classId: string) => {
+    try {
+      const contactKey = `kynea_contact_${classId}`;
+      const lastContact = sessionStorage.getItem(contactKey);
+      if (!lastContact || Date.now() - parseInt(lastContact, 10) > 30000) {
+        sessionStorage.setItem(contactKey, String(Date.now()));
+        createClient().rpc('increment_class_contacts', { target_class_id: classId }).then(() => {}, () => {});
+      }
+    } catch {
+      createClient().rpc('increment_class_contacts', { target_class_id: classId }).then(() => {}, () => {});
+    }
+  };
+
   const handleWhatsAppClick = async () => {
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.whatsapp) {
-      supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
+      triggerContactIncrement(cls.id);
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
       trackGenerateLead({
@@ -114,7 +136,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.instagram) {
-      supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
+      triggerContactIncrement(cls.id);
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
       trackGenerateLead({
@@ -585,10 +607,12 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
         </div>
       </div>
 
+      <Footer />
+
       {/* Mobile sticky bottom CTA */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 z-40 flex items-center gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5">
+        <div className="shrink-0 max-w-[42%] min-w-0">
+          <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5 truncate">
             {cls.priceType === 'Gratis' ? (
               <span className="text-neutral-900">Gratis</span>
             ) : cls.offerPrice ? (
@@ -602,38 +626,41 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               <span className="text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
             )}
           </p>
-          {cls.level && <p className="text-[12px] text-neutral-600 mt-0.5">Nivel {cls.level}</p>}
+          {cls.level && <p className="text-[12px] text-neutral-600 mt-0.5 truncate">Nivel {cls.level}</p>}
         </div>
-        <div className="flex gap-2 shrink-0">
+        {/* Botones a flex-1: cuando hay dos canales activos, se reparten el
+            ancho sobrante en vez de encogerse a solo ícono (ver el bloque de
+            arriba, que ahora es shrink-0 con un tope de ancho). */}
+        <div className="flex-1 flex items-center gap-2 min-w-0">
           {showWa && (
             <button
               onClick={handleWhatsAppClick}
               disabled={isFullyBooked}
-              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
+              className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
               }`}
             >
-              {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
-              {!showIg && (isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'Contactar')}
+              {justContacted === 'whatsapp' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <MessageCircle className="w-4 h-4 shrink-0" />}
+              <span className="truncate">{isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}</span>
             </button>
           )}
           {showIg && (
             <button
               onClick={handleInstagramClick}
               disabled={isFullyBooked}
-              className={`flex items-center gap-2 font-bold py-3 px-4 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
+              className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
                 isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
               }`}
             >
-              {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
-              {!showWa && (isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Contactar')}
+              {justContacted === 'instagram' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <InstagramIcon className="w-4 h-4 shrink-0" />}
+              <span className="truncate">{isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}</span>
             </button>
           )}
         </div>
       </div>
 
       {/* Extra padding so content isn't hidden behind mobile CTA */}
-      <div className="lg:hidden h-20" />
+      <div className="lg:hidden h-20 bg-neutral-900" />
 
       {showContact && (
         <ContactModal
