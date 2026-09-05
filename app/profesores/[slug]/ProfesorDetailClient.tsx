@@ -25,11 +25,13 @@ export default function ProfesorDetailClient({
   useEffect(() => {
     trackViewProfile({ role: teacher.type, profileId: teacher.id, profileName: teacher.name });
     // Contador propio (dashboard), separado del evento GA4 de arriba — ver
-    // increment_profile_views (migración 46). .then() sin await: sin él,
-    // el builder de supabase-js es un thenable perezoso que nunca dispara
-    // el fetch si se llama como sentencia suelta (mismo bug que tenía
-    // increment_class_contacts desde antes, sin que nadie lo notara).
-    createClient().rpc('increment_profile_views', { target_profile_id: teacher.id }).then(() => {}, () => {});
+    // increment_profile_views (migración 46). .then() sin await.
+    // Deduplicación por sesión: evita incrementar vistas repetidamente en recargas (F5).
+    const viewKey = `kynea_viewed_teacher_${teacher.id}`;
+    if (!sessionStorage.getItem(viewKey)) {
+      sessionStorage.setItem(viewKey, '1');
+      createClient().rpc('increment_profile_views', { target_profile_id: teacher.id }).then(() => {}, () => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacher.id]);
 

@@ -50,9 +50,13 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       classType: cls.type, teacherId: cls.teacher.id, price: cls.price,
     });
     // Contador propio (dashboard), separado del evento GA4 de arriba — ver
-    // increment_class_views (migración 46). .then() para forzar el fetch,
-    // ver el comentario junto a increment_class_contacts más abajo.
-    createClient().rpc('increment_class_views', { target_class_id: cls.id }).then(() => {}, () => {});
+    // increment_class_views (migración 46). .then() para forzar el fetch.
+    // Deduplicación por sesión: evita incrementar vistas repetidamente en recargas (F5).
+    const viewKey = `kynea_viewed_class_${cls.id}`;
+    if (!sessionStorage.getItem(viewKey)) {
+      sessionStorage.setItem(viewKey, '1');
+      createClient().rpc('increment_class_views', { target_class_id: cls.id }).then(() => {}, () => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cls.id]);
 
@@ -92,17 +96,26 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     setSaving(false);
   };
 
+  const triggerContactIncrement = (classId: string) => {
+    try {
+      const contactKey = `kynea_contact_${classId}`;
+      const lastContact = sessionStorage.getItem(contactKey);
+      if (!lastContact || Date.now() - parseInt(lastContact, 10) > 30000) {
+        sessionStorage.setItem(contactKey, String(Date.now()));
+        createClient().rpc('increment_class_contacts', { target_class_id: classId }).then(() => {}, () => {});
+      }
+    } catch {
+      createClient().rpc('increment_class_contacts', { target_class_id: classId }).then(() => {}, () => {});
+    }
+  };
+
   const handleWhatsAppClick = async () => {
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.whatsapp) {
-      // .then() sin await a propósito: no queremos retrasar el window.open
-      // de abajo (podría hacer que el navegador bloquee el popup), pero sin
-      // .then()/await el builder de supabase-js es un thenable perezoso —
-      // nunca dispara el fetch si se llama como sentencia suelta.
-      supabase.rpc('increment_class_contacts', { target_class_id: cls.id }).then(() => {}, () => {});
+      triggerContactIncrement(cls.id);
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
       trackGenerateLead({
@@ -123,11 +136,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.instagram) {
-      // .then() sin await a propósito: no queremos retrasar el window.open
-      // de abajo (podría hacer que el navegador bloquee el popup), pero sin
-      // .then()/await el builder de supabase-js es un thenable perezoso —
-      // nunca dispara el fetch si se llama como sentencia suelta.
-      supabase.rpc('increment_class_contacts', { target_class_id: cls.id }).then(() => {}, () => {});
+      triggerContactIncrement(cls.id);
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
       trackGenerateLead({

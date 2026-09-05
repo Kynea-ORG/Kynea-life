@@ -14,12 +14,24 @@ import {
 import { assertPublishAllowed } from './publishGuard';
 import { CLASS_SELECT } from './queries';
 import type { FormSlot, ClassUpdatePayload, DbClassRow, ClassActionResult } from './types';
+import { classCreationRateLimiter, checkRateLimit } from '@/lib/ratelimit';
 
 export async function createClass(formData: FormData): Promise<ClassActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
   await assertRole(supabase, user.id, ['profesor', 'academia']);
+
+  const { success } = await checkRateLimit(classCreationRateLimiter, user.id);
+  if (!success) {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION',
+        message: 'Has alcanzado el límite de creación de clases por hoy (máx. 20 por día). Por favor intenta mañana.',
+      },
+    };
+  }
 
   if (formData.get('status') === 'published') {
     const result = validateForPublish(formDataToValidationInput(formData));

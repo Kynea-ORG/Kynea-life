@@ -37,10 +37,36 @@ function LoginPageContent() {
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
+  const [resetCooldown, setResetCooldown] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const savedUntil = sessionStorage.getItem('kynea_reset_until');
+      if (savedUntil) {
+        const remaining = Math.ceil((parseInt(savedUntil, 10) - Date.now()) / 1000);
+        if (remaining > 0) return remaining;
+        sessionStorage.removeItem('kynea_reset_until');
+      }
+    } catch {}
+    return 0;
+  });
   const [googleLoading, setGoogleLoading] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const { shift } = useFunFocusBackground();
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResetCooldown(c => {
+        if (c <= 1) {
+          sessionStorage.removeItem('kynea_reset_until');
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resetCooldown]);
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => {
@@ -69,6 +95,7 @@ function LoginPageContent() {
 
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
+    if (resetCooldown > 0 || resetLoading) return;
     setResetError('');
     setResetLoading(true);
     const supabase = createClient();
@@ -91,6 +118,9 @@ function LoginPageContent() {
       return;
     }
     setResetSent(true);
+    const until = Date.now() + 60000;
+    sessionStorage.setItem('kynea_reset_until', String(until));
+    setResetCooldown(60);
     setResetLoading(false);
   }
 
@@ -166,9 +196,14 @@ function LoginPageContent() {
                       className="input"
                     />
                   </div>
-                  <button type="submit" disabled={resetLoading} onClick={shift} className="btn-dark w-full flex items-center justify-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={resetLoading || resetCooldown > 0}
+                    onClick={shift}
+                    className="btn-dark w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     {resetLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {resetLoading ? 'Enviando…' : 'Enviar enlace'}
+                    {resetLoading ? 'Enviando…' : resetCooldown > 0 ? `Enviar enlace (${resetCooldown}s)` : 'Enviar enlace'}
                   </button>
                   <button
                     type="button"
