@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Hanken_Grotesk, Figtree } from "next/font/google";
 import ImageProviderHealthCheck from "@/components/ImageProviderHealthCheck";
 import LoginSuccessListener from "@/components/LoginSuccessListener";
+import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
 
 // GTM only fires in the real production environment — NEXT_PUBLIC_APP_ENV is
@@ -26,8 +27,23 @@ const figtree = Figtree({
 });
 
 export const metadata: Metadata = {
-  title: "Kynea – La primera plataforma integral de danza en Latinoamérica",
-  description: "Encuentra clases de baile, audiciones, shows, eventos culturales y tiendas especializadas. Donde la pasión por la danza cobra vida.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Kynea – La primera plataforma integral de danza en Latinoamérica",
+    template: "%s",
+  },
+  description: "Encuentra clases de baile, audiciones, shows y academias verificadas en Latinoamérica. Donde la pasión por la danza cobra vida.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Kynea – Plataforma de clases de baile en Latinoamérica",
+    description: "Encuentra clases de baile, audiciones y talleres con los mejores profesores y academias de danza en Latinoamérica.",
+    url: SITE_URL,
+    siteName: "Kynea",
+    locale: "es_PE",
+    type: "website",
+  },
   other: {
     "facebook-domain-verification": "slfge5n6asfeu1iy16dq2bbf7hg2nr",
   },
