@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackViewProfile, trackTeacherSocialClick } from '@/lib/analytics';
 import { buildInstagramUrl, buildTikTokUrl, formatExperience, formatPrice, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import type { Teacher, DanceClass } from '@/lib/types';
+import LinkifiedText from '@/components/LinkifiedText';
 
 export default function ProfesorDetailClient({
   teacher,
@@ -35,30 +36,35 @@ export default function ProfesorDetailClient({
   const socialClick = (channel: 'instagram' | 'tiktok' | 'website') =>
     trackTeacherSocialClick({ channel, teacherId: teacher.id, teacherName: teacher.name, surface: 'profesor_detail' });
 
-  // Perfil de profesor: editorial oscuro (ver docs de diseño del canvas
-  // "Rediseño Perfil de Profesor" — Dirección D). Academia mantiene su
-  // propio tratamiento (banner con foto de portada + tabs) sin cambios.
+  // Perfil de profesor: editorial oscuro (foto de perfil difuminada de
+  // fondo — ver ProfesorEditorial más abajo). Academia mantiene su propio
+  // tratamiento (banner con foto de portada + tabs) sin cambios.
   if (teacher.type === 'profesor') {
     return <ProfesorEditorial teacher={teacher} classes={classes} socialClick={socialClick} />;
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-clip">
       <Header />
 
-      {/* Banner de academia: foto de portada real bajo un overlay oscuro
-          para legibilidad (perfil de profesor usa su propio tratamiento
-          editorial — ver ProfesorEditorial más abajo). */}
-      <div className="relative overflow-hidden pt-10 px-5 lg:px-8 pb-[88px] bg-neutral-900">
-        <SmartImage
-          src={teacher.coverImage || DEFAULT_ACADEMIA_COVER}
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover"
-          style={{ objectPosition: teacher.coverImagePosition || '50% 50%', transform: `scale(${teacher.coverImageZoom || 1})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/45 to-black/75" />
+      {/* Artistic profile banner — academia gets a real cover photo behind a
+          dark overlay for legibility; profesor keeps the plain bg-primary
+          banner untouched (academia and profesor are deliberately not the
+          same visual treatment here). */}
+      <div className={`relative overflow-hidden pt-10 px-5 lg:px-8 pb-[88px] ${teacher.type === 'academia' ? 'bg-neutral-900' : 'bg-primary'}`}>
+        {teacher.type === 'academia' && (
+          <>
+            <SmartImage
+              src={teacher.coverImage || DEFAULT_ACADEMIA_COVER}
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover"
+              style={{ objectPosition: teacher.coverImagePosition || '50% 50%', transform: `scale(${teacher.coverImageZoom || 1})` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/45 to-black/75" />
+          </>
+        )}
         <div className="relative z-10 max-w-5xl mx-auto">
           <Link href="/clases" className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white mb-6 transition-colors">
             <ChevronLeft className="w-4 h-4" /> Volver a clases
@@ -73,13 +79,15 @@ export default function ProfesorDetailClient({
               )}
             </div>
 
-            <div className="flex-1 min-w-[260px] pt-2">
+            <div className="flex-1 min-w-0 sm:min-w-[260px] pt-2">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h1 className="text-[30px] font-black text-white tracking-tight">{teacher.name}</h1>
+                  <h1 className="text-[30px] font-black text-white tracking-tight break-words">{teacher.name}</h1>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-pink-50 text-pink-600">
-                      Academia
+                    <span className={`text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${
+                      teacher.type === 'academia' ? 'bg-pink-50 text-pink-600' : 'bg-white text-neutral-700'
+                    }`}>
+                      {teacher.type === 'academia' ? 'Academia' : 'Profesor'}
                     </span>
                     <span className="font-figtree text-[14px] text-white/75">de danza</span>
                   </div>
@@ -123,14 +131,14 @@ export default function ProfesorDetailClient({
                 </div>
               )}
 
-              {teacher.venueAddress && (
+              {teacher.type === 'academia' && teacher.venueAddress && (
                 <p className="flex items-center gap-1.5 text-[13px] text-white/75 mt-3.5">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   {[teacher.venueAddress, teacher.venueDistrict, teacher.venueCity].filter(Boolean).join(', ')}
                 </p>
               )}
 
-              {(teacher.teamSize || teacher.branchCount) && (
+              {teacher.type === 'academia' && (teacher.teamSize || teacher.branchCount) && (
                 <div className="flex flex-wrap gap-4 mt-2 text-[13px] text-white/75">
                   {teacher.teamSize && (
                     <span className="flex items-center gap-1.5">
@@ -184,7 +192,7 @@ export default function ProfesorDetailClient({
         <div className="flex gap-1 mb-6 bg-neutral-100 rounded-xl p-1 w-fit">
           {[
             { key: 'clases' as const, label: `Clases (${classes.length})` },
-            { key: 'bio' as const, label: 'Sobre la academia' },
+            { key: 'bio' as const, label: teacher.type === 'academia' ? 'Sobre la academia' : 'Sobre mí' },
           ].map(tab => (
             <button
               key={tab.key}
@@ -202,7 +210,9 @@ export default function ProfesorDetailClient({
           classes.length === 0 ? (
             <div className="text-center py-16 text-neutral-400">
               <p className="text-4xl mb-3">🕺</p>
-              <p className="text-sm">Esta academia no tiene clases publicadas actualmente.</p>
+              <p className="text-sm">
+                {teacher.type === 'academia' ? 'Esta academia no tiene clases publicadas actualmente.' : 'Este profesor no tiene clases publicadas actualmente.'}
+              </p>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -210,8 +220,8 @@ export default function ProfesorDetailClient({
             </div>
           )
         ) : (
-          <div className="max-w-2xl">
-            <p className="text-neutral-600 leading-relaxed mb-6">{teacher.bio || 'Sin biografía aún.'}</p>
+          <div className="max-w-2xl min-w-0">
+            <p className="text-neutral-600 leading-relaxed mb-6 whitespace-pre-line break-words [overflow-wrap:anywhere]"><LinkifiedText text={teacher.bio || 'Sin biografía aún.'} /></p>
             {teacher.whatsapp && (
               <div className="bg-neutral-50 rounded-2xl border border-neutral-900 p-6">
                 <h3 className="font-extrabold text-neutral-900 mb-2.5">Contacto</h3>
@@ -236,7 +246,6 @@ export default function ProfesorDetailClient({
     </div>
   );
 }
-
 function ProfesorEditorial({
   teacher,
   classes,
@@ -262,7 +271,7 @@ function ProfesorEditorial({
   const visibleStyles = teacher.styles.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-neutral-900">
+    <div className="min-h-screen bg-neutral-900 overflow-x-clip">
       <Header />
 
       {/* Hero — un profesor no tiene foto de portada propia (a diferencia
@@ -324,7 +333,7 @@ function ProfesorEditorial({
                 </span>
               )}
             </div>
-            <h1 className="text-[32px] md:text-[48px] leading-[1] font-black tracking-tight text-white">{teacher.name}</h1>
+            <h1 className="text-[32px] md:text-[48px] leading-[1] font-black tracking-tight text-white break-words">{teacher.name}</h1>
             <p className="font-figtree text-sm md:text-base text-white/75 mt-2 flex items-center gap-2 flex-wrap">
               {teacher.nationality && (
                 <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {teacher.nationality}</span>
@@ -389,8 +398,8 @@ function ProfesorEditorial({
 
       {/* Sobre mí — visible directo, sin heading ni tab */}
       <div className="px-5 md:px-14 pt-9 md:pt-11">
-        <p className="font-figtree text-base md:text-lg leading-relaxed text-white/80 max-w-[760px]">
-          {teacher.bio || 'Este profesor aún no agregó una biografía.'}
+        <p className="font-figtree text-base md:text-lg leading-relaxed text-white/80 max-w-[760px] whitespace-pre-line break-words [overflow-wrap:anywhere]">
+          <LinkifiedText text={teacher.bio || 'Este profesor aún no agregó una biografía.'} />
         </p>
       </div>
 

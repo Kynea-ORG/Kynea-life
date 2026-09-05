@@ -17,6 +17,6 @@ export async function requireRole(allowed: Role[]) {
   const profile = await getCurrentProfile();
 
   if (!profile?.role || !allowed.includes(profile.role)) {
-    redirect('/dashboard/alumno');
+    redirect(profile?.role === 'alumno' ? '/dashboard/alumno' : '/dashboard');
   }
 }

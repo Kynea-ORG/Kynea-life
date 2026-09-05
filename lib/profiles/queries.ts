@@ -1,6 +1,8 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { getUser } from '@/lib/auth/getUser';
+import { getPublicClient } from '@/lib/supabase/public';
+import { safeCache } from '@/lib/cache';
 import type { Teacher, DanceStyle } from '@/lib/types';
 
 // The caller's own dashboard profile — columns shared by DashboardLayout,
@@ -79,8 +81,8 @@ export const PROFILE_SELECT = `
   profile_styles(style_id, dance_styles(name))
 `;
 
-export async function fetchFeaturedProfiles(role: 'profesor' | 'academia', limit?: number): Promise<Teacher[]> {
-  const supabase = await createClient();
+async function getFeaturedProfiles(role: 'profesor' | 'academia', limit?: number): Promise<Teacher[]> {
+  const supabase = getPublicClient();
   let query = supabase
     .from('profiles')
     .select(PROFILE_SELECT)
@@ -102,8 +104,14 @@ export async function fetchFeaturedProfiles(role: 'profesor' | 'academia', limit
   return (data ?? []).map(mapTeacher);
 }
 
-export async function fetchTeacherBySlug(slug: string): Promise<Teacher | null> {
-  const supabase = await createClient();
+export const fetchFeaturedProfiles = safeCache(
+  getFeaturedProfiles,
+  ['featured_profiles'],
+  { revalidate: 600, tags: ['profiles'] }
+);
+
+async function getTeacherBySlug(slug: string): Promise<Teacher | null> {
+  const supabase = getPublicClient();
   const { data, error } = await supabase
     .from('profiles')
     .select(PROFILE_SELECT)
@@ -130,13 +138,19 @@ export async function fetchTeacherBySlug(slug: string): Promise<Teacher | null> 
   return mapTeacher({ ...data, venue });
 }
 
+export const fetchTeacherBySlug = safeCache(
+  getTeacherBySlug,
+  ['teacher_by_slug'],
+  { revalidate: 600, tags: ['profiles'] }
+);
+
 // Academias con coordenadas reales en su sede principal — para pintarlas
 // como pines en la vista Mapa de /clases (ver ClasesMapView.tsx). Academias
 // sin lat/lng (dirección cargada como texto libre antes del autocompletado
 // de Google, o que nunca completaron esa sección) simplemente no aparecen
 // — no inventamos una ubicación aproximada.
-export async function fetchAcademiasWithLocation(): Promise<Teacher[]> {
-  const supabase = await createClient();
+async function getAcademiasWithLocation(): Promise<Teacher[]> {
+  const supabase = getPublicClient();
   const { data, error } = await supabase
     .from('profiles')
     .select(`${PROFILE_SELECT}, venues!inner(address, district, city, lat, lng, is_primary)`)
@@ -155,3 +169,9 @@ export async function fetchAcademiasWithLocation(): Promise<Teacher[]> {
     return mapTeacher({ ...row, venue });
   });
 }
+
+export const fetchAcademiasWithLocation = safeCache(
+  getAcademiasWithLocation,
+  ['academias_with_location'],
+  { revalidate: 600, tags: ['profiles'] }
+);

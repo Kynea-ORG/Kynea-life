@@ -16,7 +16,8 @@ function buildTestUrl(): string {
   if (provider === 'imagekit') {
     const endpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
     if (endpoint) {
-      return `${endpoint}/${encodeURIComponent(testImage)}?tr=w-16`;
+      const cleanEndpoint = endpoint.replace(/\/+$/, '');
+      return `${cleanEndpoint}/${encodeURIComponent(testImage)}?tr=w-16`;
     }
     // Sin endpoint configurado, mismo fallback que usa el loader real.
   }

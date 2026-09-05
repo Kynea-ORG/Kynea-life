@@ -197,7 +197,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
   // subset al azar de 4, re-sorteado cada vez que se abre el buscador — para
   // no mostrar siempre los mismos 4 primeros por orden alfabético.
   const [randomStyles, setRandomStyles] = useState<DbDanceStyle[]>(
-    () => pickRandomStyles(danceStylesWithClasses, 4)
+    () => danceStylesWithClasses.slice(0, 4)
   );
 
   // Estilos que matchean el texto tipeado — alimenta la sección "Estilos"
@@ -766,7 +766,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             alt="Bailarina en movimiento"
             fill
             priority
-            sizes="100vw"
+            sizes="(max-width: 768px) 100vw, 0vw"
             className="absolute inset-0 object-cover"
             style={{ objectPosition: '55% 25%' }}
           />

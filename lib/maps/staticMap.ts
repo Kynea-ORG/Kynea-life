@@ -59,7 +59,7 @@ export async function generateAndCacheVenueMapImage(
     const path = `${opts.ownerId}/venue-maps/${opts.venueId}.png`;
     const { error: uploadError } = await supabase.storage
       .from('class-images')
-      .upload(path, buffer, { contentType: 'image/png', upsert: true });
+      .upload(path, buffer, { contentType: 'image/png', cacheControl: '31536000', upsert: true });
     if (uploadError) {
       console.error('[generateAndCacheVenueMapImage] upload', uploadError.message);
       return null;

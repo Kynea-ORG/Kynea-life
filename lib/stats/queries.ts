@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { getPublicClient } from '@/lib/supabase/public';
+import { safeCache } from '@/lib/cache';
 
 export interface HomeStats {
   classes: number;
@@ -8,8 +9,8 @@ export interface HomeStats {
   cityNames: string[];
 }
 
-export async function fetchHomeStats(): Promise<HomeStats> {
-  const supabase = await createClient();
+async function getHomeStats(): Promise<HomeStats> {
+  const supabase = getPublicClient();
   const [c, t, s, v] = await Promise.all([
     supabase.from('classes').select('*', { count: 'exact', head: true }).eq('status', 'published')
       .or('end_date.is.null,end_date.gte.today'),
@@ -31,3 +32,9 @@ export async function fetchHomeStats(): Promise<HomeStats> {
   )].sort();
   return { classes: c.count ?? 0, teachers: t.count ?? 0, styles: s.count ?? 0, cities: cityNames.length, cityNames };
 }
+
+export const fetchHomeStats = safeCache(
+  getHomeStats,
+  ['home_stats'],
+  { revalidate: 600, tags: ['stats'] }
+);

@@ -11,6 +11,7 @@ import { trackCreateClassStepComplete, trackClassCreated, trackCreateClassBlocke
 import { uploadClassImage } from '@/lib/classes/imageActions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
+import { compressImage } from '@/lib/images/compressImage';
 import {
   MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
 } from '@/lib/classes/validation';
@@ -257,8 +258,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
     }
     setUploadingImage(true);
     try {
+      const fileToUpload = await compressImage(file);
       const fd = new FormData();
-      fd.set('file', file);
+      fd.set('file', fileToUpload);
       const res = await uploadClassImage(fd);
       if (res.error) {
         setUploadError(res.error);

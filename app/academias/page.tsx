@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { fetchHomeStats } from '@/lib/stats/queries';
 import { SITE_URL } from '@/lib/constants';
 import AcademiasClient from './AcademiasClient';
@@ -16,5 +17,9 @@ export const metadata: Metadata = {
 
 export default async function AcademiasPage() {
   const stats = await fetchHomeStats();
-  return <AcademiasClient teacherCount={stats.teachers} />;
+  return (
+    <Suspense>
+      <AcademiasClient teacherCount={stats.teachers} />
+    </Suspense>
+  );
 }
