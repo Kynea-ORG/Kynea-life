@@ -409,6 +409,21 @@
   .hero-section-white { @apply bg-white relative; }
 }
 
+/* Trama de líneas diagonales finas, tono sobre tono — usada en el banner
+   del perfil de profesor (sin foto de portada propia, a diferencia de
+   academia) en vez de una imagen. Hairlines blancas a baja opacidad sobre
+   el fondo oscuro del propio elemento, no un color fijo, para que funcione
+   sobre cualquier bg-neutral-900/800 sin duplicar la definición. */
+.pattern-diagonal-lines {
+  background-image: repeating-linear-gradient(
+    15deg,
+    rgba(255, 255, 255, 0.06) 0px,
+    rgba(255, 255, 255, 0.06) 1px,
+    transparent 1px,
+    transparent 15px
+  );
+}
+
 /* ─── UTILS ─────────────────────────────────────────────────────── */
 .line-clamp-2 {
   display: -webkit-box;

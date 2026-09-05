@@ -6,6 +6,7 @@ import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import ContactModal from '@/components/ContactModal';
 import MapPreview from '@/components/MapPreview';
 import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
@@ -48,6 +49,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       classId: cls.id, className: cls.title, classStyle: cls.style,
       classType: cls.type, teacherId: cls.teacher.id, price: cls.price,
     });
+    // Contador propio (dashboard), separado del evento GA4 de arriba — ver
+    // increment_class_views (migración 46). .then() para forzar el fetch,
+    // ver el comentario junto a increment_class_contacts más abajo.
+    createClient().rpc('increment_class_views', { target_class_id: cls.id }).then(() => {}, () => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cls.id]);
 
@@ -93,7 +98,11 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.whatsapp) {
-      supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
+      // .then() sin await a propósito: no queremos retrasar el window.open
+      // de abajo (podría hacer que el navegador bloquee el popup), pero sin
+      // .then()/await el builder de supabase-js es un thenable perezoso —
+      // nunca dispara el fetch si se llama como sentencia suelta.
+      supabase.rpc('increment_class_contacts', { target_class_id: cls.id }).then(() => {}, () => {});
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
       trackGenerateLead({
@@ -114,7 +123,11 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     const loggedIn = !!session?.user;
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.instagram) {
-      supabase.rpc('increment_class_contacts', { target_class_id: cls.id });
+      // .then() sin await a propósito: no queremos retrasar el window.open
+      // de abajo (podría hacer que el navegador bloquee el popup), pero sin
+      // .then()/await el builder de supabase-js es un thenable perezoso —
+      // nunca dispara el fetch si se llama como sentencia suelta.
+      supabase.rpc('increment_class_contacts', { target_class_id: cls.id }).then(() => {}, () => {});
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
       trackGenerateLead({
@@ -585,6 +598,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
         </div>
       </div>
 
+      <Footer />
+
       {/* Mobile sticky bottom CTA */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 z-40 flex items-center gap-3">
         <div className="shrink-0 max-w-[42%] min-w-0">
@@ -636,7 +651,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       </div>
 
       {/* Extra padding so content isn't hidden behind mobile CTA */}
-      <div className="lg:hidden h-20" />
+      <div className="lg:hidden h-20 bg-neutral-900" />
 
       {showContact && (
         <ContactModal
