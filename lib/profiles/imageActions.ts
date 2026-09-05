@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { assertRole } from '@/lib/auth/assertRole';
 import { validateImageFile, type AllowedImageMime } from '@/lib/classes/imageValidation';
+import { imageUploadRateLimiter, checkRateLimit } from '@/lib/ratelimit';
 
 // Same defense-in-depth as lib/classes/imageActions.ts's uploadClassImage —
 // profile photo/cover uploads (onboarding, convertir-academia) went straight
@@ -21,6 +22,11 @@ export async function uploadProfileImage(formData: FormData, suffix: 'photo' | '
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
   await assertRole(supabase, user.id, ['profesor', 'academia']);
+
+  const { success } = await checkRateLimit(imageUploadRateLimiter, user.id);
+  if (!success) {
+    throw new Error('Has superado el límite de subida de imágenes (máx. 15 por hora). Por favor intenta más tarde.');
+  }
 
   const file = formData.get('file');
   if (!(file instanceof File)) throw new Error('No se recibió ningún archivo.');

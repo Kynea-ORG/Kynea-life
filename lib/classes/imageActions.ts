@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { assertRole } from '@/lib/auth/assertRole';
 import { validateImageFile, type AllowedImageMime } from './imageValidation';
+import { imageUploadRateLimiter, checkRateLimit } from '@/lib/ratelimit';
 
 // Canonical extension per validated MIME — derived from the CHECKED mime, not
 // from file.name, so a ".png"-named file with JPEG bytes still gets a ".jpg"
@@ -17,6 +18,11 @@ export async function uploadClassImage(formData: FormData): Promise<{ url?: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'No autenticado' };
   await assertRole(supabase, user.id, ['profesor', 'academia']);
+
+  const { success } = await checkRateLimit(imageUploadRateLimiter, user.id);
+  if (!success) {
+    return { error: 'Has superado el límite de subida de imágenes (máx. 15 por hora). Por favor intenta más tarde.' };
+  }
 
   const file = formData.get('file');
   if (!(file instanceof File)) {

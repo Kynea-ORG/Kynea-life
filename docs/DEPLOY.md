@@ -20,8 +20,10 @@ En la pantalla de import (o en **Settings → Environment Variables**), agrega e
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<tu-proyecto>.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` (anon key) |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (service_role key, Settings → API) |
+| `UPSTASH_REDIS_REST_URL` | `https://<tu-base-de-datos>.upstash.io` (Settings → REST API) |
+| `UPSTASH_REDIS_REST_TOKEN` | `AY...` (Settings → REST API) |
 
-`SUPABASE_SERVICE_ROLE_KEY` es server-only y bypassea RLS por completo: nunca la expongas con prefijo `NEXT_PUBLIC_` ni la subas al repo.
+`SUPABASE_SERVICE_ROLE_KEY`, `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` son server-only: nunca las expongas con prefijo `NEXT_PUBLIC_` ni las subas al repo.
 
 Aplícalas a **Production**, **Preview** y **Development**.
 
