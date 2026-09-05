@@ -40,6 +40,8 @@ están implementados** en el código actual:
   `lib/actions/classes.ts` fueron borrados. Filtrado de `/clases` ahora es server-side.
 - **Páginas legales** — `/terminos` (Términos y condiciones) y `/terminos-publicacion` (Reglas de
   publicación para profesores).
+- **Rate limiting híbrido (Upstash Redis + UX de Frontend)** — `lib/ratelimit.ts`, rate limit por IP en `proxy.ts` para rutas de autenticación (omitiendo prefetch), límites en Server Actions (`uploadClassImage`, `uploadProfileImage`, `createClass`), cooldowns de 60s en `/confirmar-email` y `/login`, y deduplicación por sesión para contadores de vistas y contactos.
+- **SEO para Google Sitelinks y Datos Estructurados JSON-LD** — Esquemas `WebSite` (con SearchAction), `Organization`, `SiteNavigationElement` (Sitelinks principales) y `FAQPage` (People Also Ask) en `app/page.tsx`, `metadataBase` en `app/layout.tsx`, y metadatos dedicados en `app/login/layout.tsx` y `app/registro/layout.tsx`.
 - **NoticeBar** — `app/dashboard/NoticeBar.tsx`: modal de aviso `cuenta_existente` que se activa
   cuando un usuario OAuth intenta registrarse con un rol distinto al que ya tiene.
 

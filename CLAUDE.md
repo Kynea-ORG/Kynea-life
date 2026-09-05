@@ -71,6 +71,7 @@ Feature-sliced under `lib/`, not a single flat `queries`/`actions` pair:
 | `lib/classes/queries.ts`, `lib/classes/actions.ts`, `lib/classes/helpers.ts`, `lib/classes/types.ts` | Class read queries, `'use server'` mutations (create/update/delete), helpers, and class-specific types |
 | `lib/profiles/queries.ts`, `lib/profiles/actions.ts` | Profile read queries + `'use server'` mutations |
 | `lib/stats/queries.ts` | Dashboard/stats read queries |
+| `lib/ratelimit.ts` | Centralized rate limiting with Upstash Redis (Fail-Open, Sliding Window, ephemeralCache) |
 | `lib/utils.ts` | Shared utility functions |
 
 **DB → TypeScript mapping:** The database uses snake_case columns; UI components use camelCase. Each feature slice's `queries.ts` owns its own DB → TS mapping — do not bypass it.
