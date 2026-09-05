@@ -1,17 +1,13 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/auth/getUser';
+import { getCurrentProfile } from '@/lib/profiles/queries';
 import ConfiguracionClient from './ConfiguracionClient';
 
 export default async function ConfiguracionPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, show_whatsapp, show_spots')
-    .eq('id', user.id)
-    .single();
+  const profile = await getCurrentProfile();
 
   return (
     <ConfiguracionClient

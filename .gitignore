@@ -51,6 +51,10 @@ supabase/.temp/
 .atl/
 .codegraph/
 
+# Impeccable design skill's local cache/config (critique history, hook
+# cache, per-developer ignore rules) — not product code
+.impeccable/
+
 # Claude Code local settings (per-machine, not for the repo)
 .claude/settings.local.json
 

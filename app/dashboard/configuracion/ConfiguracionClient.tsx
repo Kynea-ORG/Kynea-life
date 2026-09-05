@@ -157,7 +157,7 @@ function ChangePasswordForm() {
       <button
         type="submit"
         disabled={loading || confirmMismatch}
-        className="btn-dark flex items-center justify-center gap-2"
+        className="btn-primary flex items-center justify-center gap-2"
       >
         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
         {loading ? 'Guardando…' : 'Cambiar contraseña'}
@@ -268,13 +268,13 @@ export default function ConfiguracionClient({
 
       <div className="space-y-6">
         {isTeacher && (
-          <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6">
+          <div className="bg-white card-dash p-6">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center">
                 <Globe className="w-5 h-5 text-neutral-900" />
               </div>
               <div>
-                <h2 className="font-bold text-neutral-900">Visibilidad</h2>
+                <h2 className="text-lg font-bold text-neutral-900">Visibilidad</h2>
                 <p className="text-xs text-neutral-600">Controla cómo apareces en el buscador</p>
               </div>
             </div>
@@ -309,13 +309,13 @@ export default function ConfiguracionClient({
           </div>
         )}
 
-        <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-6">
+        <div className="bg-white card-dash p-6">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center">
               <Shield className="w-5 h-5 text-neutral-900" />
             </div>
             <div>
-              <h2 className="font-bold text-neutral-900">Privacidad y seguridad</h2>
+              <h2 className="text-lg font-bold text-neutral-900">Privacidad y seguridad</h2>
               <p className="text-xs text-neutral-600">Gestiona tu contraseña y datos personales</p>
             </div>
           </div>
@@ -336,7 +336,7 @@ export default function ConfiguracionClient({
 
         {/* Danger zone */}
         <div className="bg-red-bg rounded-xl border border-red p-6">
-          <h2 className="font-bold text-red-text mb-2">Zona de peligro</h2>
+          <h2 className="text-lg font-bold text-red-text mb-2">Zona de peligro</h2>
           <p className="text-sm text-red mb-4">Esta acción es irreversible. Procede con cuidado.</p>
           {confirmDeleteAccount ? (
             <div className="flex items-center gap-3 flex-wrap animate-fade-in">

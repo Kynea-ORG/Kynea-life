@@ -18,6 +18,11 @@
   --color-blue-pastel:      #A8C8F8;
   --color-blue-pastel-dark: #8DB8F5;
   --color-blue-pastel-bg:   #EFF6FF;
+  /* Texto/ícono a juego con blue-pastel-bg — mismo patrón que
+     green-text/red-text/amber-text. Sin este token, cada stat card azul
+     (dashboard, contactos, sidebar) recurría a un text-blue-700/600 suelto
+     de la paleta default de Tailwind, ajeno a esta escala. */
+  --color-blue-pastel-text: #1D4ED8;
 
   --color-primary:     #8a11bc;
   --color-primary-dark:#6d0d97;
@@ -321,6 +326,12 @@
     @apply px-4 py-2 text-[13px];
   }
 
+  /* Fila de tabla / card compacta (ej. acciones de Mis Clases) — más chico
+     que .btn-sm, que ya se usa para CTAs secundarios de tamaño normal. */
+  .btn-xs {
+    @apply px-3 py-1.5 text-xs gap-1;
+  }
+
   /* ══ CARDS ══ */
   .card {
     @apply bg-white border border-neutral-200 rounded-xl p-6 transition-[box-shadow,border-color,transform] duration-200 ease-out;
@@ -332,6 +343,13 @@
   }
 
   .card-muted { @apply bg-neutral-50 border border-neutral-200 rounded-xl; }
+
+  /* Card de /dashboard/* privado — elevación suave (sombra + borde fino)
+     en vez del borde negro grueso de la primera versión, que se leía
+     pesado/genérico en vez de premium. Sin bg/padding: el fondo varía por
+     rol (bg-white, un tinte de stat) y el padding por densidad (p-4 filas
+     de tabla, p-5 stat tiles, p-6 secciones de contenido). */
+  .card-dash { @apply border border-neutral-200 rounded-xl shadow-sm; }
 
   /* ══ BADGES ══ */
   .badge {

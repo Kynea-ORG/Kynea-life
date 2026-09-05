@@ -68,12 +68,12 @@ export default function ImportarCSVClient() {
       {importStep === 'upload' && (
         <div key="upload" className="space-y-6 animate-fade-in">
           {/* Download template */}
-          <div className="bg-neutral-50 border border-neutral-100 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="card-muted p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="w-12 h-12 bg-neutral-100 rounded-xl flex items-center justify-center shrink-0">
               <FileText className="w-6 h-6 text-neutral-900" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-neutral-900">¿Primera vez importando?</h3>
+              <h3 className="text-lg font-bold text-neutral-900">¿Primera vez importando?</h3>
               <p className="text-sm text-neutral-600 mt-0.5">Descarga nuestra plantilla CSV con las columnas correctas y ejemplos incluidos</p>
             </div>
             <button className="flex items-center gap-2 bg-neutral-900 hover:bg-neutral-700 text-white font-semibold text-sm px-4 py-2.5 rounded-btn transition-colors whitespace-nowrap">
@@ -109,8 +109,8 @@ export default function ImportarCSVClient() {
           </div>
 
           {/* Requirements */}
-          <div className="bg-white rounded-xl border border-neutral-100 shadow-sm p-5">
-            <h3 className="font-bold text-neutral-900 mb-4">Requisitos del archivo</h3>
+          <div className="bg-white card-dash p-5">
+            <h3 className="text-lg font-bold text-neutral-900 mb-4">Requisitos del archivo</h3>
             <div className="grid sm:grid-cols-3 gap-4 mb-5">
               {[
                 { label: 'Formato', value: 'CSV (UTF-8)' },
@@ -178,9 +178,9 @@ export default function ImportarCSVClient() {
           )}
 
           {/* Data table */}
-          <div className="bg-white rounded-xl border border-neutral-100 shadow-sm overflow-hidden">
+          <div className="bg-white card-dash overflow-hidden">
             <div className="p-4 border-b border-neutral-100">
-              <h3 className="font-bold text-neutral-900">Vista previa de datos</h3>
+              <h3 className="text-lg font-bold text-neutral-900">Vista previa de datos</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">

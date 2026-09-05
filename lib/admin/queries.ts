@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentProfile } from '@/lib/profiles/queries';
 
 export const ADMIN_USERS_PAGE_SIZE = 20;
 
@@ -156,18 +157,6 @@ export async function fetchUserCounts(): Promise<UserCounts> {
 }
 
 export async function fetchIsAdmin(): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .single();
-  if (error) {
-    console.error('fetchIsAdmin error:', error.message);
-    return false;
-  }
-  return data?.is_admin === true;
+  const profile = await getCurrentProfile();
+  return profile?.is_admin === true;
 }

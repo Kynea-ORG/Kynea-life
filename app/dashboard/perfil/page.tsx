@@ -1,13 +1,15 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/auth/getUser';
 import { fetchDanceStyles } from '@/lib/catalog/queries';
 import PerfilClient from './PerfilClient';
 
 export default async function PerfilPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect('/login');
+
+  const supabase = await createClient();
 
   const [profileResult, danceStyles, venueResult] = await Promise.all([
     supabase

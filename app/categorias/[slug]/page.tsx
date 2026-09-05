@@ -20,11 +20,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const title = `Clases de ${style.name} — Kynea`;
   const description = `Encuentra clases de ${style.name} cerca de ti: horarios, niveles y profesores verificados en Kynea.`;
   const canonical = `${SITE_URL}/categorias/${slug}`;
+  // Categoría sin ninguna clase publicada: contenido vacío, no vale la pena
+  // indexarlo — Google ya lo estaba marcando como delgado sin que lo supiéramos.
+  const classes = await fetchPublishedClasses({ styles: [style.name] });
+  const isEmpty = classes.length === 0;
 
   return {
     title,
     description,
     alternates: { canonical },
+    ...(isEmpty && { robots: { index: false, follow: true } }),
     openGraph: { title, description, url: canonical, type: 'website' },
   };
 }

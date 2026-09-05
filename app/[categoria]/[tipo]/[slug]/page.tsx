@@ -28,11 +28,16 @@ export async function generateMetadata({
     ? truncateForMeta(cls.shortDescription)
     : `Clase de ${cls.style} en ${cls.city} con ${cls.teacher.name}. Reserva tu lugar en Kynea.`;
   const canonical = `${SITE_URL}${classUrl(cls)}`;
+  // Vencida: se excluye del sitemap y los listados (fetchPublishedClasses),
+  // pero la URL sigue accesible por link directo — sin noindex quedaba
+  const todayLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+  const isExpired = !!cls.endDate && cls.endDate < todayLima;
 
   return {
     title,
     description,
     alternates: { canonical },
+    ...(isExpired && { robots: { index: false, follow: true } }),
     openGraph: {
       title,
       description,

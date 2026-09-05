@@ -3,40 +3,40 @@ import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { PlusCircle, Upload, BookOpen, Clock, Eye, MessageCircle, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/auth/getUser';
+import { getCurrentProfile } from '@/lib/profiles/queries';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { classUrl } from '@/lib/classes/helpers';
 import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 import AcademiaConversionCard from './AcademiaConversionCard';
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('name, role')
-    .eq('id', user.id)
-    .single();
+  const profile = await getCurrentProfile();
 
   if (profile?.role === 'alumno') redirect('/dashboard/alumno');
 
   // Only a profesor can request this — an academia is already one, and an
-  // alumno never reaches this page (redirected above).
-  let conversionStatus: 'pending' | 'approved' | 'rejected' | null = null;
-  if (profile?.role === 'profesor') {
-    const { data: conversionRequest } = await supabase
-      .from('academia_requests')
-      .select('status')
-      .eq('profile_id', user.id)
-      .eq('kind', 'conversion')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    conversionStatus = conversionRequest?.status ?? null;
-  }
-
-  const classes = await fetchTeacherClasses(user.id);
+  // alumno never reaches this page (redirected above). Fetched unconditionally
+  // alongside fetchTeacherClasses (both only need user.id) instead of after
+  // an `if (profesor)` check, so the two independent queries run in parallel.
+  const supabase = await createClient();
+  const [conversionRequestResult, classes] = await Promise.all([
+    profile?.role === 'profesor'
+      ? supabase
+          .from('academia_requests')
+          .select('status')
+          .eq('profile_id', user.id)
+          .eq('kind', 'conversion')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    fetchTeacherClasses(user.id),
+  ]);
+  const conversionStatus: 'pending' | 'approved' | 'rejected' | null = conversionRequestResult.data?.status ?? null;
   const publishedClasses = classes.filter(c => c.status === 'published');
   const draftClasses = classes.filter(c => c.status === 'draft');
   const totalViews = publishedClasses.reduce((acc, c) => acc + c.metrics.views, 0);
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
   // mock por ahora, mostrar un conteo real inexistente sería engañoso. Ver
   // docs/TASKS.md sección 8.8.
   const METRICS = [
-    { label: 'Visualizaciones', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-700',    iconBg: 'bg-blue-pastel/30' },
+    { label: 'Visualizaciones', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
     { label: 'Publicadas',      value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
   ];
 
@@ -56,14 +56,14 @@ export default async function DashboardPage() {
     <div className="p-6 lg:p-8 w-full max-w-6xl">
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-[24px] font-black text-neutral-900 tracking-snug">Hola, {firstName} 👋</h1>
+          <h1 className="text-[28px] sm:text-[32px] font-black text-neutral-900 tracking-snug">Hola, {firstName} 👋</h1>
           <p className="text-neutral-600 text-[15px] mt-1">Aquí tienes el resumen de tu actividad</p>
         </div>
         <div className="hidden sm:flex gap-3">
           <Link href="/dashboard/importar-csv" className="btn-outline btn-sm flex items-center gap-2">
             <Upload className="w-4 h-4" /> Subir clases masivas
           </Link>
-          <Link href="/dashboard/crear-clase" className="btn-dark btn-sm flex items-center gap-2">
+          <Link href="/dashboard/crear-clase" className="btn-primary btn-sm flex items-center gap-2">
             <PlusCircle className="w-4 h-4" /> Crear clase
           </Link>
         </div>
@@ -76,11 +76,11 @@ export default async function DashboardPage() {
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
-            <div key={m.label} className={`${m.bg} rounded-xl p-5 border border-neutral-900`}>
-              <div className={`w-9 h-9 ${m.iconBg} rounded-lg flex items-center justify-center mb-3`}>
-                <Icon className={`w-4 h-4 ${m.text}`} />
+            <div key={m.label} className={`${m.bg} card-dash p-5`}>
+              <div className={`w-10 h-10 ${m.iconBg} rounded-lg flex items-center justify-center mb-3`}>
+                <Icon className={`w-[18px] h-[18px] ${m.text}`} />
               </div>
-              <p className={`text-[24px] font-black ${m.text}`}>{m.value}</p>
+              <p className={`text-[28px] font-black ${m.text}`}>{m.value}</p>
               <p className="text-[13px] font-medium text-neutral-600 mt-0.5">{m.label}</p>
             </div>
           );
@@ -101,7 +101,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Recent published classes */}
-      <div className="bg-white rounded-xl border border-neutral-900 mb-6">
+      <div className="bg-white card-dash mb-6">
         <div className="flex items-center justify-between p-6 border-b border-neutral-100">
           <h2 className="font-bold text-neutral-900 text-[17px]">Clases publicadas</h2>
           <Link href="/dashboard/mis-clases" className="text-[13px] text-neutral-600 font-medium flex items-center gap-1 hover:text-neutral-900">
@@ -151,17 +151,17 @@ export default async function DashboardPage() {
 
       {/* Quick actions */}
       <div className="grid sm:grid-cols-2 gap-4">
-        <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-neutral-900 border border-neutral-900 rounded-xl text-white hover:bg-neutral-800 transition-colors active:scale-[0.98]">
-          <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
-            <PlusCircle className="w-6 h-6" />
+        <Link href="/dashboard/crear-clase" className="flex items-center gap-4 p-5 bg-white card-dash text-neutral-900 hover:shadow-md transition-shadow active:scale-[0.98]">
+          <div className="w-12 h-12 bg-primary-bg rounded-lg flex items-center justify-center">
+            <PlusCircle className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <p className="font-bold text-[15px] text-white">Crear nueva clase</p>
-            <p className="text-[13px] text-neutral-400">Publica en minutos</p>
+            <p className="font-bold text-[15px]">Crear nueva clase</p>
+            <p className="text-[13px] text-neutral-600">Publica en minutos</p>
           </div>
-          <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
+          <ChevronRight className="w-5 h-5 ml-auto text-neutral-300" />
         </Link>
-        <Link href="/dashboard/importar-csv" className="flex items-center gap-4 p-5 bg-white border border-neutral-900 rounded-xl text-neutral-900 hover:bg-neutral-50 transition-colors active:scale-[0.98]">
+        <Link href="/dashboard/importar-csv" className="flex items-center gap-4 p-5 bg-white card-dash text-neutral-900 hover:shadow-md transition-shadow active:scale-[0.98]">
           <div className="w-12 h-12 bg-neutral-50 rounded-lg flex items-center justify-center">
             <Upload className="w-6 h-6 text-neutral-600" />
           </div>
@@ -169,7 +169,7 @@ export default async function DashboardPage() {
             <p className="font-bold text-[15px]">Subir clases masivas</p>
             <p className="text-[13px] text-neutral-600">Desde un archivo CSV</p>
           </div>
-          <ChevronRight className="w-5 h-5 ml-auto text-neutral-400" />
+          <ChevronRight className="w-5 h-5 ml-auto text-neutral-300" />
         </Link>
       </div>
     </div>

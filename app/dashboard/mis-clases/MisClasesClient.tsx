@@ -3,7 +3,7 @@ import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal, Clock, BookOpen } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/classes/actions';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
@@ -180,14 +180,14 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
           <h1 className="text-2xl font-black text-neutral-900">Mis clases</h1>
           <p className="text-neutral-600 text-sm mt-1">{classes.length} clases en total</p>
         </div>
-        <Link href="/dashboard/crear-clase" className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-btn transition-colors">
+        <Link href="/dashboard/crear-clase" className="btn-primary btn-sm flex items-center gap-2">
           <PlusCircle className="w-4 h-4" /> Nueva clase
         </Link>
       </div>
 
       {academiaPending && (
         <div className="bg-amber-bg border border-amber rounded-xl p-4 mb-6 flex items-start gap-3">
-          <span className="text-xl shrink-0">⏳</span>
+          <Clock className="w-5 h-5 text-amber-text shrink-0" />
           <div>
             <p className="text-xs font-bold text-amber-text mb-0.5">Academia en proceso de revisión</p>
             <p className="text-xs text-amber-text leading-relaxed">
@@ -219,7 +219,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
 
       {filtered.length === 0 && (
         <div className="text-center py-20">
-          <div className="text-5xl mb-4">📋</div>
+          <BookOpen className="w-10 h-10 mx-auto mb-4 text-neutral-300" />
           <h3 className="text-lg font-bold text-neutral-900 mb-2">Sin clases en esta categoría</h3>
           <p className="text-neutral-600 text-sm mb-6">Aún no tienes clases aquí.</p>
           <Link href="/dashboard/crear-clase" className="btn-outline text-sm">Crear clase</Link>
@@ -228,7 +228,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
 
       {/* Desktop table (CSS Grid — not a literal <table>, so each row can carry its own border/hover treatment) */}
       {filtered.length > 0 && (
-        <div role="table" aria-label="Mis clases" className="hidden md:block bg-white rounded-xl shadow-sm border border-neutral-900 overflow-hidden">
+        <div role="table" aria-label="Mis clases" className="hidden md:block bg-white card-dash overflow-hidden">
           <div
             role="row"
             className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-600 uppercase tracking-wide"
@@ -305,20 +305,20 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                           </button>
                         ) : (
                           <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                            className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                            className="btn-dark btn-xs">
                             Publicar
                           </button>
                         )
                       )}
                       {cls.status === 'published' && (
                         <button onClick={() => hideClass(cls.id)} disabled={isPending}
-                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 text-neutral-700 font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-50">
+                          className="btn-outline btn-xs">
                           Ocultar
                         </button>
                       )}
                       {cls.status === 'archived' && (
                         <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                          className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                          className="btn-dark btn-xs">
                           Activar
                         </button>
                       )}
@@ -352,7 +352,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {filtered.map(cls => (
-          <div key={cls.id} className={`bg-white rounded-xl border border-neutral-900 p-4 shadow-sm ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}>
+          <div key={cls.id} className={`bg-white card-dash p-4 ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}>
             <div className="flex items-start gap-3">
               {cls.coverImage ? (
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
@@ -398,20 +398,20 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                       </button>
                     ) : (
                       <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                        className="text-xs font-bold text-white flex items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                        className="btn-dark btn-xs">
                         <Eye className="w-3 h-3" /> Publicar
                       </button>
                     )
                   )}
                   {cls.status === 'published' && (
                     <button onClick={() => { hideClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-semibold text-neutral-700 flex items-center gap-1 border border-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-50 transition-colors disabled:opacity-50">
+                      className="btn-outline btn-xs">
                       <EyeOff className="w-3 h-3" /> Ocultar
                     </button>
                   )}
                   {cls.status === 'archived' && (
                     <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="text-xs font-bold text-white flex items-center gap-1 border border-neutral-900 bg-neutral-900 px-3 py-1.5 rounded-btn hover:bg-neutral-800 transition-colors disabled:opacity-50">
+                      className="btn-dark btn-xs">
                       <Eye className="w-3 h-3" /> Activar
                     </button>
                   )}
