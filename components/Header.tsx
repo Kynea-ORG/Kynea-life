@@ -191,6 +191,7 @@ export default function Header({
   // items y orden que NAV_BY_ROLE en app/dashboard/DashboardSidebar.tsx
   // (se omite "Subir clases masivas" acá, ya vive dentro de "Mi panel").
   const isAlumno = profile?.role === 'alumno';
+  const isProfesor = profile?.role === 'profesor';
 
   const roleLinks: DrawerLink[] = !isLoggedIn ? [] : isAlumno ? [
     { href: '/dashboard/alumno', label: 'Mis clases', Icon: BookOpen },
@@ -199,20 +200,9 @@ export default function Header({
   ] : [
     { href: '/dashboard', label: 'Mi panel', Icon: LayoutDashboard },
     { href: '/dashboard/mis-clases', label: 'Mis clases', Icon: BookOpen },
-    { href: '/dashboard/crear-clase', label: 'Crear clase', Icon: PlusCircle },
     { href: '/dashboard/perfil', label: 'Perfil', Icon: User },
     { href: '/dashboard/configuracion', label: 'Configuración', Icon: Settings },
   ];
-
-  // Upsell tras los accesos de rol: el visitante anónimo ve el upsell
-  // genérico de academia/profesor; un alumno ve su propio camino real de
-  // conversión a profesor (ver BecomeTeacherModal.tsx) más el link público
-  // de academia; un profesor ve el flujo real de conversión a academia;
-  // una academia no ve nada más, ya es el estado final.
-  const trailingLinks: DrawerLink[] =
-    !isLoggedIn ? CONVERSION_LINKS
-    : profile?.role === 'profesor' ? [{ href: '/convertir-academia', label: 'Convierte tu cuenta en academia', Icon: Building2 }]
-    : [];
 
   const navLinksBlock = (
     <div className="px-3 py-2">
@@ -220,12 +210,15 @@ export default function Header({
       {roleLinks.map(item => (
         <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
       ))}
-      {(trailingLinks.length > 0 || isAlumno) && (
+      {!isLoggedIn ? (
+        CONVERSION_LINKS.map(item => (
+          <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
+        ))
+      ) : (
         <>
-          {roleLinks.length > 0 && <div className="h-px bg-neutral-100 my-2 mx-3" />}
           {isAlumno && (
             <>
-              <MenuLink href="/academias" label="¿Tienes una academia?" Icon={Building2} ctaLocation="header_mobile_academia" onClick={() => setMobileOpen(false)} />
+              <div className="h-px bg-neutral-100 my-2 mx-3" />
               <button
                 type="button"
                 onClick={() => { setMobileOpen(false); setBecomeTeacherOpen(true); }}
@@ -235,9 +228,17 @@ export default function Header({
               </button>
             </>
           )}
-          {trailingLinks.map(item => (
-            <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
-          ))}
+          {isProfesor && (
+            <>
+              <div className="h-px bg-neutral-100 my-2 mx-3" />
+              <MenuLink
+                href="/convertir-academia"
+                label="Convierte tu cuenta en academia"
+                Icon={Building2}
+                onClick={() => setMobileOpen(false)}
+              />
+            </>
+          )}
         </>
       )}
     </div>
@@ -422,6 +423,19 @@ export default function Header({
                       </>
                     )}
 
+                    {profile.role === 'profesor' && (
+                      <>
+                        <div className="border-t border-neutral-100 my-1" />
+                        <Link
+                          href="/convertir-academia"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-700 hover:bg-primary-bg/40 hover:text-primary active:bg-primary-bg transition-colors cursor-pointer"
+                        >
+                          <Building2 className="w-4 h-4 shrink-0 text-primary" /> Convierte tu cuenta en academia
+                        </Link>
+                      </>
+                    )}
+
                     <div className="border-t border-neutral-100 my-1">
                       <button onClick={logout}
                         className="font-sans w-full flex items-center gap-3 px-4 py-2.5 text-[14px] text-neutral-600 hover:text-red hover:bg-red-bg active:bg-red-bg transition-colors cursor-pointer">
@@ -463,7 +477,23 @@ export default function Header({
 
         {/* Mobile: avatar + hamburger */}
         <div className="md:hidden flex items-center gap-2">
-          {!authLoading && isLoggedIn && <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-8 h-8" className="border-2 border-neutral-200" />}
+          {!authLoading && isLoggedIn && (
+            <button
+              type="button"
+              onClick={() => setMobileOpen(v => !v)}
+              aria-label="Abrir menú de usuario"
+              className="cursor-pointer active:scale-95 transition-transform"
+            >
+              <Avatar
+                photoUrl={profile?.photo_url}
+                photoPosition={profile?.photo_position}
+                photoZoom={profile?.photo_zoom}
+                name={profile?.name}
+                sizeClass="w-8 h-8"
+                className="border-2 border-neutral-200"
+              />
+            </button>
+          )}
           {showHomeAnon && (
             <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_mobile_registro' })}
               className="font-sans text-[13px] font-bold text-primary border border-neutral-200 rounded-full px-3.5 py-2">
