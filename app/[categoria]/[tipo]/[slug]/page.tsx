@@ -30,8 +30,8 @@ export async function generateMetadata({
   const canonical = `${SITE_URL}${classUrl(cls)}`;
   // Vencida: se excluye del sitemap y los listados (fetchPublishedClasses),
   // pero la URL sigue accesible por link directo — sin noindex quedaba
-  // huérfana e indexada, inflando el sitio con contenido obsoleto ante Google.
-  const isExpired = !!cls.endDate && cls.endDate < new Date().toISOString().slice(0, 10);
+  const todayLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+  const isExpired = !!cls.endDate && cls.endDate < todayLima;
 
   return {
     title,

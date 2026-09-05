@@ -10,6 +10,7 @@ import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
 import { NATIONALITIES } from '@/lib/nationalities';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
+import { compressImage } from '@/lib/images/compressImage';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { trackSignUp, trackOnboardingStepComplete, trackOnboardingComplete } from '@/lib/analytics';
 import { safeRedirectPath, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
@@ -114,7 +115,7 @@ function OnboardingContent() {
       if (!user) { setInitializing(false); return; }
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, name, bio, whatsapp, years_experience')
+        .select('role, name, bio, whatsapp, years_experience, nationality, photo_url, photo_position, photo_zoom')
         .eq('id', user.id)
         .single();
       if (profile?.role) {
@@ -152,15 +153,39 @@ function OnboardingContent() {
           return;
         }
         // Always check: if the profile is already filled, onboarding is done
-        if (profile.bio || profile.whatsapp || profile.years_experience) {
+        // (excluye modo upgrade: un alumno que llenó bio/whatsapp previamente no debe ser expulsado)
+        if (!isAlumnoUpgrade && (profile.bio || profile.whatsapp || profile.years_experience)) {
           // Backfill the metadata flag for users who completed onboarding before
           // this enforcement was added (self-healing one-time redirect)
           await supabase.auth.updateUser({ data: { onboarding_done: true } });
           router.replace('/dashboard');
           return;
         }
-        // Pre-fill name from existing profile (set by trigger from Google or email signup)
-        if (profile.name) setForm(f => ({ ...f, publicName: profile.name }));
+        // Pre-fill fields from existing profile (especially valuable in alumno->profesor upgrade)
+        setForm(f => ({
+          ...f,
+          ...(profile.name && { publicName: profile.name }),
+          ...(profile.nationality && { nationality: profile.nationality }),
+          ...(profile.bio && { bio: profile.bio }),
+        }));
+        if (profile.whatsapp) {
+          const codes = ['+593', '+51', '+1', '+34', '+57', '+56', '+54', '+52', '+58'];
+          let matched = false;
+          for (const c of codes) {
+            if (profile.whatsapp.startsWith(c)) {
+              setWaCode(c);
+              setWaNumber(profile.whatsapp.slice(c.length));
+              matched = true;
+              break;
+            }
+          }
+          if (!matched) setWaNumber(profile.whatsapp.replace(/\D/g, ''));
+        }
+        if (profile.photo_url) {
+          setPhotoUrl(profile.photo_url);
+          if (profile.photo_position) setPhotoPosition(profile.photo_position);
+          if (profile.photo_zoom) setPhotoZoom(profile.photo_zoom);
+        }
         // Pre-fill representante from user metadata if previously set (email signup)
         const rep = user.user_metadata?.representante as string | undefined;
         if (rep) setForm(f => ({ ...f, representante: rep }));
@@ -189,8 +214,9 @@ function OnboardingContent() {
     }
     setUploadingPhoto(true);
     try {
+      const fileToUpload = await compressImage(file);
       const formData = new FormData();
-      formData.set('file', file);
+      formData.set('file', fileToUpload);
       const { url } = await uploadProfileImage(formData, 'photo');
       setPhotoUrl(url);
       setPhotoPosition('50% 50%');
@@ -207,8 +233,9 @@ function OnboardingContent() {
     setError('');
     setUploadingCover(true);
     try {
+      const fileToUpload = await compressImage(file);
       const formData = new FormData();
-      formData.set('file', file);
+      formData.set('file', fileToUpload);
       const { url } = await uploadProfileImage(formData, 'cover');
       setCoverUrl(url);
       setCoverPosition('50% 50%');

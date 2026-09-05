@@ -34,7 +34,11 @@ export async function uploadProfileImage(formData: FormData, suffix: 'photo' | '
   const ext = EXT_BY_MIME[file.type as AllowedImageMime];
   const path = `${user.id}/${Date.now()}-${suffix}.${ext}`;
 
-  const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file);
+  const { error: uploadErr } = await supabase.storage.from('class-images').upload(path, file, {
+    cacheControl: '31536000',
+    contentType: file.type,
+    upsert: false,
+  });
   if (uploadErr) throw new Error(uploadErr.message);
 
   const { data: { publicUrl } } = supabase.storage.from('class-images').getPublicUrl(path);

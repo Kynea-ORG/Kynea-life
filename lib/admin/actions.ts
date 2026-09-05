@@ -1,5 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
+import { safeRevalidateTag } from '@/lib/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchIsAdmin } from '@/lib/admin/queries';
@@ -82,4 +83,9 @@ export async function approveAcademiaRequest(requestId: string, approve: boolean
   // 'layout' type: the pending-count badge lives in the persistent
   // app/dashboard/admin/layout.tsx, not just this page.
   revalidatePath('/dashboard/admin', 'layout');
+  revalidatePath('/profesores');
+  revalidatePath('/clases');
+  revalidatePath('/');
+  safeRevalidateTag('profiles', 'max');
+  safeRevalidateTag('stats', 'max');
 }

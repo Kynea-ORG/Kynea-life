@@ -12,6 +12,7 @@ import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, format
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackAuthCtaClick, trackViewItem, trackSaveClass, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
+import LinkifiedText from '@/components/LinkifiedText';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const router = useRouter();
@@ -147,18 +148,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   );
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-clip">
       <Header />
 
-      <div className="max-w-[1200px] mx-auto px-6 py-8">
+      <div className="max-w-[1200px] mx-auto px-6 py-8 w-full min-w-0">
         <Link href="/clases" className="inline-flex items-center gap-1.5 text-[13px] text-neutral-600 hover:text-neutral-900 mb-6 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Volver a clases
         </Link>
 
         <div className="grid lg:grid-cols-[1fr_360px] gap-10">
           {/* LEFT COLUMN */}
-          <div>
-            <div className="relative rounded-xl overflow-hidden mb-6 h-80 lg:h-[420px]">
+          <div className="min-w-0">
+            <div className="relative rounded-xl overflow-hidden mb-6 h-80 lg:h-[420px] w-full max-w-full isolate">
               {images[activeImg] && (
                 <SmartImage
                   src={images[activeImg]}
@@ -195,14 +196,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               )}
             </div>
 
-            <div className="mb-6">
-              <h1 className="text-[30px] font-black text-neutral-900 tracking-snug leading-tight mb-2">{cls.title}</h1>
+            <div className="mb-6 min-w-0">
+              <h1 className="text-[30px] font-black text-neutral-900 tracking-snug leading-tight mb-2 break-words">{cls.title}</h1>
               <div className="flex flex-wrap items-center gap-3 text-[15px] text-neutral-600">
                 <span className="font-semibold text-primary bg-primary-bg border border-primary-bg px-2.5 py-0.5 rounded-full text-[13px]">
                   Nivel {cls.level}
                 </span>
                 <span>·</span>
-                <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="hover:text-neutral-900 font-medium transition-colors hover:underline">
+                <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="hover:text-neutral-900 font-medium transition-colors hover:underline break-words">
                   {cls.teacher.name}
                 </Link>
                 {cls.teacher.rating && (
@@ -217,8 +218,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               </div>
             </div>
 
-            <div className="mb-8">
-              <p className="text-[15px] text-neutral-600 leading-relaxed whitespace-pre-line">{cls.fullDescription}</p>
+            <div className="mb-8 min-w-0">
+              <p className="text-[15px] text-neutral-600 leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere]"><LinkifiedText text={cls.fullDescription} /></p>
             </div>
 
             {cls.whatYouLearn && cls.whatYouLearn.length > 0 && (
@@ -231,9 +232,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {cls.whatYouLearn.map(item => (
-                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3 min-w-0">
                       <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree">{item}</span>
+                      <span className="text-[13px] text-neutral-700 font-figtree break-words [overflow-wrap:anywhere]">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -243,26 +244,26 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             {(cls.forWhom || (cls.requirements && cls.requirements.length > 0)) && (
               <div className="mb-8 grid sm:grid-cols-2 gap-3">
                 {cls.forWhom && (
-                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
                         <UserCheck className="w-3.5 h-3.5 text-primary" />
                       </div>
                       <h2 className="font-bold text-neutral-900 text-[15px]">¿Para quién es?</h2>
                     </div>
-                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree">{cls.forWhom}</p>
+                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree break-words [overflow-wrap:anywhere]">{cls.forWhom}</p>
                   </div>
                 )}
 
                 {cls.requirements && cls.requirements.length > 0 && (
-                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
                         <ClipboardCheck className="w-3.5 h-3.5 text-primary" />
                       </div>
                       <h2 className="font-bold text-neutral-900 text-[15px]">Requisitos</h2>
                     </div>
-                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree">{cls.requirements.join(', ')}</p>
+                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree break-words [overflow-wrap:anywhere]">{cls.requirements.join(', ')}</p>
                   </div>
                 )}
               </div>
@@ -278,21 +279,21 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {cls.footwear && cls.footwear.length > 0 && (
-                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3 min-w-0">
                       <Footprints className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree"><strong className="font-sans text-neutral-900">Calzado:</strong> {cls.footwear.join(', ')}</span>
+                      <span className="text-[13px] text-neutral-700 font-figtree break-words [overflow-wrap:anywhere]"><strong className="font-sans text-neutral-900">Calzado:</strong> {cls.footwear.join(', ')}</span>
                     </div>
                   )}
                   {cls.clothing && (
-                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3 min-w-0">
                       <Shirt className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree"><strong className="font-sans text-neutral-900">Ropa:</strong> {cls.clothing}</span>
+                      <span className="text-[13px] text-neutral-700 font-figtree break-words [overflow-wrap:anywhere]"><strong className="font-sans text-neutral-900">Ropa:</strong> {cls.clothing}</span>
                     </div>
                   )}
                   {cls.toBring?.map(item => (
-                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3">
+                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3 min-w-0">
                       <Package className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree">{item}</span>
+                      <span className="text-[13px] text-neutral-700 font-figtree break-words [overflow-wrap:anywhere]">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -313,25 +314,25 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
             <div className="hidden lg:block border border-neutral-200 rounded-xl p-6">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
-              <div className="flex items-start gap-4">
+              <div className="flex items-center gap-3.5 mb-4">
                 <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="shrink-0">
                   {cls.teacher.photo ? (
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+                    <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
+                      <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
+                    <div className="w-14 h-14 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
                       {cls.teacher.name.charAt(0)}
                     </div>
                   )}
                 </Link>
-                <div className="flex-1">
-                  <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
+                <div className="flex-1 min-w-0">
+                  <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
                     {cls.teacher.name}
                   </Link>
                   <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
                   {cls.teacher.rating && (
-                    <div className="flex items-center gap-1 mt-1.5">
+                    <div className="flex items-center gap-1 mt-1">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
                       <span className="text-[13px] font-semibold text-neutral-900">{cls.teacher.rating}</span>
                       {cls.teacher.totalClasses && (
@@ -339,43 +340,49 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       )}
                     </div>
                   )}
-                  <p className="text-[13px] text-neutral-600 mt-2 leading-relaxed">{cls.teacher.bio}</p>
-                  <div className="flex flex-wrap gap-3 mt-3">
-                    {cls.teacher.instagram && (
-                      <a
-                        href={buildInstagramUrl(cls.teacher.instagram)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => socialClick('instagram')}
-                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
-                      >
-                        <InstagramIcon className="w-3.5 h-3.5" /> {cls.teacher.instagram}
-                      </a>
-                    )}
-                    {cls.teacher.tiktok && (
-                      <a
-                        href={buildTikTokUrl(cls.teacher.tiktok)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => socialClick('tiktok')}
-                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
-                      >
-                        <TikTokIcon className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
-                      </a>
-                    )}
-                    {cls.teacher.website && (
-                      <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
-                        <Globe className="w-3.5 h-3.5" /> Sitio web
-                      </a>
-                    )}
-                  </div>
                 </div>
+              </div>
+
+              {cls.teacher.bio && (
+                <p className="text-[13px] text-neutral-600 leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere] mb-4">
+                  <LinkifiedText text={cls.teacher.bio} />
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                {cls.teacher.instagram && (
+                  <a
+                    href={buildInstagramUrl(cls.teacher.instagram)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => socialClick('instagram')}
+                    className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
+                  >
+                    <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{cls.teacher.instagram}</span>
+                  </a>
+                )}
+                {cls.teacher.tiktok && (
+                  <a
+                    href={buildTikTokUrl(cls.teacher.tiktok)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => socialClick('tiktok')}
+                    className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
+                  >
+                    <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{cls.teacher.tiktok}</span>
+                  </a>
+                )}
+                {cls.teacher.website && (
+                  <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium max-w-full">
+                    <Globe className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Sitio web</span>
+                  </a>
+                )}
               </div>
             </div>
           </div>
 
           {/* RIGHT COLUMN */}
-          <div>
+          <div className="min-w-0">
             <div className="lg:sticky lg:top-24">
               <div className="border-2 border-neutral-200 rounded-lg p-6 shadow-sm">
                 <div className="flex items-baseline justify-between mb-5">
@@ -394,24 +401,24 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <Clock className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
                     <span>{formatTimeSlots(cls.timeSlots)}</span>
                   </div>
-                  <div className="flex items-start gap-2.5 text-[13px] text-neutral-600">
+                  <div className="flex items-start gap-2.5 text-[13px] text-neutral-600 min-w-0">
                     <MapPin className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
-                    <div>
-                      {cls.venueName && <p className="font-semibold text-neutral-900">{cls.venueName}</p>}
-                      <p>{cls.district}, {cls.city}</p>
+                    <div className="min-w-0 flex-1">
+                      {cls.venueName && <p className="font-semibold text-neutral-900 break-words">{cls.venueName}</p>}
+                      <p className="break-words">{cls.district}, {cls.city}</p>
                       {/* Older venues had their name defaulted to their own address
                           (no "nombre del local" field existed yet) — skip the address
                           line when it would just repeat the name above it. */}
                       {cls.address && cls.address !== cls.venueName && (
                         mapsHref ? (
-                          <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="text-neutral-400 mt-0.5 hover:text-neutral-900 hover:underline block">
+                          <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="text-neutral-400 mt-0.5 hover:text-neutral-900 hover:underline block break-words [overflow-wrap:anywhere]">
                             {cls.address}
                           </a>
                         ) : (
-                          <p className="text-neutral-400 mt-0.5">{cls.address}</p>
+                          <p className="text-neutral-400 mt-0.5 break-words [overflow-wrap:anywhere]">{cls.address}</p>
                         )
                       )}
-                      {cls.reference && <p className="text-neutral-400">{cls.reference}</p>}
+                      {cls.reference && <p className="text-neutral-400 break-words [overflow-wrap:anywhere]">{cls.reference}</p>}
                     </div>
                   </div>
                   {cls.startDate && (
@@ -507,27 +514,27 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               </div>
             )}
 
-            <div className="lg:hidden border border-neutral-200 rounded-xl p-6 mt-6">
+            <div className="lg:hidden border border-neutral-200 rounded-xl p-6 mt-6 min-w-0">
               <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
-              <div className="flex items-start gap-4">
+              <div className="flex items-center gap-3.5 mb-4">
                 <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="shrink-0">
                   {cls.teacher.photo ? (
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="64px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+                    <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
+                      <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                     </div>
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
+                    <div className="w-14 h-14 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
                       {cls.teacher.name.charAt(0)}
                     </div>
                   )}
                 </Link>
-                <div className="flex-1">
-                  <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px]">
+                <div className="flex-1 min-w-0">
+                  <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
                     {cls.teacher.name}
                   </Link>
                   <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
                   {cls.teacher.rating && (
-                    <div className="flex items-center gap-1 mt-1.5">
+                    <div className="flex items-center gap-1 mt-1">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
                       <span className="text-[13px] font-semibold text-neutral-900">{cls.teacher.rating}</span>
                       {cls.teacher.totalClasses && (
@@ -535,37 +542,43 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       )}
                     </div>
                   )}
-                  <p className="text-[13px] text-neutral-600 mt-2 leading-relaxed">{cls.teacher.bio}</p>
-                  <div className="flex flex-wrap gap-3 mt-3">
-                    {cls.teacher.instagram && (
-                      <a
-                        href={buildInstagramUrl(cls.teacher.instagram)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => socialClick('instagram')}
-                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
-                      >
-                        <InstagramIcon className="w-3.5 h-3.5" /> {cls.teacher.instagram}
-                      </a>
-                    )}
-                    {cls.teacher.tiktok && (
-                      <a
-                        href={buildTikTokUrl(cls.teacher.tiktok)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => socialClick('tiktok')}
-                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors"
-                      >
-                        <TikTokIcon className="w-3.5 h-3.5" /> {cls.teacher.tiktok}
-                      </a>
-                    )}
-                    {cls.teacher.website && (
-                      <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium">
-                        <Globe className="w-3.5 h-3.5" /> Sitio web
-                      </a>
-                    )}
-                  </div>
                 </div>
+              </div>
+
+              {cls.teacher.bio && (
+                <p className="text-[13px] text-neutral-600 leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere] mb-4">
+                  <LinkifiedText text={cls.teacher.bio} />
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                {cls.teacher.instagram && (
+                  <a
+                    href={buildInstagramUrl(cls.teacher.instagram)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => socialClick('instagram')}
+                    className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
+                  >
+                    <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{cls.teacher.instagram}</span>
+                  </a>
+                )}
+                {cls.teacher.tiktok && (
+                  <a
+                    href={buildTikTokUrl(cls.teacher.tiktok)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => socialClick('tiktok')}
+                    className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
+                  >
+                    <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{cls.teacher.tiktok}</span>
+                  </a>
+                )}
+                {cls.teacher.website && (
+                  <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium max-w-full">
+                    <Globe className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Sitio web</span>
+                  </a>
+                )}
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { safeRevalidateTag } from '@/lib/cache';
 import { createClient } from '@/lib/supabase/server';
 import { assertRole } from '@/lib/auth/assertRole';
 import { lookupLevelId, lookupStyleId } from '@/lib/catalog/lookups';
@@ -108,6 +109,10 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath('/clases');
+  revalidatePath('/');
+  safeRevalidateTag('classes', 'max');
+  safeRevalidateTag('stats', 'max');
+  safeRevalidateTag('catalog', 'max');
   redirect(cols.status === 'published' ? '/dashboard/mis-clases?published=1' : '/dashboard/mis-clases');
 }
 
@@ -168,6 +173,10 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);
   revalidatePath('/clases');
+  revalidatePath('/');
+  safeRevalidateTag('classes', 'max');
+  safeRevalidateTag('stats', 'max');
+  safeRevalidateTag('catalog', 'max');
   return { ok: true, classId };
 }
 
@@ -187,6 +196,10 @@ export async function deleteClass(classId: string) {
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath('/clases');
+  revalidatePath('/');
+  safeRevalidateTag('classes', 'max');
+  safeRevalidateTag('stats', 'max');
+  safeRevalidateTag('catalog', 'max');
 }
 
 export async function duplicateClass(classId: string) {
@@ -368,5 +381,9 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);
   revalidatePath('/clases');
+  revalidatePath('/');
+  safeRevalidateTag('classes', 'max');
+  safeRevalidateTag('stats', 'max');
+  safeRevalidateTag('catalog', 'max');
   redirect(cols.status === 'published' ? '/dashboard/mis-clases?published=1' : '/dashboard/mis-clases');
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { fetchHomeStats } from '@/lib/stats/queries';
 import { SITE_URL } from '@/lib/constants';
 import UneteClient from './UneteClient';
@@ -16,5 +17,9 @@ export const metadata: Metadata = {
 
 export default async function UnetePage() {
   const stats = await fetchHomeStats();
-  return <UneteClient teacherCount={stats.teachers} />;
+  return (
+    <Suspense>
+      <UneteClient teacherCount={stats.teachers} />
+    </Suspense>
+  );
 }
