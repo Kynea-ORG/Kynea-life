@@ -84,7 +84,7 @@ export default async function DashboardPage() {
         {METRICS.map(m => {
           const Icon = m.icon;
           return (
-            <div key={m.label} className={`${m.bg} card-dash p-5`}>
+            <div key={m.label} className={`${m.bg} card-dash p-5 last:col-span-2 sm:last:col-span-1`}>
               <div className={`w-10 h-10 ${m.iconBg} rounded-lg flex items-center justify-center mb-3`}>
                 <Icon className={`w-[18px] h-[18px] ${m.text}`} />
               </div>

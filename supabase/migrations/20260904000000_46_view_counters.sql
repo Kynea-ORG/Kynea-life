@@ -5,11 +5,13 @@
 -- dashboard siempre mostraba 0. Se agrega el RPC que faltaba, mismo patrón
 -- exacto que increment_class_contacts (migración 08).
 CREATE OR REPLACE FUNCTION public.increment_class_views(target_class_id uuid)
-RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
   UPDATE public.classes
   SET views_count = views_count + 1
   WHERE id = target_class_id AND status = 'published';
 $$;
+
+GRANT EXECUTE ON FUNCTION public.increment_class_views(uuid) TO anon, authenticated;
 
 -- Vistas de perfil (profesor/academia) — profiles no tenía ninguna columna
 -- de vistas. Nueva, junto con su propio RPC, mismo patrón que arriba. Solo
@@ -18,8 +20,10 @@ $$;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS views_count integer NOT NULL DEFAULT 0;
 
 CREATE OR REPLACE FUNCTION public.increment_profile_views(target_profile_id uuid)
-RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
   UPDATE public.profiles
   SET views_count = views_count + 1
   WHERE id = target_profile_id AND role IN ('profesor', 'academia');
 $$;
+
+GRANT EXECUTE ON FUNCTION public.increment_profile_views(uuid) TO anon, authenticated;

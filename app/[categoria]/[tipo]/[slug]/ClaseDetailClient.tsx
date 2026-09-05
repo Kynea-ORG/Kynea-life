@@ -52,7 +52,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     // Contador propio (dashboard), separado del evento GA4 de arriba — ver
     // increment_class_views (migración 46). .then() para forzar el fetch,
     // ver el comentario junto a increment_class_contacts más abajo.
-    createClient().rpc('increment_class_views', { target_class_id: cls.id }).then(() => {});
+    createClient().rpc('increment_class_views', { target_class_id: cls.id }).then(() => {}, () => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cls.id]);
 
@@ -102,7 +102,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       // de abajo (podría hacer que el navegador bloquee el popup), pero sin
       // .then()/await el builder de supabase-js es un thenable perezoso —
       // nunca dispara el fetch si se llama como sentencia suelta.
-      supabase.rpc('increment_class_contacts', { target_class_id: cls.id }).then(() => {});
+      supabase.rpc('increment_class_contacts', { target_class_id: cls.id }).then(() => {}, () => {});
       const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
       trackGenerateLead({
@@ -127,7 +127,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       // de abajo (podría hacer que el navegador bloquee el popup), pero sin
       // .then()/await el builder de supabase-js es un thenable perezoso —
       // nunca dispara el fetch si se llama como sentencia suelta.
-      supabase.rpc('increment_class_contacts', { target_class_id: cls.id }).then(() => {});
+      supabase.rpc('increment_class_contacts', { target_class_id: cls.id }).then(() => {}, () => {});
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
       trackGenerateLead({
@@ -651,7 +651,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       </div>
 
       {/* Extra padding so content isn't hidden behind mobile CTA */}
-      <div className="lg:hidden h-20" />
+      <div className="lg:hidden h-20 bg-neutral-900" />
 
       {showContact && (
         <ContactModal

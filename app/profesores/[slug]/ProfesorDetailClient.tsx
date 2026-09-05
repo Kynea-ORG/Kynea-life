@@ -29,7 +29,7 @@ export default function ProfesorDetailClient({
     // el builder de supabase-js es un thenable perezoso que nunca dispara
     // el fetch si se llama como sentencia suelta (mismo bug que tenía
     // increment_class_contacts desde antes, sin que nadie lo notara).
-    createClient().rpc('increment_profile_views', { target_profile_id: teacher.id }).then(() => {});
+    createClient().rpc('increment_profile_views', { target_profile_id: teacher.id }).then(() => {}, () => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacher.id]);
 

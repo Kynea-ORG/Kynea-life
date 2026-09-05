@@ -6,7 +6,7 @@
 -- que depender de que cada lugar que inserte/borre ahí se acuerde de
 -- llamar un RPC aparte.
 CREATE OR REPLACE FUNCTION public.sync_class_saved_count()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     UPDATE public.classes SET saved_count = saved_count + 1 WHERE id = NEW.class_id;
@@ -19,6 +19,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS sync_class_saved_count_on_change ON public.saved_classes;
 CREATE TRIGGER sync_class_saved_count_on_change
 AFTER INSERT OR DELETE ON public.saved_classes
 FOR EACH ROW EXECUTE FUNCTION public.sync_class_saved_count();
