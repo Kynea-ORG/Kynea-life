@@ -3,6 +3,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, X, Loader2, ArrowUp, ArrowLeft, List, Map as MapIcon } from 'lucide-react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import FilterPanel from '@/components/FilterPanel';
 import type { DanceClass, Teacher } from '@/lib/types';
@@ -301,6 +302,11 @@ export default function ClassBrowser({
           )}
         </main>
       </div>
+
+      {/* Solo en vista Lista — el app-shell de vista Mapa es un flex-col de
+          altura fija (h-dvh overflow-hidden en mobile) donde un footer sin
+          restricción competiría por esa altura y aplastaría el mapa. */}
+      {!isMapView && <Footer />}
 
       {/* Botón flotante "Mapa" — la contraparte mobile del switch de arriba
           (oculto en mobile) y del "Ver lista"/"Ver mapa" que ya tiene
