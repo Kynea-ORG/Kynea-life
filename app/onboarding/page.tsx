@@ -8,7 +8,9 @@ import { updateProfile, upgradeToProfesor } from '@/lib/profiles/actions';
 import { uploadProfileImage } from '@/lib/profiles/imageActions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { validateStep } from '@/lib/onboarding/validation';
-import { NATIONALITIES } from '@/lib/nationalities';
+import CountrySelect from '@/components/CountrySelect';
+import PhoneCountrySelect from '@/components/PhoneCountrySelect';
+import { parsePhonePrefix, getPhonePlaceholder, getPhoneExample } from '@/lib/countries';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
@@ -17,6 +19,7 @@ import { safeRedirectPath, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import SmartImage from '@/components/SmartImage';
 import PlacesAddressField from '@/components/PlacesAddressField';
 import AlumnoWelcome from './AlumnoWelcome';
+import ProfesorUpgradeModal, { TOTAL_PREPARING_MIN_TIME_MS } from './ProfesorUpgradeModal';
 
 const STEPS_PROFESOR = [
   'Datos públicos',
@@ -49,6 +52,7 @@ function OnboardingContent() {
   // mano, handleFinish no intenta voltear un rol que no corresponde y
   // simplemente termina su onboarding normal, tal cual.
   const [pendingRoleFlip, setPendingRoleFlip] = useState(false);
+  const [upgradeModalStage, setUpgradeModalStage] = useState<'idle' | 'preparing' | 'success'>('idle');
   const [step, setStep] = useState(0);
   const [role, setRole] = useState('');
   const STEPS = role === 'academia' ? STEPS_ACADEMIA : STEPS_PROFESOR;
@@ -169,17 +173,9 @@ function OnboardingContent() {
           ...(profile.bio && { bio: profile.bio }),
         }));
         if (profile.whatsapp) {
-          const codes = ['+593', '+51', '+1', '+34', '+57', '+56', '+54', '+52', '+58'];
-          let matched = false;
-          for (const c of codes) {
-            if (profile.whatsapp.startsWith(c)) {
-              setWaCode(c);
-              setWaNumber(profile.whatsapp.slice(c.length));
-              matched = true;
-              break;
-            }
-          }
-          if (!matched) setWaNumber(profile.whatsapp.replace(/\D/g, ''));
+          const { code, number } = parsePhonePrefix(profile.whatsapp);
+          setWaCode(code);
+          setWaNumber(number);
         }
         if (profile.photo_url) {
           setPhotoUrl(profile.photo_url);
@@ -279,79 +275,99 @@ function OnboardingContent() {
       setError('Debes aceptar las reglas de publicación para continuar.');
       return;
     }
-    setLoading(true);
+    if (pendingRoleFlip) {
+      setUpgradeModalStage('preparing');
+    } else {
+      setLoading(true);
+    }
     setError('');
     shift();
     try {
       const supabase = createClient();
-      // Voltea el rol antes que nada — si esto falla (p.ej. ya no es
-      // alumno, la cuenta cambió en otra pestaña), el catch de abajo corta
-      // acá y no llega a tocar el resto del perfil.
-      if (pendingRoleFlip) {
-        await upgradeToProfesor();
-      }
-      // Persist representante in user metadata for academia accounts (no DB column needed)
-      if (role === 'academia' && form.representante) {
-        await supabase.auth.updateUser({ data: { representante: form.representante } });
-      }
-      // Mark onboarding as done so proxy.ts allows full navigation
-      await supabase.auth.updateUser({ data: { onboarding_done: true } });
-      const yearsMap: Record<string, number> = { '1-2': 1, '3-5': 3, '5-10': 5, '10+': 10 };
-      const expKey = form.experience ? form.experience.split(' ')[0] : '';
-      await updateProfile({
-        name:             form.publicName || undefined,
-        bio:              form.bio || undefined,
-        nationality:      form.nationality || undefined,
-        ruc:              role === 'academia' && form.ruc ? form.ruc : undefined,
-        whatsapp:         waNumber ? `${waCode}${waNumber}` : undefined,
-        instagram:        form.instagram || undefined,
-        tiktok:           form.tiktok || undefined,
-        youtube:          form.youtube || undefined,
-        website:          form.website || undefined,
-        style_names:      form.styles.length ? form.styles : undefined,
-        years_experience: expKey ? yearsMap[expKey] : undefined,
-        photo_url:        photoUrl || undefined,
-        photo_position:   photoUrl ? photoPosition : undefined,
-        photo_zoom:       photoUrl ? photoZoom : undefined,
-        team_size:            role === 'academia' && form.teamSize ? form.teamSize : undefined,
-        branch_count:         role === 'academia' && form.branchCount ? form.branchCount : undefined,
-        cover_image_url:      role === 'academia' && coverUrl ? coverUrl : undefined,
-        cover_image_position: role === 'academia' && coverUrl ? coverPosition : undefined,
-        cover_image_zoom:     role === 'academia' && coverUrl ? coverZoom : undefined,
-        primary_venue: role === 'academia' && form.address.trim() ? {
-          address: form.address.trim(),
-          district: form.district.trim() || undefined,
-          city: form.city.trim() || undefined,
-          placeId: form.placeId || undefined,
-          lat: form.lat ? Number(form.lat) : undefined,
-          lng: form.lng ? Number(form.lng) : undefined,
-        } : undefined,
-      });
-
-      // Academia-only: solicitud de aprobación. Se crea siempre, aunque la
-      // dirección quede vacía — sin esta fila el admin nunca vería que esta
-      // cuenta necesita revisión (ver docs/TASKS.md sección 8 y
-      // assertAcademiaApproved en publishGuard.ts). La sede principal ya
-      // quedó creada/actualizada arriba, dentro del updateProfile de encima
-      // (primary_venue) — no duplicar esa lógica acá.
-      if (role === 'academia') {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { error: requestError } = await supabase.from('academia_requests').insert({
-            profile_id: user.id,
-            kind: 'signup',
-            ruc: form.ruc || null,
-          });
-          // 23505 = academia_requests_one_pending_per_profile: same retry case.
-          if (requestError && requestError.code !== '23505') throw requestError;
+      const saveProfileAndUpgrade = async () => {
+        // Voltea el rol antes que nada — si esto falla (p.ej. ya no es
+        // alumno, la cuenta cambió en otra pestaña), el catch de abajo corta
+        // acá y no llega a tocar el resto del perfil.
+        if (pendingRoleFlip) {
+          await upgradeToProfesor();
         }
-      }
+        // Persist representante in user metadata for academia accounts (no DB column needed)
+        if (role === 'academia' && form.representante) {
+          await supabase.auth.updateUser({ data: { representante: form.representante } });
+        }
+        // Mark onboarding as done so proxy.ts allows full navigation
+        await supabase.auth.updateUser({ data: { onboarding_done: true } });
+        const yearsMap: Record<string, number> = { '1-2': 1, '3-5': 3, '5-10': 5, '10+': 10 };
+        const expKey = form.experience ? form.experience.split(' ')[0] : '';
+        await updateProfile({
+          name:             form.publicName || undefined,
+          bio:              form.bio || undefined,
+          nationality:      form.nationality || undefined,
+          ruc:              role === 'academia' && form.ruc ? form.ruc : undefined,
+          whatsapp:         waNumber ? `${waCode}${waNumber}` : undefined,
+          instagram:        form.instagram || undefined,
+          tiktok:           form.tiktok || undefined,
+          youtube:          form.youtube || undefined,
+          website:          form.website || undefined,
+          style_names:      form.styles.length ? form.styles : undefined,
+          years_experience: expKey ? yearsMap[expKey] : undefined,
+          photo_url:        photoUrl || undefined,
+          photo_position:   photoUrl ? photoPosition : undefined,
+          photo_zoom:       photoUrl ? photoZoom : undefined,
+          team_size:            role === 'academia' && form.teamSize ? form.teamSize : undefined,
+          branch_count:         role === 'academia' && form.branchCount ? form.branchCount : undefined,
+          cover_image_url:      role === 'academia' && coverUrl ? coverUrl : undefined,
+          cover_image_position: role === 'academia' && coverUrl ? coverPosition : undefined,
+          cover_image_zoom:     role === 'academia' && coverUrl ? coverZoom : undefined,
+          primary_venue: role === 'academia' && form.address.trim() ? {
+            address: form.address.trim(),
+            district: form.district.trim() || undefined,
+            city: form.city.trim() || undefined,
+            placeId: form.placeId || undefined,
+            lat: form.lat ? Number(form.lat) : undefined,
+            lng: form.lng ? Number(form.lng) : undefined,
+          } : undefined,
+        });
 
-      trackOnboardingComplete({ role, skipped: false });
-      router.push('/dashboard');
+        // Academia-only: solicitud de aprobación. Se crea siempre, aunque la
+        // dirección quede vacía — sin esta fila el admin nunca vería que esta
+        // cuenta necesita revisión (ver docs/TASKS.md sección 8 y
+        // assertAcademiaApproved en publishGuard.ts). La sede principal ya
+        // quedó creada/actualizada arriba, dentro del updateProfile de encima
+        // (primary_venue) — no duplicar esa lógica acá.
+        if (role === 'academia') {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { error: requestError } = await supabase.from('academia_requests').insert({
+              profile_id: user.id,
+              kind: 'signup',
+              ruc: form.ruc || null,
+            });
+            // 23505 = academia_requests_one_pending_per_profile: same retry case.
+            if (requestError && requestError.code !== '23505') throw requestError;
+          }
+        }
+
+        trackOnboardingComplete({ role, skipped: false });
+      };
+
+      if (pendingRoleFlip) {
+        // Ejecutamos en paralelo la mutación y la duración mínima para
+        // garantizar que se muestren los 3 mensajes completos exactamente 1 vez,
+        // incluso si la operación del backend termina antes.
+        await Promise.all([
+          saveProfileAndUpgrade(),
+          new Promise(resolve => setTimeout(resolve, TOTAL_PREPARING_MIN_TIME_MS)),
+        ]);
+        setUpgradeModalStage('success');
+      } else {
+        await saveProfileAndUpgrade();
+        router.push(redirectTarget ?? '/dashboard');
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al guardar perfil');
       setLoading(false);
+      setUpgradeModalStage('idle');
     }
   }
 
@@ -497,14 +513,13 @@ function OnboardingContent() {
                   <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
                     Nacionalidad <span className="text-red">*</span>
                   </label>
-                  <select
+                  <CountrySelect
                     value={form.nationality}
-                    onChange={e => set('nationality', e.target.value)}
-                    className="w-full border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none bg-white"
-                  >
-                    <option value="">Seleccionar…</option>
-                    {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                    onChange={val => {
+                      set('nationality', val);
+                      setError('');
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -521,30 +536,19 @@ function OnboardingContent() {
                     WhatsApp <span className="text-red">*</span>
                   </label>
                   <div className="flex gap-2">
-                    <select
+                    <PhoneCountrySelect
                       value={waCode}
-                      onChange={e => setWaCode(e.target.value)}
-                      className="border-2 border-neutral-200 rounded-btn px-3 py-3 text-sm text-neutral-800 outline-none focus:border-primary bg-white shrink-0"
-                    >
-                      <option value="+51">🇵🇪 +51</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="+34">🇪🇸 +34</option>
-                      <option value="+57">🇨🇴 +57</option>
-                      <option value="+56">🇨🇱 +56</option>
-                      <option value="+54">🇦🇷 +54</option>
-                      <option value="+52">🇲🇽 +52</option>
-                      <option value="+58">🇻🇪 +58</option>
-                      <option value="+593">🇪🇨 +593</option>
-                    </select>
+                      onChange={setWaCode}
+                    />
                     <input
                       type="tel"
                       value={waNumber}
                       onChange={e => { setWaNumber(e.target.value.replace(/\D/g, '')); setError(''); }}
-                      placeholder="999 999 999"
+                      placeholder={getPhonePlaceholder(waCode)}
                       className="flex-1 border-2 border-neutral-200 rounded-btn px-4 py-3 text-sm text-neutral-800 outline-none focus:border-primary"
                     />
                   </div>
-                  <p className="text-xs text-neutral-400 mt-1">Solo números, sin ceros iniciales. Ej: 999999999</p>
+                  <p className="text-xs text-neutral-400 mt-1">Solo números locales, sin prefijo ni ceros iniciales. {getPhoneExample(waCode)}</p>
                 </div>
                 {[
                   { key: 'instagram', label: 'Instagram', placeholder: '@tuperfil', required: true },
@@ -841,6 +845,13 @@ function OnboardingContent() {
         </div>
         </div>
       </div>
+      {upgradeModalStage !== 'idle' && (
+        <ProfesorUpgradeModal
+          stage={upgradeModalStage}
+          name={form.publicName}
+          onGoToDashboard={() => router.push(redirectTarget ?? '/dashboard')}
+        />
+      )}
     </div>
   );
 }

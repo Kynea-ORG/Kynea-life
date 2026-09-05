@@ -519,6 +519,15 @@
   animation: floatSlow2 6s ease-in-out infinite;
 }
 
+/* Entrada suave de bottom sheet / modal en dispositivos móviles */
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-sheet-up {
+  animation: sheetSlideUp 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
