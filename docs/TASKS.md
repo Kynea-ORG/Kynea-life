@@ -159,6 +159,9 @@ insertan en la DB sin validar. `package.json` no tiene `zod`.
 Añadir indicador de fortaleza en `app/registro/page.tsx` y subir el mínimo a 8 caracteres
 en Supabase → Auth → Settings.
 
+### 1.6 ⬜ Cambio de correo electrónico conservando la cuenta
+Ver detalle completo de diseño, arquitectura y seguridad contra Account Takeover en **9.2**.
+
 ---
 
 ## 2. ONBOARDING — LOS 3 ROLES
@@ -488,18 +491,54 @@ que no guarda datos a una academia real genera confusión.
 
 ## 9. CONFIGURACIÓN DE CUENTA
 
-### 9.1 ⬜ Implementar cambio de contraseña y eliminar cuenta
+### 9.1 ✅ Cambio de contraseña y eliminar cuenta — RESUELTO
 
-`app/dashboard/configuracion/page.tsx` es **100% estático**. No hay `onChange` en toggles, no
-hay campos de contraseña, los botones "Eliminar mi cuenta" y "Eliminar todas mis clases" no
-tienen `onClick`.
+`app/dashboard/configuracion/ConfiguracionClient.tsx` ya implementa:
+- **Cambio de contraseña:** `ChangePasswordForm` re-autentica con `signInWithPassword` antes de aplicar `supabase.auth.updateUser({ password })`.
+- **Eliminar cuenta:** botón con confirmación y llamada a `deleteAccount()` en `lib/auth/actions.ts` (`supabase.auth.admin.deleteUser(user.id)`). El `ON DELETE CASCADE` de Postgres limpia perfiles y clases asociadas.
+- **Toggles de visibilidad:** WhatsApp (`show_whatsapp`) y cupos (`show_spots`) persisten mediante `updateProfile` en `lib/profiles/actions.ts`.
 
-**Tareas mínimas:**
-- **Cambio de contraseña:** campos "nueva contraseña" + "confirmar" →
-  `supabase.auth.updateUser({ password })`.
-- **Eliminar cuenta:** botón con modal de confirmación → server action que llame
-  `supabase.auth.admin.deleteUser(userId)`. El CASCADE de la DB ya borra el profile y las clases.
-- Toggles sin implementar: dejarlos con badge "Próximamente" o quitarlos.
+### 9.2 ⬜ Cambio de correo electrónico conservando la cuenta
+
+Permite a un usuario (`alumno`, `profesor` o `academia`) actualizar su dirección de email de acceso sin perder sus datos, clases, favoritos, métricas ni historial.
+
+**Viabilidad y arquitectura del modelo de datos:**
+- **Conservación garantizada:** Todas las relaciones (`profiles`, `classes`, `venues`, `saved_classes`, `profile_styles`) dependen exclusivamente del `id: uuid` inmutable de Supabase Auth (`auth.users.id`). Ninguna tabla usa el correo como clave primaria ni foránea.
+- **Cero cambios de esquema:** No requiere migraciones DDL ni alteración de tablas en PostgreSQL.
+
+**Flujo y consideraciones de seguridad (por tipo de cuenta):**
+
+1. **Cuentas con Email y Contraseña:**
+   - Exige la **contraseña actual** como re-autenticación (`signInWithPassword`) para evitar suplantación en sesiones abiertas.
+   - Dispara `supabase.auth.updateUser({ email: nuevoEmail }, { emailRedirectTo: `${origin}/auth/callback?next=/dashboard/configuracion?email_updated=1` })`.
+   - Dependiendo de la configuración en Supabase (*Secure email change*):
+     - *Activada (Recomendada por seguridad):* Se envía enlace de confirmación a ambos correos (actual y nuevo).
+     - *Desactivada:* Se envía enlace de confirmación únicamente al nuevo correo (útil si el correo anterior ya no existe).
+
+2. **Cuentas con Google OAuth (con acceso a su Gmail):**
+   - **Prevención crítica de Session Hijacking / Account Takeover:** Si un usuario deja su sesión abierta en un dispositivo compartido (ej. laptop o tablet de la academia), **no se debe permitir crear una contraseña ni cambiar el correo a ciegas**.
+   - Se debe exigir prueba de posesión enviando un **código OTP de 6 dígitos** al correo de Google actual (`supabase.auth.signInWithOtp({ email: user.email })`).
+   - Una vez validado el código, el usuario define su nueva contraseña para independizar su cuenta de Google.
+   - Ya con contraseña propia, procede a cambiar su correo siguiendo el flujo estándar.
+
+3. **Cuentas con Google OAuth (pérdida total y definitiva de acceso a su Gmail):**
+   - Caso extremo (ej. correo institucional `@universidad.edu.pe` dado de baja por la universidad).
+   - Por principio de seguridad, ningún autoservicio automatizado debe permitir el cambio sin prueba de posesión (para el sistema, un usuario que perdió su correo y un atacante en sesión abierta son indistinguibles).
+   - **Ruta de contingencia:** Enlace en la UI a soporte por WhatsApp para validación manual de identidad (verificando el número de WhatsApp o Instagram registrados en su perfil público). Un superadministrador actualiza el correo mediante `supabase.auth.admin.updateUserById(userId, { email, email_confirm: true })`.
+
+**Tareas técnicas a implementar:**
+1. **Frontend:** Crear componente `ChangeEmailForm` en `app/dashboard/configuracion/ConfiguracionClient.tsx`.
+   - Mostrar correo actual.
+   - Detectar si la cuenta es email/password o Google OAuth puro (mediante RPC `email_signup_provider` o `app_metadata.providers`).
+   - Para cuentas Google: flujo de envío/validación de código OTP antes de asignar contraseña.
+   - Para cuentas email: pedir contraseña actual.
+   - Manejo de estados: pendiente de confirmación (`user.new_email`) y banners de alerta.
+2. **Rate Limiting:** Añadir `emailChangeRateLimiter` en `lib/ratelimit.ts` (máx. 3 intentos/hora por usuario) para mitigar spam de emails transaccionales en Upstash Redis.
+3. **Callback:** Asegurar que `app/auth/callback/route.ts` procese el redirect hacia `/dashboard/configuracion?email_updated=1` y se muestre un toast de éxito.
+4. **Supabase Auth Config:** Verificar la plantilla de correo "Change Email Address" y la política de *Secure email change* en el Dashboard de Supabase.
+   *(Nota: en desarrollo `kynea-dev`, Resend solo envía a correos verificados de la cuenta propietaria).*
+
+**Archivos:** `app/dashboard/configuracion/ConfiguracionClient.tsx`, `lib/auth/actions.ts`, `lib/ratelimit.ts`, `app/auth/callback/route.ts`, Supabase Dashboard.
 
 ---
 
@@ -588,11 +627,12 @@ Migraciones versionadas en `supabase/migrations/`, aplicadas con `supabase db pu
 | 🟡 6 | **4.2 + 6.1 Google Maps autocomplete + mapa real** | Medio | UX de descubrimiento |
 | 🟡 7 | **2.1 + 3.1 Onboarding y perfil del alumno** | Medio | Experiencia del alumno |
 | 🟡 8 | **5.2 Paginación del catálogo** | Pequeño | Escalabilidad |
-| 🟢 9 | **9 Cambio de contraseña / eliminar cuenta** | Pequeño | Completitud |
+| ✅ 9 | **9.1 Cambio de contraseña / eliminar cuenta** | Pequeño | Resuelto |
 | 🟢 10 | **5.3 SEO metadata dinámica** | Pequeño | Tráfico y previews |
 | 🟡 11 | **8. Flujo de academias (registro, conversión, aprobación)** | Grande | Habilita el rol academia de verdad |
 | 🟢 12 | **4.4 Importación CSV** | Grande | Eficiencia academia |
 | 🟢 13 | **1.2 Google OAuth config** (activar en Supabase Dashboard) | Config | Conversión |
+| 🟡 14 | **9.2 Cambio de correo conservando cuenta** | Medio | UX y retención de cuenta |
 
 ---
 

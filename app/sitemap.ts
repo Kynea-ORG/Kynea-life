@@ -8,6 +8,7 @@ const STATIC_ROUTES: { path: string; changeFrequency: MetadataRoute.Sitemap[numb
   { path: '',                       changeFrequency: 'daily',   priority: 1 },
   { path: '/clases',                changeFrequency: 'daily',   priority: 0.9 },
   { path: '/profesores',            changeFrequency: 'daily',   priority: 0.8 },
+  { path: '/academias',             changeFrequency: 'daily',   priority: 0.8 },
   { path: '/mapa',                  changeFrequency: 'weekly',  priority: 0.6 },
   { path: '/unete',                 changeFrequency: 'monthly', priority: 0.7 },
   { path: '/terminos',              changeFrequency: 'yearly',  priority: 0.3 },
@@ -37,11 +38,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  const teacherEntries: MetadataRoute.Sitemap = [...profesores, ...academias].map(t => ({
-    url: `${SITE_URL}/profesores/${t.slug}`,
-    changeFrequency: 'weekly',
-    priority: 0.6,
-  }));
+  const profileEntries: MetadataRoute.Sitemap = [
+    ...profesores.map(t => ({
+      url: `${SITE_URL}/profesores/${t.slug}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    })),
+    ...academias.map(t => ({
+      url: `${SITE_URL}/academias/${t.slug}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    })),
+  ];
 
-  return [...staticEntries, ...classEntries, ...teacherEntries];
+  return [...staticEntries, ...classEntries, ...profileEntries];
 }

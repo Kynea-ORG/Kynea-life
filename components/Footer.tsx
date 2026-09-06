@@ -56,7 +56,7 @@ export default function Footer() {
       <div className="max-w-[1200px] mx-auto px-6 py-14">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-8 gap-y-10">
           <div className="col-span-2 sm:col-span-3 md:col-span-1">
-            <Image src="/logo-white.png" alt="Kynea" width={100} height={32} style={{ height: 'auto' }} />
+            <Image src="/logo-white.png" alt="Kynea" width={100} height={34} style={{ width: '100px', height: 'auto' }} />
             <p className="font-figtree text-[13.5px] text-neutral-400 leading-relaxed mt-4 max-w-[220px]">
               La primera plataforma integral de danza en Latinoamérica.
             </p>

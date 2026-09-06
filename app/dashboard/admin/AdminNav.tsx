@@ -5,9 +5,9 @@ import { usePathname } from 'next/navigation';
 export default function AdminNav({ pendingCount }: { pendingCount: number }) {
   const pathname = usePathname();
 
-  const isResumen = pathname === '/dashboard/admin/resumen';
+  const isResumen = pathname === '/dashboard/admin/resumen' || pathname === '/dashboard/admin';
   const isAcademias = pathname.startsWith('/dashboard/admin/academias');
-  const isUsuarios = !isResumen && !isAcademias && pathname.startsWith('/dashboard/admin');
+  const isUsuarios = pathname.startsWith('/dashboard/admin/usuarios') || pathname.startsWith('/dashboard/admin/crear-usuario');
 
   const tabClass = (active: boolean) =>
     `text-sm font-semibold px-3 py-2.5 border-b-2 transition-colors active:opacity-60 ${
@@ -21,7 +21,7 @@ export default function AdminNav({ pendingCount }: { pendingCount: number }) {
       <Link href="/dashboard/admin/resumen" className={tabClass(isResumen)}>
         Resumen
       </Link>
-      <Link href="/dashboard/admin" className={tabClass(isUsuarios)}>
+      <Link href="/dashboard/admin/usuarios" className={tabClass(isUsuarios)}>
         Usuarios
       </Link>
       <Link href="/dashboard/admin/academias" className={`flex items-center gap-1.5 ${tabClass(isAcademias)}`}>

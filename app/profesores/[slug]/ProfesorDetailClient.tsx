@@ -36,7 +36,12 @@ export default function ProfesorDetailClient({
   }, [teacher.id]);
 
   const socialClick = (channel: 'instagram' | 'tiktok' | 'website') =>
-    trackTeacherSocialClick({ channel, teacherId: teacher.id, teacherName: teacher.name, surface: 'profesor_detail' });
+    trackTeacherSocialClick({
+      channel,
+      teacherId: teacher.id,
+      teacherName: teacher.name,
+      surface: teacher.type === 'academia' ? 'academia_detail' : 'profesor_detail',
+    });
 
   // Perfil de profesor: editorial oscuro (foto de perfil difuminada de
   // fondo — ver ProfesorEditorial más abajo). Academia mantiene su propio

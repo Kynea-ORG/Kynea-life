@@ -117,42 +117,43 @@ export type UserCounts = {
   profesor: number;
   academia: number;
   /** De las `academia` — cuántas ya pasaron `approve_academia_request()`
-   * (academia_approved_at no nulo) vs. siguen pendientes de revisión. */
+   * (academia_approved_at no nulo). */
   academiaApproved: number;
+  /** Solicitudes de academia en estado `pending` (signup o conversión) en `academia_requests`. */
   academiaPending: number;
+  /** Solicitudes de academia en estado `rejected` en `academia_requests`. */
+  academiaRejected: number;
 };
 
-// Conteo público (profiles_select es USING (true) — ver RLS), pero vive acá
-// en vez de lib/stats/queries.ts porque es para el dashboard de admin
-// (desglosado por rol), no para el contador combinado profesor+academia de
-// la home pública (fetchHomeStats).
+// Conteo para el dashboard de admin (desglosado por rol y estado de academias).
 export async function fetchUserCounts(): Promise<UserCounts> {
   const supabase = await createClient();
-  const [total, alumno, profesor, academia, academiaApproved] = await Promise.all([
+  const [total, alumno, profesor, academia, academiaApproved, requestsPending, requestsRejected] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'alumno'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'profesor'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'academia'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'academia').not('academia_approved_at', 'is', null),
+    supabase.from('academia_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('academia_requests').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
   ]);
 
   for (const [label, result] of [
     ['total', total], ['alumno', alumno], ['profesor', profesor],
     ['academia', academia], ['academiaApproved', academiaApproved],
+    ['requestsPending', requestsPending], ['requestsRejected', requestsRejected],
   ] as const) {
     if (result.error) console.error(`fetchUserCounts (${label}) error:`, result.error.message);
   }
-
-  const academiaCount = academia.count ?? 0;
-  const academiaApprovedCount = academiaApproved.count ?? 0;
 
   return {
     total: total.count ?? 0,
     alumno: alumno.count ?? 0,
     profesor: profesor.count ?? 0,
-    academia: academiaCount,
-    academiaApproved: academiaApprovedCount,
-    academiaPending: Math.max(academiaCount - academiaApprovedCount, 0),
+    academia: academia.count ?? 0,
+    academiaApproved: academiaApproved.count ?? 0,
+    academiaPending: requestsPending.count ?? 0,
+    academiaRejected: requestsRejected.count ?? 0,
   };
 }
 

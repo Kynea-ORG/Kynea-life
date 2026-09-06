@@ -136,3 +136,9 @@ export function safeRedirectPath(value: string | null | undefined): string | nul
   if (!value) return null;
   return value.startsWith('/') && !value.startsWith('//') ? value : null;
 }
+
+export function getProfileUrl(profile: { type?: string; role?: string; slug: string }): string {
+  const isAcademia = profile.type === 'academia' || profile.role === 'academia';
+  return isAcademia ? `/academias/${profile.slug}` : `/profesores/${profile.slug}`;
+}
+

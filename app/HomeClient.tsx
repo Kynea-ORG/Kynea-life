@@ -412,7 +412,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       role: p.role === 'academia' ? 'academia' : 'profesor',
       profileId: p.id, profileName: p.name, listName: 'home_search_autocomplete',
     });
-    router.push(`/profesores/${p.slug}`);
+    router.push(p.role === 'academia' ? `/academias/${p.slug}` : `/profesores/${p.slug}`);
     setShowSuggestions(false);
     setActiveOptionIndex(-1);
     setMobileSearch(null);
@@ -1114,7 +1114,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               {initialAcademias.map(t => (
                 <Link
                   key={t.id}
-                  href={`/profesores/${t.slug}`}
+                  href={`/academias/${t.slug}`}
                   onClick={() => trackSelectProfile({ role: 'academia', profileId: t.id, profileName: t.name, listName: 'home_academias' })}
                   className="card-hover flex items-start gap-4 group"
                 >
