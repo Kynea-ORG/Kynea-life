@@ -47,7 +47,7 @@ type DrawerLink = { href: string; label: string; Icon: LucideIcon; ctaLocation?:
 // academia no lo necesitan. ctaLocation restaura el tracking que tenía el
 // menú mobile viejo (header_mobile_profesor) — ver docs/informe-marcaciones-gtm.md.
 const CONVERSION_LINKS: DrawerLink[] = [
-  { href: '/academias', label: '¿Tienes una academia?', Icon: Building2, ctaLocation: 'header_mobile_academia' },
+  { href: '/academias/unete', label: '¿Tienes una academia?', Icon: Building2, ctaLocation: 'header_mobile_academia' },
   { href: '/unete/beneficios', label: 'Sé profesor en Kynea', Icon: GraduationCap, ctaLocation: 'header_mobile_profesor' },
 ];
 
@@ -313,7 +313,7 @@ export default function Header({
         {showHomeAnon && (
           <div className="hidden md:flex items-center gap-5 flex-1">
             <div className="w-px h-[22px] bg-white/25" />
-            <Link href="/academias" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_academia' })}
+            <Link href="/academias/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_academia' })}
               className="font-sans text-[14px] font-medium text-white/85 hover:text-white transition-colors">
               ¿Tienes una academia?
             </Link>
@@ -459,7 +459,7 @@ export default function Header({
             </>
           ) : (
             <>
-              <Link href="/academias" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_academia' })}
+              <Link href="/academias/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_academia' })}
                 className="hidden lg:inline-flex items-center gap-1.5 font-sans text-[13px] font-bold px-3.5 py-2 rounded-full border border-pink-100 bg-pink-50 text-pink-600 hover:bg-pink-100 transition-colors active:scale-[0.97]">
                 <Building2 className="w-3.5 h-3.5" /> ¿Tienes una academia?
               </Link>

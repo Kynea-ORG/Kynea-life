@@ -182,7 +182,7 @@ export default function BeneficiosClient({
                 style={{ transitionDelay: '540ms' }}
               >
                 <Link
-                  href="/unete"
+                  href="/profesores/unete"
                   onClick={() => trackAuthCtaClick({ action: 'registro', location: 'beneficios_hero' })}
                   className="btn-hero-white btn-cta-ring"
                 >
@@ -319,7 +319,7 @@ export default function BeneficiosClient({
             Gratis, sin comisiones, y sin trámites complicados.
           </p>
           <Link
-            href="/unete"
+            href="/profesores/unete"
             onClick={() => trackAuthCtaClick({ action: 'registro', location: 'beneficios_cta_final' })}
             className="btn-hero"
           >

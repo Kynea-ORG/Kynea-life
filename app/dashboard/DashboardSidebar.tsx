@@ -69,7 +69,7 @@ function NavLinks({
         const Icon = item.icon;
         const isCrearClase = item.href === '/dashboard/crear-clase';
         const active = !(isCrearClase && isEditingClass)
-          && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
+          && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) || (item.href === '/dashboard/admin/resumen' && pathname.startsWith('/dashboard/admin')));
         return (
           <Link
             key={item.href}
@@ -97,7 +97,7 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
 
   const badge = BADGE[profile.role];
   const NAV   = profile.is_admin
-    ? [...NAV_BY_ROLE[profile.role], { href: '/dashboard/admin', label: 'Admin', icon: Shield }]
+    ? [...NAV_BY_ROLE[profile.role], { href: '/dashboard/admin/resumen', label: 'Admin', icon: Shield }]
     : NAV_BY_ROLE[profile.role];
 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -183,7 +183,7 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
               const Icon = item.icon;
               const isCrearClase = item.href === '/dashboard/crear-clase';
               const active = !(isCrearClase && isEditingClass)
-                && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
+                && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) || (item.href === '/dashboard/admin/resumen' && pathname.startsWith('/dashboard/admin')));
               return (
                 <Link
                   key={item.href}

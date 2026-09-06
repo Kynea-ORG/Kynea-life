@@ -171,7 +171,7 @@ export default function ClasesMapView({
           <X className="w-4 h-4" />
         </button>
 
-        <Link href={`/profesores/${academia.slug}`} onClick={() => handleSelectAcademia(academia)} className="block p-3">
+        <Link href={`/academias/${academia.slug}`} onClick={() => handleSelectAcademia(academia)} className="block p-3">
           <div className="flex items-start gap-3 pr-6">
             <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-neutral-100 flex items-center justify-center">
               {academia.photo ? (
@@ -304,7 +304,7 @@ export default function ClasesMapView({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Link href={`/profesores/${academia.slug}`} onClick={() => handleSelectAcademia(academia)} className="font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1">
+                    <Link href={`/academias/${academia.slug}`} onClick={() => handleSelectAcademia(academia)} className="font-bold text-neutral-900 text-[14px] leading-snug hover:underline line-clamp-1">
                       {academia.name}
                     </Link>
                     <span className="badge-pink text-[10px] mt-0.5 inline-block">Academia</span>

@@ -101,7 +101,7 @@ export default function UsuariosClient({ users, total, page, totalPages }: Usuar
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-6">
               {page > 1 ? (
-                <Link href={`/dashboard/admin?page=${page - 1}`} className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 text-neutral-700 font-semibold hover:bg-neutral-50 transition-colors">
+                <Link href={`/dashboard/admin/usuarios?page=${page - 1}`} className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 text-neutral-700 font-semibold hover:bg-neutral-50 transition-colors">
                   Anterior
                 </Link>
               ) : (
@@ -111,7 +111,7 @@ export default function UsuariosClient({ users, total, page, totalPages }: Usuar
               )}
               <span className="text-sm text-neutral-600">Página {page} de {totalPages}</span>
               {page < totalPages ? (
-                <Link href={`/dashboard/admin?page=${page + 1}`} className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 text-neutral-700 font-semibold hover:bg-neutral-50 transition-colors">
+                <Link href={`/dashboard/admin/usuarios?page=${page + 1}`} className="text-xs px-3 py-1.5 rounded-btn border border-neutral-900 text-neutral-700 font-semibold hover:bg-neutral-50 transition-colors">
                   Siguiente
                 </Link>
               ) : (
