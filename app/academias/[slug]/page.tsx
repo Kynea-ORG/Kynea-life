@@ -1,6 +1,7 @@
 import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
+import { isClassActive } from '@/lib/classes/helpers';
 import { fetchTeacherBySlug } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
 import { DEFAULT_ACADEMIA_COVER, truncateForMeta, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
@@ -50,7 +51,7 @@ export default async function AcademiaPage({ params }: { params: Promise<{ slug:
   }
 
   const allClasses = await fetchTeacherClasses(teacher.id);
-  const classes = allClasses.filter(c => c.status === 'published');
+  const classes = allClasses.filter(c => isClassActive(c));
 
   const profileUrl = `${SITE_URL}/academias/${slug}`;
   const sameAs = [

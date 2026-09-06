@@ -1,7 +1,7 @@
 import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchClassBySlug, fetchClassById } from '@/lib/classes/queries';
-import { classUrl } from '@/lib/classes/helpers';
+import { classUrl, isClassExpired } from '@/lib/classes/helpers';
 import { SITE_URL } from '@/lib/constants';
 import { truncateForMeta, getProfileUrl } from '@/lib/utils';
 import ClaseDetailClient from './ClaseDetailClient';
@@ -30,8 +30,7 @@ export async function generateMetadata({
   const canonical = `${SITE_URL}${classUrl(cls)}`;
   // Vencida: se excluye del sitemap y los listados (fetchPublishedClasses),
   // pero la URL sigue accesible por link directo — sin noindex quedaba
-  const todayLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
-  const isExpired = !!cls.endDate && cls.endDate < todayLima;
+  const isExpired = isClassExpired(cls);
 
   return {
     title,

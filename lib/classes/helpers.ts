@@ -170,3 +170,21 @@ export function buildClassColumns(
     status:            formData.get('status') as ClassStatus,
   };
 }
+
+/** Formats today's date in YYYY-MM-DD format under the America/Lima timezone (UTC-5). */
+export function getTodayLima(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+}
+
+/** Returns true if the class has a defined endDate that is strictly before today (in Lima timezone). */
+export function isClassExpired(cls: { endDate?: string | null }, today = getTodayLima()): boolean {
+  return Boolean(cls.endDate && cls.endDate < today);
+}
+
+/**
+ * Returns true if the class is published and has not expired (either no endDate or endDate >= today).
+ */
+export function isClassActive(cls: { status: string; endDate?: string | null }, today = getTodayLima()): boolean {
+  return cls.status === 'published' && !isClassExpired(cls, today);
+}
+
