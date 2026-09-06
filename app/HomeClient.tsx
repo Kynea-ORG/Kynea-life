@@ -1100,13 +1100,16 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       {initialAcademias.length > 0 && (
         <section className="bg-neutral-900 py-16">
           <div className="max-w-[1200px] mx-auto px-6">
-            <div className="flex items-end justify-between mb-8">
+            <div className="flex items-end justify-between gap-4 sm:gap-6 mb-7 sm:mb-8 flex-wrap">
               <div>
-                <h2 className="text-[30px] font-extrabold text-white tracking-snug">Academias</h2>
+                <h2 className="text-[27px] sm:text-[30px] font-extrabold text-white tracking-snug">Academias</h2>
                 <p className="text-white/60 text-[15px] mt-1">Espacios de danza en toda Latinoamérica</p>
               </div>
-              <Link href="/profesores?type=academia" className="hidden sm:flex items-center gap-1 text-[15px] text-white font-semibold hover:text-white/70 transition-colors">
-                Ver todas <ArrowRight className="w-4 h-4" />
+              <Link
+                href="/academias"
+                className="text-[15px] font-semibold text-white hover:text-white/70 transition-colors whitespace-nowrap"
+              >
+                Ver todas →
               </Link>
             </div>
 
@@ -1304,7 +1307,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               Publica tus clases gratis y llega a cientos de alumnos en toda Latinoamérica. Sin comisiones.
             </p>
             <div className="flex justify-center">
-              <Link href="/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
+              <Link href="/profesores/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
             </div>
           </div>
         </section>
