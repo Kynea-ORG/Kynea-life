@@ -18,13 +18,14 @@ const FOOTER_STYLES = [
 
 const EXPLORAR_LINKS = [
   { label: 'Explorar clases', href: '/clases' },
-  { label: 'Profesores y academias', href: '/profesores' },
+  { label: 'Profesores', href: '/profesores' },
+  { label: 'Academias', href: '/academias' },
   { label: 'Mapa de clases', href: '/mapa' },
 ];
 
 const PROFESIONALES_LINKS = [
   { label: 'Sé profesor en Kynea', href: '/unete/beneficios' },
-  { label: '¿Tienes una academia?', href: '/academias' },
+  { label: '¿Tienes una academia?', href: '/academias/unete' },
 ];
 
 const LEGAL_LINKS = [

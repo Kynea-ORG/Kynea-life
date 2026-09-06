@@ -97,7 +97,7 @@ export async function proxy(request: NextRequest) {
   // immediately for alumnos who don't need it) — no extra DB query needed.
   if (user && user.user_metadata?.onboarding_done !== true) {
     const ONBOARDING_FREE = [
-      '/onboarding', '/auth', '/login', '/registro', '/unete', '/academias',
+      '/onboarding', '/auth', '/login', '/registro', '/unete', '/profesores/unete', '/academias',
       '/confirmar-email', '/completar-registro', '/reset-password',
       '/terminos', '/_next',
     ];

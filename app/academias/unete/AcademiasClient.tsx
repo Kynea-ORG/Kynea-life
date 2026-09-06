@@ -1,23 +1,25 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import SmartImage from '@/components/SmartImage';
-import { Loader2, Eye, EyeOff, Check, X, Zap, Users, ShieldCheck, MessageCircle } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Check, X, LayoutGrid, Users, ShieldCheck, MessageCircle } from 'lucide-react';
 import GoogleIcon from '@/components/GoogleIcon';
 import { trackAuthCtaClick } from '@/lib/analytics';
 import { useSignupForm } from '@/lib/auth/useSignupForm';
 import ErrorBanner from '@/components/ErrorBanner';
 
 const BENEFITS = [
-  { Icon: Zap,           text: 'Publica tu clase en minutos' },
+  { Icon: LayoutGrid,    text: 'Publica todas las clases de tu academia en un solo lugar' },
   { Icon: Users,         text: 'Llega a cientos de alumnos en Latinoamérica' },
   { Icon: ShieldCheck,   text: 'Perfil profesional verificado' },
   { Icon: MessageCircle, text: 'Contacto directo por WhatsApp o Instagram' },
 ];
 
-export default function UneteClient({ teacherCount }: { teacherCount: number }) {
-  // Profesor onboarding is the full data-collecting wizard (bio, estilos,
-  // WhatsApp/Instagram, foto) — see app/onboarding/page.tsx.
+export default function AcademiasClient({ teacherCount }: { teacherCount: number }) {
+  // Academia onboarding is the same wizard as profesor plus its own fields
+  // (RUC, sede principal) — see app/onboarding/page.tsx and docs/TASKS.md
+  // sección 8. Publicar queda bloqueado hasta que Kynea apruebe la cuenta
+  // (profiles.academia_approved_at) — el resto de la cuenta funciona sin
+  // restricción desde el día uno.
   const {
     termsAccepted, setTermsAccepted,
     form, setForm,
@@ -25,7 +27,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
     error, loading, googleLoading,
     passwordChecks, passwordValid,
     handleSubmit, handleGoogle,
-  } = useSignupForm('profesor');
+  } = useSignupForm('academia');
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -36,26 +38,26 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
       </header>
 
       <div className="flex-1 flex flex-col-reverse lg:flex-row">
-        {/* Formulario — sheet blanca que monta sobre la ilustración en mobile, columna izquierda en desktop */}
+        {/* Formulario — sheet blanca que monta sobre el panel oscuro en mobile, columna izquierda en desktop */}
         <div className="relative z-10 -mt-7 lg:mt-0 flex-1 flex items-start lg:items-center justify-center px-5 pt-8 pb-12 lg:py-16 bg-white rounded-t-[28px] lg:rounded-none">
           <div className="w-full max-w-md">
             <h1 className="hidden lg:block text-[28px] font-black text-neutral-900 tracking-tight leading-tight mb-2">
-              Únete como profesor
+              Registra tu academia
             </h1>
             <p className="hidden lg:block text-[15px] text-neutral-600 mb-7">
-              Crea tu cuenta gratis y empieza a publicar tus clases hoy mismo.
+              Crea tu cuenta gratis y empieza a publicar las clases de tu academia hoy mismo.
             </p>
 
             {error && <ErrorBanner className="mb-4">{error}</ErrorBanner>}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-5">
               <div>
-                <label className="block text-[13px] font-semibold text-neutral-700 mb-1.5">Nombre completo</label>
+                <label className="block text-[13px] font-semibold text-neutral-700 mb-1.5">Nombre de la academia</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Tu nombre"
+                  placeholder="Ej. Studio Ritmo Latino"
                   required
                   className="input"
                 />
@@ -134,7 +136,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
                 className="btn-primary w-full mt-1 flex items-center justify-center gap-2"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {loading ? 'Creando cuenta…' : 'Crear cuenta de profesor'}
+                {loading ? 'Creando cuenta…' : 'Crear cuenta de academia'}
               </button>
             </form>
 
@@ -153,43 +155,35 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
 
             <p className="text-center text-[13px] text-neutral-400 mt-5">
               ¿Ya tienes cuenta?{' '}
-              <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'unete_page' })} className="text-neutral-900 font-semibold hover:underline">
+              <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'academias_page' })} className="text-neutral-900 font-semibold hover:underline">
                 Inicia sesión
               </Link>
             </p>
             <p className="text-center text-[13px] text-neutral-400 mt-2">
-              ¿Diriges una academia con varios profesores?{' '}
-              <Link href="/academias" className="text-neutral-900 font-semibold hover:underline">
+              ¿Eres profesor independiente?{' '}
+              <Link href="/profesores/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'academias_page' })} className="text-neutral-900 font-semibold hover:underline">
                 Regístrate aquí
               </Link>
             </p>
           </div>
         </div>
 
-        {/* Ilustración + propuesta de valor — banda copy+ilustración lado a lado en mobile, panel único con overlay en desktop */}
-        <div className="relative shrink-0 lg:flex-1 bg-pink-800 overflow-hidden flex flex-col lg:justify-start lg:px-14 lg:pt-20 lg:h-auto">
-          {/* Mobile: compacto — copy corto a la izquierda, ilustración pequeña a la derecha, para que el formulario blanco siempre se vea */}
-          <div className="lg:hidden flex items-center gap-3 px-5 py-4">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-[17px] font-black text-white tracking-tight leading-[1.2]">
-                Comparte tu pasión por el baile y llega a más alumnos
-              </h2>
-            </div>
-            <div className="relative w-[72px] h-[72px] shrink-0">
-              <SmartImage src="/Bg-Registro-profesores-Mobile.png" alt="" fill className="object-contain object-bottom" />
-            </div>
-          </div>
-
-          {/* Ilustración desktop — bleed detrás del copy */}
-          <div className="hidden lg:block absolute -bottom-10 right-0 w-[50%] max-w-none pointer-events-none">
-            <SmartImage src="/BG-Registro-Profesores-2.png" alt="" width={1656} height={2178} className="w-full h-auto" />
+        {/* Propuesta de valor — panel oscuro, sin ilustración: distingue esta
+            landing de /profesores/unete a simple vista y evita depender de un asset
+            gráfico propio de academias que todavía no existe. */}
+        <div className="relative shrink-0 lg:flex-1 bg-neutral-900 overflow-hidden flex flex-col lg:justify-center lg:px-14 lg:h-auto">
+          {/* Mobile: compacto, solo copy */}
+          <div className="lg:hidden px-5 py-5">
+            <h2 className="text-[17px] font-black text-white tracking-tight leading-[1.2]">
+              Gestiona tu academia y llega a más alumnos
+            </h2>
           </div>
 
           {/* Copy desktop */}
           <div className="hidden lg:block relative z-10 lg:max-w-lg">
-            <p className="text-[13px] font-bold uppercase tracking-wide mb-1.5" style={{ color: '#E9C72A' }}>Únete como profesor</p>
+            <p className="text-[13px] font-bold uppercase tracking-wide mb-1.5 text-pink-200">Para academias</p>
             <h2 className="text-[46px] font-black text-white tracking-tight leading-[1.15] mb-5">
-              Comparte tu pasión por el baile y llega a más alumnos
+              Gestiona tu academia y llega a más alumnos
             </h2>
 
             <ul className="flex flex-col gap-2.5 mb-6">
@@ -202,21 +196,15 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
             </ul>
 
             {teacherCount > 0 && (
-              <div className="inline-flex items-center gap-2 bg-white border border-neutral-900 rounded-full py-1.5 pl-2 pr-4 mb-4">
+              <div className="inline-flex items-center gap-2 bg-white border border-neutral-900 rounded-full py-1.5 pl-2 pr-4">
                 <span className="relative inline-flex w-2 h-2 rounded-full bg-green shrink-0">
                   <span className="absolute inset-0 rounded-full bg-green animate-ping" />
                 </span>
                 <span className="text-[12.5px] font-bold text-neutral-900">
-                  <span className="text-pink-600">{teacherCount}+</span> profesores ya publican en Kynea
+                  <span className="text-pink-600">{teacherCount}+</span> profesores y academias ya publican en Kynea
                 </span>
               </div>
             )}
-
-            <div>
-              <Link href="/unete/beneficios" className="text-[13.5px] font-bold text-white underline underline-offset-2 hover:text-white/80 transition-colors">
-                Conoce todos los beneficios →
-              </Link>
-            </div>
           </div>
         </div>
       </div>
