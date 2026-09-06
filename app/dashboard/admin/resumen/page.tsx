@@ -1,5 +1,7 @@
 import { fetchUserCounts } from '@/lib/admin/queries';
 
+export const dynamic = 'force-dynamic';
+
 function StatCard({ label, value, big = false }: { label: string; value: number; big?: boolean }) {
   return (
     <div className={`bg-white rounded-xl border p-6 shadow-sm ${big ? 'border-primary' : 'border-neutral-900'}`}>
@@ -26,10 +28,10 @@ export default async function AdminResumenPage() {
         <StatCard label="Academias" value={counts.academia} />
       </div>
 
-      {counts.academia > 0 && (
+      {(counts.academia > 0 || counts.academiaPending > 0 || counts.academiaRejected > 0) && (
         <div className="mt-4 bg-white card-dash p-6">
           <p className="text-sm font-bold text-neutral-900 mb-4">Academias por estado</p>
-          <div className="flex items-center gap-8">
+          <div className="flex flex-wrap items-center gap-8">
             <div>
               <p className="text-xl font-black text-neutral-900">{counts.academiaApproved}</p>
               <p className="text-xs text-neutral-600 mt-0.5">Aprobadas</p>
@@ -37,6 +39,10 @@ export default async function AdminResumenPage() {
             <div>
               <p className="text-xl font-black text-neutral-900">{counts.academiaPending}</p>
               <p className="text-xs text-neutral-600 mt-0.5">Pendientes de revisión</p>
+            </div>
+            <div>
+              <p className="text-xl font-black text-neutral-900">{counts.academiaRejected}</p>
+              <p className="text-xs text-neutral-600 mt-0.5">Rechazadas</p>
             </div>
           </div>
         </div>

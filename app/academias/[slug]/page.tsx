@@ -3,27 +3,27 @@ import type { Metadata } from 'next';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { fetchTeacherBySlug } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
-import { truncateForMeta, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
-import ProfesorDetailClient from './ProfesorDetailClient';
+import { DEFAULT_ACADEMIA_COVER, truncateForMeta, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
+import ProfesorDetailClient from '@/app/profesores/[slug]/ProfesorDetailClient';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const teacher = await fetchTeacherBySlug(slug);
   if (!teacher) return { title: 'Perfil no encontrado — Kynea' };
 
-  if (teacher.type === 'academia') {
+  if (teacher.type === 'profesor') {
     return {
-      title: `${teacher.name} — Academia de danza en Kynea`,
-      alternates: { canonical: `${SITE_URL}/academias/${slug}` },
+      title: `${teacher.name} — Profesor de danza en Kynea`,
+      alternates: { canonical: `${SITE_URL}/profesores/${slug}` },
     };
   }
 
-  const title = `${teacher.name} — Profesor de danza en Kynea`;
+  const title = `${teacher.name} — Academia de danza en Kynea`;
   const description = teacher.bio
     ? truncateForMeta(teacher.bio)
     : `Conoce a ${teacher.name}${teacher.styles.length ? `, especialista en ${teacher.styles.join(', ')}` : ''} en Kynea.`;
-  const image = teacher.photo;
-  const canonical = `${SITE_URL}/profesores/${slug}`;
+  const image = teacher.photo || teacher.coverImage || DEFAULT_ACADEMIA_COVER;
+  const canonical = `${SITE_URL}/academias/${slug}`;
 
   return {
     title,
@@ -39,20 +39,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function ProfesorPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function AcademiaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
   const teacher = await fetchTeacherBySlug(slug);
   if (!teacher) notFound();
 
-  if (teacher.type === 'academia') {
-    permanentRedirect(`/academias/${slug}`);
+  if (teacher.type === 'profesor') {
+    permanentRedirect(`/profesores/${slug}`);
   }
 
   const allClasses = await fetchTeacherClasses(teacher.id);
   const classes = allClasses.filter(c => c.status === 'published');
 
-  const profileUrl = `${SITE_URL}/profesores/${slug}`;
+  const profileUrl = `${SITE_URL}/academias/${slug}`;
   const sameAs = [
     teacher.instagram && buildInstagramUrl(teacher.instagram),
     teacher.tiktok && buildTikTokUrl(teacher.tiktok),
@@ -61,12 +61,21 @@ export default async function ProfesorPage({ params }: { params: Promise<{ slug:
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'Person',
+    '@type': 'Organization',
     name: teacher.name,
     url: profileUrl,
-    ...(teacher.photo && { image: teacher.photo }),
+    ...(teacher.photo && { logo: teacher.photo }),
     ...(teacher.bio && { description: teacher.bio }),
     ...(sameAs.length > 0 && { sameAs }),
+    ...(teacher.venueAddress && teacher.venueCity && {
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: teacher.venueAddress,
+        addressLocality: teacher.venueCity,
+        ...(teacher.venueDistrict && { addressRegion: teacher.venueDistrict }),
+        addressCountry: 'PE',
+      },
+    }),
   };
 
   return (

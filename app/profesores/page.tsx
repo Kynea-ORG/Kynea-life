@@ -70,7 +70,7 @@ export default async function ProfesoresPage() {
             <h2 className="text-[20px] font-bold text-neutral-900 mb-5">Academias</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {academias.map(t => (
-                <TrackedProfileLink key={t.id} href={`/profesores/${t.slug}`}
+                <TrackedProfileLink key={t.id} href={`/academias/${t.slug}`}
                   role="academia" profileId={t.id} profileName={t.name} listName="profesores_directorio"
                   className="flex items-start gap-4 border border-neutral-200 rounded-2xl p-4 transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98] group">
                   <div className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-neutral-200">

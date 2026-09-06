@@ -9,7 +9,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ContactModal from '@/components/ContactModal';
 import MapPreview from '@/components/MapPreview';
-import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, getProfileUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackAuthCtaClick, trackViewItem, trackSaveClass, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
@@ -225,7 +225,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   Nivel {cls.level}
                 </span>
                 <span>·</span>
-                <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="hover:text-neutral-900 font-medium transition-colors hover:underline break-words">
+                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="hover:text-neutral-900 font-medium transition-colors hover:underline break-words">
                   {cls.teacher.name}
                 </Link>
                 {cls.teacher.rating && (
@@ -335,9 +335,11 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             )}
 
             <div className="hidden lg:block border border-neutral-200 rounded-xl p-6">
-              <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
+              <h2 className="font-bold text-neutral-900 text-[17px] mb-4">
+                {cls.teacher.type === 'academia' ? 'Sobre la academia' : 'Sobre el profesor'}
+              </h2>
               <div className="flex items-center gap-3.5 mb-4">
-                <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="shrink-0">
+                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
                       <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
@@ -349,7 +351,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   )}
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
+                  <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
                     {cls.teacher.name}
                   </Link>
                   <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
@@ -537,9 +539,11 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             )}
 
             <div className="lg:hidden border border-neutral-200 rounded-xl p-6 mt-6 min-w-0">
-              <h2 className="font-bold text-neutral-900 text-[17px] mb-4">Sobre el profesor</h2>
+              <h2 className="font-bold text-neutral-900 text-[17px] mb-4">
+                {cls.teacher.type === 'academia' ? 'Sobre la academia' : 'Sobre el profesor'}
+              </h2>
               <div className="flex items-center gap-3.5 mb-4">
-                <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="shrink-0">
+                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="shrink-0">
                   {cls.teacher.photo ? (
                     <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
                       <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
@@ -551,7 +555,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   )}
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link href={`/profesores/${cls.teacher.slug}`} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
+                  <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
                     {cls.teacher.name}
                   </Link>
                   <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>

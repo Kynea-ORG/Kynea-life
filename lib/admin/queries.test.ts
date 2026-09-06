@@ -120,9 +120,10 @@ describe('fetchAdminCreatedUsers', () => {
 });
 
 describe('fetchUserCounts', () => {
-  // `Promise.all` fires the 5 count queries in this fixed order (see
-  // fetchUserCounts): total, alumno, profesor, academia, academiaApproved.
-  // Each `.from('profiles').select(...)` chain is directly awaitable in the
+  // `Promise.all` fires the 7 count queries in this fixed order (see
+  // fetchUserCounts): total, alumno, profesor, academia, academiaApproved,
+  // requestsPending, requestsRejected.
+  // Each `.from(...).select(...)` chain is directly awaitable in the
   // real client (a PostgrestFilterBuilder), same as `.eq()`/`.not()` calls
   // on it — this stub mirrors that by making every link in the chain both
   // chainable *and* thenable, resolving to that call's queued result.
@@ -145,23 +146,27 @@ describe('fetchUserCounts', () => {
     mockFrom.mockImplementation(defaultFromImpl);
   });
 
-  it('aggregates total/role counts and splits academia into approved/pending', async () => {
+  it('aggregates total/role counts and counts approved, pending, and rejected academia requests', async () => {
     mockCountQueries([
       { count: 34, error: null }, // total
       { count: 1, error: null },  // alumno
       { count: 31, error: null }, // profesor
       { count: 2, error: null },  // academia
-      { count: 1, error: null },  // academiaApproved
+      { count: 2, error: null },  // academiaApproved
+      { count: 3, error: null },  // requestsPending
+      { count: 1, error: null },  // requestsRejected
     ]);
 
     expect(await fetchUserCounts()).toEqual({
       total: 34, alumno: 1, profesor: 31, academia: 2,
-      academiaApproved: 1, academiaPending: 1,
+      academiaApproved: 2, academiaPending: 3, academiaRejected: 1,
     });
   });
 
-  it('treats every missing count as 0 and never lets academiaPending go negative', async () => {
+  it('treats every missing count as 0', async () => {
     mockCountQueries([
+      { count: null, error: null },
+      { count: null, error: null },
       { count: null, error: null },
       { count: null, error: null },
       { count: null, error: null },
@@ -171,7 +176,7 @@ describe('fetchUserCounts', () => {
 
     expect(await fetchUserCounts()).toEqual({
       total: 0, alumno: 0, profesor: 0, academia: 0,
-      academiaApproved: 0, academiaPending: 0,
+      academiaApproved: 0, academiaPending: 0, academiaRejected: 0,
     });
   });
 
@@ -182,6 +187,8 @@ describe('fetchUserCounts', () => {
       { count: 1, error: null },
       { count: 31, error: null },
       { count: null, error: { message: 'boom' } }, // academia
+      { count: null, error: null },
+      { count: null, error: null },
       { count: null, error: null },
     ]);
 

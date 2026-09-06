@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { fetchClassBySlug, fetchClassById } from '@/lib/classes/queries';
 import { classUrl } from '@/lib/classes/helpers';
 import { SITE_URL } from '@/lib/constants';
-import { truncateForMeta } from '@/lib/utils';
+import { truncateForMeta, getProfileUrl } from '@/lib/utils';
 import ClaseDetailClient from './ClaseDetailClient';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -72,7 +72,7 @@ export default async function ClaseDetailPage({
     provider: {
       '@type': cls.teacher.type === 'academia' ? 'Organization' : 'Person',
       name: cls.teacher.name,
-      url: `${SITE_URL}/profesores/${cls.teacher.slug}`,
+      url: `${SITE_URL}${getProfileUrl(cls.teacher)}`,
     },
     offers: {
       '@type': 'Offer',
