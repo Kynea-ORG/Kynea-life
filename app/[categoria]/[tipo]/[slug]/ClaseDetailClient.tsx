@@ -11,12 +11,14 @@ import ContactModal from '@/components/ContactModal';
 import MapPreview from '@/components/MapPreview';
 import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, getProfileUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
+import { isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackAuthCtaClick, trackViewItem, trackSaveClass, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
 import LinkifiedText from '@/components/LinkifiedText';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const router = useRouter();
+  const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const [contactType, setContactType] = useState<'whatsapp' | 'instagram'>('whatsapp');
   const [saved, setSaved] = useState(false);
@@ -116,7 +118,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     setIsLoggedIn(loggedIn);
     if (loggedIn && cls.teacher.whatsapp) {
       triggerContactIncrement(cls.id);
-      const url = buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
+      const url = isExpired
+        ? `https://wa.me/${cls.teacher.whatsapp.replace(/\s+/g, '')}?text=${encodeURIComponent(`Hola ${cls.teacher.name}, vi tu clase de ${cls.style} en Kynea y quisiera consultar por próximas fechas o talleres.`)}`
+        : buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
       window.open(url, '_blank', 'noopener,noreferrer');
       trackGenerateLead({
         channel: 'whatsapp', classId: cls.id, className: cls.title, classStyle: cls.style,
@@ -178,6 +182,36 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
           <ChevronLeft className="w-4 h-4" /> Volver a clases
         </Link>
 
+        {isExpired && (
+          <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-neutral-100 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div>
+                <p className="text-[15px] font-bold text-neutral-900 leading-snug">
+                  Esta clase ya finalizó{cls.endDate ? ` el ${formatFriendlyDate(cls.endDate)}` : ''}
+                </p>
+                <p className="text-[13px] text-neutral-600 mt-0.5 leading-normal">
+                  Las fechas programadas para este taller o curso ya concluyeron. Puedes consultar directamente al profesor por próximas ediciones o explorar clases similares.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+              <Link
+                href={getProfileUrl(cls.teacher)}
+                onClick={selectTeacherProfile}
+                className="px-4 py-2 text-[13px] font-bold rounded-btn bg-neutral-900 text-white hover:bg-neutral-800 transition-colors whitespace-nowrap"
+              >
+                Ver perfil del profesor
+              </Link>
+              <Link
+                href={`/clases?estilo=${encodeURIComponent(cls.style)}`}
+                className="px-4 py-2 text-[13px] font-bold rounded-btn border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 transition-colors whitespace-nowrap"
+              >
+                Más de {cls.style}
+              </Link>
+            </div>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-[1fr_360px] gap-10">
           {/* LEFT COLUMN */}
           <div className="min-w-0">
@@ -193,7 +227,15 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   style={activeImg === 0 ? { objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` } : undefined}
                 />
               )}
-              <div className="absolute top-4 left-4 flex gap-2">
+              {isExpired && (
+                <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+              )}
+              <div className="absolute top-4 left-4 flex gap-2 flex-wrap">
+                {isExpired && (
+                  <span className="badge-gray text-[11px] shadow-xs">
+                    Finalizada
+                  </span>
+                )}
                 <span className="badge-black text-[11px]">{getTypeLabel(cls.type)}</span>
                 <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-primary text-white whitespace-nowrap">
                   {cls.style}
@@ -445,13 +487,26 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                       {cls.reference && <p className="text-neutral-400 break-words [overflow-wrap:anywhere]">{cls.reference}</p>}
                     </div>
                   </div>
-                  {cls.startDate && (
-                    <div className="flex items-center gap-2.5 text-[13px] font-semibold text-neutral-900">
-                      <Calendar className="w-4 h-4 text-primary shrink-0" />
-                      <span>Inicia {formatFriendlyDate(cls.startDate)}</span>
+                  {isExpired ? (
+                    <div className="flex items-center gap-2.5 text-[13px] font-medium text-neutral-500">
+                      <Calendar className="w-4 h-4 text-neutral-400 shrink-0" />
+                      <span>
+                        {cls.endDate
+                          ? `Finalizó el ${formatFriendlyDate(cls.endDate)}`
+                          : cls.startDate
+                            ? `Inició el ${formatFriendlyDate(cls.startDate)}`
+                            : 'Clase finalizada'}
+                      </span>
                     </div>
+                  ) : (
+                    cls.startDate && (
+                      <div className="flex items-center gap-2.5 text-[13px] font-semibold text-neutral-900">
+                        <Calendar className="w-4 h-4 text-primary shrink-0" />
+                        <span>Inicia {formatFriendlyDate(cls.startDate)}</span>
+                      </div>
+                    )
                   )}
-                  {cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
+                  {!isExpired && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
                     <div className="flex items-center gap-2.5 text-[13px] text-neutral-600">
                       <Users className="w-4 h-4 text-neutral-400 shrink-0" />
                       <span>
@@ -462,55 +517,62 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   )}
                 </div>
 
-                <div className="mb-5">
+                <div className="mb-5 flex flex-wrap items-center gap-2">
+                  {isExpired && (
+                    <span className="badge-gray">
+                      Finalizada
+                    </span>
+                  )}
                   <span className="badge-gray capitalize">{cls.modality}</span>
-                  {isFullyBooked && <span className="badge-gray ml-2">Sin cupos</span>}
-                  <span className="badge-gray ml-2 capitalize">Nivel {cls.level}</span>
+                  {!isExpired && isFullyBooked && <span className="badge-gray">Sin cupos</span>}
+                  <span className="badge-gray capitalize">Nivel {cls.level}</span>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   {showWa && (
                     <button
                       onClick={handleWhatsAppClick}
-                      disabled={isFullyBooked}
+                      disabled={!isExpired && isFullyBooked}
                       className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
-                        isFullyBooked
+                        !isExpired && isFullyBooked
                           ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                           : 'bg-whatsapp border-whatsapp hover:bg-whatsapp-dark hover:border-whatsapp-dark text-white'
                       }`}
                     >
                       {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
-                      {isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}
+                      {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}
                     </button>
                   )}
 
                   {showIg && (
                     <button
                       onClick={handleInstagramClick}
-                      disabled={isFullyBooked}
+                      disabled={!isExpired && isFullyBooked}
                       className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
-                        isFullyBooked
+                        !isExpired && isFullyBooked
                           ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                           : 'bg-instagram border-instagram hover:bg-instagram-dark hover:border-instagram-dark text-white'
                       }`}
                     >
                       {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
-                      {isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
+                      {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
                     </button>
                   )}
 
-                  <button
-                    onClick={toggleSave}
-                    disabled={saving}
-                    className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border border-neutral-900 transition-[background-color,color] active:scale-[0.97] disabled:opacity-60 ${
-                      saved
-                        ? 'bg-neutral-900 text-white'
-                        : 'text-neutral-700 hover:bg-neutral-50'
-                    }`}
-                  >
-                    <Bookmark className={`w-4 h-4 ${saved ? 'fill-white animate-pop' : ''}`} />
-                    {saved ? 'Guardado' : 'Guardar clase'}
-                  </button>
+                  {!isExpired && (
+                    <button
+                      onClick={toggleSave}
+                      disabled={saving}
+                      className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border border-neutral-900 transition-[background-color,color] active:scale-[0.97] disabled:opacity-60 ${
+                        saved
+                          ? 'bg-neutral-900 text-white'
+                          : 'text-neutral-700 hover:bg-neutral-50'
+                      }`}
+                    >
+                      <Bookmark className={`w-4 h-4 ${saved ? 'fill-white animate-pop' : ''}`} />
+                      {saved ? 'Guardado' : 'Guardar clase'}
+                    </button>
+                  )}
                 </div>
 
                 {mapsHref && (
@@ -616,21 +678,34 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       {/* Mobile sticky bottom CTA */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 z-40 flex items-center gap-3">
         <div className="shrink-0 max-w-[42%] min-w-0">
-          <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5 truncate">
-            {cls.priceType === 'Gratis' ? (
-              <span className="text-neutral-900">Gratis</span>
-            ) : cls.offerPrice ? (
-              <>
-                <span className="text-primary">{formatPrice(cls.priceType, cls.offerPrice, cls.currency)}</span>
-                <span className="text-[12px] text-neutral-400 line-through font-semibold">
-                  {formatPrice(cls.priceType, cls.price, cls.currency)}
-                </span>
-              </>
-            ) : (
-              <span className="text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
-            )}
-          </p>
-          {cls.level && <p className="text-[12px] text-neutral-600 mt-0.5 truncate">Nivel {cls.level}</p>}
+          {isExpired ? (
+            <div>
+              <span className="badge-gray text-[10px] px-2 py-0.5 mb-1 inline-block">
+                Finalizada
+              </span>
+              <p className="text-[13px] font-bold text-neutral-700 truncate">
+                {cls.priceType === 'Gratis' ? 'Gratis' : formatPrice(cls.priceType, cls.price, cls.currency)}
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5 truncate">
+                {cls.priceType === 'Gratis' ? (
+                  <span className="text-neutral-900">Gratis</span>
+                ) : cls.offerPrice ? (
+                  <>
+                    <span className="text-primary">{formatPrice(cls.priceType, cls.offerPrice, cls.currency)}</span>
+                    <span className="text-[12px] text-neutral-400 line-through font-semibold">
+                      {formatPrice(cls.priceType, cls.price, cls.currency)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
+                )}
+              </p>
+              {cls.level && <p className="text-[12px] text-neutral-600 mt-0.5 truncate">Nivel {cls.level}</p>}
+            </>
+          )}
         </div>
         {/* Botones a flex-1: cuando hay dos canales activos, se reparten el
             ancho sobrante en vez de encogerse a solo ícono (ver el bloque de
@@ -639,25 +714,25 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
           {showWa && (
             <button
               onClick={handleWhatsAppClick}
-              disabled={isFullyBooked}
+              disabled={!isExpired && isFullyBooked}
               className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
-                isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
+                !isExpired && isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
               }`}
             >
               {justContacted === 'whatsapp' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <MessageCircle className="w-4 h-4 shrink-0" />}
-              <span className="truncate">{isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}</span>
+              <span className="truncate">{!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}</span>
             </button>
           )}
           {showIg && (
             <button
               onClick={handleInstagramClick}
-              disabled={isFullyBooked}
+              disabled={!isExpired && isFullyBooked}
               className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
-                isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
+                !isExpired && isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
               }`}
             >
               {justContacted === 'instagram' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <InstagramIcon className="w-4 h-4 shrink-0" />}
-              <span className="truncate">{isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}</span>
+              <span className="truncate">{!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}</span>
             </button>
           )}
         </div>

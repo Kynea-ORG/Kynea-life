@@ -58,7 +58,7 @@ export default function ProfesorDetailClient({
           dark overlay for legibility; profesor keeps the plain bg-primary
           banner untouched (academia and profesor are deliberately not the
           same visual treatment here). */}
-      <div className={`relative overflow-hidden pt-10 px-5 lg:px-8 pb-[88px] ${teacher.type === 'academia' ? 'bg-neutral-900' : 'bg-primary'}`}>
+      <div className={`relative overflow-hidden pt-10 pb-[88px] ${teacher.type === 'academia' ? 'bg-neutral-900' : 'bg-primary'}`}>
         {teacher.type === 'academia' && (
           <>
             <SmartImage
@@ -72,7 +72,7 @@ export default function ProfesorDetailClient({
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/45 to-black/75" />
           </>
         )}
-        <div className="relative z-10 max-w-5xl mx-auto">
+        <div className="relative z-10 max-w-[1200px] mx-auto px-6">
           <Link href="/clases" className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white mb-6 transition-colors">
             <ChevronLeft className="w-4 h-4" /> Volver a clases
           </Link>
@@ -194,7 +194,7 @@ export default function ProfesorDetailClient({
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-5 lg:px-8 py-8">
+      <div className="max-w-[1200px] mx-auto px-6 py-8">
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-neutral-100 rounded-xl p-1 w-fit">
           {[
@@ -288,7 +288,7 @@ function ProfesorEditorial({
           en vez de cortar en seco — funciona para cualquier profesor sin
           pedir una foto de portada aparte. Sin foto: cae a la trama de
           líneas diagonales (pattern-diagonal-lines) como respaldo. */}
-      <div className={`relative overflow-hidden pt-10 px-5 md:px-14 pb-11 md:pb-14 bg-neutral-900 ${!teacher.photo ? 'pattern-diagonal-lines' : ''}`}>
+      <div className={`relative overflow-hidden pt-10 pb-11 md:pb-14 bg-neutral-900 ${!teacher.photo ? 'pattern-diagonal-lines' : ''}`}>
         {teacher.photo && (
           <>
             <SmartImage
@@ -314,119 +314,123 @@ function ProfesorEditorial({
             />
           </>
         )}
-        <Link href="/clases" className="relative z-10 inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white mb-8 transition-colors">
-          <ChevronLeft className="w-4 h-4" /> Volver a clases
-        </Link>
+        <div className="relative z-10 max-w-[1200px] mx-auto px-6">
+          <Link href="/clases" className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white mb-8 transition-colors">
+            <ChevronLeft className="w-4 h-4" /> Volver a clases
+          </Link>
 
-        <div className="relative z-10 flex flex-wrap items-start gap-7">
-          <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden shrink-0 bg-neutral-800 flex items-center justify-center">
-            {teacher.photo ? (
-              <SmartImage src={teacher.photo} alt={teacher.name} fill sizes="192px" className="object-cover" style={{ objectPosition: teacher.photoPosition || '50% 50%', transform: `scale(${teacher.photoZoom || 1})` }} />
-            ) : (
-              <span className="text-[56px] font-black text-white/30">{teacher.name.charAt(0)}</span>
-            )}
-          </div>
-
-          <div className="flex-1 min-w-[260px] pt-2">
-            <div className="flex flex-wrap items-center gap-2 mb-3.5">
-              {visibleStyles.map(s => (
-                <span key={s} className="border border-white/50 rounded-full px-3.5 py-1 text-xs font-bold text-white">
-                  {s}
-                </span>
-              ))}
-              {teacher.rating && (
-                <span className="inline-flex items-center gap-1 bg-white border border-neutral-900 rounded-full px-3 py-1 text-xs font-bold text-neutral-900">
-                  <Star className="w-3 h-3 text-yellow-dark fill-yellow-dark" /> {teacher.rating}
-                </span>
+          <div className="flex flex-wrap items-start gap-7">
+            <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden shrink-0 bg-neutral-800 flex items-center justify-center">
+              {teacher.photo ? (
+                <SmartImage src={teacher.photo} alt={teacher.name} fill sizes="192px" className="object-cover" style={{ objectPosition: teacher.photoPosition || '50% 50%', transform: `scale(${teacher.photoZoom || 1})` }} />
+              ) : (
+                <span className="text-[56px] font-black text-white/30">{teacher.name.charAt(0)}</span>
               )}
             </div>
-            <h1 className="text-[32px] md:text-[48px] leading-[1] font-black tracking-tight text-white break-words">{teacher.name}</h1>
-            <p className="font-figtree text-sm md:text-base text-white/75 mt-2 flex items-center gap-2 flex-wrap">
-              {teacher.nationality && (
-                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {teacher.nationality}</span>
-              )}
-              {teacher.experience > 0 && (
-                <>
-                  {teacher.nationality && <span>·</span>}
-                  <span>{formatExperience(teacher.experience)} de experiencia</span>
-                </>
-              )}
-            </p>
 
-            <div className="flex flex-wrap gap-3 mt-5">
-              {teacher.whatsapp && (
-                <a
-                  href={`https://wa.me/${teacher.whatsapp.replace(/\s+/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackGenerateLead({ channel: 'whatsapp', teacherId: teacher.id, teacherName: teacher.name })}
-                  className="flex items-center gap-2 bg-whatsapp hover:bg-whatsapp-dark text-white font-extrabold text-[14.5px] px-6 py-3 rounded-full transition-colors active:scale-[0.97]"
-                >
-                  <MessageCircle className="w-4 h-4" /> WhatsApp
-                </a>
-              )}
-              {teacher.instagram && (
-                <a
-                  href={buildInstagramUrl(teacher.instagram)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => socialClick('instagram')}
-                  className="flex items-center gap-2 bg-white/10 border border-white/30 text-white font-bold text-[14.5px] px-4.5 py-3 rounded-full hover:bg-white/15 transition-colors active:scale-[0.97]"
-                >
-                  <InstagramIcon className="w-4 h-4" /> {teacher.instagram}
-                </a>
-              )}
-              {teacher.tiktok && (
-                <a
-                  href={buildTikTokUrl(teacher.tiktok)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => socialClick('tiktok')}
-                  className="flex items-center gap-1.5 text-white font-bold text-[14.5px] hover:text-white/80 transition-colors"
-                >
-                  <TikTokIcon className="w-3.5 h-3.5" /> {teacher.tiktok}
-                </a>
-              )}
-              {teacher.website && (
-                <a
-                  href={teacher.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => socialClick('website')}
-                  className="flex items-center gap-1.5 text-white/80 font-bold text-[14.5px] hover:text-white transition-colors"
-                >
-                  <Globe className="w-3.5 h-3.5" /> Sitio web
-                </a>
-              )}
+            <div className="flex-1 min-w-[260px] pt-2">
+              <div className="flex flex-wrap items-center gap-2 mb-3.5">
+                {visibleStyles.map(s => (
+                  <span key={s} className="border border-white/50 rounded-full px-3.5 py-1 text-xs font-bold text-white">
+                    {s}
+                  </span>
+                ))}
+                {teacher.rating && (
+                  <span className="inline-flex items-center gap-1 bg-white border border-neutral-900 rounded-full px-3 py-1 text-xs font-bold text-neutral-900">
+                    <Star className="w-3 h-3 text-yellow-dark fill-yellow-dark" /> {teacher.rating}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-[32px] md:text-[48px] leading-[1] font-black tracking-tight text-white break-words">{teacher.name}</h1>
+              <p className="font-figtree text-sm md:text-base text-white/75 mt-2 flex items-center gap-2 flex-wrap">
+                {teacher.nationality && (
+                  <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {teacher.nationality}</span>
+                )}
+                {teacher.experience > 0 && (
+                  <>
+                    {teacher.nationality && <span>·</span>}
+                    <span>{formatExperience(teacher.experience)} de experiencia</span>
+                  </>
+                )}
+              </p>
+
+              <div className="flex flex-wrap gap-3 mt-5">
+                {teacher.whatsapp && (
+                  <a
+                    href={`https://wa.me/${teacher.whatsapp.replace(/\s+/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackGenerateLead({ channel: 'whatsapp', teacherId: teacher.id, teacherName: teacher.name })}
+                    className="flex items-center gap-2 bg-whatsapp hover:bg-whatsapp-dark text-white font-extrabold text-[14.5px] px-6 py-3 rounded-full transition-colors active:scale-[0.97]"
+                  >
+                    <MessageCircle className="w-4 h-4" /> WhatsApp
+                  </a>
+                )}
+                {teacher.instagram && (
+                  <a
+                    href={buildInstagramUrl(teacher.instagram)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => socialClick('instagram')}
+                    className="flex items-center gap-2 bg-white/10 border border-white/30 text-white font-bold text-[14.5px] px-4.5 py-3 rounded-full hover:bg-white/15 transition-colors active:scale-[0.97]"
+                  >
+                    <InstagramIcon className="w-4 h-4" /> {teacher.instagram}
+                  </a>
+                )}
+                {teacher.tiktok && (
+                  <a
+                    href={buildTikTokUrl(teacher.tiktok)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => socialClick('tiktok')}
+                    className="flex items-center gap-1.5 text-white font-bold text-[14.5px] hover:text-white/80 transition-colors"
+                  >
+                    <TikTokIcon className="w-3.5 h-3.5" /> {teacher.tiktok}
+                  </a>
+                )}
+                {teacher.website && (
+                  <a
+                    href={teacher.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => socialClick('website')}
+                    className="flex items-center gap-1.5 text-white/80 font-bold text-[14.5px] hover:text-white transition-colors"
+                  >
+                    <Globe className="w-3.5 h-3.5" /> Sitio web
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Sobre mí — visible directo, sin heading ni tab */}
-      <div className="px-5 md:px-14 pt-9 md:pt-11">
+      <div className="max-w-[1200px] mx-auto px-6 pt-9 md:pt-11">
         <p className="font-figtree text-base md:text-lg leading-relaxed text-white/80 max-w-[760px] whitespace-pre-line break-words [overflow-wrap:anywhere]">
           <LinkifiedText text={teacher.bio || 'Este profesor aún no agregó una biografía.'} />
         </p>
       </div>
 
       {/* Ficha — ticker de datos reales */}
-      <div className="font-figtree grid grid-cols-2 md:flex mt-8 border-y border-white/10 mx-5 md:mx-14 md:mt-9">
-        {[
-          { label: 'Especialidad', value: teacher.styles.join(' · ') || '—', border: 'border-r border-b md:border-b-0 md:border-r' },
-          { label: 'Clases activas', value: `${classes.length} publicadas`, border: 'border-b md:border-b-0 md:border-r' },
-          { label: 'Modalidad', value: modalityLabel + (cities.length === 1 ? ` · ${cities[0]}` : ''), border: 'border-r md:border-r' },
-          { label: 'Desde', value: cheapestClass ? formatPrice(cheapestClass.priceType, cheapestClass.offerPrice ?? cheapestClass.price, cheapestClass.currency) : '—', border: '' },
-        ].map(stat => (
-          <div key={stat.label} className={`py-5 px-4 md:py-[22px] md:px-10 md:flex-1 border-white/10 ${stat.border}`}>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-400">{stat.label}</p>
-            <p className="text-[15px] md:text-[17px] font-bold text-white mt-1">{stat.value}</p>
-          </div>
-        ))}
+      <div className="max-w-[1200px] mx-auto px-6 mt-8 md:mt-9">
+        <div className="font-figtree grid grid-cols-2 md:flex border-y border-white/10">
+          {[
+            { label: 'Especialidad', value: teacher.styles.join(' · ') || '—', border: 'border-r border-b md:border-b-0 md:border-r' },
+            { label: 'Clases activas', value: `${classes.length} publicadas`, border: 'border-b md:border-b-0 md:border-r' },
+            { label: 'Modalidad', value: modalityLabel + (cities.length === 1 ? ` · ${cities[0]}` : ''), border: 'border-r md:border-r' },
+            { label: 'Desde', value: cheapestClass ? formatPrice(cheapestClass.priceType, cheapestClass.offerPrice ?? cheapestClass.price, cheapestClass.currency) : '—', border: '' },
+          ].map(stat => (
+            <div key={stat.label} className={`py-5 px-4 md:py-[22px] md:px-8 md:flex-1 border-white/10 ${stat.border}`}>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-400">{stat.label}</p>
+              <p className="text-[15px] md:text-[17px] font-bold text-white mt-1">{stat.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Clases — visibles directo, sin tab */}
-      <div className="px-5 md:px-14 pt-9 md:pt-11 pb-14 md:pb-16">
+      <div className="max-w-[1200px] mx-auto px-6 pt-9 md:pt-11 pb-14 md:pb-16">
         <h2 className="text-xl md:text-2xl font-black text-white mb-5">Clases ({classes.length})</h2>
         {classes.length === 0 ? (
           <div className="text-center py-16 text-white/40">

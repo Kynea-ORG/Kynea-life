@@ -5,7 +5,7 @@ import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
-import { classUrl } from '@/lib/classes/helpers';
+import { classUrl, isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
 import ContactModal from './ContactModal';
@@ -20,6 +20,7 @@ interface ClassCardProps {
 }
 
 export default function ClassCard({ cls, compact = false, listName }: ClassCardProps) {
+  const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -41,14 +42,17 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
   }
 
   function handleContact() {
-    if (isFullyBooked) return;
+    if (!isExpired && isFullyBooked) return;
     if (!isLoggedIn) {
       setShowContact(true);
       return;
     }
     const mode = cls.contactMode ?? 'whatsapp';
     if ((mode === 'whatsapp' || mode === 'both') && cls.teacher.whatsapp) {
-      window.open(buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp), '_blank');
+      const url = isExpired
+        ? `https://wa.me/${cls.teacher.whatsapp.replace(/\s+/g, '')}?text=${encodeURIComponent(`Hola ${cls.teacher.name}, vi tu clase de ${cls.style} en Kynea y quisiera consultar por próximas fechas o talleres.`)}`
+        : buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp);
+      window.open(url, '_blank');
       trackGenerateLead({
         channel: 'whatsapp', classId: cls.id, className: cls.title, classStyle: cls.style,
         teacherId: cls.teacher.id, teacherName: cls.teacher.name,
@@ -90,27 +94,37 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
               className="object-cover"
               style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }}
             />
+            {isExpired && (
+              <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+            )}
           </Link>
           <div className="absolute top-3 left-3 flex gap-2 pointer-events-none">
-            {isFullyBooked && (
+            {isExpired && (
+              <span className="badge-gray text-[11px] shadow-xs">
+                Finalizada
+              </span>
+            )}
+            {!isExpired && isFullyBooked && (
               <span className="badge-gray text-[11px]">Sin cupos</span>
             )}
-            {isAlmostFull && (
+            {!isExpired && isAlmostFull && (
               <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-yellow text-neutral-900 whitespace-nowrap">Últimos cupos</span>
             )}
           </div>
           <div className="absolute top-3 right-3 pointer-events-none">
             <span className="badge-black text-[11px]">{getTypeLabel(cls.type)}</span>
           </div>
-          <button
-            onClick={() => setSaved(!saved)}
-            className={`absolute bottom-3 right-3 p-2 rounded-full shadow transition-[background-color,color] active:scale-90 ${
-              saved ? 'bg-neutral-900 text-white' : 'bg-white/90 text-neutral-600 hover:text-neutral-900 backdrop-blur-sm'
-            }`}
-            title={saved ? 'Guardado' : 'Guardar clase'}
-          >
-            <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white animate-pop' : ''}`} />
-          </button>
+          {!isExpired && (
+            <button
+              onClick={() => setSaved(!saved)}
+              className={`absolute bottom-3 right-3 p-2 rounded-full shadow transition-[background-color,color] active:scale-90 ${
+                saved ? 'bg-neutral-900 text-white' : 'bg-white/90 text-neutral-600 hover:text-neutral-900 backdrop-blur-sm'
+              }`}
+              title={saved ? 'Guardado' : 'Guardar clase'}
+            >
+              <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white animate-pop' : ''}`} />
+            </button>
+          )}
         </div>
 
         {/* Content */}
@@ -147,11 +161,22 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
           )}
 
           <div className="flex flex-col gap-1.5">
-            {cls.startDate && (
-              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-neutral-900">
-                <Calendar className="w-3.5 h-3.5 text-primary" />
-                Inicia {formatFriendlyDate(cls.startDate)}
+            {isExpired ? (
+              <span className="flex items-center gap-1.5 text-[13px] text-neutral-500 font-medium">
+                <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+                {cls.endDate
+                  ? `Finalizó el ${formatFriendlyDate(cls.endDate)}`
+                  : cls.startDate
+                    ? `Inició el ${formatFriendlyDate(cls.startDate)}`
+                    : 'Clase finalizada'}
               </span>
+            ) : (
+              cls.startDate && (
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-neutral-900">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  Inicia {formatFriendlyDate(cls.startDate)}
+                </span>
+              )
             )}
             <span className="flex items-center gap-1.5 text-[13px] text-neutral-600">
               <MapPin className="w-3.5 h-3.5 text-neutral-400" />
@@ -161,7 +186,7 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
               <Clock className="w-3.5 h-3.5 text-neutral-400" />
               {formatTimeSlots(cls.timeSlots).split(' | ')[0]}
             </span>
-            {!compact && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
+            {!compact && !isExpired && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
               <span className="flex items-center gap-1.5 text-[13px] text-neutral-600">
                 <Users className="w-3.5 h-3.5 text-neutral-400" />
                 {spotsLeft} cupos disponibles
@@ -180,15 +205,15 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
             </Link>
             <button
               onClick={handleContact}
-              disabled={isFullyBooked}
+              disabled={!isExpired && isFullyBooked}
               className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border ${
-                isFullyBooked
+                !isExpired && isFullyBooked
                   ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                   : 'bg-primary border-neutral-900 hover:bg-primary-dark active:bg-neutral-900 text-white active:scale-[0.97]'
               }`}
             >
               {justContacted ? <Check className="w-3.5 h-3.5 animate-fade-in" /> : <MessageCircle className="w-3.5 h-3.5" />}
-              {isFullyBooked ? 'Sin cupos' : justContacted ? 'Abriendo…' : 'Contactar'}
+              {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted ? 'Abriendo…' : 'Contactar'}
             </button>
           </div>
         </div>
