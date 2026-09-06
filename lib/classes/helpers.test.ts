@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildClassColumns, venueNeedsUpdate, findOrCreateVenue } from './helpers';
+import { buildClassColumns, venueNeedsUpdate, findOrCreateVenue, isClassExpired, isClassActive, getTodayLima } from './helpers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // findOrCreateVenue calls this (fetch + Storage upload) whenever lat/lng are
@@ -218,3 +218,52 @@ describe('findOrCreateVenue', () => {
     expect(supabase.insertMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('getTodayLima', () => {
+  it('returns an ISO date string in YYYY-MM-DD format', () => {
+    const today = getTodayLima();
+    expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('isClassExpired', () => {
+  it('returns false when endDate is absent or null', () => {
+    expect(isClassExpired({ endDate: null }, '2026-09-06')).toBe(false);
+    expect(isClassExpired({}, '2026-09-06')).toBe(false);
+  });
+
+  it('returns false when endDate is today or in the future', () => {
+    expect(isClassExpired({ endDate: '2026-09-06' }, '2026-09-06')).toBe(false);
+    expect(isClassExpired({ endDate: '2026-09-07' }, '2026-09-06')).toBe(false);
+    expect(isClassExpired({ endDate: '2026-12-31' }, '2026-09-06')).toBe(false);
+  });
+
+  it('returns true when endDate is in the past', () => {
+    expect(isClassExpired({ endDate: '2026-09-05' }, '2026-09-06')).toBe(true);
+    expect(isClassExpired({ endDate: '2026-01-01' }, '2026-09-06')).toBe(true);
+  });
+});
+
+describe('isClassActive', () => {
+  it('returns false if status is not published', () => {
+    expect(isClassActive({ status: 'draft', endDate: '2026-09-10' }, '2026-09-06')).toBe(false);
+    expect(isClassActive({ status: 'archived', endDate: '2026-09-10' }, '2026-09-06')).toBe(false);
+    expect(isClassActive({ status: 'finished', endDate: null }, '2026-09-06')).toBe(false);
+  });
+
+  it('returns true if published and has no endDate (ongoing class)', () => {
+    expect(isClassActive({ status: 'published', endDate: null }, '2026-09-06')).toBe(true);
+    expect(isClassActive({ status: 'published' }, '2026-09-06')).toBe(true);
+  });
+
+  it('returns true if published and endDate is today or later', () => {
+    expect(isClassActive({ status: 'published', endDate: '2026-09-06' }, '2026-09-06')).toBe(true);
+    expect(isClassActive({ status: 'published', endDate: '2026-09-20' }, '2026-09-06')).toBe(true);
+  });
+
+  it('returns false if published but endDate has already passed', () => {
+    expect(isClassActive({ status: 'published', endDate: '2026-09-05' }, '2026-09-06')).toBe(false);
+    expect(isClassActive({ status: 'published', endDate: '2026-08-15' }, '2026-09-06')).toBe(false);
+  });
+});
+
