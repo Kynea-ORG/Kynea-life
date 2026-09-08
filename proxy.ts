@@ -41,7 +41,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Landing "próximamente" gate: only set COMING_SOON_MODE=true in Vercel's
-  // Production env scope (kynea.life). Leaving it unset in dev/preview keeps
+  // Production env scope (kynea.dance). Leaving it unset in dev/preview keeps
   // those environments fully open. Toggle off in Vercel to launch for real.
   if (process.env.COMING_SOON_MODE === 'true') {
     if (path !== '/coming-soon') {

@@ -23,10 +23,10 @@ describe('LinkifiedText', () => {
   });
 
   it('handles www URLs by prefixing https://', () => {
-    render(<LinkifiedText text="Entra a www.kynea.life hoy mismo." />);
-    const link = screen.getByRole('link', { name: 'www.kynea.life' }) as HTMLAnchorElement;
+    render(<LinkifiedText text="Entra a www.kynea.dance hoy mismo." />);
+    const link = screen.getByRole('link', { name: 'www.kynea.dance' }) as HTMLAnchorElement;
     expect(link).toBeDefined();
-    expect(link.href).toBe('https://www.kynea.life/');
+    expect(link.href).toBe('https://www.kynea.dance/');
     expect(link.target).toBe('_blank');
   });
 
