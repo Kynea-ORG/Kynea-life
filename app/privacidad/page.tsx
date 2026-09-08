@@ -16,7 +16,7 @@ export default function PrivacidadPage() {
             Política de Privacidad y Tratamiento de Datos Personales explica cómo recopilamos, utilizamos,
             almacenamos, protegemos y tratamos la información personal de quienes acceden o utilizan la
             Plataforma disponible en{' '}
-            <a href="https://kynea.life/" className="underline text-neutral-900">https://kynea.life/</a>.
+            <a href="https://kynea.dance/" className="underline text-neutral-900">https://kynea.dance/</a>.
           </p>
           <p>
             El tratamiento de datos personales se realiza de conformidad con la legislación vigente de la
@@ -287,7 +287,7 @@ export default function PrivacidadPage() {
             KYNEA podrá actualizar esta Política cuando resulte necesario debido a cambios legales,
             tecnológicos o por la incorporación de nuevas funcionalidades. La versión vigente estará siempre
             disponible en{' '}
-            <a href="https://kynea.life/" className="underline text-neutral-900">https://kynea.life/</a>.
+            <a href="https://kynea.dance/" className="underline text-neutral-900">https://kynea.dance/</a>.
           </p>
 
           <h2 className="text-[18px] font-bold text-neutral-900">16. Contacto</h2>

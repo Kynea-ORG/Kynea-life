@@ -14,7 +14,7 @@ export default function TerminosPage() {
           <p>
             Bienvenido(a) a KYNEA. Los presentes Términos y Condiciones regulan el acceso y uso de la
             plataforma digital KYNEA, disponible en{' '}
-            <a href="https://kynea.life/" className="underline text-neutral-900">https://kynea.life/</a>{' '}
+            <a href="https://kynea.dance/" className="underline text-neutral-900">https://kynea.dance/</a>{' '}
             (en adelante, la &ldquo;Plataforma&rdquo;).
           </p>
           <p>
