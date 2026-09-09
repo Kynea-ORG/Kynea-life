@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { fetchPublishedClasses } from '@/lib/classes/queries';
+import { fetchPublishedClasses, fetchClassCountries } from '@/lib/classes/queries';
 import type { ClassFilters } from '@/lib/classes/types';
 import { fetchDanceStyles, fetchClassLevels } from '@/lib/catalog/queries';
 import { SITE_URL } from '@/lib/constants';
@@ -56,12 +56,14 @@ export default async function CategoriaDetailPage({
     types:      asArray(sp.type),
     days:       asArray(sp.day),
     city:       (sp.city as string | undefined) || undefined,
+    country:    (sp.country as string | undefined) || undefined,
     withSpots:  sp.spots === '1' || undefined,
   };
 
-  const [classes, levels] = await Promise.all([
+  const [classes, levels, countries] = await Promise.all([
     fetchPublishedClasses(filters),
     fetchClassLevels(),
+    fetchClassCountries(),
   ]);
 
   return (
@@ -69,6 +71,7 @@ export default async function CategoriaDetailPage({
       style={style}
       initialClasses={classes}
       levels={levels.map(l => l.name)}
+      countries={countries}
     />
   );
 }

@@ -28,11 +28,14 @@ interface GooglePlaceResult {
 // (falls back to level_1 — departamento — when Google has no finer data for a
 // place), distrito ~ locality (falls back to sublocality for edge cases where
 // Google files it one level down).
-function extractCityDistrict(components: GoogleAddressComponent[]): { city: string; district: string } {
+function extractCityDistrict(components: GoogleAddressComponent[]): { city: string; district: string; country: string } {
   const find = (type: string) => components.find(c => c.types.includes(type))?.longText ?? '';
   const city = find('administrative_area_level_2') || find('administrative_area_level_1');
   const district = find('locality') || find('sublocality') || find('sublocality_level_1');
-  return { city, district };
+  // shortText on 'country' is the ISO 3166-1 alpha-2 code (e.g. 'PE', 'VE') —
+  // what venues.country_code stores, not the localized display name.
+  const country = components.find(c => c.types.includes('country'))?.shortText ?? '';
+  return { city, district, country };
 }
 
 interface GmpSelectEvent extends Event {
@@ -88,7 +91,7 @@ export function loadGoogleMapsScript(apiKey: string): Promise<void> {
   return mapsScriptPromise;
 }
 
-export interface PlaceSelection { address: string; placeId: string; lat: number; lng: number; city: string; district: string }
+export interface PlaceSelection { address: string; placeId: string; lat: number; lng: number; city: string; district: string; country: string }
 
 export default function PlacesAddressField({
   value, onManualChange, onPlaceSelect, placeholder, onFallbackChange,
@@ -152,7 +155,7 @@ export default function PlacesAddressField({
         element.addEventListener('gmp-select', (async (event: Event) => {
           const place = (event as GmpSelectEvent).placePrediction.toPlace();
           await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'addressComponents'] });
-          const { city, district } = extractCityDistrict(place.addressComponents ?? []);
+          const { city, district, country } = extractCityDistrict(place.addressComponents ?? []);
           onPlaceSelectRef.current({
             address: place.formattedAddress ?? '',
             placeId: place.placeId ?? '',
@@ -160,6 +163,7 @@ export default function PlacesAddressField({
             lng: place.location ? place.location.lng() : 0,
             city,
             district,
+            country,
           });
         }) as EventListener);
         // The script can load fine while every actual prediction request

@@ -16,12 +16,13 @@ export const DAY_MAP: Record<string, number> = {
 };
 
 export function venueNeedsUpdate(
-  current: { place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null } | null,
-  incoming: { placeId: string | null; address: string; name: string; city: string; district: string }
+  current: { place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null; country_code?: string | null } | null,
+  incoming: { placeId: string | null; address: string; name: string; city: string; district: string; country?: string }
 ): boolean {
   if (!current) return true;
   if (current.name !== incoming.name) return true;
   if (current.city !== incoming.city || current.district !== incoming.district) return true;
+  if (incoming.country && current.country_code !== incoming.country) return true;
   if (current.place_id && incoming.placeId) return current.place_id !== incoming.placeId;
   if (!incoming.placeId) return current.address !== incoming.address;
   return true;
@@ -32,6 +33,11 @@ export async function findOrCreateVenue(
   ownerId: string,
   opts: {
     name: string; address: string; reference: string; city: string; district: string;
+    // ISO 3166-1 alpha-2, from Google Places — empty when the address field
+    // fell back to plain-text entry (no API key / load failure), in which
+    // case the venue keeps whatever country_code it already had, or the
+    // column's 'PE' default on first insert.
+    country?: string;
     placeId: string | null; lat: number | null; lng: number | null;
   }
 ): Promise<string | null> {
@@ -48,9 +54,11 @@ export async function findOrCreateVenue(
       // comment), so keep the shared row's editable fields in sync with
       // whatever the teacher just typed instead of leaving them frozen at
       // whatever they were the first time this place was saved.
+      const update: Record<string, unknown> = { name: opts.name, reference: opts.reference, city: opts.city, district: opts.district, lat: opts.lat, lng: opts.lng };
+      if (opts.country) update.country_code = opts.country;
       const { error: updateError } = await supabase
         .from('venues')
-        .update({ name: opts.name, reference: opts.reference, city: opts.city, district: opts.district, lat: opts.lat, lng: opts.lng })
+        .update(update)
         .eq('id', existing.id);
       if (updateError) console.error('[findOrCreateVenue] update', updateError.message);
 
@@ -74,6 +82,8 @@ export async function findOrCreateVenue(
       reference: opts.reference,
       city: opts.city,
       district: opts.district,
+      // Omitted (plain-text address fallback) lets the column's 'PE' default apply.
+      ...(opts.country && { country_code: opts.country }),
       place_id: opts.placeId,
       lat: opts.lat,
       lng: opts.lng,

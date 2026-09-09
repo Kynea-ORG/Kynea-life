@@ -1,10 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, Sparkles, X } from 'lucide-react';
+import { ChevronDown, Sparkles, X, Search } from 'lucide-react';
+import { findCountryByCode, normalizeSearchText } from '@/lib/countries';
 
 export interface Filters {
   city: string;
   district: string;
+  // ISO 3166-1 alpha-2 (venues.country_code), see migration 48.
+  country: string;
   styles: string[];
   levels: string[];
   days: string[];
@@ -29,10 +32,14 @@ interface FilterPanelProps {
   danceStyles?: string[];
   levels?: string[];
   hideStyles?: boolean;
+  /** ISO codes with at least one published class — see fetchClassCountries.
+   * The "País" section only renders when there's more than one, since a
+   * single-country catalog has nothing to filter. */
+  countries?: string[];
 }
 
 export const EMPTY_FILTERS: Filters = {
-  city: '', district: '', styles: [], levels: [], days: [],
+  city: '', district: '', country: '', styles: [], levels: [], days: [],
   timesOfDay: [], modalities: [], priceMax: null, types: [], withSpots: false,
 };
 
@@ -67,6 +74,66 @@ function chipClass(active: boolean) {
     : 'tag text-[11px] px-3 py-1';
 }
 
+// Buscador tipo tag para el filtro de país — a diferencia de una lista plana
+// de chips, no crece sin control a medida que Kynea suma países (hoy 2, pero
+// pensado para cuando sean muchos más).
+function CountryFilterSearch({ countries, value, onChange }: { countries: string[]; value: string; onChange: (code: string) => void }) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const selected = value ? findCountryByCode(value) : undefined;
+
+  if (selected) {
+    return (
+      <div className="inline-flex items-center gap-2 text-[13px] font-medium px-3 py-1.5 rounded-full border border-primary bg-primary text-white">
+        <span>{selected.flag} {selected.name}</span>
+        <button onClick={() => onChange('')} aria-label={`Quitar filtro ${selected.name}`}>
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  const matches = countries
+    .map(code => findCountryByCode(code))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
+    .filter(c => !search.trim() || normalizeSearchText(c.name).includes(normalizeSearchText(search)));
+
+  return (
+    // In-flow, not absolutely-positioned: the parent Section collapses via a
+    // CSS grid-rows animation with overflow-hidden (see Section below), which
+    // would clip an absolute dropdown instead of just letting it show/scroll.
+    <div>
+      <div className="flex items-center gap-2 border border-neutral-200 rounded-full px-3 py-1.5 focus-within:border-neutral-900 transition-colors">
+        <Search className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+        <input
+          type="text"
+          value={search}
+          onChange={e => { setSearch(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          placeholder="Buscar país…"
+          className="flex-1 min-w-0 text-[13px] text-neutral-800 placeholder:text-neutral-400 outline-none"
+        />
+      </div>
+      {open && matches.length > 0 && (
+        <div className="mt-1.5 max-h-48 overflow-y-auto bg-white border border-neutral-200 rounded-xl shadow-sm py-1">
+          {matches.map(c => (
+            <button
+              key={c.code}
+              // onMouseDown (not onClick) fires before the input's onBlur closes the dropdown.
+              onMouseDown={e => { e.preventDefault(); onChange(c.code); setSearch(''); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-[13px] text-neutral-700 hover:bg-neutral-50"
+            >
+              {c.flag} {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
@@ -85,7 +152,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function FilterPanel({ filters, onChange, className = '', danceStyles = [], levels = [], hideStyles = false }: FilterPanelProps) {
+export default function FilterPanel({ filters, onChange, className = '', danceStyles = [], levels = [], hideStyles = false, countries = [] }: FilterPanelProps) {
   const [visibleStylesCount, setVisibleStylesCount] = useState(STYLES_GROUP_SIZE);
   const set = (key: keyof Filters, value: unknown) => onChange({ ...filters, [key]: value });
 
@@ -114,7 +181,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
     filters.styles.length + filters.levels.length + filters.days.length +
     filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
     filters.types.length + (filters.withSpots ? 1 : 0) +
-    [filters.city, filters.district].filter(Boolean).length;
+    [filters.city, filters.district, filters.country].filter(Boolean).length;
 
   // Los estilos ya seleccionados siempre se muestran (aunque el grupo visible
   // los hubiera dejado afuera) — nunca se esconde un filtro activo.
@@ -247,6 +314,12 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
           </label>
         ))}
       </Section>
+
+      {countries.length > 1 && (
+        <Section title="País">
+          <CountryFilterSearch countries={countries} value={filters.country} onChange={code => set('country', code)} />
+        </Section>
+      )}
 
       <Section title="Precio">
         <div className="px-0.5">

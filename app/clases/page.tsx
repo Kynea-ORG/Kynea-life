@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { fetchPublishedClasses } from '@/lib/classes/queries';
+import { fetchPublishedClasses, fetchClassCountries } from '@/lib/classes/queries';
 import type { ClassFilters } from '@/lib/classes/types';
 import { fetchDanceStyles, fetchClassLevels } from '@/lib/catalog/queries';
 import { fetchAcademiasWithLocation } from '@/lib/profiles/queries';
@@ -33,20 +33,22 @@ export default async function ClasesPage({
     types:      asArray(params.type),
     days:       asArray(params.day),
     city:       (params.city as string | undefined) || undefined,
+    country:    (params.country as string | undefined) || undefined,
     withSpots:  params.spots === '1' || undefined,
   };
 
   const hasFilters = !!(
     filters.query || filters.styles?.length || filters.levels?.length ||
     filters.modalities?.length || filters.types?.length || filters.days?.length ||
-    filters.city || filters.withSpots
+    filters.city || filters.country || filters.withSpots
   );
 
-  const [classes, danceStyles, levels, academias] = await Promise.all([
+  const [classes, danceStyles, levels, academias, countries] = await Promise.all([
     fetchPublishedClasses(hasFilters ? filters : undefined),
     fetchDanceStyles(),
     fetchClassLevels(),
     fetchAcademiasWithLocation(),
+    fetchClassCountries(),
   ]);
 
   return (
@@ -60,6 +62,7 @@ export default async function ClasesPage({
         academias={academias}
         danceStyles={danceStyles.map(s => s.name)}
         levels={levels.map(l => l.name)}
+        countries={countries}
       />
     </Suspense>
   );

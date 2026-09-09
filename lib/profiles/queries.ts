@@ -81,6 +81,45 @@ export const PROFILE_SELECT = `
   profile_styles(style_id, dance_styles(name))
 `;
 
+export interface TeacherClassActivity { count: number; lastPublishedAt: string | null }
+
+// Pure — no I/O, so it's unit-testable without mocking Supabase. Groups raw
+// classes rows (status='published', not expired) by teacher_id.
+export function aggregateActiveClassCounts(
+  rows: { teacher_id: string; published_at: string | null }[]
+): Map<string, TeacherClassActivity> {
+  const map = new Map<string, TeacherClassActivity>();
+  for (const row of rows) {
+    const entry = map.get(row.teacher_id) ?? { count: 0, lastPublishedAt: null };
+    entry.count += 1;
+    if (row.published_at && (!entry.lastPublishedAt || row.published_at > entry.lastPublishedAt)) {
+      entry.lastPublishedAt = row.published_at;
+    }
+    map.set(row.teacher_id, entry);
+  }
+  return map;
+}
+
+// Pure — no I/O. Drops teachers with zero active classes, then orders by
+// most active classes first, tie-broken by most recently published — there's
+// no rating/popularity system in this schema to sort by instead (see Notion
+// task "Home: ordenar/filtrar profesores destacados").
+export function filterAndRankByActiveClasses(
+  teachers: Teacher[],
+  activityByTeacherId: Map<string, TeacherClassActivity>,
+  limit: number
+): Teacher[] {
+  return teachers
+    .filter(t => (activityByTeacherId.get(t.id)?.count ?? 0) > 0)
+    .sort((a, b) => {
+      const aAct = activityByTeacherId.get(a.id)!;
+      const bAct = activityByTeacherId.get(b.id)!;
+      if (bAct.count !== aAct.count) return bAct.count - aAct.count;
+      return (bAct.lastPublishedAt ?? '').localeCompare(aAct.lastPublishedAt ?? '');
+    })
+    .slice(0, limit);
+}
+
 async function getFeaturedProfiles(role: 'profesor' | 'academia', limit?: number): Promise<Teacher[]> {
   const supabase = getPublicClient();
   let query = supabase
@@ -93,15 +132,39 @@ async function getFeaturedProfiles(role: 'profesor' | 'academia', limit?: number
     query = query.not('academia_approved_at', 'is', null);
   }
 
-  // No limit = every profile with this role — used by the "/profesores"
-  // directory page, which must list everyone, not just a Home-page preview.
-  if (limit !== undefined) query = query.limit(limit);
+  // Home's featured-profesor row is a curated preview (unlike the unlimited
+  // call below, used by the "/profesores" directory, which must list
+  // everyone including brand-new profiles) — it should only surface
+  // profesores who actually have something bookable right now.
+  const filterByActiveClasses = role === 'profesor' && limit !== undefined;
+
+  // No limit = every profile with this role. When filtering by activity we
+  // also skip the DB-level limit here — the real limit only applies after
+  // ranking by class activity, below.
+  if (limit !== undefined && !filterByActiveClasses) query = query.limit(limit);
+
   const { data, error } = await query;
   if (error) {
     console.error('fetchFeaturedProfiles error:', error.message);
     return [];
   }
-  return (data ?? []).map(mapTeacher);
+  const teachers = (data ?? []).map(mapTeacher);
+  if (!filterByActiveClasses) return teachers;
+
+  // Current scale (tens of profesores) makes an unbounded fetch here trivial;
+  // revisit with a DB-side aggregate if the profesor count grows a lot.
+  const { data: classRows, error: classError } = await supabase
+    .from('classes')
+    .select('teacher_id, published_at')
+    .eq('status', 'published')
+    .or('end_date.is.null,end_date.gte.today')
+    .in('teacher_id', teachers.map(t => t.id));
+  if (classError) {
+    console.error('fetchFeaturedProfiles (activity) error:', classError.message);
+    return [];
+  }
+  const activity = aggregateActiveClassCounts(classRows ?? []);
+  return filterAndRankByActiveClasses(teachers, activity, limit as number);
 }
 
 export const fetchFeaturedProfiles = safeCache(

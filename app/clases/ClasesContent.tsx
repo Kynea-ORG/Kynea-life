@@ -7,11 +7,13 @@ export default function ClasesContent({
   academias = [],
   danceStyles = [],
   levels = [],
+  countries = [],
 }: {
   initialClasses: DanceClass[];
   academias?: Teacher[];
   danceStyles?: string[];
   levels?: string[];
+  countries?: string[];
 }) {
   return (
     <ClassBrowser
@@ -20,6 +22,7 @@ export default function ClasesContent({
       includeStyles
       danceStyles={danceStyles}
       levels={levels}
+      countries={countries}
       searchPlaceholder="Busca por estilo, profesor, academia o distrito…"
       renderResultsCount={count => (
         <><span className="font-bold text-neutral-900">{count}</span> clase{count !== 1 ? 's' : ''} disponible{count !== 1 ? 's' : ''}</>
