@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useEffect, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { EMPTY_FILTERS, TODAY_TAG, type Filters } from '@/components/FilterPanel';
+import { searchKeywords, matchesAllKeywords } from '@/lib/search/normalize';
 import type { DanceClass } from '@/lib/types';
 
 const WEEKDAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -53,6 +54,7 @@ function buildSearchParams(query: string, filters: Filters, includeStyles: boole
   filters.types.forEach(t => p.append('type', t));
   filters.days.forEach(d => p.append('day', d));
   if (filters.city)      p.set('city', filters.city);
+  if (filters.country)   p.set('country', filters.country);
   if (filters.withSpots) p.set('spots', '1');
   return p;
 }
@@ -66,6 +68,7 @@ function initFiltersFromUrl(sp: ReturnType<typeof useSearchParams>, includeStyle
     types:      sp.getAll('type'),
     days:       sp.getAll('day'),
     city:       sp.get('city') || '',
+    country:    sp.get('country') || '',
     withSpots:  sp.get('spots') === '1',
     // priceMax and timesOfDay are client-only: not in URL
   };
@@ -135,14 +138,14 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
   // instant feedback while the server re-fetch is in progress.
   let results = initialClasses.filter(cls => {
     if (query) {
-      const q = query.toLowerCase();
-      const matchesQuery =
-        cls.title.toLowerCase().includes(q) ||
-        cls.style.toLowerCase().includes(q) ||
-        cls.teacher.name.toLowerCase().includes(q) ||
-        cls.city.toLowerCase().includes(q) ||
-        cls.district.toLowerCase().includes(q);
-      if (!matchesQuery) return false;
+      // Misma regla que el server (lib/classes/queries.ts): cada palabra de
+      // la búsqueda debe aparecer en ALGÚN lado — así "salsa miraflores" no
+      // deja pasar una clase que solo coincide en una de las dos, y una
+      // frase natural como "clases de salsa" no muestra "0 clases" acá
+      // mientras se espera el refetch del server, que ya la entiende igual.
+      const keywords = searchKeywords(query);
+      const haystack = `${cls.title} ${cls.style} ${cls.teacher.name} ${cls.city} ${cls.district}`;
+      if (!matchesAllKeywords(keywords, haystack)) return false;
     }
     if (filters.styles.length && !filters.styles.includes(cls.style)) return false;
     if (filters.levels.length && !filters.levels.includes(cls.level)) return false;
@@ -159,6 +162,7 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
       if (!filters.days.some(d => classdays.includes(d))) return false;
     }
     if (filters.city && cls.city !== filters.city) return false;
+    if (filters.country && cls.countryCode !== filters.country) return false;
     return true;
   });
 
@@ -175,7 +179,7 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
     filters.styles.length + filters.levels.length + filters.days.length +
     filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
     filters.types.length + (filters.withSpots ? 1 : 0) + (filters.city ? 1 : 0) +
-    (query ? 1 : 0);
+    (filters.country ? 1 : 0) + (query ? 1 : 0);
 
   return { query, filters, isPending, results, activeCount, handleQueryChange, handleFiltersChange, handleClearAll };
 }

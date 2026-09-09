@@ -238,3 +238,22 @@ export const fetchAcademiasWithLocation = safeCache(
   ['academias_with_location'],
   { revalidate: 600, tags: ['profiles'] }
 );
+
+// Búsqueda por nombre de profesor/academia — usada tanto por el resolver del
+// buscador (Home, botón "Buscar"/Enter) como por /resultados. Dos queries en
+// paralelo en vez de un solo .in('role', [...]) porque solo la academia
+// necesita el filtro de aprobación; un profesor no tiene ese concepto. Sin
+// safeCache a propósito: el texto de búsqueda es arbitrario por visitante,
+// cachear por query terminaría acumulando entradas de un solo uso sin
+// beneficio — la tabla profiles es chica y esto ya es rápido sin caché.
+export async function searchProfilesByName(query: string): Promise<Teacher[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const supabase = getPublicClient();
+  const [{ data: profesores }, { data: academias }] = await Promise.all([
+    supabase.from('profiles').select(PROFILE_SELECT).eq('role', 'profesor').ilike('name', `%${trimmed}%`),
+    supabase.from('profiles').select(PROFILE_SELECT).eq('role', 'academia')
+      .not('academia_approved_at', 'is', null).ilike('name', `%${trimmed}%`),
+  ]);
+  return [...(profesores ?? []), ...(academias ?? [])].map(mapTeacher);
+}
