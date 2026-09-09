@@ -60,6 +60,7 @@ function buildInitialForm(editClass: DanceClass | null) {
       modality: 'Presencial',
       city: 'Lima',
       district: '',
+      country: 'PE',
       address: '',
       venueName: '',
       reference: '',
@@ -97,6 +98,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     modality: editClass.modality ?? 'Presencial',
     city: editClass.city ?? 'Lima',
     district: editClass.district ?? '',
+    country: editClass.countryCode ?? 'PE',
     address: editClass.address ?? '',
     venueName: editClass.venueName ?? '',
     reference: editClass.reference ?? '',
@@ -328,6 +330,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('modality', form.modality);
         fd.set('city', form.city);
         fd.set('district', form.district);
+        fd.set('country', form.country);
         fd.set('address', form.address);
         fd.set('venueName', form.venueName);
         fd.set('reference', form.reference);
@@ -853,6 +856,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 // value with a blank on those.
                 if (selection.city) set('city', selection.city);
                 if (selection.district) set('district', selection.district);
+                if (selection.country) set('country', selection.country);
               }}
               onFallbackChange={setAddressFallback}
             />

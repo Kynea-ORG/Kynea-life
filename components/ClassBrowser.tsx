@@ -21,6 +21,8 @@ interface ClassBrowserProps {
   includeStyles: boolean;
   /** Required when includeStyles is true — the full catalog to populate the style filter. */
   danceStyles?: string[];
+  /** ISO codes with at least one published class — see fetchClassCountries. */
+  countries?: string[];
   searchPlaceholder: string;
   renderResultsCount: (count: number, isPending: boolean) => ReactNode;
   emptyText: string;
@@ -43,6 +45,7 @@ export default function ClassBrowser({
   levels = [],
   includeStyles,
   danceStyles = [],
+  countries = [],
   searchPlaceholder,
   renderResultsCount,
   emptyText,
@@ -205,7 +208,7 @@ export default function ClassBrowser({
             <div className="sticky top-36 max-h-[calc(100vh-9rem-2rem)] flex flex-col">
               <h3 className="font-bold text-neutral-900 text-[15px] mb-4 shrink-0">Filtros</h3>
               <div className="overflow-y-auto pr-1 -mr-1">
-                <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} hideStyles={!includeStyles} />
+                <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} countries={countries} hideStyles={!includeStyles} />
               </div>
             </div>
           </aside>
@@ -234,7 +237,7 @@ export default function ClassBrowser({
                   <X className="w-5 h-5 text-neutral-600" />
                 </button>
               </div>
-              <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} hideStyles={!includeStyles} />
+              <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} countries={countries} hideStyles={!includeStyles} />
               <button onClick={() => setShowFilters(false)} className="btn-dark w-full mt-5">
                 Ver {results.length} resultado{results.length !== 1 ? 's' : ''}
               </button>
@@ -256,7 +259,7 @@ export default function ClassBrowser({
                   </button>
                 </div>
                 <div className="px-6 py-5 overflow-y-auto">
-                  <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} hideStyles={!includeStyles} />
+                  <FilterPanel filters={filters} onChange={handleFiltersChange} danceStyles={danceStyles} levels={levels} countries={countries} hideStyles={!includeStyles} />
                 </div>
                 <div className="px-6 py-5 border-t border-neutral-100 shrink-0">
                   <button onClick={() => setShowFilters(false)} className="btn-dark w-full">

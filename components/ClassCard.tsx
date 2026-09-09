@@ -5,6 +5,7 @@ import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
+import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
@@ -33,6 +34,11 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
   const spotsLeft = cls.availableSpots;
   const isFullyBooked = spotsLeft === 0;
   const isAlmostFull = spotsLeft !== undefined && spotsLeft <= 3 && spotsLeft > 0;
+
+  // Inferido de la dirección real de la clase (venues.country_code), no de la
+  // nacionalidad del profesor/academia — un profesor extranjero puede dictar
+  // en Perú y esa clase no debe marcarse como "de otro país".
+  const classCountry = findCountryByCode(cls.countryCode);
 
   function handleSelectItem() {
     trackSelectItem({
@@ -99,6 +105,15 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
             )}
           </Link>
           <div className="absolute top-3 left-3 flex gap-2 pointer-events-none">
+            {classCountry && (
+              <span
+                className="w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm shadow flex items-center justify-center text-[14px]"
+                title={`Clase en ${classCountry.name}`}
+                aria-label={`Clase en ${classCountry.name}`}
+              >
+                {classCountry.flag}
+              </span>
+            )}
             {isExpired && (
               <span className="badge-gray text-[11px] shadow-xs">
                 Finalizada

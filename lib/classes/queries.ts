@@ -3,6 +3,7 @@ import { getPublicClient } from '@/lib/supabase/public';
 import { safeCache } from '@/lib/cache';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { mapTeacher } from '@/lib/profiles/queries';
+import { searchKeywords } from '@/lib/search/normalize';
 import { DAY_MAP } from './helpers';
 import type {
   DanceClass, Teacher, TimeSlot, ClassStatus, ClassType,
@@ -78,6 +79,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     modality:         row.modality as Modality,
     city:             venue?.city ?? '',
     district:         venue?.district ?? '',
+    countryCode:      venue?.country_code ?? undefined,
     venueName:        venue?.name ?? undefined,
     address:          venue?.address ?? undefined,
     reference:        venue?.reference ?? undefined,
@@ -117,9 +119,9 @@ export const CLASS_SELECT = `
   level:class_levels(id, name),
   class_styles(style_id, is_main, dance_styles(id, name, slug)),
   class_schedules(id, day_of_week, start_time, end_time),
-  venue:venues(name, address, reference, maps_url, place_id, lat, lng, city, district, map_image_url),
+  venue:venues(name, address, reference, maps_url, place_id, lat, lng, city, district, country_code, map_image_url),
   teacher:profiles!teacher_id(
-    id, slug, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
+    id, slug, name, role, photo_url, photo_position, photo_zoom, nationality, bio, years_experience,
     whatsapp, show_spots, instagram, tiktok, youtube, website,
     profile_styles(style_id, dance_styles(name))
   )
@@ -173,25 +175,70 @@ async function resolveCityVenueIds(
   return (data ?? []).map((r: { id: string }) => r.id);
 }
 
+async function resolveCountryVenueIds(
+  supabase: SupabaseClient,
+  country: string | undefined
+): Promise<string[] | null> {
+  if (!country) return null;
+  const { data } = await supabase
+    .from('venues').select('id').eq('country_code', country);
+  return (data ?? []).map((r: { id: string }) => r.id);
+}
+
 // PostgREST .or() filter strings break on raw commas/parens in the value —
 // strip them so a free-text search never corrupts the filter syntax.
 function sanitizeForOrFilter(text: string): string {
   return text.replace(/[,()]/g, ' ').trim();
 }
 
-// Lets the free-text search box also match by city/district (e.g. "Miraflores",
-// "Lima") — venues.city/district are free text, not a lookup table, so this is
-// an ilike scan rather than an id lookup like resolveCityVenueIds above.
-async function resolveQueryVenueIds(
+
+// One search keyword's match condition, ORed across every field it could
+// plausibly hit (title, dance style, venue city/district) — e.g. for
+// "miraflores" this becomes "title ILIKE %miraflores% OR venue_id IN (...) OR
+// id IN (...)". Returns null when the keyword resolves to nothing at all (no
+// title can match it either, once sanitized down to nothing).
+async function resolveKeywordCondition(
   supabase: SupabaseClient,
-  query: string | undefined
+  keyword: string
+): Promise<string | null> {
+  const safe = sanitizeForOrFilter(keyword);
+  if (!safe) return null;
+
+  const [{ data: venueRows }, { data: styleRows }] = await Promise.all([
+    supabase.from('venues').select('id').or(`city.ilike.%${safe}%,district.ilike.%${safe}%`),
+    supabase.from('dance_styles').select('id').ilike('name', `%${safe}%`),
+  ]);
+  const venueIds = (venueRows ?? []).map((r: { id: string }) => r.id);
+  const styleIds = (styleRows ?? []).map((r: { id: number }) => r.id);
+
+  let styleClassIds: string[] = [];
+  if (styleIds.length) {
+    const { data } = await supabase.from('class_styles').select('class_id').in('style_id', styleIds);
+    styleClassIds = [...new Set((data ?? []).map((r: { class_id: string }) => r.class_id))];
+  }
+
+  const orParts = [`title.ilike.%${safe}%`];
+  if (venueIds.length) orParts.push(`venue_id.in.(${venueIds.join(',')})`);
+  if (styleClassIds.length) orParts.push(`id.in.(${styleClassIds.join(',')})`);
+  return orParts.join(',');
+}
+
+// Lets the free-text search box understand a full phrase, not just a
+// literal substring — "salsa en miraflores" needs to require BOTH "salsa"
+// (title or dance style) AND "miraflores" (title or venue), each checked
+// across every field independently. Chaining one .or() call per keyword
+// onto the query builder is what gives that AND-across-keywords,
+// OR-across-fields shape: PostgREST ANDs separately chained filters
+// together, so this reads as (kw1 in title|style|venue) AND (kw2 in
+// title|style|venue) AND ... — a class matching only "miraflores" (a
+// common district shared by dozens of unrelated classes) no longer
+// drowns out ones that actually match every word the user typed.
+async function resolveKeywordConditions(
+  supabase: SupabaseClient,
+  keywords: string[]
 ): Promise<string[]> {
-  if (!query) return [];
-  const { data } = await supabase
-    .from('venues')
-    .select('id')
-    .or(`city.ilike.%${query}%,district.ilike.%${query}%`);
-  return (data ?? []).map((r: { id: string }) => r.id);
+  const conditions = await Promise.all(keywords.map(kw => resolveKeywordCondition(supabase, kw)));
+  return conditions.filter((c): c is string => c !== null);
 }
 
 // ── Class queries ─────────────────────────────────────────────────────────────
@@ -206,26 +253,28 @@ function serializeFilters(filters?: ClassFilters): string {
   if (filters.types?.length)       norm.types = [...filters.types].sort();
   if (filters.days?.length)        norm.days = [...filters.days].sort();
   if (filters.city?.trim())        norm.city = filters.city.trim().toLowerCase();
+  if (filters.country?.trim())     norm.country = filters.country.trim().toUpperCase();
   if (filters.withSpots)           norm.withSpots = true;
   return Object.keys(norm).length ? JSON.stringify(norm) : '';
 }
 
 async function queryPublishedClasses(filters?: ClassFilters): Promise<DanceClass[]> {
   const supabase = getPublicClient();
-  const safeQuery = filters?.query ? sanitizeForOrFilter(filters.query) : undefined;
+  const keywords = filters?.query ? searchKeywords(filters.query) : [];
 
   // Resolve join-based filters in parallel — null means inactive, [] means no matches
-  const [styleClassIds, levelIds, dayClassIds, cityVenueIds, queryVenueIds] = await Promise.all([
+  const [styleClassIds, levelIds, dayClassIds, cityVenueIds, countryVenueIds, keywordConditions] = await Promise.all([
     resolveStyleClassIds(supabase, filters?.styles),
     resolveLevelIds(supabase, filters?.levels),
     resolveDayClassIds(supabase, filters?.days),
     resolveCityVenueIds(supabase, filters?.city),
-    resolveQueryVenueIds(supabase, safeQuery),
+    resolveCountryVenueIds(supabase, filters?.country),
+    resolveKeywordConditions(supabase, keywords),
   ]);
 
   // Early exit: any active filter resolved to zero matches → no results possible
   if (styleClassIds?.length === 0 || levelIds?.length === 0 ||
-      dayClassIds?.length === 0 || cityVenueIds?.length === 0) {
+      dayClassIds?.length === 0 || cityVenueIds?.length === 0 || countryVenueIds?.length === 0) {
     return [];
   }
 
@@ -243,19 +292,18 @@ async function queryPublishedClasses(filters?: ClassFilters): Promise<DanceClass
   if (filters?.types?.length)      q = q.in('type', filters.types);
   if (filters?.withSpots)          q = q.gt('available_spots', 0);
 
-  // Free-text search matches title OR the class's venue city/district (e.g.
-  // "Miraflores", "Lima") — whichever term the user typed.
-  if (safeQuery) {
-    q = queryVenueIds.length
-      ? q.or(`title.ilike.%${safeQuery}%,venue_id.in.(${queryVenueIds.join(',')})`)
-      : q.ilike('title', `%${safeQuery}%`);
-  }
+  // Free-text search: every keyword must match SOMEWHERE (title, dance
+  // style, or venue city/district) — see resolveKeywordConditions. Chaining
+  // one .or() per keyword is what makes them all required at once instead
+  // of any single one being enough.
+  for (const condition of keywordConditions) q = q.or(condition);
 
   // ID-based filters (from join resolution)
   if (styleClassIds?.length) q = q.in('id', styleClassIds);
   if (levelIds?.length)      q = q.in('level_id', levelIds);
   if (dayClassIds?.length)   q = q.in('id', dayClassIds);
   if (cityVenueIds?.length)  q = q.in('venue_id', cityVenueIds);
+  if (countryVenueIds?.length) q = q.in('venue_id', countryVenueIds);
 
   const { data, error } = await q;
   if (error) {
@@ -277,6 +325,15 @@ const getCachedPublishedClasses = safeCache(
 export async function fetchPublishedClasses(filters?: ClassFilters): Promise<DanceClass[]> {
   const filterKey = serializeFilters(filters);
   return getCachedPublishedClasses(filterKey);
+}
+
+// Distinct countries with at least one published class — for the "País"
+// filter option list. Deliberately unfiltered (reuses the same cached
+// all-classes fetch as the no-filters case) so the option list doesn't
+// shrink just because some other filter is currently active.
+export async function fetchClassCountries(): Promise<string[]> {
+  const classes = await fetchPublishedClasses();
+  return [...new Set(classes.map(c => c.countryCode).filter((c): c is string => Boolean(c)))].sort();
 }
 
 export async function fetchClassById(id: string): Promise<DanceClass | null> {
