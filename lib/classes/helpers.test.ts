@@ -104,6 +104,23 @@ describe('venueNeedsUpdate', () => {
       { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Callao', district: 'Miraflores' }
     )).toBe(true);
   });
+
+  // Country is inferred from the class's own address (migration 48), not the
+  // teacher's nationality — a class moved across a border needs the same
+  // re-run findOrCreateVenue gets for a changed city/district.
+  it('returns true when only country differs (place_id/address/name/city/district unchanged)', () => {
+    expect(venueNeedsUpdate(
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores', country_code: 'PE' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores', country: 'VE' }
+    )).toBe(true);
+  });
+
+  it('ignores country when incoming.country is not provided (manual-fallback edit, no Google data)', () => {
+    expect(venueNeedsUpdate(
+      { place_id: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores', country_code: 'PE' },
+      { placeId: 'place-1', address: 'Av. Test 123', name: '', city: 'Lima', district: 'Miraflores' }
+    )).toBe(false);
+  });
 });
 
 // ─── findOrCreateVenue ──────────────────────────────────────────────────────
@@ -216,6 +233,43 @@ describe('findOrCreateVenue', () => {
 
     expect(id).toBe('venue-manual');
     expect(supabase.insertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('includes country_code in the insert when a country is provided (Google Places extraction)', async () => {
+    const supabase = buildSupabaseMock({
+      maybeSingleResult: { data: null, error: null },
+      singleResult: { data: { id: 'venue-new' }, error: null },
+    });
+
+    await findOrCreateVenue(supabase, 'owner-1', {
+      ...baseOpts, country: 'VE', placeId: 'place-2', lat: -12.2, lng: -77.03,
+    });
+
+    expect(supabase.insertMock.mock.calls[0][0]).toMatchObject({ country_code: 'VE' });
+  });
+
+  it('omits country_code from the insert when no country was resolved (manual-fallback address, no API key)', async () => {
+    const supabase = buildSupabaseMock({
+      singleResult: { data: { id: 'venue-manual' }, error: null },
+    });
+
+    await findOrCreateVenue(supabase, 'owner-1', {
+      ...baseOpts, placeId: null, lat: null, lng: null,
+    });
+
+    expect(supabase.insertMock.mock.calls[0][0]).not.toHaveProperty('country_code');
+  });
+
+  it('includes country_code in the update when reusing an existing venue and a country is provided', async () => {
+    const supabase = buildSupabaseMock({
+      maybeSingleResult: { data: { id: 'venue-existing' }, error: null },
+    });
+
+    await findOrCreateVenue(supabase, 'owner-1', {
+      ...baseOpts, country: 'VE', placeId: 'place-1', lat: -12.1, lng: -77.02,
+    });
+
+    expect(supabase.updateMock.mock.calls[0][0]).toMatchObject({ country_code: 'VE' });
   });
 });
 

@@ -86,6 +86,9 @@ export interface DanceClass {
   modality: Modality;
   city: string;
   district: string;
+  // ISO 3166-1 alpha-2 of the venue's actual address — not the teacher's
+  // nationality, see migration 48.
+  countryCode?: string;
   venueName?: string;
   address?: string;
   reference?: string;

@@ -10,10 +10,12 @@ export default function CategoriaDetailContent({
   style,
   initialClasses,
   levels = [],
+  countries = [],
 }: {
   style: DbDanceStyle;
   initialClasses: DanceClass[];
   levels?: string[];
+  countries?: string[];
 }) {
   const heroImage = STYLE_IMAGES[style.slug] ?? FALLBACK_CATEGORY_IMAGES[0];
 
@@ -23,6 +25,7 @@ export default function CategoriaDetailContent({
       initialClasses={initialClasses}
       includeStyles={false}
       levels={levels}
+      countries={countries}
       searchPlaceholder={`Busca dentro de ${style.name}: profesor, academia o distrito…`}
       renderResultsCount={count => (
         <><span className="font-bold text-neutral-900">{count}</span> clase{count !== 1 ? 's' : ''} de {style.name}</>

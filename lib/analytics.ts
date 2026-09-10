@@ -241,3 +241,18 @@ export function trackTeacherSocialClick(params: {
     surface: params.surface,
   });
 }
+
+// Fired once a search from the Home hero actually leads to a class — i.e.
+// exactly when lib/recentSearches.ts's recordRecentSearch also runs (see
+// goToClass in HomeClient.tsx). Never fired for an abandoned search.
+// search_term/class_id/class_style (not query/classId/classStyle) to reuse
+// the DLVs the existing 'search'/'view_item' tags already have in GTM.
+export function trackRecentSearchAdded(params: { query: string; classId: string; classStyle: string }) {
+  pushEvent('recent_search_added', { search_term: params.query, class_id: params.classId, class_style: params.classStyle });
+}
+
+// Fired when a visitor clicks one of their own "Búsquedas recientes" cards
+// on the Home page to repeat that search.
+export function trackRecentSearchClicked(params: { query: string }) {
+  pushEvent('recent_search_clicked', { search_term: params.query });
+}

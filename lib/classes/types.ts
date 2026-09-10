@@ -15,6 +15,9 @@ export interface ClassFilters {
   types?:      string[];
   days?:       string[];
   city?:       string;
+  // ISO 3166-1 alpha-2 (venues.country_code) — inferred from the class's own
+  // address, not the teacher's nationality (see migration 48).
+  country?:    string;
   withSpots?:  boolean;
 }
 
@@ -75,6 +78,7 @@ export interface DbVenue {
   lng: number | null;
   city: string | null;
   district: string | null;
+  country_code: string | null;
   map_image_url: string | null;
 }
 

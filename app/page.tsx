@@ -1,4 +1,5 @@
 import { fetchPublishedClasses } from '@/lib/classes/queries';
+import { selectHomeRecommendedClasses } from '@/lib/classes/homeRecommendations';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import { fetchDanceStyles } from '@/lib/catalog/queries';
 import { fetchHomeStats } from '@/lib/stats/queries';
@@ -47,6 +48,12 @@ export default async function Page() {
     .filter(([, styleClasses]) => styleClasses.length > MIN_CLASSES_FOR_FEATURED_ROW)
     .sort(([, a], [, b]) => b.length - a.length)
     .map(([style, styleClasses]) => ({ style, classes: styleClasses }));
+
+  // "Clases de baile para ti" — un subset acotado y con tope por profesor,
+  // no las 70+ clases publicadas sin curar. `classes` (todas, sin recortar)
+  // sigue pasando intacto como initialClasses: HomeClient también lo usa
+  // para saber qué estilos tienen clases reales (sugerencias del buscador).
+  const recommendedClasses = selectHomeRecommendedClasses(classes);
 
   const homeJsonLd = {
     '@context': 'https://schema.org',
@@ -170,6 +177,7 @@ export default async function Page() {
       <AuthErrorBanner />
       <HomeClient
         initialClasses={classes}
+        recommendedClasses={recommendedClasses}
         featuredCategories={featuredCategories}
         initialTeachers={teachers}
         initialAcademias={academias}

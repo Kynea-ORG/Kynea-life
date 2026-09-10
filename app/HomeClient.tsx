@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
   Search, MapPin, ArrowRight, ArrowLeft, Star, CalendarCheck,
-  MessageCircle, ChevronLeft, ChevronRight, Loader2, X,
+  MessageCircle, ChevronLeft, ChevronRight, Loader2, X, Clock,
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -14,7 +14,9 @@ import ClassCard from '@/components/ClassCard';
 import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
 import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
-import { trackAuthCtaClick, trackSearch, trackSelectProfile } from '@/lib/analytics';
+import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
+import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
+import { resolveSearch } from '@/lib/search/resolveSearch';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { useRotatingPlaceholder } from '@/lib/hooks/useRotatingPlaceholder';
 import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES, CATEGORY_GRADIENTS } from '@/lib/catalog/styleImages';
@@ -85,6 +87,11 @@ interface FeaturedCategory {
 
 interface Props {
   initialClasses:     DanceClass[];
+  // "Clases de baile para ti" — subset ya acotado/rotado (ver
+  // lib/classes/homeRecommendations.ts). initialClasses sigue siendo la
+  // lista completa, usada acá solo para saber qué estilos tienen clases
+  // reales (sugerencias del buscador).
+  recommendedClasses: DanceClass[];
   featuredCategories: FeaturedCategory[];
   initialTeachers:    Teacher[];
   initialAcademias:   Teacher[];
@@ -149,10 +156,13 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ initialClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats, userRole }: Props) {
+export default function HomeClient({ initialClasses, recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats, userRole }: Props) {
   const router = useRouter();
   const [query, setQuery]         = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  // Solo mientras navigateSearch() espera a resolveSearch() (un round-trip
+  // corto a profiles) — evita un doble submit mientras decide a dónde ir.
+  const [isResolvingSearch, setIsResolvingSearch] = useState(false);
   const rotatingPlaceholder = useRotatingPlaceholder(SEARCH_PLACEHOLDER_EXAMPLES, isSearchFocused || query.trim().length > 0);
 
   // Home category strip: fixed display order (HOME_CATEGORY_SLUGS), not the
@@ -162,6 +172,14 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
     .map(slug => danceStyles.find(s => s.slug === slug))
     .filter((s): s is DbDanceStyle => !!s);
   const displayedCategories = homeCategories.length > 0 ? homeCategories : danceStyles.slice(0, 9);
+
+  // Read only on mount (client-only, localStorage) — never during SSR, to
+  // avoid a hydration mismatch. Empty on first paint is correct: it just
+  // means this device has no recent-search history yet.
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  useEffect(() => {
+    Promise.resolve().then(() => setRecentSearches(getRecentSearches()));
+  }, []);
 
   // ── Search autocomplete ──
   const [suggestions, setSuggestions]       = useState<{ classes: SearchClass[]; profiles: SearchProfile[] }>({ classes: [], profiles: [] });
@@ -296,6 +314,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
   // ── Teachers carousel ──
   const teachersScrollRef = useRef<HTMLDivElement>(null);
+  const academiasScrollRef = useRef<HTMLDivElement>(null);
 
   // ── Carousel auto-scroll ──
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -319,17 +338,66 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
   const hasSuggestions = numClasses > 0 || numProfiles > 0;
   const totalSearchOptions = hasSuggestions ? numClasses + numProfiles + 1 : 0;
 
-  const navigateSearch = () => {
+  // Confirmar la búsqueda (botón "Buscar" / Enter sin sugerencia resaltada)
+  // — a diferencia de clickear una sugerencia del dropdown, acá no sabemos
+  // de antemano a qué apunta el texto. Antes, esto SIEMPRE mandaba a
+  // /clases?q=texto (que solo filtra por título de clase) sin importar si el
+  // texto era en realidad un profesor o academia — buscar "Zeus" daba
+  // "0 clases" aunque el dropdown ya lo había encontrado segundos antes.
+  // resolveSearch decide el destino real; ver lib/search/resolveSearch.ts.
+  const navigateSearch = async () => {
     const trimmedQuery = query.trim();
     const trimmedCity = city.trim();
-    const params = new URLSearchParams();
-    if (trimmedQuery) params.set('q', trimmedQuery);
-    if (trimmedCity) params.set('city', trimmedCity);
     if (trimmedQuery || trimmedCity) trackSearch({ searchTerm: trimmedQuery, city: trimmedCity });
-    router.push(`/clases?${params.toString()}`);
     setShowSuggestions(false);
     setActiveOptionIndex(-1);
     setMobileSearch(null);
+
+    if (!trimmedQuery) {
+      const params = new URLSearchParams();
+      if (trimmedCity) params.set('city', trimmedCity);
+      router.push(`/clases${params.size ? `?${params.toString()}` : ''}`);
+      return;
+    }
+
+    setIsResolvingSearch(true);
+    const resolution = await resolveSearch(trimmedQuery, danceStyles).catch(
+      () => ({ type: 'ambiguous' as const })
+    );
+    setIsResolvingSearch(false);
+
+    if (resolution.type === 'style') {
+      const params = new URLSearchParams({ style: resolution.styleName });
+      if (trimmedCity) params.set('city', trimmedCity);
+      const href = `/clases?${params.toString()}`;
+      // Solo se guarda como "búsqueda reciente" si de verdad hay algo que
+      // mostrar ahora mismo — un estilo real pero sin clases publicadas no
+      // cuenta como búsqueda exitosa (igual navega ahí, solo no se recuerda).
+      if (resolution.hasResults) {
+        recordRecentSearch({ query: trimmedQuery, href, resultLabel: resolution.styleName });
+        trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: resolution.styleName });
+      }
+      router.push(href);
+      return;
+    }
+
+    if (resolution.type === 'profile') {
+      const href = resolution.role === 'academia' ? `/academias/${resolution.slug}` : `/profesores/${resolution.slug}`;
+      recordRecentSearch({ query: trimmedQuery, href, resultLabel: resolution.name });
+      trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: '' });
+      router.push(href);
+      return;
+    }
+
+    // Ambiguo (parcial, varios tipos, o sin match) — agrupado por tipo,
+    // nunca un "Sin resultados" genérico como el /clases?q= de antes. Acá
+    // todavía no sabemos si /resultados tendrá algo que mostrar (esa cuenta
+    // la hace la propia página con los datos que ya carga) — ResultadosClient
+    // es quien decide si esto cuenta como "búsqueda exitosa" y la guarda.
+    const params = new URLSearchParams({ q: trimmedQuery });
+    if (trimmedCity) params.set('city', trimmedCity);
+    const href = `/resultados?${params.toString()}`;
+    router.push(href);
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -402,7 +470,13 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
   function goToClass(cls: SearchClass) {
     const mainStyle = getMainStyle(cls);
     const categorySlug = mainStyle?.slug || 'clase';
-    router.push(`/${categorySlug}/${cls.type}/${cls.slug}`);
+    const trimmedQuery = query.trim();
+    const href = `/${categorySlug}/${cls.type}/${cls.slug}`;
+    if (trimmedQuery) {
+      recordRecentSearch({ query: trimmedQuery, href, resultLabel: cls.title });
+      trackRecentSearchAdded({ query: trimmedQuery, classId: cls.id, classStyle: mainStyle?.name ?? '' });
+    }
+    router.push(href);
     setShowSuggestions(false);
     setActiveOptionIndex(-1);
     setMobileSearch(null);
@@ -412,7 +486,13 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
       role: p.role === 'academia' ? 'academia' : 'profesor',
       profileId: p.id, profileName: p.name, listName: 'home_search_autocomplete',
     });
-    router.push(p.role === 'academia' ? `/academias/${p.slug}` : `/profesores/${p.slug}`);
+    const trimmedQuery = query.trim();
+    const href = p.role === 'academia' ? `/academias/${p.slug}` : `/profesores/${p.slug}`;
+    if (trimmedQuery) {
+      recordRecentSearch({ query: trimmedQuery, href, resultLabel: p.name });
+      trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: '' });
+    }
+    router.push(href);
     setShowSuggestions(false);
     setActiveOptionIndex(-1);
     setMobileSearch(null);
@@ -643,7 +723,8 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                         aria-selected={activeOptionIndex === numClasses + numProfiles}
                         onMouseDown={e => e.preventDefault()}
                         onClick={navigateSearch}
-                        className="text-[13px] text-primary font-semibold hover:underline w-full text-left"
+                        disabled={isResolvingSearch}
+                        className="text-[13px] text-primary font-semibold hover:underline w-full text-left disabled:opacity-60"
                       >
                         Ver todos los resultados de &ldquo;{query}&rdquo; →
                       </button>
@@ -735,15 +816,16 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
 
             <button
               type="submit"
+              disabled={isResolvingSearch}
               onFocus={() => {
                 setCityOpen(false);
                 setShowSuggestions(false);
                 setActiveCityIndex(-1);
                 setActiveOptionIndex(-1);
               }}
-              className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-colors active:scale-[0.98]"
+              className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait"
             >
-              <Search className="w-4 h-4" /> Buscar
+              {isResolvingSearch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Buscar
             </button>
           </form>
         </div>
@@ -804,8 +886,9 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               </div>
             </button>
 
-            <button type="button" onClick={navigateSearch}
-              className="w-full font-black text-[15.5px] text-white bg-primary hover:bg-primary-dark active:bg-primary-dark rounded-full py-3.5 mt-1.5 shadow-[0_6px_16px_rgba(138,17,188,.35)] cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]">
+            <button type="button" onClick={navigateSearch} disabled={isResolvingSearch}
+              className="w-full font-black text-[15.5px] text-white bg-primary hover:bg-primary-dark active:bg-primary-dark rounded-full py-3.5 mt-1.5 shadow-[0_6px_16px_rgba(138,17,188,.35)] cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] active:shadow-[0_2px_6px_rgba(138,17,188,.3)] disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2">
+              {isResolvingSearch && <Loader2 className="w-4 h-4 animate-spin" />}
               Buscar
             </button>
 
@@ -917,9 +1000,17 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
               </div>
             )}
 
-            {hasSuggestions && (
+            {/* A diferencia del dropdown de escritorio, este overlay de
+                mobile no tiene un botón "Buscar" aparte siempre visible —
+                sin este link, una búsqueda sin sugerencias directas (p.ej.
+                "profesor Zeus Villanueva", que solo resuelve vía
+                resolveSearch, no vía el autocompletado literal) se queda
+                sin forma de confirmarse en mobile. Por eso se muestra
+                incluso en el estado "Sin resultados", no solo cuando
+                hasSuggestions. */}
+            {!isSearching && query.trim().length >= 2 && (
               <div className="px-5 pt-4">
-                <button type="button" onClick={navigateSearch} className="text-[13.5px] font-bold text-primary">
+                <button type="button" onClick={navigateSearch} disabled={isResolvingSearch} className="text-[13.5px] font-bold text-primary disabled:opacity-60">
                   Ver todos los resultados para &ldquo;{query}&rdquo; →
                 </button>
               </div>
@@ -1026,6 +1117,38 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
         </div>
       </section>
 
+      {/* ── BÚSQUEDAS RECIENTES ── */}
+      {recentSearches.length > 0 && (
+        <section className="bg-white pb-8">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-neutral-400" />
+              <h2 className="text-[15px] font-bold text-neutral-700">Búsquedas recientes</h2>
+            </div>
+            <div
+              className="flex gap-3 overflow-x-auto pb-2"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {recentSearches.map(s => (
+                <button
+                  key={`${s.query}-${s.timestamp}`}
+                  onClick={() => {
+                    trackRecentSearchClicked({ query: s.query });
+                    router.push(s.href);
+                  }}
+                  className="shrink-0 text-left rounded-xl border border-neutral-200 bg-white px-4 py-2.5 hover:border-neutral-900 hover:shadow-sm transition-[border-color,box-shadow] duration-150 max-w-[220px]"
+                >
+                  <p className="text-[14px] font-bold text-neutral-900 truncate">{s.query}</p>
+                  {s.resultLabel && (
+                    <p className="text-[12px] text-neutral-500 truncate">{s.resultLabel}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── CLASES ESTA SEMANA ── */}
       <section className="bg-neutral-50 py-16">
         <div className="max-w-[1200px] mx-auto px-6">
@@ -1041,7 +1164,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
             </div>
           </div>
 
-          {initialClasses.length === 0 ? (
+          {recommendedClasses.length === 0 ? (
             <div className="text-center py-16 text-neutral-400">
               <p className="text-[15px]">No hay clases disponibles en este momento.</p>
               <p className="text-[13px] mt-1">¡Pronto habrá más!</p>
@@ -1063,7 +1186,7 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 onMouseEnter={() => { carouselPausedRef.current = true; }}
                 onMouseLeave={() => { carouselPausedRef.current = false; }}
               >
-                {initialClasses.map(cls => (
+                {recommendedClasses.map(cls => (
                   <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
                     <ClassCard cls={cls} compact listName="home_recommended" />
                   </div>
@@ -1105,66 +1228,106 @@ export default function HomeClient({ initialClasses, featuredCategories, initial
                 <h2 className="text-[27px] sm:text-[30px] font-extrabold text-white tracking-snug">Academias</h2>
                 <p className="text-white/60 text-[15px] mt-1">Espacios de danza en toda Latinoamérica</p>
               </div>
-              <Link
-                href="/academias"
-                className="text-[15px] font-semibold text-white hover:text-white/70 transition-colors whitespace-nowrap"
-              >
-                Ver todas →
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/academias"
+                  className="text-[15px] font-semibold text-white hover:text-white/70 transition-colors whitespace-nowrap"
+                >
+                  Ver todas →
+                </Link>
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={() => academiasScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center hover:bg-white/10 hover:border-white/25 transition-colors duration-150 ease-out active:scale-90"
+                    aria-label="Anterior"
+                  >
+                    <ChevronLeft className="w-4.5 h-4.5 text-white" />
+                  </button>
+                  <button
+                    onClick={() => academiasScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center hover:bg-white/10 hover:border-white/25 transition-colors duration-150 ease-out active:scale-90"
+                    aria-label="Siguiente"
+                  >
+                    <ChevronRight className="w-4.5 h-4.5 text-white" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Cards-póster: la foto ocupa toda la tarjeta (no una miniatura al
+                costado) — un carrusel horizontal como el de Profesores, pero
+                con la composición "cover editorial" que ya usa el banner del
+                perfil público de academia (ProfesorDetailClient: foto de fondo
+                + degradado hacia negro), para que el Home anticipe esa misma
+                identidad en vez de introducir un cuarto tratamiento distinto. */}
+            <div
+              ref={academiasScrollRef}
+              className="flex gap-5 overflow-x-auto pb-3 pt-1 -mx-1 px-1"
+              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
               {initialAcademias.map(t => (
                 <Link
                   key={t.id}
                   href={`/academias/${t.slug}`}
                   onClick={() => trackSelectProfile({ role: 'academia', profileId: t.id, profileName: t.name, listName: 'home_academias' })}
-                  className="card-hover flex items-start gap-4 group"
+                  className="group relative shrink-0 w-[250px] sm:w-[280px] aspect-[3/4] rounded-2xl overflow-hidden transition-transform duration-300 ease-out hover:-translate-y-1"
+                  style={{ scrollSnapAlign: 'start' }}
                 >
-                  <div className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-neutral-200 transition-transform duration-300 group-hover:scale-105">
-                    {t.photo ? (
-                      <SmartImage
-                        src={t.photo}
-                        alt={t.name}
-                        fill
-                        sizes="80px"
-                        className="object-cover"
-                        style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-3xl font-black text-neutral-400 select-none">
-                          {t.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-1">
-                      <h3 className="font-bold text-neutral-900 text-[16px] leading-tight">{t.name}</h3>
-                      {t.rating && (
-                        <div className="flex items-center gap-1 shrink-0 ml-2">
-                          <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                          <span className="text-[13px] font-bold text-neutral-800">{t.rating}</span>
-                        </div>
-                      )}
+                  {t.photo ? (
+                    <SmartImage
+                      src={t.photo}
+                      alt={t.name}
+                      fill
+                      sizes="(min-width: 640px) 280px, 250px"
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
+                      style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                      <span className="text-[96px] font-black text-white/10 select-none leading-none">
+                        {t.name.charAt(0).toUpperCase()}
+                      </span>
                     </div>
+                  )}
+
+                  {/* Degradado inferior — el mismo rol que el fade del banner
+                      de perfil: asegura contraste para el texto sin importar
+                      qué tan clara/oscura salga la foto de cada academia. */}
+                  <div
+                    className="absolute inset-0"
+                    style={{ backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.55) 30%, rgba(0,0,0,0) 62%)' }}
+                  />
+
+                  {t.rating && (
+                    <div className="absolute top-3.5 right-3.5 flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full pl-2 pr-2.5 py-1">
+                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                      <span className="text-[12px] font-bold text-white">{t.rating}</span>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-x-0 bottom-0 p-5">
+                    <h3 className="font-bold text-white text-[19px] leading-snug tracking-tight mb-1">{t.name}</h3>
                     {t.nationality && (
-                      <p className="text-[13px] text-neutral-600 mb-2">
-                        <MapPin className="w-3 h-3 inline mr-0.5 -mt-px" />
+                      <p className="flex items-center gap-1 text-[12.5px] text-white/70 mb-2.5">
+                        <MapPin className="w-3 h-3 shrink-0" />
                         {t.nationality}
                       </p>
                     )}
-                    <div className="flex flex-wrap gap-1 mb-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {t.styles.slice(0, 3).map(s => (
-                        <span key={s} className="badge-pink text-[11px]">{s}</span>
+                        <span
+                          key={s}
+                          className="text-[10.5px] font-semibold text-white/90 border border-white/25 bg-white/5 rounded-full px-2.5 py-0.5"
+                        >
+                          {s}
+                        </span>
                       ))}
                       {t.styles.length > 3 && (
-                        <span className="text-[11px] text-neutral-400 px-1">+{t.styles.length - 3}</span>
+                        <span className="text-[10.5px] text-white/50 px-1 py-0.5">+{t.styles.length - 3}</span>
                       )}
                     </div>
                     {t.totalClasses && (
-                      <p className="text-[12px] text-neutral-400">{t.totalClasses} clases publicadas</p>
+                      <p className="text-[11.5px] text-white/40 mt-2.5">{t.totalClasses} clases publicadas</p>
                     )}
                   </div>
                 </Link>

@@ -52,6 +52,7 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
   const modality  = formData.get('modality') as string;
   const city      = formData.get('city')     as string;
   const district  = formData.get('district') as string;
+  const country   = (formData.get('country') as string) || undefined;
   const address   = formData.get('address')  as string;
   const reference = formData.get('reference') as string;
   const timeSlots = formData.get('timeSlots') as string;
@@ -72,7 +73,7 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
     // address as separate lines, so defaulting an unnamed venue's name to
     // its own address made that block print the address twice.
     const venueName = (formData.get('venueName') as string) || '';
-    venueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, city, district, placeId, lat, lng });
+    venueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, city, district, country, placeId, lat, lng });
   }
 
   const cols = buildClassColumns(formData, { levelId, venueId });
@@ -276,6 +277,7 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
   const modality   = formData.get('modality')  as string;
   const city       = formData.get('city')      as string;
   const district   = formData.get('district')  as string;
+  const country    = (formData.get('country') as string) || undefined;
   const address    = formData.get('address')   as string;
   const reference  = formData.get('reference') as string;
   const timeSlots  = formData.get('timeSlots') as string;
@@ -286,7 +288,7 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
 
   const { data: existing } = await supabase
     .from('classes')
-    .select('venue_id, venues(place_id, address, name, city, district)')
+    .select('venue_id, venues(place_id, address, name, city, district, country_code)')
     .eq('id', classId)
     .eq('teacher_id', user.id)
     .single();
@@ -302,7 +304,7 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
 
   // `venues` is a to-one FK relation, but PostgREST types it as an array when
   // inferred loosely — normalize before reading.
-  const currentVenueRaw = existing.venues as { place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null } | Array<{ place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null }> | null;
+  const currentVenueRaw = existing.venues as { place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null; country_code: string | null } | Array<{ place_id: string | null; address: string | null; name: string | null; city: string | null; district: string | null; country_code: string | null }> | null;
   const currentVenue = Array.isArray(currentVenueRaw) ? (currentVenueRaw[0] ?? null) : currentVenueRaw;
 
   let venueId: string | null = existing.venue_id ?? null;
@@ -310,8 +312,8 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
     // See createClass: no fallback to `address` — an unnamed venue should
     // stay unnamed, not silently mirror the address into the name field.
     const venueName = (formData.get('venueName') as string) || '';
-    if (venueNeedsUpdate(currentVenue, { placeId, address, name: venueName, city, district })) {
-      const newVenueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, city, district, placeId, lat, lng });
+    if (venueNeedsUpdate(currentVenue, { placeId, address, name: venueName, city, district, country })) {
+      const newVenueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, city, district, country, placeId, lat, lng });
       if (newVenueId) venueId = newVenueId;
     }
   } else if (!isPresencial) {
