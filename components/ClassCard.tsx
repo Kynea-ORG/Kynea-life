@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
@@ -27,10 +27,6 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [justContacted, setJustContacted] = useState(false);
 
-  useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user));
-  }, []);
-
   const spotsLeft = cls.availableSpots;
   const isFullyBooked = spotsLeft === 0;
   const isAlmostFull = spotsLeft !== undefined && spotsLeft <= 3 && spotsLeft > 0;
@@ -47,9 +43,21 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
     });
   }
 
-  function handleContact() {
+  async function handleContact() {
     if (!isExpired && isFullyBooked) return;
-    if (!isLoggedIn) {
+
+    // Comprobación de sesión on-demand: evita disparar ~80 peticiones a
+    // /auth/v1/user al montar listas de tarjetas (Home, /clases, etc.).
+    let userLoggedIn = isLoggedIn;
+    if (!userLoggedIn) {
+      const { data: { session } } = await createClient().auth.getSession();
+      if (session?.user) {
+        userLoggedIn = true;
+        setIsLoggedIn(true);
+      }
+    }
+
+    if (!userLoggedIn) {
       setShowContact(true);
       return;
     }
