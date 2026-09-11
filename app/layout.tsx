@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Hanken_Grotesk, Figtree } from "next/font/google";
 import ImageProviderHealthCheck from "@/components/ImageProviderHealthCheck";
 import LoginSuccessListener from "@/components/LoginSuccessListener";
+import { AuthProvider } from "@/components/AuthProvider";
 import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
 
@@ -69,7 +70,9 @@ export default function RootLayout({
             />
           </noscript>
         )}
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
       {GTM_ENABLED && (
         <Script id="gtm-base" strategy="afterInteractive">
