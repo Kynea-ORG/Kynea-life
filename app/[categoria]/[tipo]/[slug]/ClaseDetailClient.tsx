@@ -13,6 +13,7 @@ import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, format
 import type { DanceClass } from '@/lib/types';
 import { isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import { trackGenerateLead, trackAuthCtaClick, trackViewItem, trackSaveClass, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
 import LinkifiedText from '@/components/LinkifiedText';
 
@@ -23,7 +24,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const [contactType, setContactType] = useState<'whatsapp' | 'instagram'>('whatsapp');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, isLoggedIn } = useAuth();
   const [activeImg, setActiveImg] = useState(0);
   const [justContacted, setJustContacted] = useState<'whatsapp' | 'instagram' | null>(null);
 
@@ -32,19 +33,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const showIg = contactMode === 'instagram' || contactMode === 'both';
 
   useEffect(() => {
+    if (!user) return;
     const supabase = createClient();
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session?.user) return;
-      setIsLoggedIn(true);
-      const { data } = await supabase
-        .from('saved_classes')
-        .select('class_id')
-        .eq('user_id', session.user.id)
-        .eq('class_id', cls.id)
-        .maybeSingle();
-      if (data) setSaved(true);
-    });
-  }, [cls.id]);
+    supabase
+      .from('saved_classes')
+      .select('class_id')
+      .eq('user_id', user.id)
+      .eq('class_id', cls.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setSaved(true);
+      });
+  }, [cls.id, user]);
 
   useEffect(() => {
     trackViewItem({
@@ -75,20 +75,19 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     });
 
   const toggleSave = async () => {
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    if (!user) {
       trackAuthCtaClick({ action: 'login', location: 'save_class_gate' });
       router.push('/login');
       return;
     }
     setSaving(true);
+    const supabase = createClient();
     if (saved) {
       const { error } = await supabase.from('saved_classes').delete()
-        .eq('user_id', session.user.id).eq('class_id', cls.id);
+        .eq('user_id', user.id).eq('class_id', cls.id);
       if (!error) setSaved(false);
     } else {
-      const { error } = await supabase.from('saved_classes').insert({ user_id: session.user.id, class_id: cls.id });
+      const { error } = await supabase.from('saved_classes').insert({ user_id: user.id, class_id: cls.id });
       // 23505 = already saved (stale local state, e.g. another tab) — treat as success.
       if (!error || error.code === '23505') {
         setSaved(true);
@@ -111,12 +110,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     }
   };
 
-  const handleWhatsAppClick = async () => {
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    const loggedIn = !!session?.user;
-    setIsLoggedIn(loggedIn);
-    if (loggedIn && cls.teacher.whatsapp) {
+  const handleWhatsAppClick = () => {
+    if (isLoggedIn && cls.teacher.whatsapp) {
       triggerContactIncrement(cls.id);
       const url = isExpired
         ? `https://wa.me/${cls.teacher.whatsapp.replace(/\s+/g, '')}?text=${encodeURIComponent(`Hola ${cls.teacher.name}, vi tu clase de ${cls.style} en Kynea y quisiera consultar por próximas fechas o talleres.`)}`
@@ -134,12 +129,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     setShowContact(true);
   };
 
-  const handleInstagramClick = async () => {
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    const loggedIn = !!session?.user;
-    setIsLoggedIn(loggedIn);
-    if (loggedIn && cls.teacher.instagram) {
+  const handleInstagramClick = () => {
+    if (isLoggedIn && cls.teacher.instagram) {
       triggerContactIncrement(cls.id);
       const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
       window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
