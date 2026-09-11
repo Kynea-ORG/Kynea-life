@@ -16,6 +16,7 @@ const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
 ];
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { safeRedirectPath } from '@/lib/utils';
 import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
@@ -47,12 +48,13 @@ function RegistroPageContent() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const { shift } = useFunFocusBackground();
 
+  const { isLoggedIn, loading: authLoading } = useAuth();
+
   useEffect(() => {
-    createClient().auth.getUser().then(({ data: { user } }) => {
-      if (user) router.replace(redirectTarget ?? '/dashboard');
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+    if (!authLoading && isLoggedIn) {
+      router.replace(redirectTarget ?? '/dashboard');
+    }
+  }, [authLoading, isLoggedIn, redirectTarget, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
