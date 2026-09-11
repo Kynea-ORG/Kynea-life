@@ -9,21 +9,10 @@ import {
   LayoutDashboard, PlusCircle, ChevronDown, Building2, GraduationCap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { trackAuthCtaClick } from '@/lib/analytics';
 import BecomeTeacherModal from '@/components/BecomeTeacherModal';
-
-type Role = 'alumno' | 'profesor' | 'academia';
-
-interface Profile {
-  id: string;
-  name: string;
-  role: Role;
-  photo_url: string | null;
-  photo_position: string | null;
-  photo_zoom: number | null;
-}
+import { useAuth, type UserRole as Role } from '@/components/AuthProvider';
 
 const ROLE_LABEL: Record<Role, string> = {
   alumno:   'Alumno',
@@ -108,39 +97,11 @@ export default function Header({
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { profile, loading: authLoading, signOut } = useAuth();
   const [becomeTeacherOpen, setBecomeTeacherOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const shouldRenderUserMenu = useDelayedUnmount(userMenuOpen, 200);
   const shouldRenderMobileMenu = useDelayedUnmount(mobileOpen, 200);
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    async function loadProfile(userId: string) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, name, role, photo_url, photo_position, photo_zoom')
-        .eq('id', userId)
-        .single();
-      if (data) setProfile(data as Profile);
-      setAuthLoading(false);
-    }
-
-    // getUser() verifies JWT server-side (more secure than getSession)
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) loadProfile(user.id);
-      else setAuthLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) loadProfile(session.user.id);
-      else { setProfile(null); setAuthLoading(false); }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -160,9 +121,7 @@ export default function Header({
   const showHomeAnon = homeNav && !authLoading && !isLoggedIn;
 
   async function logout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setProfile(null);
+    await signOut();
     setUserMenuOpen(false);
     setMobileOpen(false);
     router.push('/');

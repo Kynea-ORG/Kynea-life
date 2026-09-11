@@ -7,7 +7,7 @@ import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
 import ContactModal from './ContactModal';
 
@@ -24,7 +24,7 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isLoggedIn } = useAuth();
   const [justContacted, setJustContacted] = useState(false);
 
   const spotsLeft = cls.availableSpots;
@@ -43,21 +43,9 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
     });
   }
 
-  async function handleContact() {
+  function handleContact() {
     if (!isExpired && isFullyBooked) return;
-
-    // Comprobación de sesión on-demand: evita disparar ~80 peticiones a
-    // /auth/v1/user al montar listas de tarjetas (Home, /clases, etc.).
-    let userLoggedIn = isLoggedIn;
-    if (!userLoggedIn) {
-      const { data: { session } } = await createClient().auth.getSession();
-      if (session?.user) {
-        userLoggedIn = true;
-        setIsLoggedIn(true);
-      }
-    }
-
-    if (!userLoggedIn) {
+    if (!isLoggedIn) {
       setShowContact(true);
       return;
     }
