@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import GoogleIcon from '@/components/GoogleIcon';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import { redirectByRole } from '@/lib/auth/redirectByRole';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { safeRedirectPath } from '@/lib/utils';
@@ -68,12 +69,13 @@ function LoginPageContent() {
     return () => clearInterval(interval);
   }, [resetCooldown]);
 
+  const { isLoggedIn, loading: authLoading } = useAuth();
+
   useEffect(() => {
-    createClient().auth.getUser().then(({ data: { user } }) => {
-      if (user) router.replace(redirectTarget ?? '/dashboard');
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+    if (!authLoading && isLoggedIn) {
+      router.replace(redirectTarget ?? '/dashboard');
+    }
+  }, [authLoading, isLoggedIn, redirectTarget, router]);
 
   async function handleGoogle() {
     setGoogleLoading(true);

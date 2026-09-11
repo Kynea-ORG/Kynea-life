@@ -1,31 +1,40 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import { trackAuthCtaClick } from '@/lib/analytics';
 
 const TOP_DISMISS_KEY = 'kynea_dismissed_top_ribbon';
 const BOTTOM_DISMISS_KEY = 'kynea_dismissed_bottom_ribbon';
 
+function useIsDismissed(key: string): [boolean, () => void] {
+  const isDismissed = useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener('storage', onStoreChange);
+      return () => window.removeEventListener('storage', onStoreChange);
+    },
+    () => typeof window !== 'undefined' && localStorage.getItem(key) === '1',
+    () => false
+  );
+
+  const [dismissedLocally, setDismissedLocally] = useState(false);
+
+  const dismiss = () => {
+    localStorage.setItem(key, '1');
+    setDismissedLocally(true);
+  };
+
+  return [isDismissed || dismissedLocally, dismiss];
+}
+
 // Visible only to logged-in users, inviting them back to browse classes —
 // scrolls with the page (not fixed), sits above the header.
 export function TopAnnouncementRibbon() {
-  const [show, setShow] = useState(false);
+  const { isLoggedIn, loading } = useAuth();
+  const [dismissed, handleDismiss] = useIsDismissed(TOP_DISMISS_KEY);
 
-  useEffect(() => {
-    if (localStorage.getItem(TOP_DISMISS_KEY) === '1') return;
-    createClient().auth.getUser().then(({ data }) => {
-      if (data.user) setShow(true);
-    });
-  }, []);
-
-  if (!show) return null;
-
-  function handleDismiss() {
-    localStorage.setItem(TOP_DISMISS_KEY, '1');
-    setShow(false);
-  }
+  if (loading || !isLoggedIn || dismissed) return null;
 
   return (
     <div className="relative bg-[#FFF3B0] border-b border-neutral-200 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] starting:-translate-y-full">
@@ -51,21 +60,10 @@ export function TopAnnouncementRibbon() {
 // Visible only to logged-out users, inviting them to sign up — fixed to the
 // bottom of the viewport, disappears for good once dismissed or once they log in.
 export function BottomSignupRibbon() {
-  const [show, setShow] = useState(false);
+  const { isLoggedIn, loading } = useAuth();
+  const [dismissed, handleDismiss] = useIsDismissed(BOTTOM_DISMISS_KEY);
 
-  useEffect(() => {
-    if (localStorage.getItem(BOTTOM_DISMISS_KEY) === '1') return;
-    createClient().auth.getUser().then(({ data }) => {
-      if (!data.user) setShow(true);
-    });
-  }, []);
-
-  if (!show) return null;
-
-  function handleDismiss() {
-    localStorage.setItem(BOTTOM_DISMISS_KEY, '1');
-    setShow(false);
-  }
+  if (loading || isLoggedIn || dismissed) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 bg-pink-100 border-t border-neutral-200 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] starting:translate-y-full">

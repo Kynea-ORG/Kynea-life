@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
@@ -7,7 +7,7 @@ import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
 import ContactModal from './ContactModal';
 
@@ -24,12 +24,8 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isLoggedIn } = useAuth();
   const [justContacted, setJustContacted] = useState(false);
-
-  useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user));
-  }, []);
 
   const spotsLeft = cls.availableSpots;
   const isFullyBooked = spotsLeft === 0;
