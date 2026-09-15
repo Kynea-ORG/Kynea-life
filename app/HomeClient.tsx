@@ -12,7 +12,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
-import { getTypeLabel } from '@/lib/utils';
+import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
@@ -55,6 +55,13 @@ const SEARCH_PLACEHOLDER_EXAMPLES = [
   'Busca a tu profesor favorito…',
   'Bachata los sábados…',
   'Nombre de tu academia…',
+];
+
+const AVATAR_PALETTE = [
+  { bg: 'bg-primary-bg',     text: 'text-primary' },
+  { bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-dark' },
+  { bg: 'bg-green-bg',       text: 'text-green-dark' },
+  { bg: 'bg-yellow-bg',      text: 'text-yellow-dark' },
 ];
 
 // Which styles show in the Home category strip, and in what order — purely
@@ -307,26 +314,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
 
   // ── Teachers carousel ──
   const teachersScrollRef = useRef<HTMLDivElement>(null);
-  const teachersPausedRef = useRef(false);
   const academiasScrollRef = useRef<HTMLDivElement>(null);
-
-  // Autoslider — mismo mecanismo que el carrusel de "Clases de baile para
-  // ti" (pausa al hover, salta a inicio al llegar al final). Necesario para
-  // que esta fila (ahora chica, arriba de Categorías) siga siendo notoria
-  // sin ocupar el espacio de scroll horizontal manual que tenía antes.
-  useEffect(() => {
-    const el = teachersScrollRef.current;
-    if (!el) return;
-    const interval = setInterval(() => {
-      if (teachersPausedRef.current) return;
-      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
-        el.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        el.scrollBy({ left: 140, behavior: 'smooth' });
-      }
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
 
   // ── Carousel auto-scroll ──
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -1079,75 +1067,6 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         </div>
       )}
 
-      {/* ── PROFESORES DESTACADOS ── */}
-      {/* Chica y autosliding a propósito — antes era una fila de cards
-          210px con flechas manuales, ocupando bastante espacio bien abajo
-          en el Home; ahora es una tira compacta arriba de Categorías,
-          misma identidad "foto protagonista + degradado" de las Academias
-          pero a escala mini, para dar visibilidad a profesores sin competir
-          por espacio con el buscador ni empujar el resto del contenido.
-          Fondo oscuro (a diferencia del resto del Home, blanco) para que
-          la tira contraste de entrada, en vez de mezclarse con la página. */}
-      {initialTeachers.length > 0 && (
-        <section className="bg-neutral-900 pt-6 pb-7">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="flex items-center justify-between gap-4 mb-3">
-              <h2 className="text-[16px] font-extrabold text-white tracking-tight">Profesores destacados</h2>
-              <Link href="/profesores" className="flex items-center gap-1 text-[13px] text-white/70 font-semibold hover:text-white transition-colors whitespace-nowrap">
-                Ver todos <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div
-              ref={teachersScrollRef}
-              className="flex gap-3 overflow-x-auto pb-2"
-              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
-              onMouseEnter={() => { teachersPausedRef.current = true; }}
-              onMouseLeave={() => { teachersPausedRef.current = false; }}
-            >
-              {initialTeachers.map(t => (
-                <Link
-                  key={t.id}
-                  href={`/profesores/${t.slug}`}
-                  onClick={() => trackSelectProfile({ role: 'profesor', profileId: t.id, profileName: t.name, listName: 'home_profesores' })}
-                  className="group relative shrink-0 w-[128px] aspect-[3/4] rounded-xl overflow-hidden border border-white/10 transition-[transform,border-color] duration-300 ease-out hover:-translate-y-1 hover:border-white/25"
-                  style={{ scrollSnapAlign: 'start' }}
-                >
-                  {t.photo ? (
-                    <SmartImage
-                      src={t.photo}
-                      alt={t.name}
-                      fill
-                      sizes="128px"
-                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.08]"
-                      style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-neutral-700 to-neutral-800 flex items-center justify-center">
-                      <span className="text-[44px] font-black text-white/15 select-none leading-none">
-                        {t.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-
-                  <div
-                    className="absolute inset-0"
-                    style={{ backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.35) 42%, rgba(0,0,0,0) 68%)' }}
-                  />
-
-                  <div className="absolute inset-x-0 bottom-0 p-2.5">
-                    <h3 className="font-bold text-white text-[12.5px] leading-tight tracking-tight line-clamp-2">{t.name}</h3>
-                    {t.styles[0] && (
-                      <p className="text-[10px] text-white/70 mt-1 truncate">{t.styles[0]}</p>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ── CATEGORÍAS ── */}
       <section className="bg-white py-8">
         <div className="max-w-[1200px] mx-auto px-6">
@@ -1413,6 +1332,92 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                   </div>
                 </Link>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── PROFESORES DESTACADOS ── */}
+      {initialTeachers.length > 0 && (
+        <section className="bg-white py-16">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+              <div>
+                <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">Profesores destacados</h2>
+                <p className="text-neutral-600 text-[15px] mt-1">Los mejores instructores de Latinoamérica</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link href="/profesores" className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+                  Ver todos →
+                </Link>
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={() => teachersScrollRef.current?.scrollBy({ left: -460, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                    aria-label="Anterior"
+                  >
+                    <ChevronLeft className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                  <button
+                    onClick={() => teachersScrollRef.current?.scrollBy({ left: 460, behavior: 'smooth' })}
+                    className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center hover:bg-primary-bg hover:border-primary transition-colors duration-150 ease-out active:scale-90"
+                    aria-label="Siguiente"
+                  >
+                    <ChevronRight className="w-4.5 h-4.5 text-neutral-700" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              ref={teachersScrollRef}
+              className="flex gap-5 overflow-x-auto pb-3 pt-1 -mx-1 px-1"
+              style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {initialTeachers.map((t, i) => {
+                const avatar = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/profesores/${t.slug}`}
+                    onClick={() => trackSelectProfile({ role: 'profesor', profileId: t.id, profileName: t.name, listName: 'home_profesores' })}
+                    className="shrink-0 w-[210px] rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
+                    style={{ scrollSnapAlign: 'start' }}
+                  >
+                    <div className={`relative w-full aspect-square overflow-hidden flex items-center justify-center ${avatar.bg}`}>
+                      {t.photo ? (
+                        <SmartImage
+                          src={t.photo}
+                          alt={t.name}
+                          fill
+                          sizes="210px"
+                          className="object-cover"
+                          style={{ objectPosition: t.photoPosition || '50% 50%', transform: `scale(${t.photoZoom || 1})` }}
+                        />
+                      ) : (
+                        <span className={`text-[56px] font-extrabold ${avatar.text} select-none`}>
+                          {t.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      {t.experience > 0 && (
+                        <span className="absolute top-2.5 left-2.5 bg-white/90 rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-900 whitespace-nowrap">
+                          {formatExperience(t.experience)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="px-4 pt-3.5 pb-4">
+                      <h3 className="font-bold text-neutral-900 text-[16px] leading-tight mb-0.5 truncate">{t.name}</h3>
+                      {t.nationality && <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.nationality}</p>}
+                      <div className="flex flex-wrap gap-1.5 mb-3 min-h-[26px]">
+                        {t.styles.slice(0, 2).map(s => (
+                          <span key={s} className="badge-pink text-[11.5px] px-2.5 py-1">{s}</span>
+                        ))}
+                      </div>
+                      <span className="text-[13.5px] font-semibold text-primary">Ver perfil →</span>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
