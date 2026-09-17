@@ -3,6 +3,7 @@ import { SITE_URL } from '@/lib/constants';
 import { fetchPublishedClasses } from '@/lib/classes/queries';
 import { classUrl } from '@/lib/classes/helpers';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
+import { fetchPublishedPosts } from '@/lib/blog/queries';
 
 const STATIC_ROUTES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency']; priority: number }[] = [
   { path: '',                       changeFrequency: 'daily',   priority: 1 },
@@ -10,6 +11,7 @@ const STATIC_ROUTES: { path: string; changeFrequency: MetadataRoute.Sitemap[numb
   { path: '/profesores',            changeFrequency: 'daily',   priority: 0.8 },
   { path: '/academias',             changeFrequency: 'daily',   priority: 0.8 },
   { path: '/mapa',                  changeFrequency: 'weekly',  priority: 0.6 },
+  { path: '/blog',                  changeFrequency: 'weekly',  priority: 0.7 },
   { path: '/profesores/unete',      changeFrequency: 'monthly', priority: 0.7 },
   { path: '/academias/unete',       changeFrequency: 'monthly', priority: 0.7 },
   { path: '/unete',                 changeFrequency: 'monthly', priority: 0.7 },
@@ -21,10 +23,11 @@ const STATIC_ROUTES: { path: string; changeFrequency: MetadataRoute.Sitemap[numb
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // fetchFeaturedProfiles(role) with no limit returns every profile with that
   // role — same call the public /profesores directory uses to list everyone.
-  const [classes, profesores, academias] = await Promise.all([
+  const [classes, profesores, academias, posts] = await Promise.all([
     fetchPublishedClasses(),
     fetchFeaturedProfiles('profesor'),
     fetchFeaturedProfiles('academia'),
+    fetchPublishedPosts(),
   ]);
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map(({ path, changeFrequency, priority }) => ({
@@ -53,5 +56,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ];
 
-  return [...staticEntries, ...classEntries, ...profileEntries];
+  const postEntries: MetadataRoute.Sitemap = posts.map(post => ({
+    url: `${SITE_URL}/blog/${post.slug}`,
+    lastModified: post.updatedAt || post.publishedAt,
+    changeFrequency: 'monthly',
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...classEntries, ...profileEntries, ...postEntries];
 }

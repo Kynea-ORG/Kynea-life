@@ -5,7 +5,7 @@ import SmartImage from '@/components/SmartImage';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Menu, X, User, Settings, LogOut, Search, BookOpen,
+  Menu, X, User, Settings, LogOut, Search, BookOpen, Newspaper,
   LayoutDashboard, PlusCircle, ChevronDown, Building2, GraduationCap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -21,9 +21,12 @@ const ROLE_LABEL: Record<Role, string> = {
 };
 
 // Nav horizontal de desktop (barra superior, fuera del drawer mobile) — se
-// mantiene angosto a propósito, igual que siempre.
+// mantiene angosto a propósito, igual que siempre. Blog al lado de Explorar
+// clases: es la otra puerta de entrada pública al sitio (contenido propio en
+// vez de listado), pedida explícitamente para tener la misma visibilidad.
 const NAV_LINKS = [
   { label: 'Explorar clases', href: '/clases' },
+  { label: 'Blog', href: '/blog' },
 ];
 
 // Estilo compartido por cada fila del drawer mobile (diseño G1).
@@ -166,6 +169,7 @@ export default function Header({
   const navLinksBlock = (
     <div className="px-3 py-2">
       <MenuLink href="/clases" label="Explorar clases" Icon={Search} onClick={() => setMobileOpen(false)} />
+      <MenuLink href="/blog" label="Blog" Icon={Newspaper} onClick={() => setMobileOpen(false)} />
       {roleLinks.map(item => (
         <MenuLink key={item.href} {...item} onClick={() => setMobileOpen(false)} />
       ))}
@@ -272,6 +276,9 @@ export default function Header({
         {showHomeAnon && (
           <div className="hidden md:flex items-center gap-5 flex-1">
             <div className="w-px h-[22px] bg-white/25" />
+            <Link href="/blog" className="font-sans text-[14px] font-medium text-white/85 hover:text-white transition-colors">
+              Blog
+            </Link>
             <Link href="/academias/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_academia' })}
               className="font-sans text-[14px] font-medium text-white/85 hover:text-white transition-colors">
               ¿Tienes una academia?
