@@ -256,3 +256,19 @@ export function trackRecentSearchAdded(params: { query: string; classId: string;
 export function trackRecentSearchClicked(params: { query: string }) {
   pushEvent('recent_search_clicked', { search_term: params.query });
 }
+
+// Fired when a visitor clicks a blog post's CTA banner — the metric that
+// actually matters for the blog's business goal (¿manda tráfico real al
+// marketplace, o la gente se queda solo leyendo?). postSlug identifies which
+// post drove the click; ctaHref is where it sent them (a class/profile/style
+// listing inside kynea.dance).
+export function trackBlogCtaClick(params: { postSlug: string; ctaHref: string }) {
+  pushEvent('blog_cta_click', { post_slug: params.postSlug, cta_href: params.ctaHref });
+}
+
+// Fired when a reader shares a post (WhatsApp, or copies the link) — the
+// other signal (besides the CTA click) of whether a post is actually worth
+// distributing outside kynea.dance.
+export function trackBlogShare(params: { postSlug: string; channel: 'whatsapp' | 'copy_link' }) {
+  pushEvent('blog_share', { post_slug: params.postSlug, channel: params.channel });
+}
