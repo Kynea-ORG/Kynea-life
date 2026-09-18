@@ -200,13 +200,21 @@ export default async function BlogIndexPage({
                     {featured.excerpt}
                   </p>
                 )}
-                <div className="flex items-center gap-3 text-[12.5px] text-neutral-500 mt-auto">
-                  <span>{displayDate(featured)}</span>
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {estimateReadingTime(featured.content)} min</span>
+                {/* flex-wrap + whitespace-nowrap por elemento (no en toda la
+                    fila): sin esto, en pantallas angostas la fecha larga
+                    ("18 de setiembre de 2026 · 12:57 a. m.") se partía a la
+                    mitad de la palabra dentro de su propio <span> mientras
+                    "2 min" y "Leer artículo" quedaban centrados verticalmente
+                    al lado — la fila entera se veía descuadrada. Ahora cada
+                    elemento se mantiene en una sola línea y, si no entran
+                    todos, la fila entera salta de línea antes de partir texto. */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-neutral-500 mt-auto">
+                  <span className="whitespace-nowrap">{displayDate(featured)}</span>
+                  <span className="flex items-center gap-1 whitespace-nowrap"><Clock className="w-3 h-3" /> {estimateReadingTime(featured.content)} min</span>
                   {/* Acción en morado (no negro) — el color de marca marca
                       qué es clickeable en la card, en vez de una card entera
                       teñida. */}
-                  <span className="flex items-center gap-1.5 text-primary font-bold ml-2 group-hover:gap-2.5 transition-[gap]">
+                  <span className="flex items-center gap-1.5 text-primary font-bold whitespace-nowrap group-hover:gap-2.5 transition-[gap]">
                     Leer artículo <ArrowRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
