@@ -10,6 +10,10 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
 export default function BlogListClient({ posts: initialPosts }: { posts: BlogPost[] }) {
   const [posts, setPosts] = useState(initialPosts);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -80,6 +84,11 @@ export default function BlogListClient({ posts: initialPosts }: { posts: BlogPos
                       }`}>
                         {post.status === 'published' ? 'Publicado' : 'Borrador'}
                       </span>
+                      {post.status === 'draft' && post.scheduledAt && (
+                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary-bg text-primary">
+                          Programado {formatDateTime(post.scheduledAt)}
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-neutral-400 mt-0.5">
                       {post.category ? `${post.category} · ` : ''}

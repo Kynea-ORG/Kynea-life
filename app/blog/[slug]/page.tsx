@@ -1,18 +1,33 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { fetchPostBySlug, fetchRelatedPosts } from '@/lib/blog/queries';
+import { fetchPostBySlug, fetchPostBySlugAny, fetchRelatedPosts } from '@/lib/blog/queries';
 import { extractHeadings, extractFaqs, estimateReadingTime } from '@/lib/blog/helpers';
 import { SITE_URL } from '@/lib/constants';
 import { truncateForMeta } from '@/lib/utils';
 import BlogPostClient from './BlogPostClient';
 
+type PageParams = { slug: string };
+type PageSearchParams = Record<string, string | string[] | undefined>;
+
+// Vista previa de borrador: /blog/mi-post?preview=1 — fetchPostBySlugAny()
+// se apoya en RLS (no en un chequeo propio de is_admin) para que un
+// no-admin reciba exactamente lo mismo que si el post no existiera. Sin el
+// flag, un post en borrador sigue dando 404 como siempre.
+async function resolvePost(slug: string, searchParams: PageSearchParams) {
+  const post = await fetchPostBySlug(slug);
+  if (post) return post;
+  if (searchParams.preview === '1') return fetchPostBySlugAny(slug);
+  return null;
+}
+
 export async function generateMetadata({
-  params,
+  params, searchParams,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<PageParams>;
+  searchParams: Promise<PageSearchParams>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = await fetchPostBySlug(slug);
+  const post = await resolvePost(slug, await searchParams);
   if (!post) return { title: 'Post no encontrado — Kynea' };
 
   const title = post.metaTitle || `${post.title} — Kynea`;
@@ -26,6 +41,9 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical },
+    // Un borrador visto en modo vista previa nunca debe indexarse — a
+    // diferencia del post publicado normal, que no trae este campo.
+    ...(post.status !== 'published' && { robots: { index: false, follow: false } }),
     openGraph: {
       title,
       description,
@@ -46,12 +64,13 @@ export async function generateMetadata({
 }
 
 export default async function BlogPostPage({
-  params,
+  params, searchParams,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<PageParams>;
+  searchParams: Promise<PageSearchParams>;
 }) {
   const { slug } = await params;
-  const post = await fetchPostBySlug(slug);
+  const post = await resolvePost(slug, await searchParams);
   if (!post) notFound();
 
   const relatedPosts = await fetchRelatedPosts(post);

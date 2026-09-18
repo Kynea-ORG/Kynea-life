@@ -32,9 +32,15 @@ export async function createPost(payload: BlogPostFormPayload): Promise<BlogActi
     return { ok: false, error: 'El título es obligatorio.' };
   }
 
+  // Un post publicado directamente nunca se queda con una fecha programada
+  // colgada — si el admin apuró la publicación en vez de esperar la fecha,
+  // esa fecha ya no significa nada.
+  const scheduledAt = payload.status === 'published' ? null : (payload.scheduledAt || null);
+
   const { data, error } = await supabase
     .from('blog_posts')
     .insert({
+      slug: payload.slug.trim() || null,
       title: payload.title.trim(),
       excerpt: payload.excerpt.trim() || null,
       content: payload.content,
@@ -45,16 +51,17 @@ export async function createPost(payload: BlogPostFormPayload): Promise<BlogActi
       status: payload.status,
       author_id: user.id,
       published_at: payload.status === 'published' ? new Date().toISOString() : null,
+      scheduled_at: scheduledAt,
       meta_title: payload.metaTitle.trim() || null,
       meta_description: payload.metaDescription.trim() || null,
     })
-    .select('slug')
+    .select('id, slug')
     .single();
 
   if (error || !data) return { ok: false, error: error?.message ?? 'No se pudo crear el post.' };
 
   revalidateBlog(data.slug ?? undefined);
-  return { ok: true, slug: data.slug ?? undefined };
+  return { ok: true, id: data.id, slug: data.slug ?? undefined };
 }
 
 export async function updatePost(id: string, payload: BlogPostFormPayload): Promise<BlogActionResult> {
@@ -69,10 +76,12 @@ export async function updatePost(id: string, payload: BlogPostFormPayload): Prom
   // (editar un post ya publicado) no debe reiniciar su fecha de publicación.
   const existing = await fetchPostById(id);
   const isNewlyPublished = payload.status === 'published' && existing?.status !== 'published';
+  const scheduledAt = payload.status === 'published' ? null : (payload.scheduledAt || null);
 
   const { data, error } = await supabase
     .from('blog_posts')
     .update({
+      slug: payload.slug.trim() || null,
       title: payload.title.trim(),
       excerpt: payload.excerpt.trim() || null,
       content: payload.content,
@@ -82,18 +91,19 @@ export async function updatePost(id: string, payload: BlogPostFormPayload): Prom
       is_featured: payload.isFeatured,
       status: payload.status,
       ...(isNewlyPublished && { published_at: new Date().toISOString() }),
+      scheduled_at: scheduledAt,
       meta_title: payload.metaTitle.trim() || null,
       meta_description: payload.metaDescription.trim() || null,
     })
     .eq('id', id)
-    .select('slug')
+    .select('id, slug')
     .single();
 
   if (error || !data) return { ok: false, error: error?.message ?? 'No se pudo actualizar el post.' };
 
   revalidateBlog(existing?.slug);
   revalidateBlog(data.slug ?? undefined);
-  return { ok: true, slug: data.slug ?? undefined };
+  return { ok: true, id: data.id, slug: data.slug ?? undefined };
 }
 
 export async function deletePost(id: string): Promise<void> {

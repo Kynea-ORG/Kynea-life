@@ -326,6 +326,14 @@ export default function BlogPostClient({
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Solo se ve en /blog/slug?preview=1 sobre un post que todavía no
+          está publicado (ver resolvePost() en page.tsx) — para que nunca se
+          confunda una vista previa con el post ya en vivo. */}
+      {post.status !== 'published' && (
+        <div className="bg-yellow text-neutral-900 text-center text-[13px] font-bold py-2 px-4">
+          Vista previa — este post todavía es un borrador, no está publicado.
+        </div>
+      )}
       <Header />
       <ReadingProgressBar targetRef={articleRef} />
 

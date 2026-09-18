@@ -6,7 +6,8 @@ import type { BlogPost, DbBlogPost } from './types';
 
 const POST_SELECT = `
   id, slug, title, excerpt, content, cover_image, cover_image_position, category,
-  accent_color, is_featured, status, author_id, published_at, meta_title, meta_description,
+  accent_color, is_featured, status, author_id, published_at, scheduled_at,
+  meta_title, meta_description,
   cta_label, cta_href, cta_image, views_count, created_at, updated_at,
   author:profiles!author_id(name)
 `;
@@ -29,6 +30,7 @@ function mapPost(row: DbBlogPost): BlogPost {
     status: row.status === 'published' ? 'published' : 'draft',
     authorName: row.author?.name ?? undefined,
     publishedAt: row.published_at ?? undefined,
+    scheduledAt: row.scheduled_at ?? undefined,
     metaTitle: row.meta_title ?? undefined,
     metaDescription: row.meta_description ?? undefined,
     ctaLabel: row.cta_label ?? undefined,
@@ -83,6 +85,25 @@ export const fetchPostBySlug = safeCache(
   ['blog_post_by_slug'],
   { revalidate: 300, tags: ['blog'] }
 );
+
+// Vista previa de un borrador — a diferencia de fetchPostBySlug() (cliente
+// público, filtra status='published', cacheado), usa el cliente autenticado
+// y no filtra por status. No hace falta chequear is_admin acá: las policies
+// de RLS (blog_posts_admin_read) ya hacen exactamente eso — un no-admin que
+// llame esto recibe null igual que si el post no existiera, así que el
+// caller (app/blog/[slug]/page.tsx) no necesita su propio guard. Sin
+// safeCache a propósito: el estado de un borrador cambia seguido mientras
+// se edita, y es por-usuario (RLS), no cacheable entre visitantes.
+export async function fetchPostBySlugAny(slug: string): Promise<BlogPost | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .select(POST_SELECT)
+    .eq('slug', slug)
+    .single();
+  if (error || !data) return null;
+  return mapPost(data as unknown as DbBlogPost);
+}
 
 // Panel de admin — todos los status, siempre fresco (sin safeCache: el
 // autor necesita ver su propio borrador recién guardado sin esperar TTL).

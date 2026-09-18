@@ -24,6 +24,7 @@ export interface DbBlogPost {
   status: string;
   author_id: string | null;
   published_at: string | null;
+  scheduled_at: string | null;
   meta_title: string | null;
   meta_description: string | null;
   // Legacy — banner fijo al pie del post, reemplazado por el bloque de CTA
@@ -54,6 +55,9 @@ export interface BlogPost {
   status: BlogPostStatus;
   authorName?: string;
   publishedAt?: string;
+  // Solo tiene sentido con status='draft' — un cron externo lo publica solo
+  // cuando llega la fecha (ver lib/blog/actions.ts:publishDuePosts()).
+  scheduledAt?: string;
   metaTitle?: string;
   metaDescription?: string;
   // Legacy — ver comentario en DbBlogPost.
@@ -69,6 +73,11 @@ export interface BlogPost {
 // formulario, no como FormData (a diferencia de Crear Clase, un post no
 // tiene el armado de venue/schedules que justificaba FormData ahí).
 export interface BlogPostFormPayload {
+  // Vacío = pedirle a la base que lo regenere del título (ver
+  // set_blog_post_slug() en supabase/migrations) — un slug ya asignado deja
+  // de tocarse solo cuando cambia el título, así no se rompen links ya
+  // compartidos de un post publicado.
+  slug: string;
   title: string;
   excerpt: string;
   content: string;
@@ -77,6 +86,8 @@ export interface BlogPostFormPayload {
   accentColor: BlogAccentColor | '';
   isFeatured: boolean;
   status: BlogPostStatus;
+  // Formato datetime-local (ej. "2026-09-20T14:30"), vacío = sin programar.
+  scheduledAt: string;
   metaTitle: string;
   metaDescription: string;
 }
@@ -84,5 +95,6 @@ export interface BlogPostFormPayload {
 export interface BlogActionResult {
   ok: boolean;
   error?: string;
+  id?: string;
   slug?: string;
 }

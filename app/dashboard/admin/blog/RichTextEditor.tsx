@@ -159,12 +159,20 @@ export default function RichTextEditor({
         <ToolbarButton title="Separador" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
           <Minus className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton
+        <Divider />
+        {/* En morado y con texto, no un ícono gris más — es la única acción
+            de la barra que empuja hacia el marketplace, así que tiene que
+            reconocerse de un vistazo en vez de mezclarse con el resto de
+            los botones de formato. */}
+        <button
+          type="button"
           title="Insertar bloque de CTA"
           onClick={() => editor.chain().focus().insertContent({ type: 'ctaBlock', attrs: { label: '', href: '', image: '', style: 'grande' } }).run()}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-primary-bg text-primary text-[12.5px] font-bold hover:bg-primary hover:text-white transition-colors shrink-0"
         >
-          <Megaphone className="w-4 h-4" />
-        </ToolbarButton>
+          <Megaphone className="w-3.5 h-3.5" />
+          CTA
+        </button>
         <Divider />
         <ToolbarButton title="Deshacer" onClick={() => editor.chain().focus().undo().run()}>
           <Undo2 className="w-4 h-4" />
