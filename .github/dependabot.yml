@@ -5,6 +5,18 @@ updates:
     target-branch: "develop"
     schedule:
       interval: "weekly"
+    groups:
+      next:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+          - "@next/*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
     ignore:
       # typescript-eslint doesn't support TS 7.0 yet — see
       # https://github.com/typescript-eslint/typescript-eslint/issues/10940
