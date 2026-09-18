@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ImagePlus, Clock, Star } from 'lucide-react';
+import { Loader2, ImagePlus, Clock, Star, ChevronDown, Check, Plus, X } from 'lucide-react';
 import type { BlogPost, BlogPostFormPayload, BlogAccentColor, BlogActionResult } from '@/lib/blog/types';
 import { createPost, updatePost } from '@/lib/blog/actions';
 import { uploadBlogImage } from '@/lib/blog/imageActions';
@@ -78,6 +78,113 @@ function CoverImageSquare({ url, onUploaded }: { url: string; onUploaded: (url: 
       </label>
       <p className="text-[11.5px] text-neutral-400 mt-2">Cuadrada, mínimo 800×800px. Se usa así en la portada del artículo, y recortada a 16:10 en el listado del blog.</p>
       {error && <p className="text-xs text-red mt-1">{error}</p>}
+    </div>
+  );
+}
+
+// Picker de categoría — reemplaza al viejo <input list="..."> nativo, que
+// se veía igual que el badge de solo-lectura del artículo publicado (sin
+// ninguna pista de que era editable) y dependía del <datalist> del navegador
+// para sugerencias, que es angosto, con tipografía distinta al resto de la
+// UI y a veces ni aparece hasta escribir una letra. Acá el botón abre un
+// menú explícito: categorías existentes para elegir con un clic, o escribir
+// para crear una nueva — sin adivinar si "Guías" ya existía como "guia".
+function CategoryPicker({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const raf = requestAnimationFrame(() => inputRef.current?.focus());
+    function handlePointerDown(e: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [open]);
+
+  const normalizedQuery = query.trim();
+  const filtered = options.filter(c => c.toLowerCase().includes(normalizedQuery.toLowerCase()));
+  const canCreate = normalizedQuery.length > 0 && !options.some(c => c.toLowerCase() === normalizedQuery.toLowerCase());
+
+  function select(v: string) {
+    onChange(v);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={rootRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen(v => { if (!v) setQuery(''); return !v; })}
+        className={`badge-purple-soft text-[11px] inline-flex items-center gap-1 transition-shadow ${open ? 'ring-2 ring-primary/40' : ''}`}
+      >
+        {value || (
+          <span className="inline-flex items-center gap-1">
+            <Plus className="w-3 h-3" />
+            Categoría
+          </span>
+        )}
+        <ChevronDown className="w-3 h-3" />
+      </button>
+      {open && (
+        <div className="absolute z-20 top-full left-0 mt-1.5 w-64 bg-white rounded-xl border border-neutral-200 shadow-lg overflow-hidden">
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Buscar o crear categoría…"
+            className="w-full px-3 py-2.5 text-[13px] border-b border-neutral-100 outline-none placeholder:text-neutral-400"
+            onKeyDown={e => {
+              if (e.key === 'Enter' && canCreate) { e.preventDefault(); select(normalizedQuery); }
+              if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
+            }}
+          />
+          <div className="max-h-52 overflow-y-auto py-1">
+            {value && (
+              <button
+                type="button"
+                onClick={() => select('')}
+                className="w-full flex items-center gap-1.5 text-left px-3 py-2 text-[13px] text-neutral-400 hover:bg-neutral-50"
+              >
+                <X className="w-3.5 h-3.5" />
+                Quitar categoría
+              </button>
+            )}
+            {filtered.map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => select(c)}
+                className={`w-full text-left px-3 py-2 text-[13px] hover:bg-neutral-50 flex items-center justify-between ${c === value ? 'font-semibold text-primary' : 'text-neutral-700'}`}
+              >
+                {c}
+                {c === value && <Check className="w-3.5 h-3.5 shrink-0" />}
+              </button>
+            ))}
+            {filtered.length === 0 && !canCreate && (
+              <p className="px-3 py-2 text-[13px] text-neutral-400">
+                {options.length === 0 ? 'Todavía no hay categorías creadas.' : 'Sin resultados.'}
+              </p>
+            )}
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => select(normalizedQuery)}
+                className="w-full text-left px-3 py-2 text-[13px] text-primary font-semibold hover:bg-primary-bg flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                Crear “{normalizedQuery}”
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -279,22 +386,9 @@ export default function BlogPostForm({ post, existingCategories = [] }: { post?:
             <CoverImageSquare url={coverImage} onUploaded={setCoverImage} />
 
             <div>
-              <input
-                value={category}
-                onChange={e => setCategory(e.target.value)}
-                placeholder="+ Categoría"
-                size={Math.max(category.length, 12)}
-                list="blog-categories"
-                className="badge-purple-soft text-[11px] mb-4 outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-primary/50"
-              />
-              {/* Sugerencias de categorías ya usadas en otros posts (borradores
-                  incluidos) — antes esto era texto libre sin ninguna pista de
-                  qué ya existía, así que la misma categoría terminaba escrita
-                  de formas distintas ("Guías" vs "guia") sin que nadie lo
-                  notara hasta ver el filtro del blog duplicado. */}
-              <datalist id="blog-categories">
-                {existingCategories.map(c => <option key={c} value={c} />)}
-              </datalist>
+              <div className="mb-4">
+                <CategoryPicker value={category} onChange={setCategory} options={existingCategories} />
+              </div>
               <textarea
                 ref={titleRef}
                 value={title}
