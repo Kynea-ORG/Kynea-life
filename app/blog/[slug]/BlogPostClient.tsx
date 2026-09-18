@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { isValidElement, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
@@ -11,6 +11,55 @@ import type { BlogPost } from '@/lib/blog/types';
 import { estimateReadingTime, slugifyHeading, getBlogAccent, type Heading } from '@/lib/blog/helpers';
 import { trackBlogCtaClick, trackBlogShare } from '@/lib/analytics';
 import { SITE_URL } from '@/lib/constants';
+
+// Bloque de CTA insertable dentro del contenido — reemplaza el banner fijo
+// de siempre-al-final (post.ctaLabel/ctaHref/ctaImage, todavía soportado
+// más abajo para no perder el de posts viejos que ya lo tenían así). Se
+// guarda en el Markdown como un fence ```cta con la config en JSON (ver
+// CtaBlockExtension.tsx, que arma ese mismo fence desde el editor) — acá
+// solo lo leemos y renderizamos como link real, con tracking de clicks.
+function InlineCta({
+  label, href, image, style, postSlug,
+}: {
+  label: string; href: string; image: string; style: string; postSlug: string;
+}) {
+  if (!label || !href) return null; // bloque insertado pero sin terminar de configurar — no se publica roto
+  if (style === 'compacto') {
+    return (
+      <Link
+        href={href}
+        onClick={() => trackBlogCtaClick({ postSlug, ctaHref: href })}
+        className="group inline-flex items-center gap-2 rounded-full border-2 border-neutral-900 pl-4 pr-3 py-2 text-[13px] font-bold text-neutral-900 hover:bg-neutral-900 hover:text-white transition-colors my-4"
+      >
+        {label}
+        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+      </Link>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      onClick={() => trackBlogCtaClick({ postSlug, ctaHref: href })}
+      className="group relative block my-8 rounded-lg overflow-hidden border border-neutral-900"
+    >
+      {image ? (
+        <div className="relative aspect-[21/9]">
+          <SmartImage src={image} alt="" fill sizes="760px" className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/0" />
+          <div className="absolute inset-x-0 bottom-0 p-6 flex items-center justify-between gap-4">
+            <span className="text-[18px] font-extrabold text-white tracking-tight">{label}</span>
+            <ArrowRight className="w-5 h-5 text-white shrink-0" />
+          </div>
+        </div>
+      ) : (
+        <div className="bg-neutral-900 p-6 flex items-center justify-between gap-4">
+          <span className="text-[18px] font-extrabold text-white tracking-tight">{label}</span>
+          <ArrowRight className="w-5 h-5 text-white shrink-0" />
+        </div>
+      )}
+    </Link>
+  );
+}
 
 // Fecha + hora — antes solo se mostraba la fecha, y ni eso si publishedAt
 // era null. displayDate() usa createdAt (NOT NULL siempre) como fallback,
@@ -243,10 +292,48 @@ export default function BlogPostClient({
       const text = String(children);
       return <h3 id={slugifyHeading(text)} {...rest}>{children}</h3>;
     },
+    // Fence ```cta — ver InlineCta más arriba. code/pre se overridean juntos
+    // porque react-markdown siempre envuelve un fence en <pre><code>; sin
+    // interceptar también <pre>, el bloque de CTA quedaría metido dentro de
+    // un <pre> (fuente monoespaciada, whitespace:pre) en vez de renderizarse
+    // como el link real.
+    code: ({ className, children }) => {
+      if (className === 'language-cta') {
+        let data: { label?: string; href?: string; image?: string; style?: string } = {};
+        try { data = JSON.parse(String(children).trim()); } catch {
+          // Fence corrupto (editado a mano fuera de esta app) — se omite en vez de romper el render del resto del post.
+        }
+        return (
+          <InlineCta
+            label={data.label ?? ''}
+            href={data.href ?? ''}
+            image={data.image ?? ''}
+            style={data.style ?? 'grande'}
+            postSlug={post.slug}
+          />
+        );
+      }
+      return <code className={className}>{children}</code>;
+    },
+    pre: ({ children }) => {
+      const child = Array.isArray(children) ? children[0] : children;
+      if (isValidElement(child) && (child.props as { className?: string })?.className === 'language-cta') {
+        return <>{children}</>;
+      }
+      return <pre>{children}</pre>;
+    },
   };
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Solo se ve en /blog/slug?preview=1 sobre un post que todavía no
+          está publicado (ver resolvePost() en page.tsx) — para que nunca se
+          confunda una vista previa con el post ya en vivo. */}
+      {post.status !== 'published' && (
+        <div className="bg-yellow text-neutral-900 text-center text-[13px] font-bold py-2 px-4">
+          Vista previa — este post todavía es un borrador, no está publicado.
+        </div>
+      )}
       <Header />
       <ReadingProgressBar targetRef={articleRef} />
 
@@ -261,28 +348,24 @@ export default function BlogPostClient({
           texto blanco; acá la legibilidad no depende de la foto en absoluto. */}
       <div className={accent ? accent.bg : undefined}>
         <div className={`max-w-[1080px] mx-auto px-6 pt-8 sm:pt-12 pb-8 sm:pb-12`}>
+          {/* min-w-0 en el span es necesario, no cosmético: dentro de un flex
+              row, un item no se achica más allá de su ancho de contenido a
+              menos que se le fuerce min-width:0 — sin esto, `truncate` no
+              hacía nada y un título largo desbordaba el contenedor en
+              mobile (scroll horizontal) en vez de cortarse con "…". */}
           <nav className={`flex items-center gap-1.5 text-[12.5px] mb-6 ${accent ? accent.muted : 'text-neutral-400'}`}>
-            <Link href="/blog" className={`font-semibold transition-colors ${accent?.text === 'text-white' ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Blog</Link>
+            <Link href="/blog" className={`shrink-0 font-semibold transition-colors ${accent?.text === 'text-white' ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Blog</Link>
             <ChevronRight className="w-3 h-3 shrink-0" />
-            <span className="truncate">{post.title}</span>
+            <span className="truncate min-w-0">{post.title}</span>
           </nav>
 
+          {/* Orden invertido a propósito: en mobile (una sola columna) el
+              texto va primero y la foto abajo — es como se ve en un feed
+              real (referencia: The Verge en mobile), no la foto tapando el
+              título antes de que el lector sepa de qué trata el post. En
+              desktop sm:order-* la vuelve a poner a la izquierda. */}
           <div className={`grid gap-8 ${post.coverImage ? 'sm:grid-cols-2 sm:gap-12 sm:items-center' : ''}`}>
-            {post.coverImage && (
-              <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-neutral-100">
-                <SmartImage
-                  src={post.coverImage}
-                  alt={post.title}
-                  fill
-                  sizes="(min-width: 640px) 500px, 100vw"
-                  priority
-                  className="object-cover"
-                  style={{ objectPosition: post.coverImagePosition }}
-                />
-              </div>
-            )}
-
-            <div>
+            <div className="sm:order-2">
               {post.category && (
                 <Link
                   href={`/blog?categoria=${encodeURIComponent(post.category)}`}
@@ -330,6 +413,20 @@ export default function BlogPostClient({
                   info del post en vez de formar parte de ella. */}
               <ShareRow postSlug={post.slug} title={post.title} canonicalUrl={canonicalUrl} iconButtonClass={shareIconClass} />
             </div>
+
+            {post.coverImage && (
+              <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-neutral-100 sm:order-1">
+                <SmartImage
+                  src={post.coverImage}
+                  alt={post.title}
+                  fill
+                  sizes="(min-width: 640px) 500px, 100vw"
+                  priority
+                  className="object-cover"
+                  style={{ objectPosition: post.coverImagePosition }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

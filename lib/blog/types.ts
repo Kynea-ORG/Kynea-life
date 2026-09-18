@@ -20,11 +20,16 @@ export interface DbBlogPost {
   cover_image_position: string | null;
   category: string | null;
   accent_color: string | null;
+  is_featured: boolean;
   status: string;
   author_id: string | null;
   published_at: string | null;
   meta_title: string | null;
   meta_description: string | null;
+  // Legacy — banner fijo al pie del post, reemplazado por el bloque de CTA
+  // insertable dentro del contenido (ver ctaBlock en RichTextEditor). Se
+  // mantiene solo para no perder el banner de posts ya publicados con esto
+  // seteado; el formulario de admin ya no escribe estos campos.
   cta_label: string | null;
   cta_href: string | null;
   cta_image: string | null;
@@ -45,11 +50,13 @@ export interface BlogPost {
   coverImagePosition: string;
   category?: string;
   accentColor?: BlogAccentColor;
+  isFeatured: boolean;
   status: BlogPostStatus;
   authorName?: string;
   publishedAt?: string;
   metaTitle?: string;
   metaDescription?: string;
+  // Legacy — ver comentario en DbBlogPost.
   ctaLabel?: string;
   ctaHref?: string;
   ctaImage?: string;
@@ -62,22 +69,26 @@ export interface BlogPost {
 // formulario, no como FormData (a diferencia de Crear Clase, un post no
 // tiene el armado de venue/schedules que justificaba FormData ahí).
 export interface BlogPostFormPayload {
+  // Vacío = pedirle a la base que lo regenere del título (ver
+  // set_blog_post_slug() en supabase/migrations) — un slug ya asignado deja
+  // de tocarse solo cuando cambia el título, así no se rompen links ya
+  // compartidos de un post publicado.
+  slug: string;
   title: string;
   excerpt: string;
   content: string;
   coverImage: string;
   category: string;
   accentColor: BlogAccentColor | '';
+  isFeatured: boolean;
   status: BlogPostStatus;
   metaTitle: string;
   metaDescription: string;
-  ctaLabel: string;
-  ctaHref: string;
-  ctaImage: string;
 }
 
 export interface BlogActionResult {
   ok: boolean;
   error?: string;
+  id?: string;
   slug?: string;
 }

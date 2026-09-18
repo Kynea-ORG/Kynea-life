@@ -35,28 +35,27 @@ export async function createPost(payload: BlogPostFormPayload): Promise<BlogActi
   const { data, error } = await supabase
     .from('blog_posts')
     .insert({
+      slug: payload.slug.trim() || null,
       title: payload.title.trim(),
       excerpt: payload.excerpt.trim() || null,
       content: payload.content,
       cover_image: payload.coverImage || null,
       category: payload.category.trim() || null,
       accent_color: payload.accentColor || null,
+      is_featured: payload.isFeatured,
       status: payload.status,
       author_id: user.id,
       published_at: payload.status === 'published' ? new Date().toISOString() : null,
       meta_title: payload.metaTitle.trim() || null,
       meta_description: payload.metaDescription.trim() || null,
-      cta_label: payload.ctaLabel.trim() || null,
-      cta_href: payload.ctaHref.trim() || null,
-      cta_image: payload.ctaImage || null,
     })
-    .select('slug')
+    .select('id, slug')
     .single();
 
   if (error || !data) return { ok: false, error: error?.message ?? 'No se pudo crear el post.' };
 
   revalidateBlog(data.slug ?? undefined);
-  return { ok: true, slug: data.slug ?? undefined };
+  return { ok: true, id: data.id, slug: data.slug ?? undefined };
 }
 
 export async function updatePost(id: string, payload: BlogPostFormPayload): Promise<BlogActionResult> {
@@ -75,29 +74,28 @@ export async function updatePost(id: string, payload: BlogPostFormPayload): Prom
   const { data, error } = await supabase
     .from('blog_posts')
     .update({
+      slug: payload.slug.trim() || null,
       title: payload.title.trim(),
       excerpt: payload.excerpt.trim() || null,
       content: payload.content,
       cover_image: payload.coverImage || null,
       category: payload.category.trim() || null,
       accent_color: payload.accentColor || null,
+      is_featured: payload.isFeatured,
       status: payload.status,
       ...(isNewlyPublished && { published_at: new Date().toISOString() }),
       meta_title: payload.metaTitle.trim() || null,
       meta_description: payload.metaDescription.trim() || null,
-      cta_label: payload.ctaLabel.trim() || null,
-      cta_href: payload.ctaHref.trim() || null,
-      cta_image: payload.ctaImage || null,
     })
     .eq('id', id)
-    .select('slug')
+    .select('id, slug')
     .single();
 
   if (error || !data) return { ok: false, error: error?.message ?? 'No se pudo actualizar el post.' };
 
   revalidateBlog(existing?.slug);
   revalidateBlog(data.slug ?? undefined);
-  return { ok: true, slug: data.slug ?? undefined };
+  return { ok: true, id: data.id, slug: data.slug ?? undefined };
 }
 
 export async function deletePost(id: string): Promise<void> {

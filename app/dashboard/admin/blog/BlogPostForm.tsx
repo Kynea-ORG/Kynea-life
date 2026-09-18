@@ -1,8 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ImagePlus, Clock } from 'lucide-react';
-import type { BlogPost, BlogPostFormPayload, BlogAccentColor } from '@/lib/blog/types';
+import { Loader2, ImagePlus, Clock, Star, ChevronDown, Check, Plus, X } from 'lucide-react';
+import type { BlogPost, BlogPostFormPayload, BlogAccentColor, BlogActionResult } from '@/lib/blog/types';
 import { createPost, updatePost } from '@/lib/blog/actions';
 import { uploadBlogImage } from '@/lib/blog/imageActions';
 import { BLOG_ACCENTS, getBlogAccent, estimateReadingTime } from '@/lib/blog/helpers';
@@ -12,46 +12,13 @@ import RichTextEditor from './RichTextEditor';
 const inputClass = 'w-full text-[14px] px-3.5 py-2.5 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 transition-colors';
 const labelClass = 'block text-[13px] font-semibold text-neutral-700 mb-1.5';
 
-function ImagePicker({
-  label, hint, url, onUploaded,
-}: {
-  label: string; hint: string; url: string; onUploaded: (url: string) => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError('');
-    const fd = new FormData();
-    fd.set('file', file);
-    const res = await uploadBlogImage(fd);
-    setUploading(false);
-    if (res.error) { setError(res.error); return; }
-    if (res.url) onUploaded(res.url);
-  }
-
-  return (
-    <div>
-      <label className={labelClass}>{label}</label>
-      {url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="w-full h-32 object-cover rounded-lg mb-2 border border-neutral-200" />
-      )}
-      <label className="inline-flex items-center gap-2 text-[13px] font-semibold text-neutral-700 border border-neutral-300 rounded-lg px-3.5 py-2 cursor-pointer hover:bg-neutral-50 transition-colors">
-        {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-        {url ? 'Cambiar imagen' : 'Subir imagen'}
-        <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleChange} disabled={uploading} />
-      </label>
-      {/* Medida recomendada explícita — antes no decía nada, y la foto se
-          termina viendo recortada o pixelada porque nadie sabe qué tamaño
-          subir hasta ver el resultado publicado. */}
-      <p className="text-[11.5px] text-neutral-400 mt-1.5">{hint}</p>
-      {error && <p className="text-xs text-red mt-1">{error}</p>}
-    </div>
-  );
+// El título (y la bajada) son <textarea> que crecen con el contenido, no
+// <input> de una sola línea — antes un texto largo quedaba scrolleado hacia
+// el costado y nunca se veía completo mientras se escribía, muy distinto
+// del h1/dek reales (que hacen wrap a varias líneas).
+function autoResize(el: HTMLTextAreaElement) {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
 }
 
 // Portada cuadrada — mismo recorte exacto (aspect-square, object-cover) que
@@ -98,6 +65,113 @@ function CoverImageSquare({ url, onUploaded }: { url: string; onUploaded: (url: 
   );
 }
 
+// Picker de categoría — reemplaza al viejo <input list="..."> nativo, que
+// se veía igual que el badge de solo-lectura del artículo publicado (sin
+// ninguna pista de que era editable) y dependía del <datalist> del navegador
+// para sugerencias, que es angosto, con tipografía distinta al resto de la
+// UI y a veces ni aparece hasta escribir una letra. Acá el botón abre un
+// menú explícito: categorías existentes para elegir con un clic, o escribir
+// para crear una nueva — sin adivinar si "Guías" ya existía como "guia".
+function CategoryPicker({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const raf = requestAnimationFrame(() => inputRef.current?.focus());
+    function handlePointerDown(e: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [open]);
+
+  const normalizedQuery = query.trim();
+  const filtered = options.filter(c => c.toLowerCase().includes(normalizedQuery.toLowerCase()));
+  const canCreate = normalizedQuery.length > 0 && !options.some(c => c.toLowerCase() === normalizedQuery.toLowerCase());
+
+  function select(v: string) {
+    onChange(v);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={rootRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen(v => { if (!v) setQuery(''); return !v; })}
+        className={`badge-purple-soft text-[11px] inline-flex items-center gap-1 transition-shadow ${open ? 'ring-2 ring-primary/40' : ''}`}
+      >
+        {value || (
+          <span className="inline-flex items-center gap-1">
+            <Plus className="w-3 h-3" />
+            Categoría
+          </span>
+        )}
+        <ChevronDown className="w-3 h-3" />
+      </button>
+      {open && (
+        <div className="absolute z-20 top-full left-0 mt-1.5 w-64 bg-white rounded-xl border border-neutral-200 shadow-lg overflow-hidden">
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Buscar o crear categoría…"
+            className="w-full px-3 py-2.5 text-[13px] border-b border-neutral-100 outline-none placeholder:text-neutral-400"
+            onKeyDown={e => {
+              if (e.key === 'Enter' && canCreate) { e.preventDefault(); select(normalizedQuery); }
+              if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
+            }}
+          />
+          <div className="max-h-52 overflow-y-auto py-1">
+            {value && (
+              <button
+                type="button"
+                onClick={() => select('')}
+                className="w-full flex items-center gap-1.5 text-left px-3 py-2 text-[13px] text-neutral-400 hover:bg-neutral-50"
+              >
+                <X className="w-3.5 h-3.5" />
+                Quitar categoría
+              </button>
+            )}
+            {filtered.map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => select(c)}
+                className={`w-full text-left px-3 py-2 text-[13px] hover:bg-neutral-50 flex items-center justify-between ${c === value ? 'font-semibold text-primary' : 'text-neutral-700'}`}
+              >
+                {c}
+                {c === value && <Check className="w-3.5 h-3.5 shrink-0" />}
+              </button>
+            ))}
+            {filtered.length === 0 && !canCreate && (
+              <p className="px-3 py-2 text-[13px] text-neutral-400">
+                {options.length === 0 ? 'Todavía no hay categorías creadas.' : 'Sin resultados.'}
+              </p>
+            )}
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => select(normalizedQuery)}
+                className="w-full text-left px-3 py-2 text-[13px] text-primary font-semibold hover:bg-primary-bg flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                Crear “{normalizedQuery}”
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Selector del "bloque de color" de portada (referencia: The Verge) — grilla
 // de swatches de la paleta curada (BLOG_ACCENTS) en vez de un <input
 // type=color> libre, así nunca se guarda una combinación de contraste rota.
@@ -130,40 +204,95 @@ function AccentColorPicker({ value, onChange }: { value: BlogAccentColor | ''; o
   );
 }
 
-export default function BlogPostForm({ post }: { post?: BlogPost }) {
+export default function BlogPostForm({ post, existingCategories = [] }: { post?: BlogPost; existingCategories?: string[] }) {
   const router = useRouter();
   const isEdit = Boolean(post);
   const [title, setTitle] = useState(post?.title ?? '');
+  const [slug, setSlug] = useState(post?.slug ?? '');
   const [excerpt, setExcerpt] = useState(post?.excerpt ?? '');
   const [content, setContent] = useState(post?.content ?? '');
   const [category, setCategory] = useState(post?.category ?? '');
   const [accentColor, setAccentColor] = useState<BlogAccentColor | ''>(post?.accentColor ?? '');
+  const [isFeatured, setIsFeatured] = useState(post?.isFeatured ?? false);
   const [coverImage, setCoverImage] = useState(post?.coverImage ?? '');
   const [metaTitle, setMetaTitle] = useState(post?.metaTitle ?? '');
   const [metaDescription, setMetaDescription] = useState(post?.metaDescription ?? '');
-  const [ctaLabel, setCtaLabel] = useState(post?.ctaLabel ?? '');
-  const [ctaHref, setCtaHref] = useState(post?.ctaHref ?? '');
-  const [ctaImage, setCtaImage] = useState(post?.ctaImage ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const excerptRef = useRef<HTMLTextAreaElement>(null);
+
+  // Estado de persistencia separado de los campos del form — un post nuevo
+  // no tiene id hasta el primer guardado (manual o automático); a partir de
+  // ahí, tanto el botón Publicar como el autosave apuntan al mismo id en
+  // vez de crear un post nuevo cada vez.
+  const [postId, setPostId] = useState(post?.id);
+  const [savedSlug, setSavedSlug] = useState(post?.slug ?? '');
+  const [lastSavedStatus, setLastSavedStatus] = useState<'draft' | 'published'>(post?.status ?? 'draft');
+  const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextAutosave = useRef(true); // no autoguardar solo por haber cargado la página
+
+  // Ajusta la altura de título y bajada al contenido ya cargado al entrar a
+  // editar un post existente — sin esto, un texto largo aparece cortado
+  // hasta la primera tecla que se presiona.
+  useEffect(() => {
+    if (titleRef.current) autoResize(titleRef.current);
+    if (excerptRef.current) autoResize(excerptRef.current);
+  }, []);
 
   const accent = getBlogAccent(accentColor);
   const avatarClass = accent
     ? (accent.text === 'text-white' ? 'bg-white text-neutral-900' : 'bg-neutral-900 text-white')
     : 'bg-primary text-white';
 
+  // Compartido entre el guardado manual (botones) y el autosave — nunca
+  // cambia el status de un post existente por su cuenta: el autosave
+  // siempre reenvía lastSavedStatus, así que jamás vuelve borrador un post
+  // ya publicado ni publica uno que seguía en borrador.
+  async function persist(status: 'draft' | 'published'): Promise<BlogActionResult> {
+    const payload: BlogPostFormPayload = {
+      slug, title, excerpt, content, coverImage, category, accentColor, isFeatured, status,
+      metaTitle, metaDescription,
+    };
+    const result = postId ? await updatePost(postId, payload) : await createPost(payload);
+    if (result.ok) {
+      if (result.id) setPostId(result.id);
+      if (result.slug) setSavedSlug(result.slug);
+      setLastSavedStatus(status);
+    }
+    return result;
+  }
+
   async function handleSubmit(status: 'draft' | 'published') {
     setSaving(true);
     setError('');
-    const payload: BlogPostFormPayload = {
-      title, excerpt, content, coverImage, category, accentColor, status,
-      metaTitle, metaDescription, ctaLabel, ctaHref, ctaImage,
-    };
-    const result = isEdit ? await updatePost(post!.id, payload) : await createPost(payload);
+    const result = await persist(status);
     setSaving(false);
     if (!result.ok) { setError(result.error ?? 'No se pudo guardar el post.'); return; }
     router.push('/dashboard/admin/blog');
   }
+
+  // Autosave — guarda como borrador (o republica en el mismo status que ya
+  // tenía) 2.5s después del último cambio, sin bloquear la escritura. No
+  // corre en el primer render (nada cambió todavía) ni si falta título
+  // (createPost/updatePost lo rechazan igual) ni mientras un guardado
+  // manual ya está en curso.
+  useEffect(() => {
+    if (skipNextAutosave.current) { skipNextAutosave.current = false; return; }
+    if (!title.trim()) return;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(async () => {
+      if (saving) return;
+      setAutosaveState('saving');
+      const result = await persist(lastSavedStatus);
+      setAutosaveState(result.ok ? 'saved' : 'error');
+    }, 2500);
+    return () => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, slug, excerpt, content, category, accentColor, isFeatured, coverImage, metaTitle, metaDescription]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -172,10 +301,37 @@ export default function BlogPostForm({ post }: { post?: BlogPost }) {
           un formulario largo cada vez (referencia: la barra de "Publish"
           de Medium, siempre visible en la parte superior). */}
       <div className="sticky top-0 z-10 flex items-center justify-between gap-4 px-6 lg:px-10 py-3.5 border-b border-neutral-100 bg-white/95 backdrop-blur-sm">
-        <span className="text-[12px] font-bold uppercase tracking-widest text-neutral-400">
-          {isEdit ? 'Editar post' : 'Nuevo post'}
-        </span>
         <div className="flex items-center gap-3">
+          <span className="text-[12px] font-bold uppercase tracking-widest text-neutral-400">
+            {isEdit ? 'Editar post' : 'Nuevo post'}
+          </span>
+          {/* Refleja el autosave, no el guardado manual (ese ya tiene su
+              propio spinner en el botón de Publicar). */}
+          {autosaveState !== 'idle' && (
+            <span className="text-[12px] text-neutral-400 flex items-center gap-1">
+              {autosaveState === 'saving' && <><Loader2 className="w-3 h-3 animate-spin" /> Guardando…</>}
+              {autosaveState === 'saved' && 'Guardado automáticamente'}
+              {autosaveState === 'error' && <span className="text-red">No se pudo autoguardar</span>}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Solo tiene sentido una vez que el post existe (tiene id) —
+              muestra la última versión guardada, no lo que se está tipeando
+              ahora mismo sin guardar todavía. postId/savedSlug (no isEdit
+              ni post?.slug) porque un post nuevo puede pasar a tener ambos
+              en cuanto el autosave lo crea por primera vez, sin recargar
+              la página. */}
+          {postId && savedSlug && (
+            <a
+              href={`/blog/${savedSlug}?preview=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold px-4 py-2 text-neutral-500 hover:text-neutral-900 transition-colors"
+            >
+              Vista previa
+            </a>
+          )}
           <button
             onClick={() => handleSubmit('draft')}
             disabled={saving}
@@ -205,33 +361,33 @@ export default function BlogPostForm({ post }: { post?: BlogPost }) {
           tamaño de título, mismo "/" en la bajada, mismo bloque de color.
           Lo que se ve acá mientras se escribe es exactamente cómo va a
           quedar publicado, no una aproximación en un formulario aparte. */}
-      <div className={accent ? accent.bg : 'bg-neutral-50'}>
+      <div className={accent ? accent.bg : undefined}>
         <div className="max-w-[1080px] mx-auto px-6 py-10 sm:py-12">
           <div className="grid gap-8 sm:grid-cols-2 sm:gap-12 sm:items-center">
             <CoverImageSquare url={coverImage} onUploaded={setCoverImage} />
 
             <div>
-              <input
-                value={category}
-                onChange={e => setCategory(e.target.value)}
-                placeholder="+ Categoría"
-                size={Math.max(category.length, 12)}
-                className="badge-purple-soft text-[11px] mb-4 outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-primary/50"
-              />
-              <input
+              <div className="mb-4">
+                <CategoryPicker value={category} onChange={setCategory} options={existingCategories} />
+              </div>
+              <textarea
+                ref={titleRef}
                 value={title}
-                onChange={e => setTitle(e.target.value)}
+                onChange={e => { setTitle(e.target.value); autoResize(e.target); }}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); excerptRef.current?.focus(); } }}
                 placeholder="Título de tu historia…"
-                className={`w-full text-[28px] sm:text-[36px] font-black tracking-tight leading-[1.12] mb-4 border-0 outline-none bg-transparent placeholder:text-neutral-300 ${accent ? accent.text : 'text-neutral-900'}`}
+                rows={1}
+                className={`w-full text-[28px] sm:text-[36px] font-black tracking-tight leading-[1.12] mb-4 border-0 outline-none bg-transparent placeholder:text-neutral-300 resize-none overflow-hidden ${accent ? accent.text : 'text-neutral-900'}`}
               />
               <div className={`flex items-start gap-3 mb-5 ${accent ? accent.muted : 'text-neutral-600'}`}>
                 <span className={`font-black text-[22px] sm:text-[24px] leading-[0.9] shrink-0 ${accent ? accent.text : 'text-primary'}`} aria-hidden="true">/</span>
                 <textarea
+                  ref={excerptRef}
                   value={excerpt}
-                  onChange={e => setExcerpt(e.target.value)}
+                  onChange={e => { setExcerpt(e.target.value); autoResize(e.target); }}
                   placeholder="Escribe una bajada breve — aparece en el listado y como resumen…"
-                  rows={2}
-                  className="flex-1 text-[16px] sm:text-[17px] leading-snug border-0 outline-none resize-none bg-transparent placeholder:text-neutral-400"
+                  rows={1}
+                  className="flex-1 text-[16px] sm:text-[17px] leading-snug border-0 outline-none resize-none overflow-hidden bg-transparent placeholder:text-neutral-400"
                 />
               </div>
               <div className={`flex items-center gap-3 text-[13px] ${accent ? accent.muted : 'text-neutral-500'}`}>
@@ -249,57 +405,63 @@ export default function BlogPostForm({ post }: { post?: BlogPost }) {
         </div>
       </div>
 
-      {/* El selector de color vive pegado a la cabecera que tiñe — cambiarlo
-          y ver el efecto arriba tienen que sentirse como una sola acción,
-          no un campo de formulario en otra parte de la pantalla. */}
+      {/* El selector de color y el destacado viven pegados a la cabecera
+          que afectan — cambiarlos y ver el efecto arriba (o en el listado)
+          tienen que sentirse como una sola acción, no un campo de
+          formulario en otra parte de la pantalla. */}
       <div className="border-b border-neutral-100 bg-white px-6 py-4">
-        <div className="max-w-[1080px] mx-auto">
+        <div className="max-w-[1080px] mx-auto flex flex-wrap items-center justify-between gap-4">
           <AccentColorPicker value={accentColor} onChange={setAccentColor} />
+          <button
+            type="button"
+            onClick={() => setIsFeatured(v => !v)}
+            className={`flex items-center gap-2 text-[12.5px] font-semibold px-3.5 py-2 rounded-full border-2 transition-colors ${isFeatured ? 'bg-yellow border-yellow text-neutral-900' : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400'}`}
+            title="Un post destacado se muestra primero en el home del blog, antes que el más reciente."
+          >
+            <Star className={`w-3.5 h-3.5 ${isFeatured ? 'fill-neutral-900' : ''}`} />
+            {isFeatured ? 'Destacado' : 'Destacar en el home'}
+          </button>
         </div>
       </div>
 
-      <div className="max-w-[760px] mx-auto px-6 py-10">
+      <div className="max-w-[760px] mx-auto px-6 pt-10">
         <RichTextEditor content={content} onChange={setContent} />
+      </div>
 
-        {/* Todo lo que no es "escribir" — CTA y SEO — vive después del
-            editor en vez de compitiendo por espacio al lado, como un panel
-            de "detalles de la publicación" separado de la redacción en sí. */}
-        <div className="mt-12 pt-8 border-t border-neutral-100">
-          <h2 className="text-[13px] font-bold uppercase tracking-wide text-neutral-400 mb-6">Detalles del post</h2>
-          <div className="grid sm:grid-cols-2 gap-8">
-            <div className="border border-neutral-200 rounded-lg p-4">
-              <p className="text-[13px] font-bold text-neutral-900 mb-1">Banner / CTA</p>
-              <p className="text-[12px] text-neutral-500 mb-3">Un bloque destacado dentro del post que empuja al lector hacia el marketplace.</p>
-              <div className="space-y-3">
-                <div>
-                  <label className={labelClass}>Texto del botón</label>
-                  <input className={inputClass} value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} placeholder="Ver clases de Salsa" />
-                </div>
-                <div>
-                  <label className={labelClass}>Enlace</label>
-                  <input className={inputClass} value={ctaHref} onChange={e => setCtaHref(e.target.value)} placeholder="/clases?style=Salsa" />
-                </div>
-                <ImagePicker
-                  label="Imagen del banner (opcional)"
-                  hint="Panorámica, mínimo 1600×686px (proporción 21:9) — ocupa todo el ancho del banner."
-                  url={ctaImage}
-                  onUploaded={setCtaImage}
+      {/* SEO — ya no comparte fila con el banner de CTA (ahora es un bloque
+          insertable dentro del propio contenido, ver el botón "+" en el
+          editor), así que puede respirar en un ancho completo en vez de
+          quedar apretado en media columna. */}
+      <div className="max-w-[1080px] mx-auto px-6 pb-16 pt-8">
+        <div className="pt-8 border-t border-neutral-100">
+          <h2 className="text-[13px] font-bold uppercase tracking-wide text-neutral-400 mb-6">SEO (opcional)</h2>
+          <div className="space-y-5 max-w-[720px]">
+            <div>
+              <label className={labelClass}>URL del post</label>
+              <div className="flex items-center rounded-lg border border-neutral-200 focus-within:border-neutral-900 transition-colors overflow-hidden">
+                <span className="pl-3.5 text-[14px] text-neutral-400 select-none">/blog/</span>
+                <input
+                  className="flex-1 text-[14px] py-2.5 pr-3.5 border-0 outline-none"
+                  value={slug}
+                  onChange={e => setSlug(e.target.value)}
+                  placeholder={isEdit ? '(no cambiar)' : 'se genera del título si lo dejas vacío'}
                 />
               </div>
+              {/* El slug ya asignado deja de tocarse solo cuando cambia el
+                  título (antes cualquier retoque al título rompía en
+                  silencio los links ya compartidos) — vaciar este campo a
+                  propósito es la única forma de pedir que se regenere. */}
+              <p className="text-[11.5px] text-neutral-400 mt-1.5">
+                {isEdit ? 'Cambiarla mueve la URL del post — cualquier link ya compartido con la anterior deja de funcionar. Vacío = regenerar del título actual.' : 'Si lo dejas vacío, se genera automáticamente del título.'}
+              </p>
             </div>
-
-            <div className="border border-neutral-200 rounded-lg p-4">
-              <p className="text-[13px] font-bold text-neutral-900 mb-3">SEO (opcional)</p>
-              <div className="space-y-3">
-                <div>
-                  <label className={labelClass}>Título para buscadores</label>
-                  <input className={inputClass} value={metaTitle} onChange={e => setMetaTitle(e.target.value)} placeholder="Si lo dejas vacío, usa el título del post" />
-                </div>
-                <div>
-                  <label className={labelClass}>Descripción para buscadores</label>
-                  <textarea className={inputClass} rows={2} value={metaDescription} onChange={e => setMetaDescription(e.target.value)} placeholder="Si lo dejas vacío, usa el resumen" />
-                </div>
-              </div>
+            <div>
+              <label className={labelClass}>Título para buscadores</label>
+              <input className={inputClass} value={metaTitle} onChange={e => setMetaTitle(e.target.value)} placeholder="Si lo dejas vacío, usa el título del post" />
+            </div>
+            <div>
+              <label className={labelClass}>Descripción para buscadores</label>
+              <textarea className={inputClass} rows={2} value={metaDescription} onChange={e => setMetaDescription(e.target.value)} placeholder="Si lo dejas vacío, usa el resumen" />
             </div>
           </div>
         </div>
