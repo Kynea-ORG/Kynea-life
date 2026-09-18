@@ -28,15 +28,20 @@ export const metadata: Metadata = {
   },
 };
 
+// Fecha + hora — antes solo se mostraba la fecha, y ni eso si publishedAt
+// era null (posts creados directo en 'published' vía admin sin pasar por un
+// flujo que setee published_at). displayDate() abajo cubre ese caso con
+// fallback a createdAt, que sí es NOT NULL siempre.
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const date = new Date(iso);
+  const datePart = date.toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const timePart = date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+  return `${datePart} · ${timePart}`;
 }
 
-// Foto editorial de portada del blog — distinta a la que usa cualquier otra
-// sección del sitio (Home usa /Background.webp, perfiles usan su propia
-// cover_image), así el blog tiene una identidad visual propia en vez de
-// reciclar un fondo ya asociado a otra parte de Kynea.
-const HERO_IMAGE = 'https://images.unsplash.com/photo-1555489401-79c274997434?w=1600&q=80';
+function displayDate(post: { publishedAt?: string; createdAt: string }): string {
+  return formatDate(post.publishedAt ?? post.createdAt);
+}
 
 export default async function BlogIndexPage({
   searchParams,
@@ -91,45 +96,33 @@ export default async function BlogIndexPage({
       )}
       <Header />
 
-      {/* Portada editorial: foto real + degradado, mismo lenguaje que el
-          hero del Home (foto + overlay oscuro), en vez del bloque de color
-          plano que tenía antes — le da al blog una identidad de revista en
-          vez de sentirse una página administrativa más. */}
-      <div className="relative bg-neutral-900 pt-16 pb-24 sm:pt-20 sm:pb-28 overflow-hidden">
-        <div className="absolute inset-0">
-          <SmartImage
-            src={HERO_IMAGE}
-            alt=""
-            aria-hidden="true"
-            fill
-            sizes="1600px"
-            priority
-            className="object-cover opacity-45"
-            style={{ objectPosition: '50% 25%' }}
-          />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.55) 0%, rgba(13,13,13,.55) 40%, rgba(13,13,13,.96) 100%)' }} />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(138,17,188,.35) 0%, rgba(13,13,13,0) 55%)' }} />
-        </div>
-
-        <div className="relative max-w-[1200px] mx-auto px-6">
-          <span className="text-[12px] font-bold uppercase tracking-widest text-primary-bg/90">El blog de Kynea</span>
-          <h1 className="text-[38px] sm:text-[52px] font-black text-white tracking-tight leading-[1.08] mt-3 max-w-[16ch]">
+      {/* Portada tipográfica: título + intro sobre el fondo blanco del
+          resto del sitio, sin foto de stock — un blog editorial se lee
+          bien sin una imagen genérica de portada, y evita el problema de
+          fondo (banner que a veces queda casi negro según qué tan oscura
+          sea la foto de turno detrás del degradado). Mismo tratamiento
+          tipográfico que un h1 normal de Kynea (font-black, tracking-tight),
+          no un one-off "modo revista". */}
+      <div className="border-b border-neutral-100 bg-neutral-50">
+        <div className="max-w-[1200px] mx-auto px-6 pt-14 pb-10 sm:pt-20 sm:pb-14">
+          <span className="text-[12px] font-bold uppercase tracking-widest text-primary">El blog de Kynea</span>
+          <h1 className="text-[34px] sm:text-[48px] font-black text-neutral-900 tracking-tight leading-[1.08] mt-3 max-w-[18ch]">
             Historias y guías para vivir la danza en Latinoamérica.
           </h1>
-          <p className="text-white/70 text-[16px] sm:text-[17px] mt-4 max-w-[56ch] leading-relaxed">
+          <p className="text-neutral-600 text-[15px] sm:text-[17px] mt-4 max-w-[56ch] leading-relaxed">
             Estilos, academias, bienestar y las historias de quienes se animaron a bailar.
           </p>
         </div>
       </div>
 
       <div className="max-w-[1200px] mx-auto px-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 -mt-10 mb-10 relative z-10">
+        <div className="flex flex-wrap items-center justify-between gap-4 mt-8 mb-10">
           {categories.length > 0 && (
             <div className="flex flex-wrap gap-2">
               <Link
                 href="/blog"
                 className={`text-[13px] font-semibold px-3.5 py-1.5 rounded-full border shadow-sm transition-colors ${
-                  !category ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                  !category ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white border-neutral-200 text-neutral-600 hover:border-primary hover:text-primary'
                 }`}
               >
                 Todas
@@ -139,7 +132,7 @@ export default async function BlogIndexPage({
                   key={c}
                   href={`/blog?categoria=${encodeURIComponent(c)}`}
                   className={`text-[13px] font-semibold px-3.5 py-1.5 rounded-full border shadow-sm transition-colors ${
-                    category === c ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                    category === c ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white border-neutral-200 text-neutral-600 hover:border-primary hover:text-primary'
                   }`}
                 >
                   {c}
@@ -149,7 +142,7 @@ export default async function BlogIndexPage({
           )}
           <a
             href="/blog/rss.xml"
-            className="flex items-center gap-1.5 text-[12.5px] font-semibold text-neutral-400 hover:text-neutral-700 transition-colors shrink-0"
+            className="flex items-center gap-1.5 text-[12.5px] font-semibold text-neutral-400 hover:text-primary transition-colors shrink-0"
           >
             <Rss className="w-3.5 h-3.5" /> RSS
           </a>
@@ -163,47 +156,51 @@ export default async function BlogIndexPage({
           </div>
         ) : (
           <div className="pb-16">
-            {/* Destacado — el más reciente, a página completa con el texto
-                sobre la propia foto (portada de revista), en vez de una
-                card partida en dos: mucho más protagonismo visual para el
-                artículo que más importa mostrar. */}
+            {/* Destacado — el más reciente, como card partida en dos
+                (foto | texto) en vez de texto sobre la propia foto: el
+                título siempre queda sobre fondo blanco, legible pase lo
+                que pase con la foto, y la card usa el mismo lenguaje
+                (borde, radius, tags) que el resto de la grilla en vez de
+                un tratamiento "portada de revista" aparte. */}
             <Link
               href={`/blog/${featured.slug}`}
-              className="group relative block w-full aspect-[16/10] sm:aspect-[21/9] rounded-2xl overflow-hidden mb-14"
+              className="group grid sm:grid-cols-2 rounded-lg border border-neutral-200 overflow-hidden mb-14 transition-[box-shadow,border-color] duration-150 ease-out hover:border-primary/30 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)]"
             >
-              {featured.coverImage ? (
-                <SmartImage
-                  src={featured.coverImage}
-                  alt={featured.title}
-                  fill
-                  sizes="1200px"
-                  priority
-                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
-                  style={{ objectPosition: featured.coverImagePosition }}
-                />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-primary-bg to-neutral-100" />
-              )}
-              <div
-                className="absolute inset-0"
-                style={{ backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 45%, rgba(0,0,0,0.05) 75%)' }}
-              />
-              <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10 max-w-[760px]">
-                <span className="inline-block text-[11px] font-bold uppercase tracking-wide text-white bg-primary rounded-full px-3 py-1 mb-4">
-                  Destacado{featured.category ? ` · ${featured.category}` : ''}
-                </span>
-                <h2 className="text-[24px] sm:text-[34px] font-black text-white leading-[1.12] tracking-tight mb-3">
+              <div className="relative aspect-[16/10] sm:aspect-auto bg-neutral-100 overflow-hidden">
+                {featured.coverImage ? (
+                  <SmartImage
+                    src={featured.coverImage}
+                    alt={featured.title}
+                    fill
+                    sizes="(min-width: 640px) 600px, 100vw"
+                    priority
+                    className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+                    style={{ objectPosition: featured.coverImagePosition }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary-bg to-neutral-100" />
+                )}
+              </div>
+              <div className="flex flex-col justify-center p-6 sm:p-10">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="badge-black text-[11px]">Destacado</span>
+                  {featured.category && <span className="badge-purple-soft text-[11px]">{featured.category}</span>}
+                </div>
+                <h2 className="text-[22px] sm:text-[28px] font-black text-neutral-900 leading-[1.15] tracking-tight mb-3 group-hover:text-primary transition-colors">
                   {featured.title}
                 </h2>
                 {featured.excerpt && (
-                  <p className="hidden sm:block text-[15px] text-white/75 leading-relaxed line-clamp-2 mb-5 max-w-[64ch]">
+                  <p className="text-[14.5px] text-neutral-600 leading-relaxed line-clamp-3 mb-5">
                     {featured.excerpt}
                   </p>
                 )}
-                <div className="flex items-center gap-3 text-[12.5px] text-white/60">
-                  {featured.publishedAt && <span>{formatDate(featured.publishedAt)}</span>}
+                <div className="flex items-center gap-3 text-[12.5px] text-neutral-500 mt-auto">
+                  <span>{displayDate(featured)}</span>
                   <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {estimateReadingTime(featured.content)} min</span>
-                  <span className="hidden sm:flex items-center gap-1.5 text-white font-bold ml-2 group-hover:gap-2.5 transition-[gap]">
+                  {/* Acción en morado (no negro) — el color de marca marca
+                      qué es clickeable en la card, en vez de una card entera
+                      teñida. */}
+                  <span className="flex items-center gap-1.5 text-primary font-bold ml-2 group-hover:gap-2.5 transition-[gap]">
                     Leer artículo <ArrowRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
@@ -216,7 +213,7 @@ export default async function BlogIndexPage({
                   <Link
                     key={post.id}
                     href={`/blog/${post.slug}`}
-                    className="group flex flex-col rounded-2xl border border-neutral-200 overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5"
+                    className="group flex flex-col rounded-lg border border-neutral-200 overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-primary/30 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5"
                   >
                     <div className="relative w-full aspect-[16/10] overflow-hidden bg-neutral-100">
                       {post.coverImage ? (
@@ -231,21 +228,21 @@ export default async function BlogIndexPage({
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-primary-bg to-neutral-100" />
                       )}
-                      <span className="absolute top-3 right-3 flex items-center gap-1 text-[11px] font-semibold text-white bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1">
+                      <span className="absolute top-3 right-3 badge-black text-[11px] gap-1">
                         <Clock className="w-3 h-3" /> {estimateReadingTime(post.content)} min
                       </span>
                     </div>
                     <div className="p-5 flex-1 flex flex-col">
                       {post.category && (
-                        <span className="text-[11px] font-bold uppercase tracking-wide text-primary mb-2">{post.category}</span>
+                        <span className="badge-purple-soft text-[11px] self-start mb-2.5">{post.category}</span>
                       )}
-                      <h2 className="text-[17px] font-bold text-neutral-900 leading-snug mb-2">{post.title}</h2>
+                      {/* Título vira a morado en hover — la señal de "esto es
+                          un link" es de marca, no una card entera teñida. */}
+                      <h2 className="text-[17px] font-bold text-neutral-900 group-hover:text-primary leading-snug mb-2 transition-colors">{post.title}</h2>
                       {post.excerpt && (
                         <p className="text-[13.5px] text-neutral-600 leading-relaxed line-clamp-3 mb-3">{post.excerpt}</p>
                       )}
-                      {post.publishedAt && (
-                        <p className="text-[12px] text-neutral-400 mt-auto">{formatDate(post.publishedAt)}</p>
-                      )}
+                      <p className="text-[12px] text-neutral-400 mt-auto">{displayDate(post)}</p>
                     </div>
                   </Link>
                 ))}

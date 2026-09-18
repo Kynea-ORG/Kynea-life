@@ -360,6 +360,11 @@
   .badge-yellow { @apply inline-flex items-center text-sm font-semibold px-3 py-1 rounded-md whitespace-nowrap bg-yellow text-neutral-900; }
   .badge-black  { @apply inline-flex items-center text-sm font-semibold px-3 py-1 rounded-md whitespace-nowrap bg-neutral-900 text-white; }
   .badge-pink   { @apply inline-flex items-center text-sm font-semibold px-3 py-1 rounded-md whitespace-nowrap bg-pink-50 text-pink-600 border border-pink-100; }
+  /* Morado más claro que badge-pink (bg-pink-50/text-pink-600) — usado por
+     las categorías del blog, donde el tono más oscuro de badge-pink se leía
+     demasiado saturado sobre tanto texto editorial. No reemplaza badge-pink
+     donde ya está en uso (ClassCard, etc.) para no alterar esas pantallas. */
+  .badge-purple-soft { @apply inline-flex items-center text-sm font-semibold px-3 py-1 rounded-md whitespace-nowrap bg-primary-bg text-primary; }
   .badge-gray   { @apply inline-flex items-center text-sm font-semibold px-3 py-1 rounded-md whitespace-nowrap bg-neutral-100 text-neutral-600; }
   .badge-green  { @apply inline-flex items-center text-sm font-semibold px-3 py-1 rounded-md whitespace-nowrap bg-green-bg text-green-text; }
 
@@ -429,11 +434,30 @@
   .blog-content li::marker { @apply text-neutral-400; }
   .blog-content a  { @apply text-primary font-semibold underline underline-offset-2 decoration-primary/30 hover:text-primary-dark hover:decoration-primary-dark/50 transition-colors; }
   .blog-content strong { @apply font-bold text-neutral-900; }
-  .blog-content blockquote { @apply border-l-4 border-neutral-200 pl-5 italic text-[17px] text-neutral-600 my-6; }
+  /* Pull-quote estilo editorial (referencia: The Verge) — texto grande y en
+     negrita, no en cursiva, con la barra de acento en el color de marca en
+     vez del gris neutro genérico: se lee como una frase destacada por la
+     redacción, no como una cita tímida al margen. */
+  .blog-content blockquote { @apply border-l-4 border-primary pl-5 not-italic text-[19px] font-bold leading-snug text-neutral-900 my-8; }
   .blog-content img { @apply rounded-xl my-7 w-full; }
   .blog-content hr  { @apply border-neutral-200 my-9; }
   .blog-content code { @apply bg-neutral-100 text-neutral-800 text-[0.9em] px-1.5 py-0.5 rounded; }
   .blog-content :first-child { @apply mt-0; }
+
+  /* Editor de posts (Tiptap): reusa .blog-content tal cual como clase del
+     área editable — lo que ves mientras escribís es literalmente el mismo
+     CSS del post publicado, no una aproximación aparte que hay que mantener
+     sincronizada a mano. Estas reglas son específicas de la edición: el
+     placeholder del párrafo vacío (inyectado por la extensión Placeholder
+     vía el atributo data-placeholder) y el resaltado de selección. */
+  .blog-content p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: var(--color-neutral-400);
+    pointer-events: none;
+    height: 0;
+  }
+  .blog-content ::selection { background-color: var(--color-primary-bg); }
 }
 
 /* Trama de líneas diagonales finas, tono sobre tono — usada en el banner

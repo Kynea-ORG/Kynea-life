@@ -1,3 +1,38 @@
+import type { BlogAccentColor } from './types';
+
+// Paleta curada del "bloque de color" de portada (referencia: The Verge).
+// Cada entrada trae su propio par de texto (fuerte + tenue) ya resuelto por
+// contraste — el admin elige una key, nunca un hex libre, así nunca puede
+// armar una combinación ilegible. Todos los bg salen de tokens ya definidos
+// en app/globals.css (@theme), ninguno es un hex nuevo.
+export interface BlogAccentTheme {
+  key: BlogAccentColor;
+  label: string;
+  swatch: string;
+  bg: string;
+  text: string;
+  muted: string;
+}
+
+// Muted como opacidad del mismo negro/blanco fuerte (no un gris fijo
+// aparte): un gris neutro suelto se ve apagado/sucio sobre un fondo
+// saturado — bajar la opacidad del propio texto fuerte mantiene la misma
+// familia de tono.
+export const BLOG_ACCENTS: Record<BlogAccentColor, BlogAccentTheme> = {
+  yellow: { key: 'yellow', label: 'Amarillo', swatch: '#FFE040', bg: 'bg-yellow',       text: 'text-neutral-900', muted: 'text-neutral-900/70' },
+  sky:    { key: 'sky',    label: 'Celeste',   swatch: '#A8C8F8', bg: 'bg-blue-pastel',  text: 'text-neutral-900', muted: 'text-neutral-900/70' },
+  lilac:  { key: 'lilac',  label: 'Lila',      swatch: '#D499F0', bg: 'bg-pink-200',     text: 'text-neutral-900', muted: 'text-neutral-900/70' },
+  mint:   { key: 'mint',   label: 'Menta',     swatch: '#00D68F', bg: 'bg-green',        text: 'text-white',      muted: 'text-white/75' },
+  coral:  { key: 'coral',  label: 'Coral',     swatch: '#DC2626', bg: 'bg-red',          text: 'text-white',      muted: 'text-white/75' },
+  grape:  { key: 'grape',  label: 'Morado',    swatch: '#8A11BC', bg: 'bg-primary',      text: 'text-white',      muted: 'text-white/75' },
+  ink:    { key: 'ink',    label: 'Tinta',     swatch: '#0D0D0D', bg: 'bg-neutral-900',  text: 'text-white',      muted: 'text-white/70' },
+};
+
+export function getBlogAccent(key?: string | null): BlogAccentTheme | null {
+  if (!key) return null;
+  return Object.prototype.hasOwnProperty.call(BLOG_ACCENTS, key) ? BLOG_ACCENTS[key as BlogAccentColor] : null;
+}
+
 // Pura — sin I/O, testeable sin mockear Supabase (mismo criterio que
 // lib/classes/helpers.ts). Estima minutos de lectura a partir del texto
 // Markdown crudo: cuenta palabras separadas por espacio, sin intentar

@@ -269,6 +269,6 @@ export function trackBlogCtaClick(params: { postSlug: string; ctaHref: string })
 // Fired when a reader shares a post (WhatsApp, or copies the link) — the
 // other signal (besides the CTA click) of whether a post is actually worth
 // distributing outside kynea.dance.
-export function trackBlogShare(params: { postSlug: string; channel: 'whatsapp' | 'copy_link' }) {
+export function trackBlogShare(params: { postSlug: string; channel: 'whatsapp' | 'copy_link' | 'facebook' | 'x' | 'telegram' | 'email' }) {
   pushEvent('blog_share', { post_slug: params.postSlug, channel: params.channel });
 }
