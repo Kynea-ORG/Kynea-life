@@ -155,6 +155,10 @@ export function buildClassColumns(
   return {
     type:              formData.get('type') as ClassType,
     title:             formData.get('title') as string,
+    // Siempre se incluye (incluso vacío) para que el trigger de slug de la
+    // clase, que solo dispara en UPDATE OF slug, se ejecute en cada guardado
+    // — un valor vacío le pide al trigger que regenere del título actual.
+    slug:              ((formData.get('slug') as string) || '').trim(),
     level_id:          levelId,
     venue_id:          venueId,
     short_description: (formData.get('shortDesc') as string) || null,
