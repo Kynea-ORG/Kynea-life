@@ -6,7 +6,7 @@ import type { BlogPost, DbBlogPost } from './types';
 
 const POST_SELECT = `
   id, slug, title, excerpt, content, cover_image, cover_image_position, category,
-  accent_color, is_featured, status, author_id, published_at, scheduled_at,
+  accent_color, is_featured, status, author_id, published_at,
   meta_title, meta_description,
   cta_label, cta_href, cta_image, views_count, created_at, updated_at,
   author:profiles!author_id(name)
@@ -30,7 +30,6 @@ function mapPost(row: DbBlogPost): BlogPost {
     status: row.status === 'published' ? 'published' : 'draft',
     authorName: row.author?.name ?? undefined,
     publishedAt: row.published_at ?? undefined,
-    scheduledAt: row.scheduled_at ?? undefined,
     metaTitle: row.meta_title ?? undefined,
     metaDescription: row.meta_description ?? undefined,
     ctaLabel: row.cta_label ?? undefined,

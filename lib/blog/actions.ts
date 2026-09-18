@@ -32,11 +32,6 @@ export async function createPost(payload: BlogPostFormPayload): Promise<BlogActi
     return { ok: false, error: 'El título es obligatorio.' };
   }
 
-  // Un post publicado directamente nunca se queda con una fecha programada
-  // colgada — si el admin apuró la publicación en vez de esperar la fecha,
-  // esa fecha ya no significa nada.
-  const scheduledAt = payload.status === 'published' ? null : (payload.scheduledAt || null);
-
   const { data, error } = await supabase
     .from('blog_posts')
     .insert({
@@ -51,7 +46,6 @@ export async function createPost(payload: BlogPostFormPayload): Promise<BlogActi
       status: payload.status,
       author_id: user.id,
       published_at: payload.status === 'published' ? new Date().toISOString() : null,
-      scheduled_at: scheduledAt,
       meta_title: payload.metaTitle.trim() || null,
       meta_description: payload.metaDescription.trim() || null,
     })
@@ -76,7 +70,6 @@ export async function updatePost(id: string, payload: BlogPostFormPayload): Prom
   // (editar un post ya publicado) no debe reiniciar su fecha de publicación.
   const existing = await fetchPostById(id);
   const isNewlyPublished = payload.status === 'published' && existing?.status !== 'published';
-  const scheduledAt = payload.status === 'published' ? null : (payload.scheduledAt || null);
 
   const { data, error } = await supabase
     .from('blog_posts')
@@ -91,7 +84,6 @@ export async function updatePost(id: string, payload: BlogPostFormPayload): Prom
       is_featured: payload.isFeatured,
       status: payload.status,
       ...(isNewlyPublished && { published_at: new Date().toISOString() }),
-      scheduled_at: scheduledAt,
       meta_title: payload.metaTitle.trim() || null,
       meta_description: payload.metaDescription.trim() || null,
     })

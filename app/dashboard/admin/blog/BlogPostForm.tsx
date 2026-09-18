@@ -21,23 +21,6 @@ function autoResize(el: HTMLTextAreaElement) {
   el.style.height = `${el.scrollHeight}px`;
 }
 
-// El <input type="datetime-local"> no lleva zona horaria — "2026-09-20T14:30"
-// significa cosas distintas según en qué huso corra el código. Como esto se
-// ejecuta en el navegador del admin, new Date(...) lo interpreta en SU hora
-// local (la que el admin realmente tiene en pantalla al elegir la fecha),
-// así que convertir a ISO acá adentro es seguro — hacerlo en el servidor
-// (donde corre en UTC) hubiera corrido el horario programado varias horas.
-function localDatetimeToIso(value: string): string {
-  return value ? new Date(value).toISOString() : '';
-}
-
-function isoToLocalDatetime(iso?: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 // Portada cuadrada — mismo recorte exacto (aspect-square, object-cover) que
 // la imagen a la izquierda del header en BlogPostClient, para que lo que se
 // ve acá sea literalmente cómo va a quedar el post real, no una miniatura
@@ -231,7 +214,6 @@ export default function BlogPostForm({ post, existingCategories = [] }: { post?:
   const [category, setCategory] = useState(post?.category ?? '');
   const [accentColor, setAccentColor] = useState<BlogAccentColor | ''>(post?.accentColor ?? '');
   const [isFeatured, setIsFeatured] = useState(post?.isFeatured ?? false);
-  const [scheduledAt, setScheduledAt] = useState(isoToLocalDatetime(post?.scheduledAt));
   const [coverImage, setCoverImage] = useState(post?.coverImage ?? '');
   const [metaTitle, setMetaTitle] = useState(post?.metaTitle ?? '');
   const [metaDescription, setMetaDescription] = useState(post?.metaDescription ?? '');
@@ -271,7 +253,6 @@ export default function BlogPostForm({ post, existingCategories = [] }: { post?:
   async function persist(status: 'draft' | 'published'): Promise<BlogActionResult> {
     const payload: BlogPostFormPayload = {
       slug, title, excerpt, content, coverImage, category, accentColor, isFeatured, status,
-      scheduledAt: localDatetimeToIso(scheduledAt),
       metaTitle, metaDescription,
     };
     const result = postId ? await updatePost(postId, payload) : await createPost(payload);
@@ -311,7 +292,7 @@ export default function BlogPostForm({ post, existingCategories = [] }: { post?:
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, slug, excerpt, content, category, accentColor, isFeatured, scheduledAt, coverImage, metaTitle, metaDescription]);
+  }, [title, slug, excerpt, content, category, accentColor, isFeatured, coverImage, metaTitle, metaDescription]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -431,32 +412,15 @@ export default function BlogPostForm({ post, existingCategories = [] }: { post?:
       <div className="border-b border-neutral-100 bg-white px-6 py-4">
         <div className="max-w-[1080px] mx-auto flex flex-wrap items-center justify-between gap-4">
           <AccentColorPicker value={accentColor} onChange={setAccentColor} />
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Programar solo tiene sentido antes de publicar — una vez que
-                el post ya está en vivo, una fecha acá no significaría nada
-                (publishDuePosts() solo mira posts en borrador). */}
-            {lastSavedStatus !== 'published' && (
-              <label className="flex items-center gap-2 text-[12.5px] font-semibold text-neutral-500">
-                Programar:
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={e => setScheduledAt(e.target.value)}
-                  className="text-[12.5px] px-2.5 py-1.5 rounded-full border-2 border-neutral-200 focus:outline-none focus:border-neutral-900 transition-colors"
-                  title="Guarda como borrador y se publica solo a esta fecha y hora (necesita el cron de Vercel activo)."
-                />
-              </label>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsFeatured(v => !v)}
-              className={`flex items-center gap-2 text-[12.5px] font-semibold px-3.5 py-2 rounded-full border-2 transition-colors ${isFeatured ? 'bg-yellow border-yellow text-neutral-900' : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400'}`}
-              title="Un post destacado se muestra primero en el home del blog, antes que el más reciente."
-            >
-              <Star className={`w-3.5 h-3.5 ${isFeatured ? 'fill-neutral-900' : ''}`} />
-              {isFeatured ? 'Destacado' : 'Destacar en el home'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsFeatured(v => !v)}
+            className={`flex items-center gap-2 text-[12.5px] font-semibold px-3.5 py-2 rounded-full border-2 transition-colors ${isFeatured ? 'bg-yellow border-yellow text-neutral-900' : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400'}`}
+            title="Un post destacado se muestra primero en el home del blog, antes que el más reciente."
+          >
+            <Star className={`w-3.5 h-3.5 ${isFeatured ? 'fill-neutral-900' : ''}`} />
+            {isFeatured ? 'Destacado' : 'Destacar en el home'}
+          </button>
         </div>
       </div>
 

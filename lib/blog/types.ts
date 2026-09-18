@@ -24,7 +24,6 @@ export interface DbBlogPost {
   status: string;
   author_id: string | null;
   published_at: string | null;
-  scheduled_at: string | null;
   meta_title: string | null;
   meta_description: string | null;
   // Legacy — banner fijo al pie del post, reemplazado por el bloque de CTA
@@ -55,9 +54,6 @@ export interface BlogPost {
   status: BlogPostStatus;
   authorName?: string;
   publishedAt?: string;
-  // Solo tiene sentido con status='draft' — un cron externo lo publica solo
-  // cuando llega la fecha (ver lib/blog/actions.ts:publishDuePosts()).
-  scheduledAt?: string;
   metaTitle?: string;
   metaDescription?: string;
   // Legacy — ver comentario en DbBlogPost.
@@ -86,8 +82,6 @@ export interface BlogPostFormPayload {
   accentColor: BlogAccentColor | '';
   isFeatured: boolean;
   status: BlogPostStatus;
-  // Formato datetime-local (ej. "2026-09-20T14:30"), vacío = sin programar.
-  scheduledAt: string;
   metaTitle: string;
   metaDescription: string;
 }
