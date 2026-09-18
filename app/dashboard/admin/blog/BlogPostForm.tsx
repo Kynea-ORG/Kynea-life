@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ImagePlus, Clock } from 'lucide-react';
+import { Loader2, ImagePlus, Clock, Star } from 'lucide-react';
 import type { BlogPost, BlogPostFormPayload, BlogAccentColor } from '@/lib/blog/types';
 import { createPost, updatePost } from '@/lib/blog/actions';
 import { uploadBlogImage } from '@/lib/blog/imageActions';
@@ -12,46 +12,13 @@ import RichTextEditor from './RichTextEditor';
 const inputClass = 'w-full text-[14px] px-3.5 py-2.5 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 transition-colors';
 const labelClass = 'block text-[13px] font-semibold text-neutral-700 mb-1.5';
 
-function ImagePicker({
-  label, hint, url, onUploaded,
-}: {
-  label: string; hint: string; url: string; onUploaded: (url: string) => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError('');
-    const fd = new FormData();
-    fd.set('file', file);
-    const res = await uploadBlogImage(fd);
-    setUploading(false);
-    if (res.error) { setError(res.error); return; }
-    if (res.url) onUploaded(res.url);
-  }
-
-  return (
-    <div>
-      <label className={labelClass}>{label}</label>
-      {url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="w-full h-32 object-cover rounded-lg mb-2 border border-neutral-200" />
-      )}
-      <label className="inline-flex items-center gap-2 text-[13px] font-semibold text-neutral-700 border border-neutral-300 rounded-lg px-3.5 py-2 cursor-pointer hover:bg-neutral-50 transition-colors">
-        {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-        {url ? 'Cambiar imagen' : 'Subir imagen'}
-        <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleChange} disabled={uploading} />
-      </label>
-      {/* Medida recomendada explícita — antes no decía nada, y la foto se
-          termina viendo recortada o pixelada porque nadie sabe qué tamaño
-          subir hasta ver el resultado publicado. */}
-      <p className="text-[11.5px] text-neutral-400 mt-1.5">{hint}</p>
-      {error && <p className="text-xs text-red mt-1">{error}</p>}
-    </div>
-  );
+// El título (y la bajada) son <textarea> que crecen con el contenido, no
+// <input> de una sola línea — antes un texto largo quedaba scrolleado hacia
+// el costado y nunca se veía completo mientras se escribía, muy distinto
+// del h1/dek reales (que hacen wrap a varias líneas).
+function autoResize(el: HTMLTextAreaElement) {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
 }
 
 // Portada cuadrada — mismo recorte exacto (aspect-square, object-cover) que
@@ -130,7 +97,7 @@ function AccentColorPicker({ value, onChange }: { value: BlogAccentColor | ''; o
   );
 }
 
-export default function BlogPostForm({ post }: { post?: BlogPost }) {
+export default function BlogPostForm({ post, existingCategories = [] }: { post?: BlogPost; existingCategories?: string[] }) {
   const router = useRouter();
   const isEdit = Boolean(post);
   const [title, setTitle] = useState(post?.title ?? '');
@@ -138,14 +105,22 @@ export default function BlogPostForm({ post }: { post?: BlogPost }) {
   const [content, setContent] = useState(post?.content ?? '');
   const [category, setCategory] = useState(post?.category ?? '');
   const [accentColor, setAccentColor] = useState<BlogAccentColor | ''>(post?.accentColor ?? '');
+  const [isFeatured, setIsFeatured] = useState(post?.isFeatured ?? false);
   const [coverImage, setCoverImage] = useState(post?.coverImage ?? '');
   const [metaTitle, setMetaTitle] = useState(post?.metaTitle ?? '');
   const [metaDescription, setMetaDescription] = useState(post?.metaDescription ?? '');
-  const [ctaLabel, setCtaLabel] = useState(post?.ctaLabel ?? '');
-  const [ctaHref, setCtaHref] = useState(post?.ctaHref ?? '');
-  const [ctaImage, setCtaImage] = useState(post?.ctaImage ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const excerptRef = useRef<HTMLTextAreaElement>(null);
+
+  // Ajusta la altura de título y bajada al contenido ya cargado al entrar a
+  // editar un post existente — sin esto, un texto largo aparece cortado
+  // hasta la primera tecla que se presiona.
+  useEffect(() => {
+    if (titleRef.current) autoResize(titleRef.current);
+    if (excerptRef.current) autoResize(excerptRef.current);
+  }, []);
 
   const accent = getBlogAccent(accentColor);
   const avatarClass = accent
@@ -156,8 +131,8 @@ export default function BlogPostForm({ post }: { post?: BlogPost }) {
     setSaving(true);
     setError('');
     const payload: BlogPostFormPayload = {
-      title, excerpt, content, coverImage, category, accentColor, status,
-      metaTitle, metaDescription, ctaLabel, ctaHref, ctaImage,
+      title, excerpt, content, coverImage, category, accentColor, isFeatured, status,
+      metaTitle, metaDescription,
     };
     const result = isEdit ? await updatePost(post!.id, payload) : await createPost(payload);
     setSaving(false);
@@ -205,7 +180,7 @@ export default function BlogPostForm({ post }: { post?: BlogPost }) {
           tamaño de título, mismo "/" en la bajada, mismo bloque de color.
           Lo que se ve acá mientras se escribe es exactamente cómo va a
           quedar publicado, no una aproximación en un formulario aparte. */}
-      <div className={accent ? accent.bg : 'bg-neutral-50'}>
+      <div className={accent ? accent.bg : undefined}>
         <div className="max-w-[1080px] mx-auto px-6 py-10 sm:py-12">
           <div className="grid gap-8 sm:grid-cols-2 sm:gap-12 sm:items-center">
             <CoverImageSquare url={coverImage} onUploaded={setCoverImage} />
@@ -216,22 +191,35 @@ export default function BlogPostForm({ post }: { post?: BlogPost }) {
                 onChange={e => setCategory(e.target.value)}
                 placeholder="+ Categoría"
                 size={Math.max(category.length, 12)}
+                list="blog-categories"
                 className="badge-purple-soft text-[11px] mb-4 outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-primary/50"
               />
-              <input
+              {/* Sugerencias de categorías ya usadas en otros posts (borradores
+                  incluidos) — antes esto era texto libre sin ninguna pista de
+                  qué ya existía, así que la misma categoría terminaba escrita
+                  de formas distintas ("Guías" vs "guia") sin que nadie lo
+                  notara hasta ver el filtro del blog duplicado. */}
+              <datalist id="blog-categories">
+                {existingCategories.map(c => <option key={c} value={c} />)}
+              </datalist>
+              <textarea
+                ref={titleRef}
                 value={title}
-                onChange={e => setTitle(e.target.value)}
+                onChange={e => { setTitle(e.target.value); autoResize(e.target); }}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); excerptRef.current?.focus(); } }}
                 placeholder="Título de tu historia…"
-                className={`w-full text-[28px] sm:text-[36px] font-black tracking-tight leading-[1.12] mb-4 border-0 outline-none bg-transparent placeholder:text-neutral-300 ${accent ? accent.text : 'text-neutral-900'}`}
+                rows={1}
+                className={`w-full text-[28px] sm:text-[36px] font-black tracking-tight leading-[1.12] mb-4 border-0 outline-none bg-transparent placeholder:text-neutral-300 resize-none overflow-hidden ${accent ? accent.text : 'text-neutral-900'}`}
               />
               <div className={`flex items-start gap-3 mb-5 ${accent ? accent.muted : 'text-neutral-600'}`}>
                 <span className={`font-black text-[22px] sm:text-[24px] leading-[0.9] shrink-0 ${accent ? accent.text : 'text-primary'}`} aria-hidden="true">/</span>
                 <textarea
+                  ref={excerptRef}
                   value={excerpt}
-                  onChange={e => setExcerpt(e.target.value)}
+                  onChange={e => { setExcerpt(e.target.value); autoResize(e.target); }}
                   placeholder="Escribe una bajada breve — aparece en el listado y como resumen…"
-                  rows={2}
-                  className="flex-1 text-[16px] sm:text-[17px] leading-snug border-0 outline-none resize-none bg-transparent placeholder:text-neutral-400"
+                  rows={1}
+                  className="flex-1 text-[16px] sm:text-[17px] leading-snug border-0 outline-none resize-none overflow-hidden bg-transparent placeholder:text-neutral-400"
                 />
               </div>
               <div className={`flex items-center gap-3 text-[13px] ${accent ? accent.muted : 'text-neutral-500'}`}>
@@ -249,57 +237,44 @@ export default function BlogPostForm({ post }: { post?: BlogPost }) {
         </div>
       </div>
 
-      {/* El selector de color vive pegado a la cabecera que tiñe — cambiarlo
-          y ver el efecto arriba tienen que sentirse como una sola acción,
-          no un campo de formulario en otra parte de la pantalla. */}
+      {/* El selector de color y el destacado viven pegados a la cabecera
+          que afectan — cambiarlos y ver el efecto arriba (o en el listado)
+          tienen que sentirse como una sola acción, no un campo de
+          formulario en otra parte de la pantalla. */}
       <div className="border-b border-neutral-100 bg-white px-6 py-4">
-        <div className="max-w-[1080px] mx-auto">
+        <div className="max-w-[1080px] mx-auto flex flex-wrap items-center justify-between gap-4">
           <AccentColorPicker value={accentColor} onChange={setAccentColor} />
+          <button
+            type="button"
+            onClick={() => setIsFeatured(v => !v)}
+            className={`flex items-center gap-2 text-[12.5px] font-semibold px-3.5 py-2 rounded-full border-2 transition-colors ${isFeatured ? 'bg-yellow border-yellow text-neutral-900' : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400'}`}
+            title="Un post destacado se muestra primero en el home del blog, antes que el más reciente."
+          >
+            <Star className={`w-3.5 h-3.5 ${isFeatured ? 'fill-neutral-900' : ''}`} />
+            {isFeatured ? 'Destacado' : 'Destacar en el home'}
+          </button>
         </div>
       </div>
 
-      <div className="max-w-[760px] mx-auto px-6 py-10">
+      <div className="max-w-[760px] mx-auto px-6 pt-10">
         <RichTextEditor content={content} onChange={setContent} />
+      </div>
 
-        {/* Todo lo que no es "escribir" — CTA y SEO — vive después del
-            editor en vez de compitiendo por espacio al lado, como un panel
-            de "detalles de la publicación" separado de la redacción en sí. */}
-        <div className="mt-12 pt-8 border-t border-neutral-100">
-          <h2 className="text-[13px] font-bold uppercase tracking-wide text-neutral-400 mb-6">Detalles del post</h2>
-          <div className="grid sm:grid-cols-2 gap-8">
-            <div className="border border-neutral-200 rounded-lg p-4">
-              <p className="text-[13px] font-bold text-neutral-900 mb-1">Banner / CTA</p>
-              <p className="text-[12px] text-neutral-500 mb-3">Un bloque destacado dentro del post que empuja al lector hacia el marketplace.</p>
-              <div className="space-y-3">
-                <div>
-                  <label className={labelClass}>Texto del botón</label>
-                  <input className={inputClass} value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} placeholder="Ver clases de Salsa" />
-                </div>
-                <div>
-                  <label className={labelClass}>Enlace</label>
-                  <input className={inputClass} value={ctaHref} onChange={e => setCtaHref(e.target.value)} placeholder="/clases?style=Salsa" />
-                </div>
-                <ImagePicker
-                  label="Imagen del banner (opcional)"
-                  hint="Panorámica, mínimo 1600×686px (proporción 21:9) — ocupa todo el ancho del banner."
-                  url={ctaImage}
-                  onUploaded={setCtaImage}
-                />
-              </div>
+      {/* SEO — ya no comparte fila con el banner de CTA (ahora es un bloque
+          insertable dentro del propio contenido, ver el botón "+" en el
+          editor), así que puede respirar en un ancho completo en vez de
+          quedar apretado en media columna. */}
+      <div className="max-w-[1080px] mx-auto px-6 pb-16 pt-8">
+        <div className="pt-8 border-t border-neutral-100">
+          <h2 className="text-[13px] font-bold uppercase tracking-wide text-neutral-400 mb-6">SEO (opcional)</h2>
+          <div className="space-y-5 max-w-[720px]">
+            <div>
+              <label className={labelClass}>Título para buscadores</label>
+              <input className={inputClass} value={metaTitle} onChange={e => setMetaTitle(e.target.value)} placeholder="Si lo dejas vacío, usa el título del post" />
             </div>
-
-            <div className="border border-neutral-200 rounded-lg p-4">
-              <p className="text-[13px] font-bold text-neutral-900 mb-3">SEO (opcional)</p>
-              <div className="space-y-3">
-                <div>
-                  <label className={labelClass}>Título para buscadores</label>
-                  <input className={inputClass} value={metaTitle} onChange={e => setMetaTitle(e.target.value)} placeholder="Si lo dejas vacío, usa el título del post" />
-                </div>
-                <div>
-                  <label className={labelClass}>Descripción para buscadores</label>
-                  <textarea className={inputClass} rows={2} value={metaDescription} onChange={e => setMetaDescription(e.target.value)} placeholder="Si lo dejas vacío, usa el resumen" />
-                </div>
-              </div>
+            <div>
+              <label className={labelClass}>Descripción para buscadores</label>
+              <textarea className={inputClass} rows={2} value={metaDescription} onChange={e => setMetaDescription(e.target.value)} placeholder="Si lo dejas vacío, usa el resumen" />
             </div>
           </div>
         </div>

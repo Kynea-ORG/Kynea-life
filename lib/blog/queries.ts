@@ -6,7 +6,7 @@ import type { BlogPost, DbBlogPost } from './types';
 
 const POST_SELECT = `
   id, slug, title, excerpt, content, cover_image, cover_image_position, category,
-  accent_color, status, author_id, published_at, meta_title, meta_description,
+  accent_color, is_featured, status, author_id, published_at, meta_title, meta_description,
   cta_label, cta_href, cta_image, views_count, created_at, updated_at,
   author:profiles!author_id(name)
 `;
@@ -25,6 +25,7 @@ function mapPost(row: DbBlogPost): BlogPost {
     // guardara una key vieja/inválida (paleta que cambió), cae a "sin
     // color" en vez de romper el render con una key que no existe.
     accentColor: getBlogAccent(row.accent_color)?.key,
+    isFeatured: row.is_featured,
     status: row.status === 'published' ? 'published' : 'draft',
     authorName: row.author?.name ?? undefined,
     publishedAt: row.published_at ?? undefined,
@@ -112,6 +113,16 @@ export async function fetchPostById(id: string): Promise<BlogPost | null> {
 // Categorías distintas entre los posts publicados — para el filtro de /blog.
 export async function fetchBlogCategories(): Promise<string[]> {
   const posts = await fetchPublishedPosts();
+  return [...new Set(posts.map(p => p.category).filter((c): c is string => Boolean(c)))].sort();
+}
+
+// Para el selector de categoría del editor de admin — a diferencia de
+// fetchBlogCategories(), incluye borradores: antes de publicar por primera
+// vez, un admin no tenía ninguna sugerencia de qué categorías ya existen
+// (todas venían de posts publicados), así que terminaba escribiendo
+// variantes sueltas ("Guías" vs "guia") sin saberlo.
+export async function fetchAllBlogCategories(): Promise<string[]> {
+  const posts = await fetchAllPostsForAdmin();
   return [...new Set(posts.map(p => p.category).filter((c): c is string => Boolean(c)))].sort();
 }
 

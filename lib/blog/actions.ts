@@ -41,14 +41,12 @@ export async function createPost(payload: BlogPostFormPayload): Promise<BlogActi
       cover_image: payload.coverImage || null,
       category: payload.category.trim() || null,
       accent_color: payload.accentColor || null,
+      is_featured: payload.isFeatured,
       status: payload.status,
       author_id: user.id,
       published_at: payload.status === 'published' ? new Date().toISOString() : null,
       meta_title: payload.metaTitle.trim() || null,
       meta_description: payload.metaDescription.trim() || null,
-      cta_label: payload.ctaLabel.trim() || null,
-      cta_href: payload.ctaHref.trim() || null,
-      cta_image: payload.ctaImage || null,
     })
     .select('slug')
     .single();
@@ -81,13 +79,11 @@ export async function updatePost(id: string, payload: BlogPostFormPayload): Prom
       cover_image: payload.coverImage || null,
       category: payload.category.trim() || null,
       accent_color: payload.accentColor || null,
+      is_featured: payload.isFeatured,
       status: payload.status,
       ...(isNewlyPublished && { published_at: new Date().toISOString() }),
       meta_title: payload.metaTitle.trim() || null,
       meta_description: payload.metaDescription.trim() || null,
-      cta_label: payload.ctaLabel.trim() || null,
-      cta_href: payload.ctaHref.trim() || null,
-      cta_image: payload.ctaImage || null,
     })
     .eq('id', id)
     .select('slug')

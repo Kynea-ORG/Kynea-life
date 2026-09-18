@@ -8,9 +8,10 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import {
   Bold, Italic, Heading2, Heading3, Quote, List, ListOrdered,
-  Link2, ImagePlus, Minus, Undo2, Redo2, Loader2,
+  Link2, ImagePlus, Minus, Undo2, Redo2, Loader2, Megaphone,
 } from 'lucide-react';
 import { uploadBlogImage } from '@/lib/blog/imageActions';
+import { CtaBlock } from './CtaBlockExtension';
 
 function ToolbarButton({
   onClick, active, disabled, title, children,
@@ -74,6 +75,7 @@ export default function RichTextEditor({
         ImageExtension.configure({ HTMLAttributes: { class: 'rounded-xl' } }),
         Placeholder.configure({ placeholder: 'Cuenta tu historia. Empieza a escribir…' }),
         Markdown.configure({ html: false }),
+        CtaBlock,
       ],
       content,
       onUpdate: ({ editor }) => onChangeRef.current(editor.storage.markdown.getMarkdown()),
@@ -112,12 +114,18 @@ export default function RichTextEditor({
   }
 
   if (!editor) {
-    return <div className="border border-neutral-200 rounded-lg h-[460px] bg-neutral-50 animate-pulse" />;
+    return <div className="h-[420px] bg-neutral-50 animate-pulse rounded-lg" />;
   }
 
   return (
-    <div className="border border-neutral-200 rounded-lg overflow-hidden focus-within:border-neutral-900 transition-colors">
-      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-neutral-100 bg-neutral-50">
+    <div>
+      {/* Sin caja: nada de borde/fondo envolviendo todo el editor como si
+          fuera un widget de formulario aparte — el cuerpo del post vive
+          directo sobre el blanco de la página, igual que el título y la
+          bajada de arriba. Solo la barra de formato es una franja propia,
+          y queda pegada arriba al hacer scroll (no tiene sentido que
+          desaparezca en un post largo). */}
+      <div className="sticky top-14 z-[5] flex flex-wrap items-center gap-0.5 py-2 border-b border-neutral-100 bg-white">
         <ToolbarButton title="Negrita" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
           <Bold className="w-4 h-4" />
         </ToolbarButton>
@@ -150,6 +158,12 @@ export default function RichTextEditor({
         </ToolbarButton>
         <ToolbarButton title="Separador" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
           <Minus className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          title="Insertar bloque de CTA"
+          onClick={() => editor.chain().focus().insertContent({ type: 'ctaBlock', attrs: { label: '', href: '', image: '', style: 'grande' } }).run()}
+        >
+          <Megaphone className="w-4 h-4" />
         </ToolbarButton>
         <Divider />
         <ToolbarButton title="Deshacer" onClick={() => editor.chain().focus().undo().run()}>
@@ -201,7 +215,7 @@ export default function RichTextEditor({
         </button>
       </BubbleMenu>
 
-      <div className="px-5 sm:px-8 py-6 max-h-[560px] overflow-y-auto">
+      <div className="py-8">
         <EditorContent editor={editor} />
       </div>
     </div>

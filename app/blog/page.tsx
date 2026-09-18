@@ -56,7 +56,13 @@ export default async function BlogIndexPage({
     fetchBlogCategories(),
   ]);
 
-  const [featured, ...rest] = posts;
+  // El destacado prioriza el/los posts marcados is_featured=true (el más
+  // reciente entre ellos, por el mismo orden de fetchPublishedPosts) — antes
+  // era siempre implícitamente el más reciente, sin ningún control
+  // editorial. Sin ningún post marcado, cae al comportamiento de siempre.
+  const explicitFeatured = posts.find(p => p.isFeatured);
+  const featured = explicitFeatured ?? posts[0];
+  const rest = posts.filter(p => p.id !== featured?.id);
 
   const jsonLd = {
     '@context': 'https://schema.org',
