@@ -3,17 +3,27 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
-import { ArrowRight, ChevronRight, Clock, Link2, Check, List, MessageCircle } from 'lucide-react';
+import { ArrowRight, ChevronRight, Clock, Link2, Check, List, MessageCircle, Send, Mail } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import SmartImage from '@/components/SmartImage';
 import type { BlogPost } from '@/lib/blog/types';
-import { estimateReadingTime, slugifyHeading, type Heading } from '@/lib/blog/helpers';
+import { estimateReadingTime, slugifyHeading, getBlogAccent, type Heading } from '@/lib/blog/helpers';
 import { trackBlogCtaClick, trackBlogShare } from '@/lib/analytics';
 import { SITE_URL } from '@/lib/constants';
 
+// Fecha + hora — antes solo se mostraba la fecha, y ni eso si publishedAt
+// era null. displayDate() usa createdAt (NOT NULL siempre) como fallback,
+// así el artículo nunca queda sin fecha visible.
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const date = new Date(iso);
+  const datePart = date.toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const timePart = date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+  return `${datePart} · ${timePart}`;
+}
+
+function displayDate(post: { publishedAt?: string; createdAt: string }): string {
+  return formatDate(post.publishedAt ?? post.createdAt);
 }
 
 // Índice ("En este artículo") — reusado tal cual en desktop (sidebar
@@ -82,8 +92,46 @@ function ReadingProgressBar({ targetRef }: { targetRef: React.RefObject<HTMLElem
   );
 }
 
-function ShareRow({ postSlug, title, canonicalUrl }: { postSlug: string; title: string; canonicalUrl: string }) {
+// Marcas de Facebook/X — lucide-react no trae logos de terceros (a
+// diferencia de WhatsApp/Telegram/Email, que ya se resuelven con un ícono
+// genérico + label), así que estos dos van como SVG inline mínimo, en
+// currentColor para heredar el mismo tratamiento monocromo que el resto de
+// los íconos de la fila (nunca el azul/negro de marca).
+function FacebookGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z" />
+    </svg>
+  );
+}
+
+function XGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+// Fila de compartir — antes solo tenía WhatsApp + copiar enlace. Ahora cubre
+// los canales reales que un profesor/alumno de baile en LatAm usa para
+// difundir contenido (Facebook e Instagram-via-WhatsApp-status son los más
+// usados en la región, X y Telegram como alternativa, Email siempre
+// disponible). Botones circulares solo-ícono (referencia: la fila de
+// compartir de The Verge) en vez de pills con texto — con 6 canales, el
+// texto por botón no escala en mobile.
+function ShareRow({
+  postSlug, title, canonicalUrl, iconButtonClass,
+}: {
+  postSlug: string; title: string; canonicalUrl: string;
+  // Override opcional — la cabecera del post la usa sobre su propio "bloque
+  // de color" (ver getShareIconClass más abajo), donde el estilo neutro de
+  // siempre puede quedar sin contraste; la fila del cierre del artículo
+  // (siempre sobre blanco) usa el default.
+  iconButtonClass?: string;
+}) {
   const [copied, setCopied] = useState(false);
+  const resolvedIconClass = iconButtonClass ?? 'flex items-center justify-center w-9 h-9 rounded-full border border-neutral-200 text-neutral-500 hover:border-neutral-900 hover:text-neutral-900 transition-colors shrink-0';
 
   async function handleCopy() {
     try {
@@ -98,26 +146,41 @@ function ShareRow({ postSlug, title, canonicalUrl }: { postSlug: string; title: 
     }
   }
 
-  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(`${title} ${canonicalUrl}`)}`;
+  const encodedUrl = encodeURIComponent(canonicalUrl);
+  const encodedTitle = encodeURIComponent(title);
+
+  const channels = [
+    { key: 'whatsapp' as const, label: 'Compartir por WhatsApp', href: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`, icon: <MessageCircle className="w-4 h-4" /> },
+    { key: 'facebook' as const, label: 'Compartir en Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`, icon: <FacebookGlyph className="w-4 h-4" /> },
+    { key: 'x' as const, label: 'Compartir en X', href: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`, icon: <XGlyph className="w-3.5 h-3.5" /> },
+    { key: 'telegram' as const, label: 'Compartir por Telegram', href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`, icon: <Send className="w-4 h-4" /> },
+    { key: 'email' as const, label: 'Compartir por correo', href: `mailto:?subject=${encodedTitle}&body=${encodedUrl}`, icon: <Mail className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="flex items-center gap-2">
-      <a
-        href={whatsappHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => trackBlogShare({ postSlug, channel: 'whatsapp' })}
-        className="flex items-center gap-1.5 text-[12.5px] font-semibold text-neutral-600 border border-neutral-200 rounded-full px-3 py-1.5 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
-      >
-        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-      </a>
+      {channels.map(channel => (
+        <a
+          key={channel.key}
+          href={channel.href}
+          target={channel.key === 'email' ? undefined : '_blank'}
+          rel={channel.key === 'email' ? undefined : 'noopener noreferrer'}
+          onClick={() => trackBlogShare({ postSlug, channel: channel.key })}
+          title={channel.label}
+          aria-label={channel.label}
+          className={resolvedIconClass}
+        >
+          {channel.icon}
+        </a>
+      ))}
       <button
         type="button"
         onClick={handleCopy}
-        className="flex items-center gap-1.5 text-[12.5px] font-semibold text-neutral-600 border border-neutral-200 rounded-full px-3 py-1.5 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+        title={copied ? 'Copiado' : 'Copiar enlace'}
+        aria-label={copied ? 'Enlace copiado' : 'Copiar enlace'}
+        className={resolvedIconClass}
       >
-        {copied ? <Check className="w-3.5 h-3.5 text-green-dark" /> : <Link2 className="w-3.5 h-3.5" />}
-        {copied ? 'Copiado' : 'Copiar enlace'}
+        {copied ? <Check className="w-4 h-4 text-green-dark" /> : <Link2 className="w-4 h-4" />}
       </button>
     </div>
   );
@@ -135,6 +198,22 @@ export default function BlogPostClient({
   const articleRef = useRef<HTMLElement>(null);
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const canonicalUrl = `${SITE_URL}/blog/${post.slug}`;
+  const accent = getBlogAccent(post.accentColor);
+  // El avatar necesita quedar visible contra cualquier color de la paleta,
+  // incluido "Tinta" (fondo casi negro) — en vez de un color fijo, invierte
+  // según qué tan clara o oscura sea la combinación text/muted del acento.
+  const avatarClass = accent
+    ? (accent.text === 'text-white' ? 'bg-white text-neutral-900' : 'bg-neutral-900 text-white')
+    : 'bg-primary text-white';
+  // Mismo criterio de inversión que el avatar: los botones de compartir de
+  // la cabecera vivan sobre cualquiera de los 8 fondos posibles (blanco o
+  // los 7 acentos), así que su borde/texto neutro de siempre no sirve ahí
+  // — necesitan su propia versión clara u oscura según corresponda.
+  const shareIconClass = accent
+    ? (accent.text === 'text-white'
+        ? 'flex items-center justify-center w-9 h-9 rounded-full border border-white/30 text-white hover:bg-white/10 transition-colors shrink-0'
+        : 'flex items-center justify-center w-9 h-9 rounded-full border border-neutral-900/25 text-neutral-900 hover:bg-neutral-900/5 transition-colors shrink-0')
+    : undefined;
 
   useEffect(() => {
     if (headings.length === 0) return;
@@ -171,68 +250,95 @@ export default function BlogPostClient({
       <Header />
       <ReadingProgressBar targetRef={articleRef} />
 
-      {/* Portada del post: foto a página completa con el título encima, el
-          mismo tratamiento "revista" que la card destacada de /blog — antes
-          la foto era una imagen chica y redondeada debajo del título, acá
-          es lo primero que se ve. */}
-      <div className="relative bg-neutral-900 overflow-hidden">
-        {post.coverImage ? (
-          <div className="relative w-full aspect-[4/3] sm:aspect-[21/9]">
-            <SmartImage
-              src={post.coverImage}
-              alt={post.title}
-              fill
-              sizes="1600px"
-              priority
-              className="object-cover"
-              style={{ objectPosition: post.coverImagePosition }}
-            />
-            <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.15) 100%)' }} />
-          </div>
-        ) : (
-          <div className="h-[220px]" />
-        )}
-
-        <div className="relative sm:absolute sm:inset-x-0 sm:bottom-0 max-w-[900px] mx-auto px-6 py-8 sm:py-10">
-          <nav className="flex items-center gap-1.5 text-[12.5px] text-white/60 mb-4">
-            <Link href="/blog" className="font-semibold hover:text-white transition-colors">Blog</Link>
+      {/* Cabecera del post — portada tipo revista (referencia: The Verge):
+          foto cuadrada a la izquierda, toda la info (categoría, título,
+          bajada, autor/hora, compartir) a la derecha. Sobre blanco por
+          default, o sobre el "bloque de color" propio del post cuando el
+          admin le asignó uno. La foto nunca tiene texto encima ni depende de
+          un degradado para que el título se lea — el tratamiento anterior
+          (foto a página completa + degradado + título superpuesto) se veía
+          roto cuando la foto de turno no tenía una zona oscura donde apoyar
+          texto blanco; acá la legibilidad no depende de la foto en absoluto. */}
+      <div className={accent ? accent.bg : undefined}>
+        <div className={`max-w-[1080px] mx-auto px-6 pt-8 sm:pt-12 pb-8 sm:pb-12`}>
+          <nav className={`flex items-center gap-1.5 text-[12.5px] mb-6 ${accent ? accent.muted : 'text-neutral-400'}`}>
+            <Link href="/blog" className={`font-semibold transition-colors ${accent?.text === 'text-white' ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Blog</Link>
             <ChevronRight className="w-3 h-3 shrink-0" />
-            <span className="truncate text-white/45">{post.title}</span>
+            <span className="truncate">{post.title}</span>
           </nav>
-          {post.category && (
-            <Link
-              href={`/blog?categoria=${encodeURIComponent(post.category)}`}
-              className="inline-block text-[11px] font-bold uppercase tracking-wide text-white bg-primary rounded-full px-3 py-1 mb-4"
-            >
-              {post.category}
-            </Link>
-          )}
-          <h1 className="text-[28px] sm:text-[40px] font-black text-white tracking-tight leading-[1.1] mb-4 max-w-[24ch]">
-            {post.title}
-          </h1>
-          <div className="flex flex-wrap items-center gap-3 text-[13px] text-white/60">
-            <span className="font-semibold text-white/85">Equipo Kynea</span>
-            {post.publishedAt && (
-              <>
-                <span>·</span>
-                <span>{formatDate(post.publishedAt)}</span>
-              </>
+
+          <div className={`grid gap-8 ${post.coverImage ? 'sm:grid-cols-2 sm:gap-12 sm:items-center' : ''}`}>
+            {post.coverImage && (
+              <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-neutral-100">
+                <SmartImage
+                  src={post.coverImage}
+                  alt={post.title}
+                  fill
+                  sizes="(min-width: 640px) 500px, 100vw"
+                  priority
+                  className="object-cover"
+                  style={{ objectPosition: post.coverImagePosition }}
+                />
+              </div>
             )}
-            <span>·</span>
-            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {estimateReadingTime(post.content)} min de lectura</span>
+
+            <div>
+              {post.category && (
+                <Link
+                  href={`/blog?categoria=${encodeURIComponent(post.category)}`}
+                  className="badge-purple-soft text-[11px] mb-4"
+                >
+                  {post.category}
+                </Link>
+              )}
+              <h1 className={`text-[28px] sm:text-[36px] font-black tracking-tight leading-[1.12] mb-4 ${accent ? accent.text : 'text-neutral-900'}`}>
+                {post.title}
+              </h1>
+              {/* "Dek" — bajada del artículo con la barra "/" (referencia:
+                  The Verge). El excerpt existía en el dato pero no se
+                  mostraba en ningún lado del propio artículo, solo en las
+                  cards del índice — acá cumple el rol de resumen editorial
+                  de entrada. La barra usa el color fuerte del bloque (no
+                  siempre text-primary): en el acento "Morado" el fondo YA es
+                  el morado de marca, así que la barra tiene que pasar a
+                  blanca para seguir siendo visible. */}
+              {post.excerpt && (
+                <p className={`flex items-start gap-3 text-[16px] sm:text-[17px] leading-snug mb-6 ${accent ? accent.muted : 'text-neutral-600'}`}>
+                  <span className={`font-black text-[22px] sm:text-[24px] leading-[0.9] shrink-0 ${accent ? accent.text : 'text-primary'}`} aria-hidden="true">/</span>
+                  {post.excerpt}
+                </p>
+              )}
+              {/* Byline con avatar — mismo componente visual que el avatar
+                  de usuario en Header (círculo + inicial), en vez de solo
+                  texto, para que el post se sienta firmado por alguien y no
+                  una nota anónima. avatarClass invierte polaridad contra el
+                  acento para seguir siendo visible incluso sobre "Tinta"
+                  (fondo casi negro) o "Morado" (mismo tono que el bg-primary
+                  de siempre). */}
+              <div className={`flex items-center gap-3 text-[13px] mb-5 ${accent ? accent.muted : 'text-neutral-500'}`}>
+                <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${avatarClass}`}>K</span>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className={`font-semibold ${accent ? accent.text : 'text-neutral-800'}`}>Equipo Kynea</span>
+                  <span>·</span>
+                  <span>{displayDate(post)}</span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {estimateReadingTime(post.content)} min de lectura</span>
+                </div>
+              </div>
+              {/* Compartir directo en la portada — antes vivía en una fila
+                  aparte debajo de toda la cabecera, separado del resto de la
+                  info del post en vez de formar parte de ella. */}
+              <ShareRow postSlug={post.slug} title={post.title} canonicalUrl={canonicalUrl} iconButtonClass={shareIconClass} />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1080px] mx-auto px-6 py-10 sm:py-14">
-        <div className="flex items-center justify-between gap-4 mb-8 pb-6 border-b border-neutral-100">
-          <ShareRow postSlug={post.slug} title={post.title} canonicalUrl={canonicalUrl} />
-        </div>
-
+      <div className="max-w-[1080px] mx-auto px-6 pt-10 pb-10 sm:pb-14">
         <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-12">
           <article ref={articleRef} className="min-w-0">
             {headings.length > 1 && (
-              <details className="lg:hidden mb-8 rounded-xl border border-neutral-200 bg-neutral-50 open:pb-2">
+              <details className="lg:hidden mb-8 rounded-lg border border-neutral-200 bg-neutral-50 open:pb-2">
                 <summary className="flex items-center gap-2 px-4 py-3 text-[13.5px] font-bold text-neutral-900 cursor-pointer select-none">
                   <List className="w-4 h-4" /> En este artículo
                 </summary>
@@ -250,7 +356,7 @@ export default function BlogPostClient({
               <Link
                 href={post.ctaHref}
                 onClick={() => trackBlogCtaClick({ postSlug: post.slug, ctaHref: post.ctaHref! })}
-                className="group relative block mt-12 rounded-2xl overflow-hidden border border-neutral-900"
+                className="group relative block mt-12 rounded-lg overflow-hidden border border-neutral-900"
               >
                 {post.ctaImage ? (
                   <div className="relative aspect-[21/9]">
@@ -270,7 +376,16 @@ export default function BlogPostClient({
               </Link>
             )}
 
-            <div className="flex items-center justify-between gap-4 mt-10 pt-6 border-t border-neutral-100">
+            {post.category && (
+              <div className="flex items-center gap-2.5 mt-12">
+                <span className="text-[12px] font-semibold text-neutral-400">Archivado en</span>
+                <Link href={`/blog?categoria=${encodeURIComponent(post.category)}`} className="badge-purple-soft text-[11px]">
+                  {post.category}
+                </Link>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-4 mt-6 pt-6 border-t border-neutral-100">
               <ShareRow postSlug={post.slug} title={post.title} canonicalUrl={canonicalUrl} />
             </div>
           </article>
@@ -293,7 +408,7 @@ export default function BlogPostClient({
             <div className="grid sm:grid-cols-3 gap-5">
               {relatedPosts.map(related => (
                 <Link key={related.id} href={`/blog/${related.slug}`} className="group">
-                  <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-neutral-100 mb-2.5">
+                  <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden bg-neutral-100 mb-2.5">
                     {related.coverImage ? (
                       <SmartImage
                         src={related.coverImage}
@@ -307,6 +422,9 @@ export default function BlogPostClient({
                       <div className="absolute inset-0 bg-gradient-to-br from-primary-bg to-neutral-100" />
                     )}
                   </div>
+                  {related.category && (
+                    <span className="badge-purple-soft text-[10.5px] mb-1.5">{related.category}</span>
+                  )}
                   <h3 className="text-[14px] font-bold text-neutral-900 leading-snug group-hover:text-primary transition-colors">
                     {related.title}
                   </h3>

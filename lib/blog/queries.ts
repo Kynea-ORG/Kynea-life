@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { getPublicClient } from '@/lib/supabase/public';
 import { safeCache } from '@/lib/cache';
+import { getBlogAccent } from './helpers';
 import type { BlogPost, DbBlogPost } from './types';
 
 const POST_SELECT = `
   id, slug, title, excerpt, content, cover_image, cover_image_position, category,
-  status, author_id, published_at, meta_title, meta_description,
+  accent_color, status, author_id, published_at, meta_title, meta_description,
   cta_label, cta_href, cta_image, views_count, created_at, updated_at,
   author:profiles!author_id(name)
 `;
@@ -20,6 +21,10 @@ function mapPost(row: DbBlogPost): BlogPost {
     coverImage: row.cover_image ?? undefined,
     coverImagePosition: row.cover_image_position || '50% 50%',
     category: row.category ?? undefined,
+    // getBlogAccent() valida contra la paleta curada — si accent_color
+    // guardara una key vieja/inválida (paleta que cambió), cae a "sin
+    // color" en vez de romper el render con una key que no existe.
+    accentColor: getBlogAccent(row.accent_color)?.key,
     status: row.status === 'published' ? 'published' : 'draft',
     authorName: row.author?.name ?? undefined,
     publishedAt: row.published_at ?? undefined,
