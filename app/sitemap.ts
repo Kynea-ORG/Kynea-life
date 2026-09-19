@@ -4,10 +4,12 @@ import { fetchPublishedClasses } from '@/lib/classes/queries';
 import { classUrl } from '@/lib/classes/helpers';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import { fetchPublishedPosts } from '@/lib/blog/queries';
+import { fetchDanceStyles, fetchStyleClassCounts } from '@/lib/catalog/queries';
 
 const STATIC_ROUTES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency']; priority: number }[] = [
   { path: '',                       changeFrequency: 'daily',   priority: 1 },
   { path: '/clases',                changeFrequency: 'daily',   priority: 0.9 },
+  { path: '/categorias',            changeFrequency: 'weekly',  priority: 0.7 },
   { path: '/profesores',            changeFrequency: 'daily',   priority: 0.8 },
   { path: '/academias',             changeFrequency: 'daily',   priority: 0.8 },
   { path: '/mapa',                  changeFrequency: 'weekly',  priority: 0.6 },
@@ -23,11 +25,13 @@ const STATIC_ROUTES: { path: string; changeFrequency: MetadataRoute.Sitemap[numb
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // fetchFeaturedProfiles(role) with no limit returns every profile with that
   // role — same call the public /profesores directory uses to list everyone.
-  const [classes, profesores, academias, posts] = await Promise.all([
+  const [classes, profesores, academias, posts, danceStyles, styleCounts] = await Promise.all([
     fetchPublishedClasses(),
     fetchFeaturedProfiles('profesor'),
     fetchFeaturedProfiles('academia'),
     fetchPublishedPosts(),
+    fetchDanceStyles(),
+    fetchStyleClassCounts(),
   ]);
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map(({ path, changeFrequency, priority }) => ({
@@ -63,5 +67,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...classEntries, ...profileEntries, ...postEntries];
+  // Solo estilos con al menos una clase publicada: generateMetadata() de
+  // /categorias/[slug] marca noindex a las categorías vacías (ver ese
+  // archivo), así que listarlas igual acá generaría el error de Search
+  // Console "URL enviada marcada como noindex".
+  const categoryEntries: MetadataRoute.Sitemap = danceStyles
+    .filter(s => (styleCounts[s.id] ?? 0) > 0)
+    .map(s => ({
+      url: `${SITE_URL}/categorias/${s.slug}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    }));
+
+  return [...staticEntries, ...classEntries, ...profileEntries, ...postEntries, ...categoryEntries];
 }
