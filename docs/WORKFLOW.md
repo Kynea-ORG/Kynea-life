@@ -8,19 +8,19 @@ Cómo se mergea código en Kynea desde ahora. Aplica a los dos, sin excepciones 
 - Todo cambio va en una rama propia (`feature/lo-que-sea`, `fix/lo-que-sea`), nunca directo a `develop` o `main`.
 - Cada miembro del equipo puede tener una rama personal con su nombre de usuario de GitHub usando el prefijo `user/` (ej. `user/DavidVilcaO`) para subir cambios propios en curso.
 - Las ramas personales (`user/*`) nunca se eliminan, ni siquiera después de mergear su PR — son de uso continuo, no descartables como una `feature/*` o `fix/*`.
-- Push directo a `develop`/`main` está bloqueado a nivel de GitHub — ni siquiera un admin puede saltárselo sin pasar por el procedimiento de [HOTFIX.md](HOTFIX.md).
+- Push directo a `develop`/`main` está bloqueado en local mediante el hook `.githooks/pre-push` (instalado automáticamente vía `npm run prepare`). En remoto, al ser un repo privado en el plan Free de GitHub, el equipo respeta esta convención sin excepciones salvo el procedimiento de [HOTFIX.md](HOTFIX.md).
 
 ## 2. Pull Requests
 
 Cada cambio entra por PR. Un PR necesita:
 
-1. **1 aprobación**, como mínimo. Definido por [`CODEOWNERS`](../.github/CODEOWNERS):
-   - Cambios en `lib/`, `supabase/`, o `proxy.ts` (datos, schema, auth) → **requieren aprobación de @joseniquen08 específicamente**, sin importar quién abrió el PR.
+1. **1 aprobación**, como mínimo:
+   - Cambios en `lib/`, `supabase/`, o `proxy.ts` (datos, schema, auth) → **requieren visto bueno de @joseniquen08 específicamente**, sin importar quién abrió el PR.
    - Cualquier otro cambio (`app/`, `components/`, etc.) → puede aprobarlo cualquiera de los dos.
-2. **CI en verde**: el check `lint-and-typecheck` (lint + `tsc --noEmit`) corre automático en cada PR y tiene que pasar. Si falla, hay un error real de código — no se mergea hasta arreglarlo.
+2. **CI en verde**: el check `lint-and-typecheck` (lint + `tsc --noEmit` + `npm run test`) corre automático en cada PR y tiene que pasar con check verde ✅. Si falla, hay un error real de código — no se mergea hasta arreglarlo.
 3. En `main` además se exige que pase el build/preview de **Vercel**.
 
-**Importante**: GitHub nunca deja que el autor de un PR apruebe su propio PR — es una regla de la plataforma, no de este repo. Si sos el único disponible para revisar tu propio cambio, pedile al otro que lo revise. No hay atajo salvo la excepción de emergencia en [HOTFIX.md](HOTFIX.md).
+**Importante**: En repositorios privados en GitHub Free, el botón de Merge no se bloquea por software para CODEOWNERS. Por tanto, el gate de seguridad es la disciplina del equipo verificando el checklist del PR antes de mergear.
 
 **Cuenta de autoría (`joseniquen08-pr`)**: como `lib/`, `supabase/` y `proxy.ts` requieren aprobación específica de `@joseniquen08`, y GitHub no deja auto-aprobar, los PRs que tocan esas rutas se abren con la cuenta bot `joseniquen08-pr` (no con `joseniquen08`) para que la aprobación humana sea posible. El token de esa cuenta vive en `~/.kynea-bot-token` fuera del repo; se usa así, sin tocar la sesión de `gh` por defecto:
 

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "prepare": "git config core.hooksPath .githooks || true",
     "db:link:dev": "supabase link --project-ref uibigobubqrolozvrkzd",
     "db:link:prod": "supabase link --project-ref hmvonvxgmvwfnhlmrgpg",
     "db:push": "supabase db push"
