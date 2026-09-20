@@ -5,17 +5,22 @@ import { ChevronLeft } from 'lucide-react';
 import ClassBrowser from '@/components/ClassBrowser';
 import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES } from '@/lib/catalog/styleImages';
 import type { DanceClass, DbDanceStyle } from '@/lib/types';
+import type { LocationOption } from '@/lib/catalog/queries';
 
 export default function CategoriaDetailContent({
   style,
   initialClasses,
   levels = [],
   countries = [],
+  locationOptions = [],
+  fallbackLocation,
 }: {
   style: DbDanceStyle;
   initialClasses: DanceClass[];
   levels?: string[];
   countries?: string[];
+  locationOptions?: LocationOption[];
+  fallbackLocation?: { lat: number; lng: number } | null;
 }) {
   const heroImage = STYLE_IMAGES[style.slug] ?? FALLBACK_CATEGORY_IMAGES[0];
 
@@ -26,7 +31,9 @@ export default function CategoriaDetailContent({
       includeStyles={false}
       levels={levels}
       countries={countries}
-      searchPlaceholder={`Busca dentro de ${style.name}: profesor, academia o distrito…`}
+      locationOptions={locationOptions}
+      fallbackLocation={fallbackLocation}
+      searchPlaceholder={`Busca dentro de ${style.name}: clase o profesor…`}
       renderResultsCount={count => (
         <><span className="font-bold text-neutral-900">{count}</span> clase{count !== 1 ? 's' : ''} de {style.name}</>
       )}
