@@ -158,44 +158,64 @@ export default function ClassBrowser({
 
       {/* Search bar */}
       <div className={`bg-white border-b border-neutral-200 shrink-0 sticky ${isMapView ? 'top-0 lg:top-[64px]' : 'top-[64px]'} z-40`}>
-        <div className={`mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
-          {isMapView && (
-            <button
-              type="button"
-              onClick={() => changeView('lista')}
-              className="lg:hidden p-2 -ml-1 rounded-full text-neutral-700 hover:bg-neutral-100 active:scale-95 transition-transform shrink-0"
-              aria-label="Volver a lista"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-
-          {/* Dual search container: [ Content ] | [ Location Autocomplete ] */}
-          <div className="flex-1 min-w-0 flex flex-col sm:flex-row items-stretch sm:items-center bg-white border border-neutral-200 rounded-btn divide-y sm:divide-y-0 sm:divide-x divide-neutral-100 hover:border-neutral-900 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-[border-color,box-shadow]">
-            {/* Input 1: Content search */}
-            <div className="flex-1 min-w-0 flex items-center gap-2.5 px-3.5 py-2.5">
-              <Search className="w-4 h-4 text-neutral-400 shrink-0" />
-              <input
-                type="text"
-                value={query}
-                onChange={e => handleQueryChange(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="flex-1 min-w-0 text-[14px] sm:text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none truncate"
-              />
-              {query && (
+        <div className={`mx-auto px-3 sm:px-6 py-2.5 sm:py-3 ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
+          {/* Mobile view (< sm): 2 distinct, clean rows with fully homogenized borders */}
+          <div className="flex flex-col gap-2 sm:hidden">
+            {/* Fila 1: [ ← ] (si isMapView) + [ Buscador de texto ] + [ Filtros ] */}
+            <div className="flex items-center gap-2 w-full">
+              {isMapView && (
                 <button
                   type="button"
-                  onClick={() => handleQueryChange('')}
-                  className="text-neutral-400 hover:text-neutral-600 p-0.5 rounded-full hover:bg-neutral-100 transition-colors"
-                  aria-label="Limpiar búsqueda de texto"
+                  onClick={() => changeView('lista')}
+                  className="h-11 w-11 flex items-center justify-center rounded-btn border border-neutral-200 bg-white text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 active:scale-95 transition-[border-color,background-color,transform] shrink-0"
+                  aria-label="Volver a lista"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <ArrowLeft className="w-5 h-5" />
                 </button>
               )}
+
+              <div className="flex-1 min-w-0 h-11 flex items-center gap-2.5 px-3.5 bg-white border border-neutral-200 rounded-btn hover:border-neutral-900 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-[border-color,box-shadow]">
+                <Search className="w-4 h-4 text-neutral-400 shrink-0" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={e => handleQueryChange(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="flex-1 min-w-0 text-[14px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none truncate"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => handleQueryChange('')}
+                    className="text-neutral-400 hover:text-neutral-600 p-0.5 rounded-full hover:bg-neutral-100 transition-colors shrink-0"
+                    aria-label="Limpiar búsqueda de texto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowFilters(!showFilters)}
+                className={`h-11 px-3.5 flex items-center justify-center gap-2 text-[13px] font-bold rounded-btn border transition-[border-color,background-color,color] active:scale-[0.97] shrink-0 ${
+                  activeCount > 0
+                    ? 'border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800'
+                    : 'border-neutral-200 bg-white text-neutral-900 hover:border-neutral-900 hover:bg-neutral-50'
+                }`}
+                aria-label="Abrir filtros"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                {activeCount > 0 && (
+                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-primary-bg text-primary-dark">
+                    {activeCount}
+                  </span>
+                )}
+              </button>
             </div>
 
-            {/* Input 2: Location autocomplete */}
-            <div className="w-full sm:w-56 md:w-64 lg:w-72 shrink-0">
+            {/* Fila 2: [ Selector de ubicación (ancho completo) ] */}
+            <div className="w-full">
               <LocationAutocomplete
                 locationOptions={locationOptions}
                 selectedCity={filters.city}
@@ -208,45 +228,105 @@ export default function ClassBrowser({
                   handleFiltersChange({ ...filters, city: '', district: '' });
                   setRecenterTrigger(c => c + 1);
                 }}
+                className="h-11 flex items-center bg-white border border-neutral-200 rounded-btn hover:border-neutral-900 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-[border-color,box-shadow]"
               />
             </div>
           </div>
 
-          {enableMapView && (
-            // Solo desktop — en mobile cada vista tiene su propio botón
-            // flotante para cruzar a la otra (ver más abajo y
-            // ClasesMapView's "Ver lista"/"Ver mapa"), así que este switch
-            // quedaba duplicando esa misma función.
-            <div className="hidden lg:flex items-center gap-1 bg-neutral-100 rounded-xl p-1 shrink-0">
-              {(['lista', 'mapa'] as const).map(v => (
-                <button
-                  key={v}
-                  onClick={() => changeView(v)}
-                  className={`flex items-center gap-1.5 text-[13px] font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
-                    view === v ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-700'
-                  }`}
-                >
-                  {v === 'lista' ? <List className="w-3.5 h-3.5" /> : <MapIcon className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">{v === 'lista' ? 'Lista' : 'Mapa'}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 text-[13px] font-bold px-4 py-2.5 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-50 transition-colors active:scale-[0.97] ${isMapView ? '' : 'md:hidden'}`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Filtros</span>
-            {activeCount > 0 && (
-              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-primary-bg text-primary-dark">{activeCount}</span>
+          {/* Desktop / Tablet view (>= sm): 1 horizontal row with homogenized borders */}
+          <div className="hidden sm:flex items-center gap-2 sm:gap-3 w-full">
+            {isMapView && (
+              <button
+                type="button"
+                onClick={() => changeView('lista')}
+                className="lg:hidden h-11 w-11 flex items-center justify-center rounded-btn border border-neutral-200 bg-white text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 active:scale-95 transition-[border-color,background-color,transform] shrink-0"
+                aria-label="Volver a lista"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
             )}
-          </button>
+
+            {/* Dual search container: [ Content ] | [ Location Autocomplete ] */}
+            <div className="flex-1 min-w-0 h-11 flex items-center bg-white border border-neutral-200 rounded-btn divide-x divide-neutral-100 hover:border-neutral-900 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-[border-color,box-shadow]">
+              {/* Input 1: Content search */}
+              <div className="flex-1 min-w-0 h-full flex items-center gap-2.5 px-3.5">
+                <Search className="w-4 h-4 text-neutral-400 shrink-0" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={e => handleQueryChange(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="flex-1 min-w-0 text-[14px] sm:text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none truncate"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => handleQueryChange('')}
+                    className="text-neutral-400 hover:text-neutral-600 p-0.5 rounded-full hover:bg-neutral-100 transition-colors"
+                    aria-label="Limpiar búsqueda de texto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Input 2: Location autocomplete */}
+              <div className="w-56 md:w-64 lg:w-72 shrink-0 h-full">
+                <LocationAutocomplete
+                  locationOptions={locationOptions}
+                  selectedCity={filters.city}
+                  selectedDistrict={filters.district}
+                  onSelectLocation={(city, district) => {
+                    handleFiltersChange({ ...filters, city, district });
+                    setRecenterTrigger(c => c + 1);
+                  }}
+                  onClearLocation={() => {
+                    handleFiltersChange({ ...filters, city: '', district: '' });
+                    setRecenterTrigger(c => c + 1);
+                  }}
+                  className="h-full"
+                />
+              </div>
+            </div>
+
+            {enableMapView && (
+              <div className="hidden lg:flex items-center gap-1 bg-neutral-100 rounded-xl p-1 shrink-0 h-11">
+                {(['lista', 'mapa'] as const).map(v => (
+                  <button
+                    key={v}
+                    onClick={() => changeView(v)}
+                    className={`flex items-center gap-1.5 text-[13px] font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors ${
+                      view === v ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-700'
+                    }`}
+                  >
+                    {v === 'lista' ? <List className="w-3.5 h-3.5" /> : <MapIcon className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">{v === 'lista' ? 'Lista' : 'Mapa'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`h-11 flex items-center gap-2 text-[13px] font-bold px-4 rounded-btn border transition-[border-color,background-color,color] active:scale-[0.97] shrink-0 ${isMapView ? '' : 'md:hidden'} ${
+                activeCount > 0
+                  ? 'border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800'
+                  : 'border-neutral-200 bg-white text-neutral-900 hover:border-neutral-900 hover:bg-neutral-50'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Filtros</span>
+              {activeCount > 0 && (
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${activeCount > 0 ? 'bg-primary text-white' : 'bg-primary-bg text-primary-dark'}`}>
+                  {activeCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {(filters.styles.length > 0 || filters.levels.length > 0 || filters.city || filters.district) && (
-          <div className={`mx-auto px-6 pb-3 flex gap-2 overflow-x-auto ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
+          <div className={`mx-auto px-3 sm:px-6 pb-2.5 sm:pb-3 flex gap-2 overflow-x-auto ${isMapView ? 'max-w-[1800px]' : 'max-w-[1200px]'}`}>
             {(filters.district || filters.city) && (
               <span className="flex items-center gap-1.5 text-[13px] bg-primary text-white font-medium px-3 py-1 rounded-full whitespace-nowrap">
                 <MapPin className="w-3 h-3 shrink-0" />

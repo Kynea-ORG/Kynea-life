@@ -187,14 +187,14 @@ export default function LocationAutocomplete({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <div
-        className="flex items-center gap-2.5 px-3.5 py-2.5 cursor-text group"
+        className="w-full h-full flex items-center gap-2.5 px-3.5 py-2 cursor-text group"
         onClick={() => {
           setIsOpen(true);
           inputRef.current?.focus();
         }}
       >
         <MapPin
-          className={`w-[19px] h-[19px] shrink-0 transition-colors ${
+          className={`w-4 h-4 shrink-0 transition-colors ${
             hasLocation ? 'text-primary' : 'text-neutral-400 group-hover:text-neutral-600'
           }`}
         />
@@ -220,7 +220,7 @@ export default function LocationAutocomplete({
           aria-activedescendant={activeOptionIndex >= 0 ? `location-option-${activeOptionIndex}` : undefined}
           aria-autocomplete="list"
           role="combobox"
-          className="flex-1 min-w-0 text-[14.5px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none truncate"
+          className="flex-1 min-w-0 text-[14px] sm:text-[15px] text-neutral-800 placeholder:text-neutral-400 bg-transparent outline-none truncate"
         />
 
         {hasLocation && (
@@ -236,7 +236,7 @@ export default function LocationAutocomplete({
         )}
 
         <ChevronDown
-          className={`w-3.5 h-3.5 text-neutral-400 shrink-0 transition-transform duration-200 pointer-events-none ${
+          className={`w-4 h-4 text-neutral-400 shrink-0 transition-transform duration-200 pointer-events-none ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
