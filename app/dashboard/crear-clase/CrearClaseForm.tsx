@@ -473,16 +473,28 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       <div>
         <FieldLabel>URL de la clase</FieldLabel>
         {isEdit && editClass && (
-          <p className="text-xs text-neutral-400 mb-1.5 truncate">
-            Actual: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold text-neutral-600">{form.slug || editClass.slug}</span>
-          </p>
+          <div className="space-y-1 mb-1.5">
+            <p className="text-xs text-neutral-500 truncate">
+              URL actual: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold text-neutral-700">{editClass.slug}</span>
+            </p>
+            {form.slug.trim() && form.slug.trim() !== editClass.slug && (
+              <p className="text-xs text-primary truncate">
+                Nueva URL: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold">{form.slug.trim()}</span>
+              </p>
+            )}
+            {!form.slug.trim() && (
+              <p className="text-xs text-amber-600 truncate">
+                Se regenerará automáticamente a partir del título actual.
+              </p>
+            )}
+          </div>
         )}
         <input className="input" value={form.slug} onChange={e => set('slug', e.target.value)}
-          placeholder={isEdit ? '(no cambiar)' : 'se genera del título si lo dejas vacío'} />
+          placeholder={isEdit ? 'Vacío = regenerar del título actual' : 'se genera del título si lo dejas vacío'} />
         <Hint>
           {isEdit
-            ? 'Cambiarla mueve la URL de la clase — cualquier link ya compartido con la anterior deja de funcionar. Vacío = regenerar del título actual.'
-            : 'Si lo dejas vacío, se genera automáticamente del título. Útil para corregirla después de duplicar una clase.'}
+            ? 'Cambiarla mueve la URL de la clase — cualquier link ya compartido con la anterior dejará de funcionar. Vacío = regenerar del título actual (útil para corregir tras duplicar).'
+            : 'Si lo dejas vacío, se genera automáticamente del título.'}
         </Hint>
       </div>
 
