@@ -3,7 +3,7 @@
 # ==============================================================================
 # Kynea Git Pre-Push Hook
 # Bloquea pushes directos a ramas protegidas (main y develop) en local.
-# Simula la proteccion de ramas de GitHub en repositorios privados (plan Free).
+# Respaldo local de seguridad complementario a Branch Protection de GitHub.
 # ==============================================================================
 
 while read -r local_ref local_oid remote_ref remote_oid
