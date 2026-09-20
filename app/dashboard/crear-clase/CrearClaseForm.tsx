@@ -44,6 +44,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     return {
       type: 'taller',
       title: '',
+      slug: '',
       style: '',
       level: '',
       shortDesc: '',
@@ -82,6 +83,7 @@ function buildInitialForm(editClass: DanceClass | null) {
   return {
     type: editClass.type ?? 'taller',
     title: editClass.title ?? '',
+    slug: editClass.slug ?? '',
     style: editClass.style ?? '',
     level: editClass.level ?? '',
     shortDesc: editClass.shortDescription ?? '',
@@ -213,6 +215,7 @@ interface Props {
 
 export default function CrearClaseForm({ classId, editClass, danceStyles, levels, academiaPending = false }: Props) {
   useRouter();
+  const isEdit = Boolean(classId);
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState('');
@@ -315,6 +318,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         fd.set('status', status);
         fd.set('type', form.type);
         fd.set('title', form.title);
+        fd.set('slug', form.slug);
         fd.set('style', form.style);
         fd.set('level', form.level);
         fd.set('shortDesc', form.shortDesc);
@@ -464,6 +468,34 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           placeholder="Ej: Salsa Básico desde cero" maxLength={80} />
         <Hint>{form.title.length}/80 caracteres</Hint>
         {fieldErrors.title && <p className="text-xs text-red mt-1">{fieldErrors.title}</p>}
+      </div>
+
+      <div>
+        <FieldLabel>URL de la clase</FieldLabel>
+        {isEdit && editClass && (
+          <div className="space-y-1 mb-1.5">
+            <p className="text-xs text-neutral-500 truncate">
+              URL actual: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold text-neutral-700">{editClass.slug}</span>
+            </p>
+            {form.slug.trim() && form.slug.trim() !== editClass.slug && (
+              <p className="text-xs text-primary truncate">
+                Nueva URL: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold">{form.slug.trim()}</span>
+              </p>
+            )}
+            {!form.slug.trim() && (
+              <p className="text-xs text-amber-600 truncate">
+                Se regenerará automáticamente a partir del título actual.
+              </p>
+            )}
+          </div>
+        )}
+        <input className="input" value={form.slug} onChange={e => set('slug', e.target.value)}
+          placeholder={isEdit ? 'Vacío = regenerar del título actual' : 'se genera del título si lo dejas vacío'} />
+        <Hint>
+          {isEdit
+            ? 'Cambiarla mueve la URL de la clase — cualquier link ya compartido con la anterior dejará de funcionar. Vacío = regenerar del título actual (útil para corregir tras duplicar).'
+            : 'Si lo dejas vacío, se genera automáticamente del título.'}
+        </Hint>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">

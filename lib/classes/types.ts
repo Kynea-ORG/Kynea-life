@@ -26,6 +26,7 @@ export interface ClassUpdatePayload {
   published_at?:     string | null;
   type?:             ClassType;
   title?:            string;
+  slug?:             string;
   level_id?:         number | null;
   venue_id?:         string | null;
   short_description?: string | null;
