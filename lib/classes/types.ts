@@ -18,6 +18,7 @@ export interface ClassFilters {
   // ISO 3166-1 alpha-2 (venues.country_code) — inferred from the class's own
   // address, not the teacher's nationality (see migration 48).
   country?:    string;
+  district?:   string;
   withSpots?:  boolean;
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getProfileUrl, safeRedirectPath } from './utils';
+import { getProfileUrl, safeRedirectPath, calculateDistanceKm, formatDistance } from './utils';
 
 describe('getProfileUrl', () => {
   it('returns /academias/{slug} when type is academia', () => {
@@ -35,5 +35,43 @@ describe('safeRedirectPath', () => {
     expect(safeRedirectPath('')).toBeNull();
     expect(safeRedirectPath(null)).toBeNull();
     expect(safeRedirectPath(undefined)).toBeNull();
+  });
+});
+
+describe('calculateDistanceKm', () => {
+  it('returns 0 for identical coordinates', () => {
+    expect(calculateDistanceKm(-12.1218, -77.0298, -12.1218, -77.0298)).toBe(0);
+  });
+
+  it('calculates approximately correct distance between Miraflores and Barranco (~2.5km)', () => {
+    // Parque Kennedy (-12.1218, -77.0298) to Puente de los Suspiros (-12.1488, -77.0217)
+    const dist = calculateDistanceKm(-12.1218, -77.0298, -12.1488, -77.0217);
+    expect(dist).toBeGreaterThan(2.5);
+    expect(dist).toBeLessThan(3.5);
+  });
+
+  it('is symmetric', () => {
+    const d1 = calculateDistanceKm(-12.1218, -77.0298, -12.0463, -77.0427);
+    const d2 = calculateDistanceKm(-12.0463, -77.0427, -12.1218, -77.0298);
+    expect(Math.abs(d1 - d2)).toBeLessThan(0.0001);
+  });
+});
+
+describe('formatDistance', () => {
+  it('formats distances under 1 km as meters', () => {
+    expect(formatDistance(0.35)).toBe('350 m');
+    expect(formatDistance(0.05)).toBe('50 m');
+    expect(formatDistance(0.999)).toBe('999 m');
+  });
+
+  it('formats distances between 1 km and 9.9 km with one decimal', () => {
+    expect(formatDistance(1.23)).toBe('1.2 km');
+    expect(formatDistance(2.0)).toBe('2.0 km');
+    expect(formatDistance(9.87)).toBe('9.9 km');
+  });
+
+  it('formats distances 10 km and above as whole numbers', () => {
+    expect(formatDistance(12.4)).toBe('12 km');
+    expect(formatDistance(25.8)).toBe('26 km');
   });
 });

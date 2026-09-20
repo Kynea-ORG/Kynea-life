@@ -142,3 +142,41 @@ export function getProfileUrl(profile: { type?: string; role?: string; slug: str
   return isAcademia ? `/academias/${profile.slug}` : `/profesores/${profile.slug}`;
 }
 
+/**
+ * Haversine formula to calculate the great-circle distance between two coordinates in kilometers.
+ */
+export function calculateDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371; // Earth's mean radius in km
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Formats a distance in kilometers into a human-readable string:
+ * - Under 1 km: meters rounded (e.g. "450 m")
+ * - 1 to 9.9 km: one decimal place (e.g. "1.2 km")
+ * - 10+ km: integer (e.g. "12 km")
+ */
+export function formatDistance(distanceKm: number): string {
+  if (distanceKm < 1) {
+    const meters = Math.round(distanceKm * 1000);
+    return `${meters} m`;
+  }
+  if (distanceKm < 10) {
+    return `${distanceKm.toFixed(1)} km`;
+  }
+  return `${Math.round(distanceKm)} km`;
+}
+

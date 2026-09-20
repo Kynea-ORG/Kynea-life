@@ -3,9 +3,10 @@ import { useRef, useState, useMemo, useCallback, useTransition } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import GoogleMap, { type MapPin } from '@/components/GoogleMap';
-import { MapPin as MapPinIcon, Building2, X, ChevronRight, List } from 'lucide-react';
-import { formatPrice, formatPriceShort, formatTimeSlots } from '@/lib/utils';
+import { MapPin as MapPinIcon, Building2, X, ChevronRight, List, Navigation, MapPinOff, Loader2 } from 'lucide-react';
+import { formatPrice, formatPriceShort, formatTimeSlots, calculateDistanceKm, formatDistance } from '@/lib/utils';
 import { classUrl } from '@/lib/classes/helpers';
+import { useUserLocation } from '@/lib/hooks/useUserLocation';
 import { trackSelectItem, trackSelectProfile } from '@/lib/analytics';
 import type { DanceClass, Teacher } from '@/lib/types';
 
@@ -23,6 +24,9 @@ export default function ClasesMapView({
   academias = [],
   onShowList,
   listName,
+  recenterTrigger,
+  onUserDrag,
+  fallbackLocation,
 }: {
   classes: DanceClass[];
   academias?: Teacher[];
@@ -35,6 +39,12 @@ export default function ClasesMapView({
   /** Identifies this surface for trackSelectItem on the class links below
    * (popup + sidebar list) — see ClassBrowser, which passes `${listName}_mapa`. */
   listName: string;
+  /** Trigger incremented when user re-selects or clicks a location search to refresh the view */
+  recenterTrigger?: number;
+  /** Callback fired when the user drags the map */
+  onUserDrag?: () => void;
+  /** Approximate fallback coordinates from GeoIP when user has no GPS */
+  fallbackLocation?: { lat: number; lng: number } | null;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Hover en desktop solo resalta el pin (sin abrir tarjeta ni mover el
@@ -42,13 +52,36 @@ export default function ClasesMapView({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // "Buscar al mover el mapa": la lista se recorta a lo que entra en el
   // viewport actual. `visibleIds` lo mantiene GoogleMap vía onVisibleChange
-  // (se sigue actualizando aunque el checkbox esté apagado, así que
-  // prenderlo refleja la zona actual al toque, sin esperar al próximo pan).
-  const [searchOnMove, setSearchOnMove] = useState(true);
+  // sólo cuando el checkbox está prendido (ver abajo).
   const [visibleIds, setVisibleIds] = useState<Set<string> | null>(null);
+  const [searchOnMove, setSearchOnMove] = useState(true);
+
+  // When filtered classes/academias change, reset visibleIds so the list
+  // immediately displays the newly filtered results instead of stale bounds.
+  const currentDataKey = `${classes.map(c => c.id).join(',')}|${academias.map(a => a.id).join(',')}`;
+  const [prevDataKey, setPrevDataKey] = useState(currentDataKey);
+  if (prevDataKey !== currentDataKey) {
+    setPrevDataKey(currentDataKey);
+    setVisibleIds(null);
+  }
+
+  // When user triggers a search refresh, reset bounds and selection
+  const [prevRecenterTrigger, setPrevRecenterTrigger] = useState(recenterTrigger);
+  if (prevRecenterTrigger !== recenterTrigger) {
+    setPrevRecenterTrigger(recenterTrigger);
+    setVisibleIds(null);
+    setSelectedId(null);
+  }
+
   const [isMapMoving, setIsMapMoving] = useState(false);
   const [isPending, startTransition] = useTransition();
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const {
+    location: userLocation,
+    status: userLocationStatus,
+    requestLocation,
+  } = useUserLocation();
 
   // Siempre completos — alimentan los pines del mapa y el lookup de
   // renderPopup. Si esto se filtrara por zona, GoogleMap perdería del todo
@@ -56,6 +89,38 @@ export default function ClasesMapView({
   // props) y un futuro pan de vuelta nunca podría volver a mostrarlos.
   const validClasses = useMemo(() => classes.filter(c => c.lat != null && c.lng != null), [classes]);
   const validAcademias = useMemo(() => academias.filter(a => a.venueLat != null && a.venueLng != null), [academias]);
+
+  const classesWithDistance = useMemo(() => {
+    return validClasses.map(c => {
+      const distanceKm = userLocation ? calculateDistanceKm(userLocation.lat, userLocation.lng, c.lat!, c.lng!) : null;
+      return {
+        ...c,
+        distanceKm,
+        distanceStr: distanceKm != null ? formatDistance(distanceKm) : null,
+      };
+    });
+  }, [validClasses, userLocation]);
+
+  const academiasWithDistance = useMemo(() => {
+    return validAcademias.map(a => {
+      const distanceKm = userLocation ? calculateDistanceKm(userLocation.lat, userLocation.lng, a.venueLat!, a.venueLng!) : null;
+      return {
+        ...a,
+        distanceKm,
+        distanceStr: distanceKm != null ? formatDistance(distanceKm) : null,
+      };
+    });
+  }, [validAcademias, userLocation]);
+
+  const sortedClasses = useMemo(() => {
+    if (!userLocation) return classesWithDistance;
+    return [...classesWithDistance].sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+  }, [classesWithDistance, userLocation]);
+
+  const sortedAcademias = useMemo(() => {
+    if (!userLocation) return academiasWithDistance;
+    return [...academiasWithDistance].sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+  }, [academiasWithDistance, userLocation]);
 
   const pins = useMemo<MapPin[]>(() => {
     const classPins: MapPin[] = validClasses.map(c => ({
@@ -95,9 +160,10 @@ export default function ClasesMapView({
   }, []);
 
   // Recortados por zona visible — solo para las filas de la lista.
+  // Cuando hay ubicación del usuario, las clases y academias se ordenan por proximidad.
   const zoneFilterActive = searchOnMove && visibleIds !== null;
-  const listClasses = zoneFilterActive ? validClasses.filter(c => visibleIds!.has(`clase-${c.id}`)) : validClasses;
-  const listAcademias = zoneFilterActive ? validAcademias.filter(a => visibleIds!.has(`academia-${a.id}`)) : validAcademias;
+  const listClasses = zoneFilterActive ? sortedClasses.filter(c => visibleIds!.has(`clase-${c.id}`)) : sortedClasses;
+  const listAcademias = zoneFilterActive ? sortedAcademias.filter(a => visibleIds!.has(`academia-${a.id}`)) : sortedAcademias;
 
   function handlePinClick(id: string | null) {
     setSelectedId(id);
@@ -114,7 +180,7 @@ export default function ClasesMapView({
 
   function renderPopup(pinId: string, close: () => void) {
     if (pinId.startsWith('clase-')) {
-      const cls = validClasses.find(c => `clase-${c.id}` === pinId);
+      const cls = sortedClasses.find(c => `clase-${c.id}` === pinId);
       if (!cls) return null;
       return (
         <div className="relative group">
@@ -139,7 +205,12 @@ export default function ClasesMapView({
               <div className="flex-1 min-w-0 flex flex-col pr-6">
                 <p className="text-[11px] font-bold text-primary">{cls.style}</p>
                 <h3 className="font-bold text-neutral-900 text-[14px] leading-snug line-clamp-2 mt-0.5 group-hover:text-primary transition-colors">{cls.title}</h3>
-                <p className="text-[12px] text-neutral-600 mt-0.5">{cls.teacher.name} · {cls.district}</p>
+                <p className="text-[12px] text-neutral-600 mt-0.5">
+                  {cls.teacher.name} · {cls.district}
+                  {cls.distanceStr && (
+                    <span className="text-primary font-semibold"> · a {cls.distanceStr}</span>
+                  )}
+                </p>
                 <div className="mt-auto pt-1.5">
                   <span className="text-[14px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.offerPrice ?? cls.price, cls.currency)}</span>
                   <p className="text-[11px] text-neutral-600 truncate">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
@@ -154,7 +225,7 @@ export default function ClasesMapView({
       );
     }
 
-    const academia = validAcademias.find(a => `academia-${a.id}` === pinId);
+    const academia = sortedAcademias.find(a => `academia-${a.id}` === pinId);
     if (!academia) return null;
     return (
       <div className="relative group">
@@ -183,7 +254,12 @@ export default function ClasesMapView({
             <div className="flex-1 min-w-0">
               <span className="badge-pink text-[10px]">Academia</span>
               <h3 className="font-bold text-neutral-900 text-[14px] leading-snug mt-0.5 line-clamp-1 group-hover:text-primary transition-colors">{academia.name}</h3>
-              <p className="text-[12px] text-neutral-600 mt-0.5">{academia.venueDistrict}</p>
+              <p className="text-[12px] text-neutral-600 mt-0.5">
+                {academia.venueDistrict}
+                {academia.distanceStr && (
+                  <span className="text-primary font-semibold"> · a {academia.distanceStr}</span>
+                )}
+              </p>
             </div>
           </div>
           <div className="flex items-center justify-center gap-1 text-[12px] font-semibold text-primary group-hover:text-primary-dark pt-2.5 mt-2.5 border-t border-neutral-100">
@@ -213,18 +289,46 @@ export default function ClasesMapView({
       {/* Desktop-only — below `lg` this view is map-only (see `onShowList`
           doc comment above), so this whole panel is dropped there instead
           of being a second, redundant "list" behind a mobile sub-toggle. */}
-      <div className="hidden lg:flex overflow-y-auto flex-col gap-3 pr-1">
-        {zoneFilterActive && (
-          <div className="text-[13px] text-neutral-500 px-0.5 min-h-[20px] flex items-center">
-            {isMapMoving || isPending ? (
-              <div className="w-28 h-3.5 bg-neutral-200 rounded animate-pulse" />
-            ) : (
-              <p>
-                <strong className="text-neutral-900">{listClasses.length + listAcademias.length}</strong> clase{listClasses.length + listAcademias.length !== 1 ? 's' : ''} en esta zona
-              </p>
-            )}
+      <div className="hidden lg:flex overflow-y-auto flex-col gap-3 pt-1.5 pr-1">
+        {userLocationStatus === 'denied' && (
+          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-neutral-50 text-neutral-700 text-[12px] border border-neutral-200">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <MapPinOff className="w-3.5 h-3.5 shrink-0 text-neutral-500" />
+              <span className="truncate">Permiso de ubicación desactivado</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => requestLocation(true)}
+              className="text-primary font-bold hover:underline shrink-0 text-[12px]"
+            >
+              Reintentar
+            </button>
           </div>
         )}
+
+        {userLocationStatus === 'prompting' && (
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-50 text-blue-800 text-[12px] border border-blue-100">
+            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-blue-600" />
+            <span>Detectando tu ubicación…</span>
+          </div>
+        )}
+
+        <div className="text-[13px] text-neutral-500 px-0.5 min-h-[24px] flex items-center justify-between">
+          {isMapMoving || isPending ? (
+            <div className="w-28 h-3.5 bg-neutral-200 rounded animate-pulse" />
+          ) : (
+            <>
+              <p>
+                <strong className="text-neutral-900">{listClasses.length + listAcademias.length}</strong> clase{listClasses.length + listAcademias.length !== 1 ? 's' : ''} {zoneFilterActive ? 'en esta zona' : ''}
+              </p>
+              {userLocation && (
+                <span className="inline-flex items-center gap-1 text-[11px] leading-none font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-2.5 py-1 rounded-full shrink-0">
+                  <Navigation className="w-3 h-3 text-blue-600 fill-blue-600 shrink-0" /> Cerca de ti
+                </span>
+              )}
+            </>
+          )}
+        </div>
 
         {(isMapMoving || isPending) ? (
           <div className="flex flex-col gap-3">
@@ -248,6 +352,11 @@ export default function ClasesMapView({
         ) : listEmpty ? (
           <div className="text-center py-10 px-4 animate-fade-in">
             <p className="text-[13px] text-neutral-500">Nada por aquí — mueve el mapa para explorar otra zona.</p>
+            {sortedClasses.length > 0 && sortedClasses[0].distanceStr && (
+              <p className="text-[12px] text-neutral-400 mt-1">
+                La clase más cercana está a {sortedClasses[0].distanceStr}.
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -274,10 +383,13 @@ export default function ClasesMapView({
                     </Link>
                     <p className="text-[12px] text-neutral-500 mt-0.5">{cls.teacher.name}</p>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-[12px] text-neutral-500 flex items-center gap-1">
-                        <MapPinIcon className="w-3 h-3" /> {cls.district}
+                      <span className="text-[12px] text-neutral-500 flex items-center gap-1 truncate mr-2">
+                        <MapPinIcon className="w-3 h-3 shrink-0" /> {cls.district}
+                        {cls.distanceStr && (
+                          <span className="text-primary font-semibold shrink-0">· a {cls.distanceStr}</span>
+                        )}
                       </span>
-                      <span className="text-[12px] font-bold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
+                      <span className="text-[12px] font-bold text-neutral-900 shrink-0">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
                     </div>
                   </div>
                 </div>
@@ -308,8 +420,11 @@ export default function ClasesMapView({
                       {academia.name}
                     </Link>
                     <span className="badge-pink text-[10px] mt-0.5 inline-block">Academia</span>
-                    <p className="text-[12px] text-neutral-500 flex items-center gap-1 mt-1">
-                      <MapPinIcon className="w-3 h-3" /> {academia.venueDistrict}
+                    <p className="text-[12px] text-neutral-500 flex items-center gap-1 mt-1 truncate">
+                      <MapPinIcon className="w-3 h-3 shrink-0" /> {academia.venueDistrict}
+                      {academia.distanceStr && (
+                        <span className="text-primary font-semibold shrink-0">· a {academia.distanceStr}</span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -322,6 +437,10 @@ export default function ClasesMapView({
       <div className="relative rounded-none lg:rounded-xl overflow-hidden border-0 lg:border lg:border-neutral-200 block h-full">
         <GoogleMap
           pins={pins}
+          userLocation={userLocation}
+          userLocationStatus={userLocationStatus}
+          fallbackLocation={fallbackLocation}
+          onLocateUser={() => requestLocation(true)}
           selectedPinId={selectedId}
           hoveredPinId={hoveredId}
           onPinClick={handlePinClick}
@@ -329,6 +448,8 @@ export default function ClasesMapView({
           onMapMoving={setIsMapMoving}
           renderPopup={renderPopup}
           gestureHandling="greedy"
+          recenterTrigger={recenterTrigger}
+          onUserDrag={onUserDrag}
         />
         <label className="absolute left-3 top-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-900 bg-white text-[12px] font-bold cursor-pointer shadow-[0_2px_8px_rgba(13,13,13,.1)]">
           <input
