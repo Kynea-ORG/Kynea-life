@@ -79,6 +79,6 @@ npm run db:push         # aplica las migraciones pendientes al proyecto vinculad
 Dos GitHub Actions workflows aplican migraciones automáticamente cuando cambia algo bajo `supabase/migrations/**`:
 
 - **`.github/workflows/supabase-dev-push.yml`** — se dispara en push a `develop`. Vincula `kynea-dev` (`secrets.SUPABASE_DEV_PROJECT_REF`) y corre `supabase db push --yes`.
-- **`.github/workflows/supabase-prod-push.yml`** — se dispara en push a `main`. Vincula producción (`hmvonvxgmvwfnhlmrgpg`) y corre `supabase db push --yes`, pero el job usa el **GitHub Environment `supabase-production`**, que exige aprobación de un reviewer autorizado antes de ejecutarse.
+- **`.github/workflows/supabase-prod-push.yml`** — se dispara en push a `main` (o manualmente vía `workflow_dispatch`). Vincula producción (`hmvonvxgmvwfnhlmrgpg`) y corre `supabase db push --yes` usando `secrets.SUPABASE_PROD_DB_PASSWORD` configurado en los Repository Secrets de GitHub.
 
-> **Nunca apliques migraciones a producción manualmente** salvo que el pipeline de CI esté caído — el flujo normal es: mergear a `main` → el workflow pausa esperando aprobación en el Environment `supabase-production` → un reviewer aprueba → se aplica.
+> **Flujo de migraciones**: Probar primero en `develop` (se aplica automático a `kynea-dev`) → validar → mergear a `main` para aplicar a producción (o disparar manualmente el workflow `Push migrations to production` desde Actions).

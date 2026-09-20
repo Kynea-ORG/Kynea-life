@@ -46,6 +46,21 @@ GH_TOKEN=$(cat ~/.kynea-bot-token) gh pr create --repo Kynea-ORG/Kynea-life ...
 ```
 *Nota: Nunca ejecutes `gh auth switch` ni `gh auth login` para esto, ya que el token bot no tiene el scope `read:org` y fallará. Pasa `GH_TOKEN` únicamente como variable de entorno al comando `gh pr create`.*
 
+### 🔒 Políticas de Repositorio Privado (Plan GitHub Free)
+
+1. **Protección de Ramas y Commits:**
+   - Al estar en el plan GitHub Free, GitHub **no bloquea por software** el botón de merge ni los pushes directos en repositorios privados.
+   - La integridad de `main` y `develop` está protegida en local mediante `.githooks/pre-push` (instalado automáticamente con `npm run prepare` o `npm install`).
+   - Todo cambio debe integrarse mediante Pull Request, verificando el checklist de PR y que el CI (`lint-and-typecheck` + tests) esté en verde.
+
+2. **Secretos de CI/CD (Sin GitHub Environments):**
+   - Los **GitHub Environments** (como `supabase-production`) y sus secretos están deshabilitados para repositorios privados en GitHub Free.
+   - **Todos los secretos** (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DEV_DB_PASSWORD`, `SUPABASE_DEV_PROJECT_REF`, `SUPABASE_PROD_DB_PASSWORD`) **deben ser Repository Secrets** exclusivamente.
+   - Los workflows de GitHub Actions nunca deben incluir la directiva `environment:` con reglas de protección, y deben incluir `workflow_dispatch` si requieren ejecución bajo demanda.
+
+3. **Dependabot en Privado:**
+   - Las alertas de vulnerabilidad y los parches automáticos de seguridad deben mantenerse activos (`vulnerability-alerts` y `automated-security-fixes` en `enabled: true`).
+
 ---
 
 ## 🛠️ Comandos de Desarrollo
