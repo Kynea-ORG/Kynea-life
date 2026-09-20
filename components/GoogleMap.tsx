@@ -531,7 +531,6 @@ export default function GoogleMap({
     const map = mapRef.current;
     const OverlayView = overlayViewClassRef.current;
     const LatLng = latLngClassRef.current;
-    const LatLngBoundsClass = latLngBoundsClassRef.current;
     if (!mapReady || !map || !OverlayView || !LatLng) return;
 
     // Clear previous overlays
@@ -548,25 +547,12 @@ export default function GoogleMap({
     }
 
     const recenter = () => {
-      const activeLocation = userLocation || fallbackLocation;
-
-      // If user has a known location (GPS or GeoIP fallback) and there are pins nearby (<= 8 km),
-      // always frame symmetrically around user location (exact same zoom and framing as initial load).
-      if (activeLocation) {
-        const hasNearbyPins = pins.some(
-          p => calculateDistanceKm(activeLocation.lat, activeLocation.lng, p.lat, p.lng) <= MAX_NEARBY_FRAMING_KM
-        );
-        if (hasNearbyPins) {
-          frameLocationWithNearbyPins(activeLocation, pins);
-          return;
-        } else if (pins.length === 0) {
-          map.panTo({ lat: activeLocation.lat, lng: activeLocation.lng });
-          map.setZoom(14);
-          return;
-        }
-      }
+      if (!mapReady || !mapRef.current) return;
+      const map = mapRef.current;
+      const LatLngBoundsClass = latLngBoundsClassRef.current;
 
       if (pins.length === 0) {
+        const activeLocation = userLocation || fallbackLocation;
         if (activeLocation) {
           map.panTo({ lat: activeLocation.lat, lng: activeLocation.lng });
           map.setZoom(14);
@@ -577,29 +563,6 @@ export default function GoogleMap({
       if (pins.length === 1 || !LatLngBoundsClass) {
         map.panTo({ lat: pins[0].lat, lng: pins[0].lng });
         map.setZoom(15);
-        return;
-      }
-
-      // Check current map center
-      const currentCenterLatLng = map.getCenter?.();
-      const currentCenter = currentCenterLatLng
-        ? { lat: currentCenterLatLng.lat(), lng: currentCenterLatLng.lng() }
-        : activeLocation || { lat: pins[0].lat, lng: pins[0].lng };
-
-      // Sticky camera check: are there pins within 35 km of current camera center?
-      const pinsNearCenter = pins.filter(
-        p => calculateDistanceKm(currentCenter.lat, currentCenter.lng, p.lat, p.lng) <= 35
-      );
-
-      if (pinsNearCenter.length > 0) {
-        if (pinsNearCenter.length === 1) {
-          map.panTo({ lat: pinsNearCenter[0].lat, lng: pinsNearCenter[0].lng });
-          map.setZoom(15);
-        } else {
-          const bounds = new LatLngBoundsClass();
-          pinsNearCenter.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
-          map.fitBounds(bounds, 48);
-        }
         return;
       }
 
@@ -620,7 +583,25 @@ export default function GoogleMap({
         }
       }
 
-      const targetCluster = clusters.sort((a, b) => b.length - a.length)[0] || pins;
+      // Pick target cluster: closest to current map center or the largest
+      let targetCluster = clusters[0];
+      if (clusters.length > 1) {
+        const currentCenterLatLng = map.getCenter?.();
+        if (currentCenterLatLng) {
+          const currentCenter = { lat: currentCenterLatLng.lat(), lng: currentCenterLatLng.lng() };
+          let minDist = Infinity;
+          for (const cluster of clusters) {
+            const dist = Math.min(...cluster.map(p => calculateDistanceKm(currentCenter.lat, currentCenter.lng, p.lat, p.lng)));
+            if (dist < minDist) {
+              minDist = dist;
+              targetCluster = cluster;
+            }
+          }
+        } else {
+          targetCluster = clusters.sort((a, b) => b.length - a.length)[0];
+        }
+      }
+
       if (targetCluster.length === 1) {
         map.panTo({ lat: targetCluster[0].lat, lng: targetCluster[0].lng });
         map.setZoom(15);
@@ -628,6 +609,17 @@ export default function GoogleMap({
         const bounds = new LatLngBoundsClass();
         targetCluster.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
         map.fitBounds(bounds, 48);
+
+        // Prevent over-zooming if all pins in cluster are at the exact same venue
+        let hasAdjustedZoom = false;
+        map.addListener('idle', () => {
+          if (hasAdjustedZoom) return;
+          hasAdjustedZoom = true;
+          const zoom = map.getZoom?.();
+          if (zoom && zoom > 16) {
+            map.setZoom(16);
+          }
+        });
       }
     };
     recenterRef.current = recenter;
