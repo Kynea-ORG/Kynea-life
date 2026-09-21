@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
+import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check, Sparkles } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { findCountryByCode } from '@/lib/countries';
@@ -18,9 +18,10 @@ interface ClassCardProps {
   // Home fila de estilo destacado, /clases grid, perfil de profesor) — see
   // trackSelectItem in lib/analytics.ts and each call site below.
   listName: string;
+  matchBadges?: string[];
 }
 
-export default function ClassCard({ cls, compact = false, listName }: ClassCardProps) {
+export default function ClassCard({ cls, compact = false, listName, matchBadges }: ClassCardProps) {
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -165,7 +166,21 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
             <p className="text-[13px] text-neutral-600 mt-0.5">
               {cls.teacher.name} · <span className="text-neutral-400">{cls.level}</span>
             </p>
+            {matchBadges && matchBadges.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {matchBadges.map(b => (
+                  <span
+                    key={b}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary-bg text-primary px-2.5 py-0.5 rounded-full border border-primary/20"
+                  >
+                    <Sparkles className="w-2.5 h-2.5 text-primary shrink-0" />
+                    {b}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
+
 
           {!compact && (
             <p className="text-[13px] text-neutral-600 line-clamp-2 leading-relaxed">{cls.shortDescription}</p>

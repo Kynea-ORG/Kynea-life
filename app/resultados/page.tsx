@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { fetchPublishedClasses } from '@/lib/classes/queries';
+import { searchClassesWithAi } from '@/lib/ai/searchService';
 import { searchProfilesByName } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
 import ResultadosClient from './ResultadosClient';
@@ -22,7 +22,7 @@ export async function generateMetadata({
   };
 }
 
-// Adónde cae una búsqueda AMBIGUA (parcial, varios tipos, o sin match único)
+// Adónde cae una búsqueda AMBIGUA o en lenguaje natural
 // — ver lib/search/resolveSearch.ts, que decide cuándo NO caer acá (estilo
 // exacto → /clases?style=; profesor/academia exacto → su perfil directo).
 export default async function ResultadosPage({
@@ -36,13 +36,23 @@ export default async function ResultadosPage({
 
   if (!query) redirect('/clases');
 
-  const [classes, profiles] = await Promise.all([
-    fetchPublishedClasses({ query, city }),
+  const [aiSearchResult, profiles] = await Promise.all([
+    searchClassesWithAi(query, { city }),
     searchProfilesByName(query),
   ]);
 
   const profesores = profiles.filter(p => p.type === 'profesor');
   const academias = profiles.filter(p => p.type === 'academia');
 
-  return <ResultadosClient query={query} classes={classes} profesores={profesores} academias={academias} />;
+  return (
+    <ResultadosClient
+      query={query}
+      classes={aiSearchResult.classes}
+      profesores={profesores}
+      academias={academias}
+      aiSummary={aiSearchResult.aiSummary}
+      matchBadges={aiSearchResult.matchBadges}
+    />
+  );
 }
+

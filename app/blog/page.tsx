@@ -77,7 +77,8 @@ export default async function BlogIndexPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const category = (params.categoria as string | undefined) || undefined;
+  const rawCategory = (params.categoria as string | undefined) || undefined;
+  const category = rawCategory && rawCategory.toLowerCase() !== 'todas' ? rawCategory : undefined;
 
   const [posts, categories] = await Promise.all([
     fetchPublishedPosts(category),

@@ -377,6 +377,26 @@ export const fetchClassBySlug = safeCache(
   { revalidate: 300, tags: ['classes'] }
 );
 
+export async function fetchClassesByIds(ids: string[]): Promise<DanceClass[]> {
+  if (!ids.length) return [];
+  const supabase = getPublicClient();
+  const { data, error } = await supabase
+    .from('classes')
+    .select(CLASS_SELECT)
+    .in('id', ids)
+    .eq('status', 'published');
+
+  if (error || !data) {
+    if (error) console.error('fetchClassesByIds error:', error.message);
+    return [];
+  }
+
+  const order = new Map(ids.map((id: string, i: number) => [id, i]));
+  return (data ?? [])
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .map(row => mapDbClassToType(row as unknown as DbClassRow));
+}
+
 export async function fetchSavedClasses(userId: string): Promise<DanceClass[]> {
   const supabase = await createClient();
 
@@ -389,23 +409,9 @@ export async function fetchSavedClasses(userId: string): Promise<DanceClass[]> {
   if (savedErr || !saved?.length) return [];
 
   const ids = saved.map(r => r.class_id);
-
-  const { data, error } = await supabase
-    .from('classes')
-    .select(CLASS_SELECT)
-    .in('id', ids)
-    .eq('status', 'published');
-
-  if (error) {
-    console.error('fetchSavedClasses error:', error.message);
-    return [];
-  }
-
-  const order = new Map(ids.map((id: string, i: number) => [id, i]));
-  return (data ?? [])
-    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
-    .map(row => mapDbClassToType(row as unknown as DbClassRow));
+  return fetchClassesByIds(ids);
 }
+
 
 export async function fetchTeacherClasses(teacherId: string): Promise<DanceClass[]> {
   const supabase = await createClient();

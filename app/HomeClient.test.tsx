@@ -5,6 +5,12 @@ import { afterEach } from 'vitest';
 import { FeaturedCategoryRow, getMainStyle, type SearchClass } from './HomeClient';
 import type { DanceClass } from '@/lib/types';
 
+const pushMock = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
 vi.mock('@/components/ClassCard', () => ({
   default: ({ cls }: { cls: DanceClass }) => <div data-testid="class-card">{cls.id}</div>,
 }));
@@ -75,3 +81,43 @@ describe('FeaturedCategoryRow', () => {
     expect(link).toHaveAttribute('href', `/clases?style=${encodeURIComponent('Contemporáneo')}`);
   });
 });
+
+describe('HomeClient AI Search Mode Toggle', () => {
+  const defaultProps = {
+    initialClasses: [],
+    recommendedClasses: [],
+    featuredCategories: [],
+    initialTeachers: [],
+    initialAcademias: [],
+    danceStyles: [{ id: 1, name: 'Salsa', slug: 'salsa', emoji: '💃' }],
+    stats: { classes: 10, teachers: 5, styles: 1, cities: 1, cityNames: ['Lima'] },
+    userRole: null as null,
+  };
+
+  it('renders with Modo IA active by default and toggles to classic mode on click', async () => {
+    const { default: HomeClient } = await import('./HomeClient');
+    render(<HomeClient {...defaultProps} />);
+
+    // In AI mode, search buttons say "Buscar con IA"
+    const searchButtons = screen.getAllByRole('button', { name: /Buscar con IA/i });
+    expect(searchButtons.length).toBeGreaterThan(0);
+
+    // In AI mode, city search input is not rendered
+    expect(screen.queryByPlaceholderText('¿Dónde bailas?')).not.toBeInTheDocument();
+
+    // Toggle button exists
+    const toggleButtons = screen.getAllByRole('button', { name: /Modo IA activado/i });
+    expect(toggleButtons.length).toBeGreaterThan(0);
+
+    // Click toggle to switch to classic mode
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.click(toggleButtons[0]);
+
+    // Now it should show "Buscar" instead of "Buscar con IA"
+    expect(screen.queryAllByRole('button', { name: /^Buscar$/i }).length).toBeGreaterThan(0);
+
+    // In classic mode, city input is rendered
+    expect(screen.getByPlaceholderText('¿Dónde bailas?')).toBeInTheDocument();
+  });
+});
+
