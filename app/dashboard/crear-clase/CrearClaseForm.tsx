@@ -376,8 +376,21 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         if (classId) {
           resultAction = await updateClassFromForm(classId, fd);
         } else {
-          resultAction = await createClass(fd);
-          trackClassCreated({ status, classType: form.type, classStyle: form.style });
+          // createClass() redirect()s on success (see lib/classes/actions.ts) —
+          // that throws NEXT_REDIRECT and unwinds straight past this call, so
+          // trackClassCreated() right after `await createClass(fd)` was dead
+          // code: it could never run on a successful creation, only on a
+          // validation failure that returns normally instead of redirecting.
+          // GA4 showed 0 class_created events despite real classes being
+          // published — this was the measurement bug, not a product bug.
+          try {
+            resultAction = await createClass(fd);
+          } catch (err) {
+            if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
+              trackClassCreated({ status, classType: form.type, classStyle: form.style });
+            }
+            throw err;
+          }
         }
 
         if (resultAction && !resultAction.ok) {
