@@ -1,6 +1,6 @@
 import { SITE_URL } from '@/lib/constants';
 import { fetchPublishedPosts } from '@/lib/blog/queries';
-import { publishedDateIso } from '@/lib/blog/helpers';
+import { publishedDateIso, BLOG_DESCRIPTION } from '@/lib/blog/helpers';
 
 // Feed RSS 2.0 del blog — descubrimiento/syndication (un lector RSS, un
 // agregador, o Google Discover pueden usarlo) y referenciado desde
@@ -25,13 +25,15 @@ export async function GET() {
   const items = posts
     .map(post => {
       const url = `${SITE_URL}/blog/${post.slug}`;
-      const pubDate = new Date(publishedDateIso(post)).toUTCString();
+      const iso = publishedDateIso(post);
+      const parsed = iso ? new Date(iso) : null;
+      const pubDate = parsed && !isNaN(parsed.getTime()) ? parsed.toUTCString() : undefined;
       return `
     <item>
       <title>${escapeXml(post.title)}</title>
       <link>${url}</link>
       <guid isPermaLink="true">${url}</guid>
-      <pubDate>${pubDate}</pubDate>
+      ${pubDate ? `<pubDate>${pubDate}</pubDate>` : ''}
       ${post.category ? `<category>${escapeXml(post.category)}</category>` : ''}
       <description>${escapeXml(post.excerpt || '')}</description>
     </item>`;
@@ -44,7 +46,7 @@ export async function GET() {
     <title>Blog de Kynea</title>
     <link>${SITE_URL}/blog</link>
     <atom:link href="${SITE_URL}/blog/rss.xml" rel="self" type="application/rss+xml" />
-    <description>Guías, novedades y consejos sobre danza en Latinoamérica.</description>
+    <description>${escapeXml(BLOG_DESCRIPTION)}</description>
     <language>es-PE</language>${items}
   </channel>
 </rss>`;

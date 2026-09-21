@@ -39,6 +39,15 @@ const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 
 type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: string; endTime: string };
 
+function isRedirectError(err: unknown): boolean {
+  if (err instanceof Error && err.message === 'NEXT_REDIRECT') return true;
+  if (typeof err === 'object' && err !== null && 'digest' in err) {
+    const digest = (err as { digest?: unknown }).digest;
+    return typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT');
+  }
+  return false;
+}
+
 function buildInitialForm(editClass: DanceClass | null) {
   if (!editClass) {
     return {
@@ -386,7 +395,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           try {
             resultAction = await createClass(fd);
           } catch (err) {
-            if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
+            if (isRedirectError(err)) {
               trackClassCreated({ status, classType: form.type, classStyle: form.style });
             }
             throw err;
@@ -420,7 +429,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           return;
         }
       } catch (err: unknown) {
-        if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
+        if (isRedirectError(err)) throw err;
         const payload = parsePublishError(err);
         if (payload?.code === 'VALIDATION' && payload.errors) {
           const errorsByField: Record<string, string> = {};

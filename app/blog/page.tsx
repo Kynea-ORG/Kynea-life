@@ -6,16 +6,14 @@ import Footer from '@/components/Footer';
 import SmartImage from '@/components/SmartImage';
 import { SITE_URL } from '@/lib/constants';
 import { fetchPublishedPosts, fetchBlogCategories } from '@/lib/blog/queries';
-import { estimateReadingTime, pickFeaturedPost, publishedDateIso } from '@/lib/blog/helpers';
-
-const BLOG_TITLE = 'Blog — Kynea';
-const BLOG_DESCRIPTION = 'Guías, novedades y consejos sobre danza en Latinoamérica: estilos, academias, historias inspiradoras y cómo empezar a bailar.';
-// Fallback cuando el blog no tiene ningún post con portada todavía (o
-// ninguno publicado) — sin esto, compartir /blog en WhatsApp/redes mostraba
-// un link sin ninguna imagen de vista previa. No es 1200×630 (el estándar
-// de OG), pero es preferible a no tener nada mientras no exista un asset
-// dedicado — los charts sociales igual la recortan al centro.
-const BLOG_FALLBACK_IMAGE = `${SITE_URL}/img-portada-kynea.png`;
+import {
+  estimateReadingTime,
+  pickFeaturedPost,
+  publishedDateIso,
+  BLOG_TITLE,
+  BLOG_DESCRIPTION,
+  BLOG_FALLBACK_IMAGE,
+} from '@/lib/blog/helpers';
 
 // generateMetadata (no un objeto estático) porque la imagen de og:image usa
 // la portada del post destacado — necesita la misma consulta que ya hace el
@@ -104,7 +102,7 @@ export default async function BlogIndexPage({
     description: BLOG_DESCRIPTION,
     inLanguage: 'es-PE',
     ...(featuredImage && { image: featuredImage }),
-    publisher: { '@type': 'Organization', name: 'Kynea', url: SITE_URL, logo: `${SITE_URL}/logo.png` },
+    publisher: { '@type': 'Organization', name: 'Kynea', url: SITE_URL, logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` } },
   };
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',

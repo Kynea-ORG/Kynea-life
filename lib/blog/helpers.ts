@@ -1,4 +1,9 @@
+import { SITE_URL } from '@/lib/constants';
 import type { BlogAccentColor, BlogPost } from './types';
+
+export const BLOG_TITLE = 'Blog — Kynea';
+export const BLOG_DESCRIPTION = 'Guías, novedades y consejos sobre danza en Latinoamérica: estilos, academias, historias inspiradoras y cómo empezar a bailar.';
+export const BLOG_FALLBACK_IMAGE = `${SITE_URL}/img-portada-kynea.png`;
 
 // Paleta curada del "bloque de color" de portada (referencia: The Verge).
 // Cada entrada trae su propio par de texto (fuerte + tenue) ya resuelto por

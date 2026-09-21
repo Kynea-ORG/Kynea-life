@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchPostBySlug, fetchPostBySlugAny, fetchRelatedPosts } from '@/lib/blog/queries';
-import { extractHeadings, extractFaqs, estimateReadingTime, publishedDateIso } from '@/lib/blog/helpers';
+import { extractHeadings, extractFaqs, estimateReadingTime, publishedDateIso, BLOG_FALLBACK_IMAGE } from '@/lib/blog/helpers';
 import { SITE_URL } from '@/lib/constants';
 import { truncateForMeta } from '@/lib/utils';
 import BlogPostClient from './BlogPostClient';
@@ -36,6 +36,7 @@ export async function generateMetadata({
   const imageUrl = post.coverImage
     ? (post.coverImage.startsWith('http') ? post.coverImage : `${SITE_URL}${post.coverImage}`)
     : undefined;
+  const ogImage = imageUrl || BLOG_FALLBACK_IMAGE;
 
   return {
     title,
@@ -48,17 +49,19 @@ export async function generateMetadata({
       title,
       description,
       url: canonical,
+      siteName: 'Kynea',
+      locale: 'es_PE',
       type: 'article',
       publishedTime: publishedDateIso(post),
       modifiedTime: post.updatedAt,
       section: post.category,
-      ...(imageUrl && { images: [{ url: imageUrl }] }),
+      images: [{ url: ogImage }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      ...(imageUrl && { images: [imageUrl] }),
+      images: [ogImage],
     },
   };
 }
@@ -81,10 +84,10 @@ export default async function BlogPostPage({
   const canonical = `${SITE_URL}/blog/${post.slug}`;
   // Mismo criterio de normalización que generateMetadata() más arriba —
   // sin esto, un coverImage guardado como ruta relativa quedaba roto acá
-  // aunque el og:image de la misma página sí lo resolviera bien.
+  // y si no hay portada, Google Search Console emite advertencias para Article.
   const jsonLdImage = post.coverImage
     ? (post.coverImage.startsWith('http') ? post.coverImage : `${SITE_URL}${post.coverImage}`)
-    : undefined;
+    : BLOG_FALLBACK_IMAGE;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
