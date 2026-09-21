@@ -6,27 +6,56 @@ import Footer from '@/components/Footer';
 import SmartImage from '@/components/SmartImage';
 import { SITE_URL } from '@/lib/constants';
 import { fetchPublishedPosts, fetchBlogCategories } from '@/lib/blog/queries';
-import { estimateReadingTime } from '@/lib/blog/helpers';
+import { estimateReadingTime, pickFeaturedPost } from '@/lib/blog/helpers';
 
-export const metadata: Metadata = {
-  title: 'Blog — Kynea',
-  description: 'Guías, novedades y consejos sobre danza en Latinoamérica: estilos, academias, historias inspiradoras y cómo empezar a bailar.',
-  alternates: {
-    canonical: `${SITE_URL}/blog`,
-    types: { 'application/rss+xml': `${SITE_URL}/blog/rss.xml` },
-  },
-  openGraph: {
-    title: 'Blog — Kynea',
-    description: 'Guías, novedades y consejos sobre danza en Latinoamérica.',
-    url: `${SITE_URL}/blog`,
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Blog — Kynea',
-    description: 'Guías, novedades y consejos sobre danza en Latinoamérica.',
-  },
-};
+const BLOG_TITLE = 'Blog — Kynea';
+const BLOG_DESCRIPTION = 'Guías, novedades y consejos sobre danza en Latinoamérica: estilos, academias, historias inspiradoras y cómo empezar a bailar.';
+// Fallback cuando el blog no tiene ningún post con portada todavía (o
+// ninguno publicado) — sin esto, compartir /blog en WhatsApp/redes mostraba
+// un link sin ninguna imagen de vista previa. No es 1200×630 (el estándar
+// de OG), pero es preferible a no tener nada mientras no exista un asset
+// dedicado — los charts sociales igual la recortan al centro.
+const BLOG_FALLBACK_IMAGE = `${SITE_URL}/img-portada-kynea.png`;
+
+// generateMetadata (no un objeto estático) porque la imagen de og:image usa
+// la portada del post destacado — necesita la misma consulta que ya hace el
+// componente de la página (fetchPublishedPosts está cacheada, así que no es
+// una segunda llamada real a la base de datos).
+export async function generateMetadata(): Promise<Metadata> {
+  const posts = await fetchPublishedPosts();
+  const featured = pickFeaturedPost(posts);
+  // Mismo criterio que app/blog/[slug]/page.tsx: coverImage puede guardarse
+  // como ruta relativa (subida directa a Supabase Storage sin dominio) o ya
+  // absoluta — normalizar acá evita un og:image roto en el primer caso.
+  const featuredImage = featured?.coverImage
+    ? (featured.coverImage.startsWith('http') ? featured.coverImage : `${SITE_URL}${featured.coverImage}`)
+    : undefined;
+  const image = featuredImage || BLOG_FALLBACK_IMAGE;
+
+  return {
+    title: BLOG_TITLE,
+    description: BLOG_DESCRIPTION,
+    alternates: {
+      canonical: `${SITE_URL}/blog`,
+      types: { 'application/rss+xml': `${SITE_URL}/blog/rss.xml` },
+    },
+    openGraph: {
+      title: BLOG_TITLE,
+      description: BLOG_DESCRIPTION,
+      url: `${SITE_URL}/blog`,
+      siteName: 'Kynea',
+      locale: 'es_PE',
+      type: 'website',
+      images: [{ url: image }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: BLOG_TITLE,
+      description: BLOG_DESCRIPTION,
+      images: [image],
+    },
+  };
+}
 
 // Fecha + hora — antes solo se mostraba la fecha, y ni eso si publishedAt
 // era null (posts creados directo en 'published' vía admin sin pasar por un
@@ -60,17 +89,22 @@ export default async function BlogIndexPage({
   // reciente entre ellos, por el mismo orden de fetchPublishedPosts) — antes
   // era siempre implícitamente el más reciente, sin ningún control
   // editorial. Sin ningún post marcado, cae al comportamiento de siempre.
-  const explicitFeatured = posts.find(p => p.isFeatured);
-  const featured = explicitFeatured ?? posts[0];
+  const featured = pickFeaturedPost(posts);
   const rest = posts.filter(p => p.id !== featured?.id);
+  // Mismo criterio de normalización que generateMetadata() más abajo.
+  const featuredImage = featured?.coverImage
+    ? (featured.coverImage.startsWith('http') ? featured.coverImage : `${SITE_URL}${featured.coverImage}`)
+    : undefined;
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
     name: 'Blog de Kynea',
     url: `${SITE_URL}/blog`,
+    description: BLOG_DESCRIPTION,
     inLanguage: 'es-PE',
-    publisher: { '@type': 'Organization', name: 'Kynea', url: SITE_URL },
+    ...(featuredImage && { image: featuredImage }),
+    publisher: { '@type': 'Organization', name: 'Kynea', url: SITE_URL, logo: `${SITE_URL}/logo.png` },
   };
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',

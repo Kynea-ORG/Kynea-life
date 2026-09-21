@@ -1,4 +1,4 @@
-import type { BlogAccentColor } from './types';
+import type { BlogAccentColor, BlogPost } from './types';
 
 // Paleta curada del "bloque de color" de portada (referencia: The Verge).
 // Cada entrada trae su propio par de texto (fuerte + tenue) ya resuelto por
@@ -44,6 +44,13 @@ export function estimateReadingTime(markdown: string): number {
   const words = markdown.trim().split(/\s+/).filter(Boolean).length;
   if (words === 0) return 1;
   return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
+}
+
+// Mismo criterio en app/blog/page.tsx (la card grande) y en generateMetadata
+// (la imagen de og:image) — un solo lugar para "cuál post es el destacado"
+// evita que ambos se desincronicen si el criterio cambia.
+export function pickFeaturedPost(posts: BlogPost[]) {
+  return posts.find(p => p.isFeatured) ?? posts[0];
 }
 
 // Mismo criterio de acentos/mayúsculas que lib/search/normalize.ts
