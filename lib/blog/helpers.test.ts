@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { estimateReadingTime, slugifyHeading, extractHeadings, extractFaqs } from './helpers';
+import { estimateReadingTime, slugifyHeading, extractHeadings, extractFaqs, publishedDateIso, pickFeaturedPost } from './helpers';
+import type { BlogPost } from './types';
 
 describe('estimateReadingTime', () => {
   it('rounds to the nearest minute at 200 words/minute', () => {
@@ -121,3 +122,72 @@ describe('extractFaqs', () => {
     expect(extractFaqs(markdown)).toBeNull();
   });
 });
+
+describe('publishedDateIso', () => {
+  it('returns publishedAt when present', () => {
+    expect(publishedDateIso({
+      publishedAt: '2026-09-20T10:00:00.000Z',
+      createdAt: '2026-09-19T08:00:00.000Z',
+    })).toBe('2026-09-20T10:00:00.000Z');
+  });
+
+  it('falls back to createdAt when publishedAt is undefined', () => {
+    expect(publishedDateIso({
+      publishedAt: undefined,
+      createdAt: '2026-09-19T08:00:00.000Z',
+    })).toBe('2026-09-19T08:00:00.000Z');
+  });
+
+  it('falls back to createdAt when publishedAt is an empty string', () => {
+    expect(publishedDateIso({
+      publishedAt: '',
+      createdAt: '2026-09-19T08:00:00.000Z',
+    })).toBe('2026-09-19T08:00:00.000Z');
+  });
+});
+
+function createMockPost(overrides: Partial<BlogPost> = {}): BlogPost {
+  return {
+    id: 'post-1',
+    slug: 'post-1',
+    title: 'Post de prueba',
+    excerpt: 'Extracto',
+    content: 'Contenido del post',
+    coverImagePosition: '50% 50%',
+    isFeatured: false,
+    status: 'published',
+    viewsCount: 0,
+    createdAt: '2026-09-19T08:00:00.000Z',
+    updatedAt: '2026-09-19T08:00:00.000Z',
+    ...overrides,
+  };
+}
+
+describe('pickFeaturedPost', () => {
+  it('returns undefined when given an empty array', () => {
+    expect(pickFeaturedPost([])).toBeUndefined();
+  });
+
+  it('returns the post with isFeatured: true when one exists', () => {
+    const post1 = createMockPost({ id: '1', title: 'Normal' });
+    const post2 = createMockPost({ id: '2', title: 'Destacado', isFeatured: true });
+    const post3 = createMockPost({ id: '3', title: 'Otro normal' });
+
+    expect(pickFeaturedPost([post1, post2, post3])).toEqual(post2);
+  });
+
+  it('returns the first featured post when multiple are featured', () => {
+    const post1 = createMockPost({ id: '1', title: 'Destacado 1', isFeatured: true });
+    const post2 = createMockPost({ id: '2', title: 'Destacado 2', isFeatured: true });
+
+    expect(pickFeaturedPost([post1, post2])).toEqual(post1);
+  });
+
+  it('falls back to the first post when no post is marked as featured', () => {
+    const post1 = createMockPost({ id: '1', title: 'Primer post' });
+    const post2 = createMockPost({ id: '2', title: 'Segundo post' });
+
+    expect(pickFeaturedPost([post1, post2])).toEqual(post1);
+  });
+});
+

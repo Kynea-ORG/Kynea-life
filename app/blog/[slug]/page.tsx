@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchPostBySlug, fetchPostBySlugAny, fetchRelatedPosts } from '@/lib/blog/queries';
-import { extractHeadings, extractFaqs, estimateReadingTime } from '@/lib/blog/helpers';
+import { extractHeadings, extractFaqs, estimateReadingTime, publishedDateIso, BLOG_FALLBACK_IMAGE } from '@/lib/blog/helpers';
 import { SITE_URL } from '@/lib/constants';
 import { truncateForMeta } from '@/lib/utils';
 import BlogPostClient from './BlogPostClient';
@@ -36,6 +36,7 @@ export async function generateMetadata({
   const imageUrl = post.coverImage
     ? (post.coverImage.startsWith('http') ? post.coverImage : `${SITE_URL}${post.coverImage}`)
     : undefined;
+  const ogImage = imageUrl || BLOG_FALLBACK_IMAGE;
 
   return {
     title,
@@ -48,17 +49,19 @@ export async function generateMetadata({
       title,
       description,
       url: canonical,
+      siteName: 'Kynea',
+      locale: 'es_PE',
       type: 'article',
-      publishedTime: post.publishedAt,
+      publishedTime: publishedDateIso(post),
       modifiedTime: post.updatedAt,
       section: post.category,
-      ...(imageUrl && { images: [{ url: imageUrl }] }),
+      images: [{ url: ogImage }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      ...(imageUrl && { images: [imageUrl] }),
+      images: [ogImage],
     },
   };
 }
@@ -79,21 +82,27 @@ export default async function BlogPostPage({
   const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length;
 
   const canonical = `${SITE_URL}/blog/${post.slug}`;
+  // Mismo criterio de normalización que generateMetadata() más arriba —
+  // sin esto, un coverImage guardado como ruta relativa quedaba roto acá
+  // y si no hay portada, Google Search Console emite advertencias para Article.
+  const jsonLdImage = post.coverImage
+    ? (post.coverImage.startsWith('http') ? post.coverImage : `${SITE_URL}${post.coverImage}`)
+    : BLOG_FALLBACK_IMAGE;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: post.title,
     description: post.excerpt || undefined,
-    image: post.coverImage || undefined,
-    datePublished: post.publishedAt,
+    image: jsonLdImage,
+    datePublished: publishedDateIso(post),
     dateModified: post.updatedAt,
     inLanguage: 'es-PE',
     articleSection: post.category || undefined,
     wordCount,
     timeRequired: `PT${estimateReadingTime(post.content)}M`,
     author: { '@type': 'Organization', name: 'Kynea', url: SITE_URL },
-    publisher: { '@type': 'Organization', name: 'Kynea', url: SITE_URL },
-    mainEntityOfPage: canonical,
+    publisher: { '@type': 'Organization', name: 'Kynea', url: SITE_URL, logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` } },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
   };
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',

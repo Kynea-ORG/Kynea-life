@@ -50,7 +50,8 @@ async function queryPublishedPosts(category?: string): Promise<BlogPost[]> {
     .from('blog_posts')
     .select(POST_SELECT)
     .eq('status', 'published')
-    .order('published_at', { ascending: false });
+    .order('published_at', { ascending: false })
+    .order('created_at', { ascending: false });
   if (category) query = query.eq('category', category);
 
   const { data, error } = await query;

@@ -39,6 +39,15 @@ const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 
 type Slot = { startDate?: string; endDate?: string; days: string[]; startTime: string; endTime: string };
 
+function isRedirectError(err: unknown): boolean {
+  if (err instanceof Error && err.message === 'NEXT_REDIRECT') return true;
+  if (typeof err === 'object' && err !== null && 'digest' in err) {
+    const digest = (err as { digest?: unknown }).digest;
+    return typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT');
+  }
+  return false;
+}
+
 function buildInitialForm(editClass: DanceClass | null) {
   if (!editClass) {
     return {
@@ -376,8 +385,21 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         if (classId) {
           resultAction = await updateClassFromForm(classId, fd);
         } else {
-          resultAction = await createClass(fd);
-          trackClassCreated({ status, classType: form.type, classStyle: form.style });
+          // createClass() redirect()s on success (see lib/classes/actions.ts) —
+          // that throws NEXT_REDIRECT and unwinds straight past this call, so
+          // trackClassCreated() right after `await createClass(fd)` was dead
+          // code: it could never run on a successful creation, only on a
+          // validation failure that returns normally instead of redirecting.
+          // GA4 showed 0 class_created events despite real classes being
+          // published — this was the measurement bug, not a product bug.
+          try {
+            resultAction = await createClass(fd);
+          } catch (err) {
+            if (isRedirectError(err)) {
+              trackClassCreated({ status, classType: form.type, classStyle: form.style });
+            }
+            throw err;
+          }
         }
 
         if (resultAction && !resultAction.ok) {
@@ -407,7 +429,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           return;
         }
       } catch (err: unknown) {
-        if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
+        if (isRedirectError(err)) throw err;
         const payload = parsePublishError(err);
         if (payload?.code === 'VALIDATION' && payload.errors) {
           const errorsByField: Record<string, string> = {};

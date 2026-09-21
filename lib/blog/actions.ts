@@ -66,10 +66,10 @@ export async function updatePost(id: string, payload: BlogPostFormPayload): Prom
     return { ok: false, error: 'El título es obligatorio.' };
   }
 
-  // published_at se fija la primera vez que pasa a 'published' — republicar
-  // (editar un post ya publicado) no debe reiniciar su fecha de publicación.
+  // published_at se fija la primera vez que pasa a 'published' (o si quedó
+  // en null históricamente) — republicar con fecha ya existente no la reinicia.
   const existing = await fetchPostById(id);
-  const isNewlyPublished = payload.status === 'published' && existing?.status !== 'published';
+  const isNewlyPublished = payload.status === 'published' && (existing?.status !== 'published' || !existing?.publishedAt);
 
   const { data, error } = await supabase
     .from('blog_posts')
@@ -113,7 +113,7 @@ export async function setPostStatus(id: string, status: 'draft' | 'published'): 
   await assertAdmin();
   const supabase = await createClient();
   const existing = await fetchPostById(id);
-  const isNewlyPublished = status === 'published' && existing?.status !== 'published';
+  const isNewlyPublished = status === 'published' && (existing?.status !== 'published' || !existing?.publishedAt);
 
   const { error } = await supabase
     .from('blog_posts')
