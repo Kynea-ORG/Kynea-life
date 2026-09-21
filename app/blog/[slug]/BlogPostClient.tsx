@@ -29,7 +29,10 @@ function InlineCta({
       <Link
         href={href}
         onClick={() => trackBlogCtaClick({ postSlug, ctaHref: href })}
-        className="group inline-flex items-center gap-2 rounded-full border-2 border-neutral-900 pl-4 pr-3 py-2 text-[13px] font-bold text-neutral-900 hover:bg-neutral-900 hover:text-white transition-colors my-4"
+        // no-underline: sin esto, la regla global ".blog-content a" (que
+        // subraya los links normales del texto) también subrayaba este
+        // botón — se veía como una línea suelta cruzando el pill.
+        className="group inline-flex items-center gap-2 rounded-full border-2 border-neutral-900 pl-4 pr-3 py-2 text-[13px] font-bold text-neutral-900 no-underline hover:bg-neutral-900 hover:text-white transition-colors my-4"
       >
         {label}
         <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -40,7 +43,7 @@ function InlineCta({
     <Link
       href={href}
       onClick={() => trackBlogCtaClick({ postSlug, ctaHref: href })}
-      className="group relative block my-8 rounded-lg overflow-hidden border border-neutral-900"
+      className="group relative block my-8 rounded-lg overflow-hidden border border-neutral-900 no-underline"
     >
       {image ? (
         <div className="relative aspect-[21/9]">
