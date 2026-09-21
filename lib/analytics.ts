@@ -272,3 +272,32 @@ export function trackBlogCtaClick(params: { postSlug: string; ctaHref: string })
 export function trackBlogShare(params: { postSlug: string; channel: 'whatsapp' | 'copy_link' | 'facebook' | 'x' | 'telegram' | 'email' }) {
   pushEvent('blog_share', { post_slug: params.postSlug, channel: params.channel });
 }
+
+// The blog's counterpart of trackViewItem/trackViewProfile — fired once
+// BlogPostClient mounts on a published post. Before this, the blog had no
+// signal at all for "which posts actually get read" beyond a raw page_view
+// with no category/title breakdown — no ranking like the one classes/
+// profiles already get in reporting.
+export function trackViewPost(params: { postSlug: string; postTitle: string; category?: string }) {
+  pushEvent('view_post', { post_slug: params.postSlug, post_title: params.postTitle, category: params.category });
+}
+
+// Fired when a post card/link is clicked from a listing, before navigating
+// — the blog's counterpart of trackSelectItem/trackSelectProfile. listName
+// identifies the surface (blog_home_featured, blog_home_grid, blog_related),
+// same convention as list_name elsewhere.
+export function trackSelectPost(params: { postSlug: string; postTitle: string; category?: string; listName: string }) {
+  pushEvent('select_post', {
+    post_slug: params.postSlug,
+    post_title: params.postTitle,
+    category: params.category,
+    list_name: params.listName,
+  });
+}
+
+// Fired when a reader uses the category filter on the blog home — the only
+// way today to know which blog category actually gets used versus just
+// displayed.
+export function trackBlogCategoryFilter(params: { category: string }) {
+  pushEvent('blog_category_filter', { category: params.category });
+}

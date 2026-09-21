@@ -9,7 +9,8 @@ import Footer from '@/components/Footer';
 import SmartImage from '@/components/SmartImage';
 import type { BlogPost } from '@/lib/blog/types';
 import { estimateReadingTime, slugifyHeading, getBlogAccent, type Heading } from '@/lib/blog/helpers';
-import { trackBlogCtaClick, trackBlogShare } from '@/lib/analytics';
+import { trackBlogCtaClick, trackBlogShare, trackViewPost, trackSelectPost } from '@/lib/analytics';
+import { createClient } from '@/lib/supabase/client';
 import { SITE_URL } from '@/lib/constants';
 
 // Bloque de CTA insertable dentro del contenido — reemplaza al banner fijo
@@ -268,6 +269,23 @@ export default function BlogPostClient({
         : 'flex items-center justify-center w-9 h-9 rounded-full border border-neutral-900/25 text-neutral-900 hover:bg-neutral-900/5 transition-colors shrink-0')
     : undefined;
 
+  // El equivalente de la vista de perfil/clase (ver ProfesorDetailClient) —
+  // evento GA4 + contador propio en blog_posts.views_count, con la misma
+  // deduplicación por sessionStorage para no inflar en cada F5. Se salta en
+  // modo vista previa (post.status !== 'published'): una visita del propio
+  // admin a su borrador no debería contar como lectura real ni ensuciar el
+  // reporte de qué se lee más.
+  useEffect(() => {
+    if (post.status !== 'published') return;
+    trackViewPost({ postSlug: post.slug, postTitle: post.title, category: post.category });
+    const viewKey = `kynea_viewed_post_${post.id}`;
+    if (!sessionStorage.getItem(viewKey)) {
+      sessionStorage.setItem(viewKey, '1');
+      createClient().rpc('increment_blog_post_views', { target_post_id: post.id }).then(() => {}, () => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]);
+
   useEffect(() => {
     if (headings.length === 0) return;
     const observer = new IntersectionObserver(
@@ -484,7 +502,12 @@ export default function BlogPostClient({
             <h2 className="text-[19px] font-extrabold text-neutral-900 tracking-tight mb-5">Leé también</h2>
             <div className="grid sm:grid-cols-3 gap-5">
               {relatedPosts.map(related => (
-                <Link key={related.id} href={`/blog/${related.slug}`} className="group">
+                <Link
+                  key={related.id}
+                  href={`/blog/${related.slug}`}
+                  className="group"
+                  onClick={() => trackSelectPost({ postSlug: related.slug, postTitle: related.title, category: related.category, listName: 'blog_related' })}
+                >
                   <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden bg-neutral-100 mb-2.5">
                     {related.coverImage ? (
                       <SmartImage

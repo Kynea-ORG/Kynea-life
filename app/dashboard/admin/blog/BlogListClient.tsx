@@ -85,6 +85,11 @@ export default function BlogListClient({ posts: initialPosts }: { posts: BlogPos
                       {post.category ? `${post.category} · ` : ''}
                       Creado {formatDate(post.createdAt)}
                       {post.publishedAt && ` · Publicado ${formatDate(post.publishedAt)}`}
+                      {/* Solo interno (acá y en el dashboard) — nunca se muestra en
+                          el post público, mismo criterio que views_count de
+                          clases/perfiles: un número bajo publicado puede jugar en
+                          contra de un post recién salido en vez de darle crédito. */}
+                      {post.status === 'published' && ` · ${post.viewsCount} vista${post.viewsCount === 1 ? '' : 's'}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
