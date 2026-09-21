@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ImagePlus, Clock, Star, ChevronDown, Check, Plus, X } from 'lucide-react';
+import Link from 'next/link';
+import { Loader2, ImagePlus, Clock, Star, ChevronDown, Check, Plus, X, ArrowLeft } from 'lucide-react';
 import type { BlogPost, BlogPostFormPayload, BlogAccentColor, BlogActionResult } from '@/lib/blog/types';
 import { createPost, updatePost } from '@/lib/blog/actions';
 import { uploadBlogImage } from '@/lib/blog/imageActions';
@@ -265,12 +266,29 @@ export default function BlogPostForm({ post, existingCategories = [] }: { post?:
   }
 
   async function handleSubmit(status: 'draft' | 'published') {
+    // Guardar como borrador un post que ya está publicado lo oculta del
+    // blog en el acto — sin este aviso, un admin que solo quería "guardar
+    // el cambio que acabo de hacer" podía despublicarlo sin darse cuenta.
+    if (status === 'draft' && lastSavedStatus === 'published') {
+      const confirmed = window.confirm(
+        'Este post está publicado. Guardarlo como borrador lo va a ocultar del blog — dejará de verse para los visitantes hasta que lo vuelvas a publicar.\n\n¿Continuar?'
+      );
+      if (!confirmed) return;
+    }
     setSaving(true);
     setError('');
     const result = await persist(status);
     setSaving(false);
     if (!result.ok) { setError(result.error ?? 'No se pudo guardar el post.'); return; }
-    router.push('/dashboard/admin/blog');
+    // Publicar sí cierra el editor (es la acción de "terminé") — guardar
+    // borrador se queda en la pantalla: antes redirigía siempre a la lista,
+    // así que cada cambio suelto ("guardo esto y sigo editando") te sacaba
+    // del post y había que volver a entrar para seguir escribiendo.
+    if (status === 'published') {
+      router.push('/dashboard/admin/blog');
+    } else {
+      setAutosaveState('saved');
+    }
   }
 
   // Autosave — guarda como borrador (o republica en el mismo status que ya
@@ -302,15 +320,23 @@ export default function BlogPostForm({ post, existingCategories = [] }: { post?:
           de Medium, siempre visible en la parte superior). */}
       <div className="sticky top-0 z-10 flex items-center justify-between gap-4 px-6 lg:px-10 py-3.5 border-b border-neutral-100 bg-white/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard/admin/blog"
+            className="flex items-center gap-1 text-[12px] font-semibold text-neutral-400 hover:text-neutral-900 transition-colors"
+            title="Volver a la lista de posts"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+          </Link>
           <span className="text-[12px] font-bold uppercase tracking-widest text-neutral-400">
             {isEdit ? 'Editar post' : 'Nuevo post'}
           </span>
-          {/* Refleja el autosave, no el guardado manual (ese ya tiene su
-              propio spinner en el botón de Publicar). */}
+          {/* Refleja tanto el autosave como "Guardar borrador" manual — este
+              último ya no sale del editor (ver handleSubmit), así que
+              necesita su propia señal de que el guardado sí ocurrió. */}
           {autosaveState !== 'idle' && (
             <span className="text-[12px] text-neutral-400 flex items-center gap-1">
               {autosaveState === 'saving' && <><Loader2 className="w-3 h-3 animate-spin" /> Guardando…</>}
-              {autosaveState === 'saved' && 'Guardado automáticamente'}
+              {autosaveState === 'saved' && 'Guardado'}
               {autosaveState === 'error' && <span className="text-red">No se pudo autoguardar</span>}
             </span>
           )}
