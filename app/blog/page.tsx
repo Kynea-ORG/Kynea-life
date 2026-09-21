@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import SmartImage from '@/components/SmartImage';
 import { SITE_URL } from '@/lib/constants';
 import { fetchPublishedPosts, fetchBlogCategories } from '@/lib/blog/queries';
+import { TrackedPostLink, TrackedCategoryLink } from './BlogTracking';
 import {
   estimateReadingTime,
   pickFeaturedPost,
@@ -166,15 +167,16 @@ export default async function BlogIndexPage({
                 Todas
               </Link>
               {categories.map(c => (
-                <Link
+                <TrackedCategoryLink
                   key={c}
+                  category={c}
                   href={`/blog?categoria=${encodeURIComponent(c)}`}
                   className={`text-[13px] font-semibold px-3.5 py-1.5 rounded-full border shadow-sm transition-colors ${
                     category === c ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white border-neutral-200 text-neutral-600 hover:border-primary hover:text-primary'
                   }`}
                 >
                   {c}
-                </Link>
+                </TrackedCategoryLink>
               ))}
             </div>
           )}
@@ -200,8 +202,12 @@ export default async function BlogIndexPage({
                 que pase con la foto, y la card usa el mismo lenguaje
                 (borde, radius, tags) que el resto de la grilla en vez de
                 un tratamiento "portada de revista" aparte. */}
-            <Link
+            <TrackedPostLink
               href={`/blog/${featured.slug}`}
+              postSlug={featured.slug}
+              postTitle={featured.title}
+              category={featured.category}
+              listName="blog_home_featured"
               className="group grid sm:grid-cols-2 rounded-lg border border-neutral-200 overflow-hidden mb-14 transition-[box-shadow,border-color] duration-150 ease-out hover:border-primary/30 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)]"
             >
               <div className="relative aspect-[16/10] sm:aspect-auto bg-neutral-100 overflow-hidden">
@@ -251,14 +257,18 @@ export default async function BlogIndexPage({
                   </span>
                 </div>
               </div>
-            </Link>
+            </TrackedPostLink>
 
             {rest.length > 0 && (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {rest.map(post => (
-                  <Link
+                  <TrackedPostLink
                     key={post.id}
                     href={`/blog/${post.slug}`}
+                    postSlug={post.slug}
+                    postTitle={post.title}
+                    category={post.category}
+                    listName="blog_home_grid"
                     className="group flex flex-col rounded-lg border border-neutral-200 overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-primary/30 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5"
                   >
                     <div className="relative w-full aspect-[16/10] overflow-hidden bg-neutral-100">
@@ -290,7 +300,7 @@ export default async function BlogIndexPage({
                       )}
                       <p className="text-[12px] text-neutral-400 mt-auto">{displayDate(post)}</p>
                     </div>
-                  </Link>
+                  </TrackedPostLink>
                 ))}
               </div>
             )}
