@@ -12,12 +12,13 @@ import { estimateReadingTime, slugifyHeading, getBlogAccent, type Heading } from
 import { trackBlogCtaClick, trackBlogShare } from '@/lib/analytics';
 import { SITE_URL } from '@/lib/constants';
 
-// Bloque de CTA insertable dentro del contenido — reemplaza el banner fijo
-// de siempre-al-final (post.ctaLabel/ctaHref/ctaImage, todavía soportado
-// más abajo para no perder el de posts viejos que ya lo tenían así). Se
-// guarda en el Markdown como un fence ```cta con la config en JSON (ver
-// CtaBlockExtension.tsx, que arma ese mismo fence desde el editor) — acá
-// solo lo leemos y renderizamos como link real, con tracking de clicks.
+// Bloque de CTA insertable dentro del contenido — reemplaza al banner fijo
+// de siempre-al-final que tenían los posts viejos (post.ctaLabel/ctaHref/
+// ctaImage, ya no se renderiza: se veía igual en todos los artículos y
+// resultaba invasivo). Se guarda en el Markdown como un fence ```cta con la
+// config en JSON (ver CtaBlockExtension.tsx, que arma ese mismo fence desde
+// el editor) — acá solo lo leemos y renderizamos como link real, con
+// tracking de clicks.
 function InlineCta({
   label, href, image, style, postSlug,
 }: {
@@ -451,30 +452,6 @@ export default function BlogPostClient({
             <div className="blog-content">
               <ReactMarkdown components={markdownComponents}>{post.content}</ReactMarkdown>
             </div>
-
-            {post.ctaLabel && post.ctaHref && (
-              <Link
-                href={post.ctaHref}
-                onClick={() => trackBlogCtaClick({ postSlug: post.slug, ctaHref: post.ctaHref! })}
-                className="group relative block mt-12 rounded-lg overflow-hidden border border-neutral-900"
-              >
-                {post.ctaImage ? (
-                  <div className="relative aspect-[21/9]">
-                    <SmartImage src={post.ctaImage} alt="" fill sizes="760px" className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/0" />
-                    <div className="absolute inset-x-0 bottom-0 p-6 flex items-center justify-between gap-4">
-                      <span className="text-[18px] font-extrabold text-white tracking-tight">{post.ctaLabel}</span>
-                      <ArrowRight className="w-5 h-5 text-white shrink-0" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-neutral-900 p-6 flex items-center justify-between gap-4">
-                    <span className="text-[18px] font-extrabold text-white tracking-tight">{post.ctaLabel}</span>
-                    <ArrowRight className="w-5 h-5 text-white shrink-0" />
-                  </div>
-                )}
-              </Link>
-            )}
 
             {post.category && (
               <div className="flex items-center gap-2.5 mt-12">
