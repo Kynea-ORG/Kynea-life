@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchPostBySlug, fetchPostBySlugAny, fetchRelatedPosts } from '@/lib/blog/queries';
-import { extractHeadings, extractFaqs, estimateReadingTime } from '@/lib/blog/helpers';
+import { extractHeadings, extractFaqs, estimateReadingTime, publishedDateIso } from '@/lib/blog/helpers';
 import { SITE_URL } from '@/lib/constants';
 import { truncateForMeta } from '@/lib/utils';
 import BlogPostClient from './BlogPostClient';
@@ -49,7 +49,7 @@ export async function generateMetadata({
       description,
       url: canonical,
       type: 'article',
-      publishedTime: post.publishedAt,
+      publishedTime: publishedDateIso(post),
       modifiedTime: post.updatedAt,
       section: post.category,
       ...(imageUrl && { images: [{ url: imageUrl }] }),
@@ -79,21 +79,27 @@ export default async function BlogPostPage({
   const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length;
 
   const canonical = `${SITE_URL}/blog/${post.slug}`;
+  // Mismo criterio de normalización que generateMetadata() más arriba —
+  // sin esto, un coverImage guardado como ruta relativa quedaba roto acá
+  // aunque el og:image de la misma página sí lo resolviera bien.
+  const jsonLdImage = post.coverImage
+    ? (post.coverImage.startsWith('http') ? post.coverImage : `${SITE_URL}${post.coverImage}`)
+    : undefined;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: post.title,
     description: post.excerpt || undefined,
-    image: post.coverImage || undefined,
-    datePublished: post.publishedAt,
+    image: jsonLdImage,
+    datePublished: publishedDateIso(post),
     dateModified: post.updatedAt,
     inLanguage: 'es-PE',
     articleSection: post.category || undefined,
     wordCount,
     timeRequired: `PT${estimateReadingTime(post.content)}M`,
     author: { '@type': 'Organization', name: 'Kynea', url: SITE_URL },
-    publisher: { '@type': 'Organization', name: 'Kynea', url: SITE_URL },
-    mainEntityOfPage: canonical,
+    publisher: { '@type': 'Organization', name: 'Kynea', url: SITE_URL, logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` } },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
   };
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',

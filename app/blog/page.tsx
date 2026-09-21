@@ -6,7 +6,7 @@ import Footer from '@/components/Footer';
 import SmartImage from '@/components/SmartImage';
 import { SITE_URL } from '@/lib/constants';
 import { fetchPublishedPosts, fetchBlogCategories } from '@/lib/blog/queries';
-import { estimateReadingTime, pickFeaturedPost } from '@/lib/blog/helpers';
+import { estimateReadingTime, pickFeaturedPost, publishedDateIso } from '@/lib/blog/helpers';
 
 const BLOG_TITLE = 'Blog — Kynea';
 const BLOG_DESCRIPTION = 'Guías, novedades y consejos sobre danza en Latinoamérica: estilos, academias, historias inspiradoras y cómo empezar a bailar.';
@@ -69,7 +69,7 @@ function formatDate(iso: string): string {
 }
 
 function displayDate(post: { publishedAt?: string; createdAt: string }): string {
-  return formatDate(post.publishedAt ?? post.createdAt);
+  return formatDate(publishedDateIso(post));
 }
 
 export default async function BlogIndexPage({

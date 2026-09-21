@@ -46,6 +46,16 @@ export function estimateReadingTime(markdown: string): number {
   return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
 }
 
+// publishedAt es null hasta que un post pasa a 'published' — pero un post
+// creado directo en ese estado (ej. vía admin, sin pasar por el flujo que
+// setea published_at) puede quedar publicado sin esa fecha. createdAt es
+// NOT NULL siempre, así que sirve de respaldo — sin esto, la fecha de
+// publicación desaparece en vez de degradar a "cuándo se creó". Usado por
+// el <meta> de fecha, el JSON-LD y el feed RSS, para que los tres coincidan.
+export function publishedDateIso(post: { publishedAt?: string; createdAt: string }): string {
+  return post.publishedAt || post.createdAt;
+}
+
 // Mismo criterio en app/blog/page.tsx (la card grande) y en generateMetadata
 // (la imagen de og:image) — un solo lugar para "cuál post es el destacado"
 // evita que ambos se desincronicen si el criterio cambia.

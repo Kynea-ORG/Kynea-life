@@ -1,5 +1,6 @@
 import { SITE_URL } from '@/lib/constants';
 import { fetchPublishedPosts } from '@/lib/blog/queries';
+import { publishedDateIso } from '@/lib/blog/helpers';
 
 // Feed RSS 2.0 del blog — descubrimiento/syndication (un lector RSS, un
 // agregador, o Google Discover pueden usarlo) y referenciado desde
@@ -24,13 +25,13 @@ export async function GET() {
   const items = posts
     .map(post => {
       const url = `${SITE_URL}/blog/${post.slug}`;
-      const pubDate = post.publishedAt ? new Date(post.publishedAt).toUTCString() : undefined;
+      const pubDate = new Date(publishedDateIso(post)).toUTCString();
       return `
     <item>
       <title>${escapeXml(post.title)}</title>
       <link>${url}</link>
       <guid isPermaLink="true">${url}</guid>
-      ${pubDate ? `<pubDate>${pubDate}</pubDate>` : ''}
+      <pubDate>${pubDate}</pubDate>
       ${post.category ? `<category>${escapeXml(post.category)}</category>` : ''}
       <description>${escapeXml(post.excerpt || '')}</description>
     </item>`;
