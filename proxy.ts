@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { authRateLimiter, checkRateLimit } from '@/lib/ratelimit';
+import { authRateLimiter, searchAiRateLimiter, checkRateLimit } from '@/lib/ratelimit';
 
 // Next.js 16: middleware.ts is deprecated and renamed to proxy.ts.
 // The exported function must be named `proxy`.
@@ -29,6 +29,29 @@ export async function proxy(request: NextRequest) {
       const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
       return new NextResponse(
         'Demasiadas solicitudes. Por favor espera unos momentos antes de intentar nuevamente.',
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(retryAfter),
+            'Content-Type': 'text/plain; charset=utf-8',
+          },
+        }
+      );
+    }
+  }
+
+  // Rate limiting estricto para búsquedas con IA (/resultados)
+  const isSearchRoute = path === '/resultados';
+  if (isSearchRoute && !isPrefetch) {
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      request.headers.get('x-real-ip') ||
+      '127.0.0.1';
+    const { success, reset } = await checkRateLimit(searchAiRateLimiter, ip);
+    if (!success) {
+      const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+      return new NextResponse(
+        'Has realizado demasiadas búsquedas en poco tiempo. Por favor espera unos momentos antes de intentar nuevamente.',
         {
           status: 429,
           headers: {

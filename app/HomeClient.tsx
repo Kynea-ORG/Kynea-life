@@ -3,10 +3,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import SmartImage from '@/components/SmartImage';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   Search, MapPin, ArrowRight, ArrowLeft, Star, CalendarCheck,
-  MessageCircle, ChevronLeft, ChevronRight, Loader2, X, Clock,
+  MessageCircle, ChevronLeft, ChevronRight, Loader2, X, Clock, Sparkles,
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -49,13 +49,30 @@ const MOBILE_SEARCH_TRIGGER_CLASS = 'w-full flex items-center gap-3 border borde
 // buscar por estilo+zona, profesor o academia, no solo por clase. El primero
 // es el texto estático de siempre, para que el primer paint (antes de que
 // el hook empiece a rotar) sea idéntico al de antes.
-const SEARCH_PLACEHOLDER_EXAMPLES = [
+const AI_PLACEHOLDER_EXAMPLES = [
+  'Busca en lenguaje natural con IA…',
+  'Para desestresarme hoy después del trabajo…',
+  'Salsa para principiantes en Miraflores…',
+  'Clases los sábados por la mañana…',
+  'Urbano o heels para soltar el cuerpo…',
+  'Clases para niños los fines de semana…',
+];
+
+const CLASSIC_PLACEHOLDER_EXAMPLES = [
   'Busca clases, academias, profesores…',
   'Salsa en Miraflores…',
-  'Busca a tu profesor favorito…',
   'Bachata los sábados…',
+  'Baile urbano para principiantes…',
   'Nombre de tu academia…',
 ];
+
+const AI_QUICK_PROMPTS = [
+  '🧘 Desestresarme después del trabajo',
+  '⚡ Clases energizantes',
+  '💃 Salsa para principiantes',
+  '👧 Clases para niños',
+];
+
 
 const AVATAR_PALETTE = [
   { bg: 'bg-primary-bg',     text: 'text-primary' },
@@ -155,6 +172,396 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
   );
 }
 
+interface MobileStyleSearchOverlayProps {
+  isOpen: boolean;
+  shouldRender: boolean;
+  initialQuery: string;
+  isAiMode: boolean;
+  toggleAiMode: () => void;
+  isLoading: boolean;
+  danceStylesWithClasses: DbDanceStyle[];
+  onClose: (finalQuery: string) => void;
+  onSearch: (finalQuery: string) => void;
+  pickStyle: (name: string) => void;
+  goToClass: (cls: SearchClass) => void;
+  goToProfile: (p: SearchProfile) => void;
+  rotatingPlaceholder: string;
+}
+
+function MobileStyleSearchOverlay({
+  isOpen,
+  shouldRender,
+  initialQuery,
+  isAiMode,
+  toggleAiMode,
+  isLoading,
+  danceStylesWithClasses,
+  onClose,
+  onSearch,
+  pickStyle,
+  goToClass,
+  goToProfile,
+  rotatingPlaceholder,
+}: MobileStyleSearchOverlayProps) {
+  // Estado local aislado: escribir aquí NO re-renderiza HomeClient ni las 50+ tarjetas
+  const [localQuery, setLocalQuery] = useState(initialQuery);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [suggestions, setSuggestions] = useState<{ classes: SearchClass[]; profiles: SearchProfile[] }>({ classes: [], profiles: [] });
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Autocompletado clásico contra la base de datos (solo en modo clásico)
+  useEffect(() => {
+    if (isAiMode) return;
+    const q = localQuery.trim();
+    if (q.length < 2) return;
+
+    let active = true;
+    const safeQ = q.replace(/[,()%_\\]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (safeQ.length < 2) return;
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const supabase = createClient();
+        const [{ data: classes }, { data: profiles }] = await Promise.all([
+          supabase
+            .from('classes')
+            .select('id, slug, title, type, class_styles(is_main, dance_styles(name, slug))')
+            .eq('status', 'published')
+            .or('end_date.is.null,end_date.gte.today')
+            .ilike('title', `%${safeQ}%`)
+            .limit(4),
+          supabase
+            .from('profiles')
+            .select('id, slug, name, role, photo_url')
+            .in('role', ['profesor', 'academia'])
+            .ilike('name', `%${safeQ}%`)
+            .limit(3),
+        ]);
+        if (active) {
+          setSuggestions({
+            classes: (classes as unknown as SearchClass[]) ?? [],
+            profiles: profiles ?? [],
+          });
+        }
+      } catch {
+        if (active) setSuggestions({ classes: [], profiles: [] });
+      } finally {
+        if (active) setIsSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [localQuery, isAiMode]);
+
+  const matchingStyles = useMemo(() => {
+    const q = localQuery.trim().toLowerCase();
+    return q.length > 0
+      ? danceStylesWithClasses.filter(s => s.name.toLowerCase().includes(q)).slice(0, 4)
+      : danceStylesWithClasses.slice(0, 4);
+  }, [localQuery, danceStylesWithClasses]);
+
+  const activeSuggestions = !isAiMode && localQuery.trim().length >= 2
+    ? suggestions
+    : { classes: [] as SearchClass[], profiles: [] as SearchProfile[] };
+
+  if (!shouldRender) return null;
+
+  return (
+    <div
+      className={`md:hidden fixed inset-0 z-[60] bg-white flex flex-col isolate transform-gpu transition-transform duration-200 ease-out starting:translate-y-full ${
+        isOpen ? 'translate-y-0' : 'translate-y-full'
+      }`}
+    >
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
+        <button type="button" onClick={() => onClose(localQuery)} aria-label="Volver">
+          <ArrowLeft className="w-5 h-5 text-neutral-900" />
+        </button>
+        <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border-2 border-primary rounded-xl px-3.5 py-2.5">
+          {isAiMode ? (
+            <Sparkles className="w-[17px] h-[17px] text-primary shrink-0" />
+          ) : (
+            <Search className="w-[17px] h-[17px] text-primary shrink-0" />
+          )}
+          <input
+            autoFocus
+            type="text"
+            placeholder={isInputFocused ? '' : (isAiMode ? '¿Qué buscas o cómo te sientes hoy?' : (rotatingPlaceholder || '¿Qué quieres bailar?'))}
+            value={localQuery}
+            onChange={e => setLocalQuery(e.target.value)}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onSearch(localQuery);
+              }
+            }}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="search"
+            className="flex-1 min-w-0 min-h-[22px] text-[16px] leading-[22px] text-neutral-900 placeholder:text-neutral-700 outline-none bg-transparent"
+          />
+          {localQuery.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setLocalQuery('')}
+              aria-label="Limpiar búsqueda"
+              className="text-neutral-400 hover:text-neutral-600 p-1 shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Switch Modo IA en Overlay Mobile */}
+      <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-100 shrink-0">
+        <span className="text-xs font-semibold text-neutral-600 flex items-center gap-1.5">
+          <Sparkles className={`w-3.5 h-3.5 ${isAiMode ? 'text-primary' : 'text-neutral-400'}`} />
+          {isAiMode ? 'Búsqueda inteligente con IA' : 'Búsqueda clásica'}
+        </span>
+        <button
+          type="button"
+          onClick={toggleAiMode}
+          className={`text-xs font-bold underline ${isAiMode ? 'text-neutral-500' : 'text-primary'}`}
+        >
+          {isAiMode ? 'Modo clásico' : 'Activar IA'}
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-8">
+        {/* Sugerencias de búsqueda rápida cuando el input está vacío */}
+        {isAiMode && localQuery.trim().length === 0 && (
+          <div className="px-5 pt-4 pb-2">
+            <p className="pb-2 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">
+              Sugerencias de búsqueda con IA
+            </p>
+            <div className="flex flex-col gap-2">
+              {AI_QUICK_PROMPTS.map(prompt => (
+                <button
+                  key={prompt}
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => onSearch(prompt)}
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-neutral-50 hover:bg-primary/5 active:bg-primary/10 text-left border border-neutral-100 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                >
+                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-[14px] text-neutral-800 font-medium">{prompt}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Botón directo para buscar con IA al escribir texto */}
+        {isAiMode && localQuery.trim().length > 0 && (
+          <div className="px-5 pt-4">
+            <button
+              type="button"
+              onClick={() => onSearch(localQuery)}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-primary to-purple-600 text-white font-bold text-[15px] shadow-md shadow-primary/25 cursor-pointer active:scale-[0.98] transition-all disabled:opacity-75 disabled:cursor-wait"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              ) : (
+                <Sparkles className="w-4 h-4 shrink-0" />
+              )}
+              <span>{isLoading ? 'Buscando con IA…' : 'Buscar con IA'}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Modo clásico: Estilos coincidentes */}
+        {!isAiMode && matchingStyles.length > 0 && (
+          <div className="pt-4">
+            <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Estilos</p>
+            {matchingStyles.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => pickStyle(s.name)}
+                className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left"
+              >
+                <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0">
+                  <Search className="w-[17px] h-[17px] text-primary" />
+                </div>
+                <span className="text-[14.5px] text-neutral-900">{s.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!isAiMode && isSearching && (
+          <div className="flex items-center gap-2 px-5 py-4 text-[13px] text-neutral-400">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando…
+          </div>
+        )}
+
+        {!isAiMode && !isSearching && activeSuggestions.classes.length === 0 && activeSuggestions.profiles.length === 0 && matchingStyles.length === 0 && localQuery.trim().length >= 2 && (
+          <p className="px-5 py-4 text-[13px] text-neutral-400">Sin resultados para &ldquo;{localQuery}&rdquo;</p>
+        )}
+
+        {/* Modo clásico: Clases sugeridas */}
+        {!isAiMode && activeSuggestions.classes.length > 0 && (
+          <div className="pt-4">
+            <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Clases</p>
+            {activeSuggestions.classes.map(cls => {
+              const mainStyle = getMainStyle(cls);
+              return (
+                <button
+                  key={cls.id}
+                  type="button"
+                  onClick={() => goToClass(cls)}
+                  className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left"
+                >
+                  <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0 text-sm">💃</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{cls.title}</p>
+                    <p className="text-[11.5px] text-neutral-400">{mainStyle?.name ? `${mainStyle.name} · ` : ''}{getTypeLabel(cls.type)}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Modo clásico: Profesores sugeridos */}
+        {!isAiMode && activeSuggestions.profiles.length > 0 && (
+          <div className="pt-4">
+            <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Profesores</p>
+            {activeSuggestions.profiles.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => goToProfile(p)}
+                className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left"
+              >
+                {p.photo_url ? (
+                  <div className="relative w-[34px] h-[34px] rounded-full overflow-hidden shrink-0">
+                    <SmartImage src={p.photo_url} alt={p.name} fill sizes="34px" className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-[34px] h-[34px] rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
+                    {p.name.charAt(0)}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{p.name}</p>
+                  <p className="text-[11.5px] text-neutral-400 capitalize">{p.role}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!isAiMode && !isSearching && localQuery.trim().length >= 2 && (
+          <div className="px-5 pt-4">
+            <button
+              type="button"
+              onClick={() => onSearch(localQuery)}
+              className="text-[13.5px] font-bold text-primary disabled:opacity-60 flex items-center gap-1.5"
+            >
+              Ver todos los resultados para &ldquo;{localQuery}&rdquo; →
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MobileCitySearchOverlay({
+  isOpen,
+  shouldRender,
+  initialCity,
+  cityNames,
+  onClose,
+  onPickCity,
+}: {
+  isOpen: boolean;
+  shouldRender: boolean;
+  initialCity: string;
+  cityNames: string[];
+  onClose: (finalCity: string) => void;
+  onPickCity: (city: string) => void;
+}) {
+  const [localCity, setLocalCity] = useState(initialCity);
+
+  const filtered = useMemo(() => {
+    const c = localCity.trim().toLowerCase();
+    return cityNames.filter(name => name.toLowerCase().includes(c)).slice(0, 8);
+  }, [localCity, cityNames]);
+
+  if (!shouldRender) return null;
+
+  return (
+    <div
+      className={`md:hidden fixed inset-0 z-[60] bg-white flex flex-col isolate transform-gpu transition-transform duration-200 ease-out starting:translate-y-full ${
+        isOpen ? 'translate-y-0' : 'translate-y-full'
+      }`}
+    >
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
+        <button type="button" onClick={() => onClose(localCity)} aria-label="Volver">
+          <ArrowLeft className="w-5 h-5 text-neutral-900" />
+        </button>
+        <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border-2 border-primary rounded-xl px-3.5 py-2.5">
+          <MapPin className="w-[17px] h-[17px] text-primary shrink-0" />
+          <input
+            autoFocus
+            type="text"
+            placeholder="Busca tu ciudad…"
+            value={localCity}
+            onChange={e => setLocalCity(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="search"
+            className="flex-1 min-w-0 text-[16px] text-neutral-900 outline-none bg-transparent"
+          />
+          {localCity.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setLocalCity('')}
+              aria-label="Limpiar ciudad"
+              className="text-neutral-400 hover:text-neutral-600 p-1 shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto pt-2 pb-8">
+        <p className="px-5 pt-3 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Ciudades</p>
+        {filtered.length === 0 ? (
+          <p className="px-5 py-3 text-[14px] text-neutral-400">Sin resultados para &ldquo;{localCity}&rdquo;</p>
+        ) : (
+          filtered.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onPickCity(c)}
+              className="w-full flex items-center gap-3 px-5 py-3 hover:bg-neutral-50 transition-colors text-left"
+            >
+              <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0">
+                <MapPin className="w-[17px] h-[17px] text-primary" />
+              </div>
+              <span className="text-[14.5px] text-neutral-900">{c}</span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function HomeClient({ initialClasses, recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats, userRole }: Props) {
   const router = useRouter();
@@ -163,15 +570,45 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   // Solo mientras navigateSearch() espera a resolveSearch() (un round-trip
   // corto a profiles) — evita un doble submit mientras decide a dónde ir.
   const [isResolvingSearch, setIsResolvingSearch] = useState(false);
-  const rotatingPlaceholder = useRotatingPlaceholder(SEARCH_PLACEHOLDER_EXAMPLES, isSearchFocused || query.trim().length > 0);
+  const [isNavigating, startTransition] = useTransition();
+  const isLoading = isResolvingSearch || isNavigating;
+
+  // Modo de búsqueda: siempre Búsqueda con IA por defecto
+  const [isAiMode, setIsAiMode] = useState(true);
+  useEffect(() => {
+    try {
+      localStorage.removeItem('kynea_search_ai_mode');
+    } catch {}
+  }, []);
+
+  const toggleAiMode = () => {
+    setIsAiMode(prev => !prev);
+  };
+
+  // Overlay de búsqueda a pantalla completa en mobile (patrón VRBO: tocar
+  // un campo abre pantalla completa en vez de un dropdown chico). Un
+  // useDelayedUnmount por overlay (mismo patrón que ya usa Header.tsx) en
+  // vez de una sola bandera + ref "recordando" cuál estaba abierto.
+  const [mobileSearch, setMobileSearch] = useState<null | 'style' | 'city'>(null);
+  const shouldRenderStyleSearch = useDelayedUnmount(mobileSearch === 'style', 200);
+  const shouldRenderCitySearch = useDelayedUnmount(mobileSearch === 'city', 200);
+
+  // Pausar animaciones del placeholder si el usuario está enfocado, hay texto o el overlay mobile está abierto
+  const isPlaceholderPaused = isSearchFocused || query.trim().length > 0 || mobileSearch !== null;
+  const rotatingPlaceholder = useRotatingPlaceholder(
+    isAiMode ? AI_PLACEHOLDER_EXAMPLES : CLASSIC_PLACEHOLDER_EXAMPLES,
+    isPlaceholderPaused
+  );
 
   // Home category strip: fixed display order (HOME_CATEGORY_SLUGS), not the
   // catalog's own ord — falls back to the first 9 by ord if a slug isn't
   // found (e.g. not seeded yet in this environment).
-  const homeCategories = HOME_CATEGORY_SLUGS
-    .map(slug => danceStyles.find(s => s.slug === slug))
-    .filter((s): s is DbDanceStyle => !!s);
-  const displayedCategories = homeCategories.length > 0 ? homeCategories : danceStyles.slice(0, 9);
+  const displayedCategories = useMemo(() => {
+    const homeCategories = HOME_CATEGORY_SLUGS
+      .map(slug => danceStyles.find(s => s.slug === slug))
+      .filter((s): s is DbDanceStyle => !!s);
+    return homeCategories.length > 0 ? homeCategories : danceStyles.slice(0, 9);
+  }, [danceStyles]);
 
   // Read only on mount (client-only, localStorage) — never during SSR, to
   // avoid a hydration mismatch. Empty on first paint is correct: it just
@@ -188,7 +625,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const activeSuggestions = query.trim().length >= 2 ? suggestions : { classes: [] as SearchClass[], profiles: [] as SearchProfile[] };
+  const activeSuggestions = !isAiMode && query.trim().length >= 2 ? suggestions : { classes: [] as SearchClass[], profiles: [] as SearchProfile[] };
 
   // ── Ciudad (segundo campo del buscador) — filtro cliente sobre
   // stats.cityNames (ya viene de fetchHomeStats), sin query nueva.
@@ -196,20 +633,25 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   const [cityOpen, setCityOpen] = useState(false);
   const [activeCityIndex, setActiveCityIndex] = useState(-1);
   const cityRef = useRef<HTMLDivElement>(null);
-  const filteredCities = stats.cityNames
-    .filter(c => c.toLowerCase().includes(city.trim().toLowerCase()))
-    .slice(0, 8);
+  const filteredCities = useMemo(() => {
+    const c = city.trim().toLowerCase();
+    return stats.cityNames
+      .filter(cityName => cityName.toLowerCase().includes(c))
+      .slice(0, 8);
+  }, [city, stats.cityNames]);
 
   // Estilos con al menos una clase publicada — evita sugerir estilos
   // "fantasma" sin nada que mostrar si se eligen. Misma fuente que
   // featuredCategories en app/page.tsx (initialClasses), sin pedir una
   // query aparte.
-  const styleNamesWithClasses = new Set<string>();
-  for (const cls of initialClasses) {
-    styleNamesWithClasses.add(cls.style);
-    for (const s of cls.secondaryStyles ?? []) styleNamesWithClasses.add(s);
-  }
-  const danceStylesWithClasses = danceStyles.filter(s => styleNamesWithClasses.has(s.name));
+  const danceStylesWithClasses = useMemo(() => {
+    const styleNamesWithClasses = new Set<string>();
+    for (const cls of initialClasses) {
+      styleNamesWithClasses.add(cls.style);
+      for (const s of cls.secondaryStyles ?? []) styleNamesWithClasses.add(s);
+    }
+    return danceStyles.filter(s => styleNamesWithClasses.has(s.name));
+  }, [initialClasses, danceStyles]);
 
   // Sugerencia "en frío" (sin texto tipeado) de la sección "Estilos": un
   // subset al azar de 4, re-sorteado cada vez que se abre el buscador — para
@@ -221,19 +663,14 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   // Estilos que matchean el texto tipeado — alimenta la sección "Estilos"
   // del dropdown desktop y el overlay mobile de búsqueda (filtro cliente,
   // sin query nueva). Sin texto tipeado, usa el subset al azar de arriba.
-  const matchingStyles = query.trim().length > 0
-    ? danceStylesWithClasses
-        .filter(s => s.name.toLowerCase().includes(query.trim().toLowerCase()))
-        .slice(0, 4)
-    : randomStyles;
-
-  // Overlay de búsqueda a pantalla completa en mobile (patrón VRBO: tocar
-  // un campo abre pantalla completa en vez de un dropdown chico). Un
-  // useDelayedUnmount por overlay (mismo patrón que ya usa Header.tsx) en
-  // vez de una sola bandera + ref "recordando" cuál estaba abierto.
-  const [mobileSearch, setMobileSearch] = useState<null | 'style' | 'city'>(null);
-  const shouldRenderStyleSearch = useDelayedUnmount(mobileSearch === 'style', 200);
-  const shouldRenderCitySearch = useDelayedUnmount(mobileSearch === 'city', 200);
+  const matchingStyles = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q.length > 0
+      ? danceStylesWithClasses
+          .filter(s => s.name.toLowerCase().includes(q))
+          .slice(0, 4)
+      : randomStyles;
+  }, [query, danceStylesWithClasses, randomStyles]);
 
   // Bloqueo de scroll en body mientras el overlay mobile esté abierto
   useEffect(() => {
@@ -247,6 +684,8 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   }, [mobileSearch]);
 
   useEffect(() => {
+    if (isAiMode) return;
+
     const q = query.trim();
     if (q.length < 2) return;
 
@@ -295,7 +734,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       active = false;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, isAiMode]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -319,11 +758,13 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   // ── Carousel auto-scroll ──
   const carouselRef = useRef<HTMLDivElement>(null);
   const carouselPausedRef = useRef(false);
+  const mobileSearchRef = useRef(mobileSearch);
+  mobileSearchRef.current = mobileSearch;
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
     const interval = setInterval(() => {
-      if (carouselPausedRef.current) return;
+      if (carouselPausedRef.current || mobileSearchRef.current !== null) return;
       if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
         el.scrollTo({ left: 0, behavior: 'smooth' });
       } else {
@@ -345,9 +786,13 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   // texto era en realidad un profesor o academia — buscar "Zeus" daba
   // "0 clases" aunque el dropdown ya lo había encontrado segundos antes.
   // resolveSearch decide el destino real; ver lib/search/resolveSearch.ts.
-  const navigateSearch = async () => {
-    const trimmedQuery = query.trim();
+  const navigateSearch = async (overrideQuery?: string | React.MouseEvent | React.FormEvent) => {
+    const rawQuery = typeof overrideQuery === 'string' ? overrideQuery : query;
+    const trimmedQuery = rawQuery.trim();
     const trimmedCity = city.trim();
+    if (typeof overrideQuery === 'string') {
+      setQuery(overrideQuery);
+    }
     if (trimmedQuery || trimmedCity) trackSearch({ searchTerm: trimmedQuery, city: trimmedCity });
     setShowSuggestions(false);
     setActiveOptionIndex(-1);
@@ -356,7 +801,16 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
     if (!trimmedQuery) {
       const params = new URLSearchParams();
       if (trimmedCity) params.set('city', trimmedCity);
-      router.push(`/clases${params.size ? `?${params.toString()}` : ''}`);
+      startTransition(() => {
+        router.push(`/clases${params.size ? `?${params.toString()}` : ''}`);
+      });
+      return;
+    }
+
+    // Si el modo IA está activo, navegar inmediatamente a /resultados (loading.tsx se muestra de inmediato)
+    if (isAiMode) {
+      const params = new URLSearchParams({ q: trimmedQuery });
+      router.push(`/resultados?${params.toString()}`);
       return;
     }
 
@@ -364,7 +818,6 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
     const resolution = await resolveSearch(trimmedQuery, danceStyles).catch(
       () => ({ type: 'ambiguous' as const })
     );
-    setIsResolvingSearch(false);
 
     if (resolution.type === 'style') {
       const params = new URLSearchParams({ style: resolution.styleName });
@@ -377,7 +830,9 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         recordRecentSearch({ query: trimmedQuery, href, resultLabel: resolution.styleName });
         trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: resolution.styleName });
       }
-      router.push(href);
+      startTransition(() => {
+        router.push(href);
+      });
       return;
     }
 
@@ -385,7 +840,9 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       const href = resolution.role === 'academia' ? `/academias/${resolution.slug}` : `/profesores/${resolution.slug}`;
       recordRecentSearch({ query: trimmedQuery, href, resultLabel: resolution.name });
       trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: '' });
-      router.push(href);
+      startTransition(() => {
+        router.push(href);
+      });
       return;
     }
 
@@ -397,7 +854,9 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
     const params = new URLSearchParams({ q: trimmedQuery });
     if (trimmedCity) params.set('city', trimmedCity);
     const href = `/resultados?${params.toString()}`;
-    router.push(href);
+    startTransition(() => {
+      router.push(href);
+    });
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -406,6 +865,14 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   };
 
   const handleQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isAiMode) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        navigateSearch();
+      }
+      return;
+    }
+
     if (!showSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
       setShowSuggestions(true);
       return;
@@ -542,9 +1009,46 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         </div>
 
         <div className="relative z-20 max-w-[880px] mx-auto px-6">
-          <form onSubmit={handleSearch} className="w-full bg-white rounded-3xl shadow-2xl p-2 flex items-stretch gap-1">
+          {/* Switch Modo IA arriba a la derecha de la barra */}
+          <div className="flex justify-end mb-2.5">
+            <button
+              type="button"
+              onClick={toggleAiMode}
+              className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer select-none backdrop-blur-md border ${
+                isAiMode
+                  ? 'bg-white/20 text-white border-white/30 hover:bg-white/30 shadow-sm'
+                  : 'bg-black/30 text-white/70 border-white/15 hover:bg-black/40 hover:text-white'
+              }`}
+              title={isAiMode ? 'Click para cambiar a búsqueda clásica' : 'Click para activar búsqueda inteligente con IA'}
+              aria-label={isAiMode ? 'Modo IA activado' : 'Modo IA desactivado'}
+              aria-pressed={isAiMode}
+            >
+              <Sparkles className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${isAiMode ? 'text-primary-light' : 'text-white/40'}`} />
+              <span>{isAiMode ? 'Búsqueda con IA' : 'Búsqueda Clásica'}</span>
+              <span
+                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                  isAiMode ? 'bg-primary' : 'bg-white/30'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                    isAiMode ? 'translate-x-3' : 'translate-x-0'
+                  }`}
+                />
+              </span>
+            </button>
+          </div>
+
+          <form
+            onSubmit={handleSearch}
+            className={`w-full bg-white rounded-3xl p-2 flex items-stretch gap-1 transition-all duration-300 ${
+              isAiMode
+                ? 'shadow-[0_12px_40px_rgba(138,17,188,0.22)] ring-2 ring-primary/40'
+                : 'shadow-2xl border border-neutral-100'
+            }`}
+          >
             <div
-              className="flex-[1.6] relative flex items-center gap-3 px-5 py-2.5 rounded-2xl min-w-0"
+              className={`${isAiMode ? 'flex-1' : 'flex-[1.6]'} relative flex items-center gap-3 px-5 py-2.5 rounded-2xl min-w-0`}
               ref={searchRef}
               onFocusCapture={() => {
                 setCityOpen(false);
@@ -557,9 +1061,17 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                 }
               }}
             >
-              <Search className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
+              {isLoading ? (
+                <Loader2 className="w-[19px] h-[19px] text-primary shrink-0 animate-spin" />
+              ) : isAiMode ? (
+                <Sparkles className="w-[19px] h-[19px] text-primary shrink-0 animate-pulse" />
+              ) : (
+                <Search className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
+              )}
               <div className="text-left min-w-0 flex-1 min-h-[34px]">
-                <p className="font-bold text-[12px] text-neutral-900 leading-none">¿Qué quieres bailar?</p>
+                <p className={`font-bold text-[12px] leading-none ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
+                  {isAiMode ? '¿Qué buscas o cómo te sientes?' : '¿Qué quieres bailar?'}
+                </p>
                 <input
                   type="text"
                   placeholder={isSearchFocused ? '' : rotatingPlaceholder}
@@ -567,18 +1079,20 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                   onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
                   onFocus={() => {
                     setIsSearchFocused(true);
-                    setShowSuggestions(true);
+                    if (!isAiMode) {
+                      setShowSuggestions(true);
+                      setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4));
+                    }
                     setCityOpen(false);
                     setActiveCityIndex(-1);
-                    setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4));
                   }}
                   onBlur={() => setIsSearchFocused(false)}
                   onKeyDown={handleQueryKeyDown}
-                  role="combobox"
-                  aria-expanded={showSuggestions && (hasSuggestions || isSearching || query.trim().length >= 2)}
-                  aria-autocomplete="list"
-                  aria-controls="query-autocomplete-list"
-                  aria-activedescendant={activeOptionIndex >= 0 ? `query-option-${activeOptionIndex}` : undefined}
+                  role={isAiMode ? undefined : 'combobox'}
+                  aria-expanded={!isAiMode && showSuggestions && (hasSuggestions || isSearching || query.trim().length >= 2)}
+                  aria-autocomplete={isAiMode ? undefined : 'list'}
+                  aria-controls={isAiMode ? undefined : 'query-autocomplete-list'}
+                  aria-activedescendant={!isAiMode && activeOptionIndex >= 0 ? `query-option-${activeOptionIndex}` : undefined}
                   className="w-full mt-0.5 min-h-[20px] text-[14.5px] leading-[20px] text-neutral-500 placeholder:text-neutral-700 outline-none bg-transparent truncate"
                 />
               </div>
@@ -595,8 +1109,8 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
               )}
               {isSearching && <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0" />}
 
-              {/* Autocomplete dropdown */}
-              {showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
+              {/* Autocomplete dropdown (solo en modo clásico) */}
+              {!isAiMode && showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
                 <div
                   id="query-autocomplete-list"
                   role="listbox"
@@ -724,9 +1238,12 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                         onMouseDown={e => e.preventDefault()}
                         onClick={navigateSearch}
                         disabled={isResolvingSearch}
-                        className="text-[13px] text-primary font-semibold hover:underline w-full text-left disabled:opacity-60"
+                        className="text-[13px] text-primary font-semibold hover:underline w-full text-left disabled:opacity-60 flex items-center gap-1.5"
                       >
-                        Ver todos los resultados de &ldquo;{query}&rdquo; →
+                        {isAiMode && <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />}
+                        {isAiMode
+                          ? `Buscar "${query}" con Inteligencia Artificial →`
+                          : `Ver todos los resultados de "${query}" →`}
                       </button>
                     </div>
                   )}
@@ -734,100 +1251,142 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
               )}
             </div>
 
-            <div className="w-px bg-neutral-200 my-2" />
+            {!isAiMode && (
+              <>
+                <div className="w-px bg-neutral-200 my-2" />
 
-            <div
-              className="flex-1 relative flex items-center gap-3 px-5 py-2.5 min-w-0"
-              ref={cityRef}
-              onFocusCapture={() => {
-                setShowSuggestions(false);
-                setActiveOptionIndex(-1);
-              }}
-              onBlur={e => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  setCityOpen(false);
-                  setActiveCityIndex(-1);
-                }
-              }}
-            >
-              <MapPin className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
-              <div className="text-left min-w-0 flex-1">
-                <p className="font-bold text-[12px] text-neutral-900 leading-none">¿En qué ciudad?</p>
-                <input
-                  type="text"
-                  placeholder="¿Dónde bailas?"
-                  value={city}
-                  onChange={e => { setCity(e.target.value); setActiveCityIndex(-1); }}
-                  onFocus={() => {
-                    setCityOpen(true);
+                <div
+                  className="flex-1 relative flex items-center gap-3 px-5 py-2.5 min-w-0"
+                  ref={cityRef}
+                  onFocusCapture={() => {
                     setShowSuggestions(false);
                     setActiveOptionIndex(-1);
                   }}
-                  onKeyDown={handleCityKeyDown}
-                  role="combobox"
-                  aria-expanded={cityOpen && filteredCities.length > 0}
-                  aria-autocomplete="list"
-                  aria-controls="city-autocomplete-list"
-                  aria-activedescendant={activeCityIndex >= 0 ? `city-option-${activeCityIndex}` : undefined}
-                  className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
-                />
-              </div>
-
-              {city.length > 0 && (
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => { setCity(''); setActiveCityIndex(-1); }}
-                  aria-label="Limpiar ciudad"
-                  className="text-neutral-400 hover:text-neutral-600 p-1 rounded-full transition-colors shrink-0"
+                  onBlur={e => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                      setCityOpen(false);
+                      setActiveCityIndex(-1);
+                    }
+                  }}
                 >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+                  <MapPin className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="font-bold text-[12px] text-neutral-900 leading-none">¿En qué ciudad?</p>
+                    <input
+                      type="text"
+                      placeholder="¿Dónde bailas?"
+                      value={city}
+                      onChange={e => { setCity(e.target.value); setActiveCityIndex(-1); }}
+                      onFocus={() => {
+                        setCityOpen(true);
+                        setShowSuggestions(false);
+                        setActiveOptionIndex(-1);
+                      }}
+                      onKeyDown={handleCityKeyDown}
+                      role="combobox"
+                      aria-expanded={cityOpen && filteredCities.length > 0}
+                      aria-autocomplete="list"
+                      aria-controls="city-autocomplete-list"
+                      aria-activedescendant={activeCityIndex >= 0 ? `city-option-${activeCityIndex}` : undefined}
+                      className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
+                    />
+                  </div>
 
-              {cityOpen && filteredCities.length > 0 && (
-                <div
-                  id="city-autocomplete-list"
-                  role="listbox"
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50 max-h-[280px] overflow-y-auto overflow-x-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95"
-                >
-                  {filteredCities.map((c, idx) => {
-                    const isActive = activeCityIndex === idx;
-                    return (
-                      <button
-                        key={c}
-                        id={`city-option-${idx}`}
-                        role="option"
-                        aria-selected={isActive}
-                        type="button"
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => pickCity(c)}
-                        className={`w-full text-left px-4 py-2.5 text-[13.5px] transition-colors ${
-                          isActive ? 'bg-neutral-100 font-bold text-neutral-900' : 'text-neutral-700 hover:bg-neutral-50'
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    );
-                  })}
+                  {city.length > 0 && (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => { setCity(''); setActiveCityIndex(-1); }}
+                      aria-label="Limpiar ciudad"
+                      className="text-neutral-400 hover:text-neutral-600 p-1 rounded-full transition-colors shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {cityOpen && filteredCities.length > 0 && (
+                    <div
+                      id="city-autocomplete-list"
+                      role="listbox"
+                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50 max-h-[280px] overflow-y-auto overflow-x-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95"
+                    >
+                      {filteredCities.map((c, idx) => {
+                        const isActive = activeCityIndex === idx;
+                        return (
+                          <button
+                            key={c}
+                            id={`city-option-${idx}`}
+                            role="option"
+                            aria-selected={isActive}
+                            type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => pickCity(c)}
+                            className={`w-full text-left px-4 py-2.5 text-[13.5px] transition-colors ${
+                              isActive ? 'bg-neutral-100 font-bold text-neutral-900' : 'text-neutral-700 hover:bg-neutral-50'
+                            }`}
+                          >
+                            {c}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
 
             <button
               type="submit"
-              disabled={isResolvingSearch}
+              disabled={isLoading}
               onFocus={() => {
                 setCityOpen(false);
                 setShowSuggestions(false);
                 setActiveCityIndex(-1);
                 setActiveOptionIndex(-1);
               }}
-              className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait"
+              className={`shrink-0 flex items-center gap-2 font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-all active:scale-[0.98] disabled:opacity-75 disabled:cursor-wait text-white ${
+                isAiMode
+                  ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary-dark hover:to-purple-700 shadow-md shadow-primary/25'
+                  : 'bg-primary hover:bg-primary-dark'
+              } ${isLoading ? 'animate-pulse' : ''}`}
             >
-              {isResolvingSearch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Buscar
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              ) : isAiMode ? (
+                <Sparkles className="w-4 h-4 shrink-0" />
+              ) : (
+                <Search className="w-4 h-4 shrink-0" />
+              )}
+              {isAiMode
+                ? (isLoading ? 'Buscando con IA…' : 'Buscar con IA')
+                : (isLoading ? 'Buscando…' : 'Buscar')}
             </button>
           </form>
+
+          {/* Sugerencias rápidas (solo en modo IA) */}
+          {isAiMode && (
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+              <span className="text-white/75 font-semibold flex items-center gap-1 text-[12.5px] shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-primary-light" /> Prueba:
+              </span>
+              {AI_QUICK_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setQuery(prompt);
+                    trackSearch({ searchTerm: prompt, city: '' });
+                    const params = new URLSearchParams({ q: prompt });
+                    router.push(`/resultados?${params.toString()}`);
+                  }}
+                  className="shrink-0 bg-white/15 hover:bg-white/25 active:bg-white/35 backdrop-blur-md border border-white/20 text-white rounded-full px-3 py-1 transition-all text-[12px] font-medium cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-wait"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="relative z-10 max-w-[880px] mx-auto px-6 text-center mt-[22px] pb-9">
@@ -861,11 +1420,54 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
           </div>
 
           <div className="relative z-10 mx-5 mt-7 bg-white rounded-3xl shadow-xl p-5 flex flex-col gap-2.5">
-            <button type="button" onClick={() => { setMobileSearch('style'); setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4)); }}
-              className={MOBILE_SEARCH_TRIGGER_CLASS}>
-              <Search className="w-[19px] h-[19px] text-primary shrink-0" />
+            {/* Header móvil: Switch arriba a la derecha */}
+            <div className="flex items-center justify-between pb-1">
+              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                {isAiMode ? 'Búsqueda con IA' : 'Búsqueda clásica'}
+              </span>
+              <button
+                type="button"
+                onClick={toggleAiMode}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border cursor-pointer ${
+                  isAiMode
+                    ? 'bg-primary/10 text-primary border-primary/25'
+                    : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+                }`}
+                aria-label={isAiMode ? 'Modo IA activado' : 'Modo IA desactivado'}
+                aria-pressed={isAiMode}
+              >
+                <Sparkles className={`w-3 h-3 ${isAiMode ? 'text-primary' : 'text-neutral-400'}`} />
+                <span>{isAiMode ? 'Modo IA' : 'Clásico'}</span>
+                <span
+                  className={`relative inline-flex h-3.5 w-6 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                    isAiMode ? 'bg-primary' : 'bg-neutral-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      isAiMode ? 'translate-x-2.5' : 'translate-x-0'
+                    }`}
+                  />
+                </span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => { setMobileSearch('style'); setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4)); }}
+              className={MOBILE_SEARCH_TRIGGER_CLASS}
+            >
+              {isLoading ? (
+                <Loader2 className="w-[19px] h-[19px] text-primary shrink-0 animate-spin" />
+              ) : isAiMode ? (
+                <Sparkles className="w-[19px] h-[19px] text-primary shrink-0" />
+              ) : (
+                <Search className="w-[19px] h-[19px] text-primary shrink-0" />
+              )}
               <div className="min-w-0 flex-1 min-h-[38px]">
-                <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿Qué quieres bailar?</p>
+                <p className={`text-[11.5px] leading-[16px] font-bold ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
+                  {isAiMode ? '¿Qué buscas o cómo te sientes?' : '¿Qué quieres bailar?'}
+                </p>
                 <p className="text-[15px] leading-[20px] mt-0.5 truncate">
                   {query
                     ? <span className="text-neutral-900">{query}</span>
@@ -875,21 +1477,39 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
               </div>
             </button>
 
-            <button type="button" onClick={() => setMobileSearch('city')}
-              className={MOBILE_SEARCH_TRIGGER_CLASS}>
-              <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
-              <div className="min-w-0 flex-1 min-h-[38px]">
-                <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿En qué ciudad?</p>
-                <p className="text-[15px] leading-[20px] text-neutral-900 mt-0.5 truncate">
-                  {city || '¿Dónde bailas?'}
-                </p>
-              </div>
-            </button>
+            {!isAiMode && (
+              <button type="button" onClick={() => setMobileSearch('city')}
+                className={MOBILE_SEARCH_TRIGGER_CLASS}>
+                <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
+                <div className="min-w-0 flex-1 min-h-[38px]">
+                  <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿En qué ciudad?</p>
+                  <p className="text-[15px] leading-[20px] text-neutral-900 mt-0.5 truncate">
+                    {city || '¿Dónde bailas?'}
+                  </p>
+                </div>
+              </button>
+            )}
 
-            <button type="button" onClick={navigateSearch} disabled={isResolvingSearch}
-              className="w-full font-black text-[15.5px] text-white bg-primary hover:bg-primary-dark active:bg-primary-dark rounded-full py-3.5 mt-1.5 shadow-[0_6px_16px_rgba(138,17,188,.35)] cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] active:shadow-[0_2px_6px_rgba(138,17,188,.3)] disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2">
-              {isResolvingSearch && <Loader2 className="w-4 h-4 animate-spin" />}
-              Buscar
+            <button
+              type="button"
+              onClick={navigateSearch}
+              disabled={isLoading}
+              className={`w-full font-black text-[15.5px] text-white rounded-full py-3.5 mt-1.5 cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-75 disabled:cursor-wait flex items-center justify-center gap-2 ${
+                isAiMode
+                  ? 'bg-gradient-to-r from-primary to-purple-600 shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
+                  : 'bg-primary hover:bg-primary-dark active:bg-primary-dark shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
+              } ${isLoading ? 'animate-pulse' : ''}`}
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              ) : isAiMode ? (
+                <Sparkles className="w-4 h-4 shrink-0" />
+              ) : (
+                <Search className="w-4 h-4 shrink-0" />
+              )}
+              {isAiMode
+                ? (isLoading ? 'Buscando con IA…' : 'Buscar con IA')
+                : (isLoading ? 'Buscando…' : 'Buscar')}
             </button>
 
             <Link href="/clases" className="block text-center font-bold text-[13.5px] text-primary mt-1 py-1 active:opacity-60 transition-opacity">
@@ -900,172 +1520,41 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       </div>
 
       {/* ── Overlay mobile: buscador de estilo (G2) ── */}
-      {shouldRenderStyleSearch && (
-        <div className={`md:hidden fixed inset-0 z-[60] bg-white flex flex-col transition-transform duration-200 ease-out starting:translate-y-full ${mobileSearch === 'style' ? 'translate-y-0' : 'translate-y-full'}`}>
-          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
-            <button type="button" onClick={() => setMobileSearch(null)} aria-label="Volver">
-              <ArrowLeft className="w-5 h-5 text-neutral-900" />
-            </button>
-            <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border-2 border-primary rounded-xl px-3.5 py-2.5">
-              <Search className="w-[17px] h-[17px] text-primary shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                placeholder={isSearchFocused ? '' : rotatingPlaceholder}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                className="flex-1 min-w-0 min-h-[22px] text-[16px] leading-[22px] text-neutral-900 placeholder:text-neutral-700 outline-none bg-transparent"
-              />
-              {query.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  aria-label="Limpiar búsqueda"
-                  className="text-neutral-400 hover:text-neutral-600 p-1 shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto pb-8">
-            {matchingStyles.length > 0 && (
-              <div className="pt-4">
-                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Estilos</p>
-                {matchingStyles.map(s => (
-                  <button key={s.id} type="button" onClick={() => pickStyle(s.name)}
-                    className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
-                    <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0">
-                      <Search className="w-[17px] h-[17px] text-primary" />
-                    </div>
-                    <span className="text-[14.5px] text-neutral-900">{s.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {isSearching && (
-              <div className="flex items-center gap-2 px-5 py-4 text-[13px] text-neutral-400">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando…
-              </div>
-            )}
-
-            {!isSearching && activeSuggestions.classes.length === 0 && activeSuggestions.profiles.length === 0 && matchingStyles.length === 0 && query.trim().length >= 2 && (
-              <p className="px-5 py-4 text-[13px] text-neutral-400">Sin resultados para &ldquo;{query}&rdquo;</p>
-            )}
-
-            {activeSuggestions.classes.length > 0 && (
-              <div className="pt-4">
-                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Clases</p>
-                {activeSuggestions.classes.map(cls => {
-                  const mainStyle = getMainStyle(cls);
-                  return (
-                    <button key={cls.id} type="button" onClick={() => goToClass(cls)}
-                      className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
-                      <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0 text-sm">💃</div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                        <p className="text-[11.5px] text-neutral-400">{mainStyle?.name ? `${mainStyle.name} · ` : ''}{getTypeLabel(cls.type)}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {activeSuggestions.profiles.length > 0 && (
-              <div className="pt-4">
-                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Profesores</p>
-                {activeSuggestions.profiles.map(p => (
-                  <button key={p.id} type="button" onClick={() => goToProfile(p)}
-                    className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
-                    {p.photo_url ? (
-                      <div className="relative w-[34px] h-[34px] rounded-full overflow-hidden shrink-0">
-                        <SmartImage src={p.photo_url} alt={p.name} fill sizes="34px" className="object-cover" />
-                      </div>
-                    ) : (
-                      <div className="w-[34px] h-[34px] rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
-                        {p.name.charAt(0)}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                      <p className="text-[11.5px] text-neutral-400 capitalize">{p.role}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* A diferencia del dropdown de escritorio, este overlay de
-                mobile no tiene un botón "Buscar" aparte siempre visible —
-                sin este link, una búsqueda sin sugerencias directas (p.ej.
-                "profesor Zeus Villanueva", que solo resuelve vía
-                resolveSearch, no vía el autocompletado literal) se queda
-                sin forma de confirmarse en mobile. Por eso se muestra
-                incluso en el estado "Sin resultados", no solo cuando
-                hasSuggestions. */}
-            {!isSearching && query.trim().length >= 2 && (
-              <div className="px-5 pt-4">
-                <button type="button" onClick={navigateSearch} disabled={isResolvingSearch} className="text-[13.5px] font-bold text-primary disabled:opacity-60">
-                  Ver todos los resultados para &ldquo;{query}&rdquo; →
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <MobileStyleSearchOverlay
+        key={mobileSearch === 'style' ? 'style-open' : 'style-closed'}
+        isOpen={mobileSearch === 'style'}
+        shouldRender={shouldRenderStyleSearch}
+        initialQuery={query}
+        isAiMode={isAiMode}
+        toggleAiMode={toggleAiMode}
+        isLoading={isLoading}
+        danceStylesWithClasses={danceStylesWithClasses}
+        onClose={(finalQuery) => {
+          setQuery(finalQuery);
+          setMobileSearch(null);
+        }}
+        onSearch={(finalQuery) => {
+          navigateSearch(finalQuery);
+        }}
+        pickStyle={pickStyle}
+        goToClass={goToClass}
+        goToProfile={goToProfile}
+        rotatingPlaceholder={rotatingPlaceholder}
+      />
 
       {/* ── Overlay mobile: buscador de ciudad (G3) ── */}
-      {shouldRenderCitySearch && (
-        <div className={`md:hidden fixed inset-0 z-[60] bg-white flex flex-col transition-transform duration-200 ease-out starting:translate-y-full ${mobileSearch === 'city' ? 'translate-y-0' : 'translate-y-full'}`}>
-          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
-            <button type="button" onClick={() => setMobileSearch(null)} aria-label="Volver">
-              <ArrowLeft className="w-5 h-5 text-neutral-900" />
-            </button>
-            <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border-2 border-primary rounded-xl px-3.5 py-2.5">
-              <MapPin className="w-[17px] h-[17px] text-primary shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                placeholder="Busca tu ciudad…"
-                value={city}
-                onChange={e => setCity(e.target.value)}
-                className="flex-1 min-w-0 text-[16px] text-neutral-900 outline-none bg-transparent"
-              />
-              {city.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setCity('')}
-                  aria-label="Limpiar ciudad"
-                  className="text-neutral-400 hover:text-neutral-600 p-1 shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto pb-8">
-            <p className="px-5 pt-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">
-              {city.trim() ? 'Ciudades' : 'Ciudades populares'}
-            </p>
-            {filteredCities.length === 0 && (
-              <p className="px-5 py-3 text-[13px] text-neutral-400">Sin resultados para &ldquo;{city}&rdquo;</p>
-            )}
-            {filteredCities.map(c => (
-              <button key={c} type="button" onClick={() => pickCity(c)}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-neutral-50 transition-colors text-left">
-                <MapPin className="w-[17px] h-[17px] text-neutral-400 shrink-0" />
-                <span className="text-[14.5px] font-semibold text-neutral-900">{c}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <MobileCitySearchOverlay
+        key={mobileSearch === 'city' ? 'city-open' : 'city-closed'}
+        isOpen={mobileSearch === 'city'}
+        shouldRender={shouldRenderCitySearch}
+        initialCity={city}
+        cityNames={stats.cityNames}
+        onClose={(finalCity) => {
+          setCity(finalCity);
+          setMobileSearch(null);
+        }}
+        onPickCity={pickCity}
+      />
 
       {/* ── CATEGORÍAS ── */}
       <section className="bg-white py-8">

@@ -25,7 +25,8 @@ export function useRotatingPlaceholder(items: string[], paused = false) {
   const [phase, setPhase] = useState<Phase>('typing');
   const [cursorOn, setCursorOn] = useState(true);
 
-  const current = items[itemIndex] ?? '';
+  const safeIndex = items.length > 0 ? itemIndex % items.length : 0;
+  const current = items[safeIndex] ?? '';
 
   useEffect(() => {
     if (paused || items.length === 0) return;
