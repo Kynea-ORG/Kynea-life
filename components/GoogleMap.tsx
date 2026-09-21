@@ -1,8 +1,9 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Plus, Minus, LocateFixed } from 'lucide-react';
+import { Loader2, Plus, Minus, LocateFixed, Navigation } from 'lucide-react';
 import { loadGoogleMapsScript } from './PlacesAddressField';
 import { MAP_STYLE } from '@/lib/maps/mapStyle';
+import { calculateDistanceKm } from '@/lib/utils';
 
 // Real interactive Google Map — only ever mounted on demand (see
 // MapPreview.tsx), never passively on page load, so every mount here is a
@@ -52,6 +53,7 @@ interface GoogleMapInstance {
   setZoom: (zoom: number) => void;
   getZoom: () => number | undefined;
   getBounds: () => GoogleLatLngBoundsInstance | undefined;
+  getCenter: () => GoogleLatLng | undefined;
   addListener: (event: string, handler: () => void) => void;
 }
 interface GoogleMapPanes { overlayMouseTarget: HTMLElement }
@@ -129,6 +131,42 @@ function buildPinElement(pin: MapPin): HTMLDivElement {
   return wrapper;
 }
 
+function buildUserLocationElement(): HTMLDivElement {
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.top = '0';
+  wrapper.style.left = '0';
+  wrapper.style.cursor = 'pointer';
+  wrapper.style.pointerEvents = 'auto';
+  wrapper.style.willChange = 'transform';
+  wrapper.style.zIndex = '90';
+  wrapper.title = 'Tu ubicación';
+  wrapper.className = 'group flex items-center justify-center -translate-x-1/2 -translate-y-1/2';
+
+  // Radar ping ring
+  const ping = document.createElement('div');
+  ping.className = 'absolute w-8 h-8 rounded-full bg-blue-500/30 animate-ping pointer-events-none';
+  wrapper.appendChild(ping);
+
+  // Soft halo
+  const halo = document.createElement('div');
+  halo.className = 'absolute w-6 h-6 rounded-full bg-blue-400/25 pointer-events-none';
+  wrapper.appendChild(halo);
+
+  // Core circle
+  const dot = document.createElement('div');
+  dot.className = 'relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-[0_2px_8px_rgba(37,99,235,0.6)] transition-transform group-hover:scale-125';
+  wrapper.appendChild(dot);
+
+  // Hover badge
+  const badge = document.createElement('div');
+  badge.className = 'absolute bottom-full mb-1.5 hidden group-hover:flex items-center px-2 py-0.5 rounded-full bg-neutral-900 text-white text-[11px] font-semibold whitespace-nowrap shadow-md pointer-events-none';
+  badge.textContent = 'Tu ubicación';
+  wrapper.appendChild(badge);
+
+  return wrapper;
+}
+
 // Sombras exactas del diseño de referencia — reposo y hover se diferencian
 // por elevación (blur/spread), no solo color.
 const PIN_SHADOW = {
@@ -175,12 +213,18 @@ export default function GoogleMap({
   pins,
   selectedPinId,
   hoveredPinId,
+  userLocation,
+  userLocationStatus,
+  fallbackLocation,
+  onLocateUser,
   onPinClick,
   onVisibleChange,
   onMapMoving,
   renderPopup,
   gestureHandling = 'greedy',
   className = 'w-full h-full',
+  recenterTrigger,
+  onUserDrag,
 }: {
   pins: MapPin[];
   /** Externally-driven selection (e.g. clicking a row in a synced list) —
@@ -191,6 +235,14 @@ export default function GoogleMap({
    * highlights that pin like a native hover, without panning or opening its
    * card. Independent of `selectedPinId`; a selected pin stays selected. */
   hoveredPinId?: string | null;
+  /** User's current geolocation coordinates for rendering the user dot and proximity. */
+  userLocation?: { lat: number; lng: number } | null;
+  /** Status of user location request for button spinner / active state. */
+  userLocationStatus?: 'idle' | 'prompting' | 'granted' | 'denied' | 'unavailable';
+  /** Approximate fallback coordinates (e.g. from GeoIP on Vercel) when user has no GPS. */
+  fallbackLocation?: { lat: number; lng: number } | null;
+  /** Callback to trigger or re-request user geolocation. */
+  onLocateUser?: () => void;
   onPinClick?: (id: string | null) => void;
   /** Fires whenever the visible viewport settles (pan/zoom/programmatic) with
    * the ids of pins currently inside it — for a "buscar al mover el mapa"
@@ -199,6 +251,8 @@ export default function GoogleMap({
   onVisibleChange?: (visibleIds: Set<string>) => void;
   /** Fires when user starts dragging/zooming or map settles — allows parent to show skeleton/feedback. */
   onMapMoving?: (moving: boolean) => void;
+  /** Fires when user finishes dragging/panning the map — allows unlinking fixed location filters. */
+  onUserDrag?: () => void;
   /** Content for the card that opens above a pin when it's clicked. Omit to
    * disable the popup entirely (MapPreview's single-pin view has nothing
    * more to say than the label already shown below the map). */
@@ -207,6 +261,7 @@ export default function GoogleMap({
    * 'cooperative' requires two fingers on mobile to avoid trapping page scroll (for embedded previews). */
   gestureHandling?: 'greedy' | 'cooperative' | 'none' | 'auto';
   className?: string;
+  recenterTrigger?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<GoogleMapInstance | null>(null);
@@ -235,6 +290,86 @@ export default function GoogleMap({
   const pinsRef = useRef<MapPin[]>(pins);
   useEffect(() => { pinsRef.current = pins; }, [pins]);
   const recenterRef = useRef<(() => void) | null>(null);
+  const prevPinsKeyRef = useRef<string>('');
+  const skipNextRecenterRef = useRef(false);
+
+  const onUserDragRef = useRef(onUserDrag);
+  useEffect(() => { onUserDragRef.current = onUserDrag; }, [onUserDrag]);
+
+  const onLocateUserRef = useRef(onLocateUser);
+  useEffect(() => { onLocateUserRef.current = onLocateUser; }, [onLocateUser]);
+  const userLocationRef = useRef(userLocation);
+  useEffect(() => { userLocationRef.current = userLocation; }, [userLocation]);
+  const fallbackLocationRef = useRef(fallbackLocation);
+  useEffect(() => { fallbackLocationRef.current = fallbackLocation; }, [fallbackLocation]);
+  const hasCenteredGpsRef = useRef(false);
+  const hasCenteredFallbackRef = useRef(false);
+
+  // Maximum distance (in km) to auto-expand framing around user location.
+  // Beyond this threshold (e.g. nearest class > 8 km), the view won't zoom out
+  // to extreme distances; instead it stays comfortably centered on the user at zoom 14.
+  const MAX_NEARBY_FRAMING_KM = 8;
+
+  // Frame location symmetrically around closest classes (up to MAX_NEARBY_FRAMING_KM),
+  // or center directly at zoom 14 if classes are beyond that distance.
+  const frameLocationWithNearbyPins = useCallback((
+    center: { lat: number; lng: number },
+    candidatePins: MapPin[],
+    padding = 56
+  ) => {
+    const map = mapRef.current;
+    const LatLngBounds = latLngBoundsClassRef.current;
+    if (!map) return;
+
+    const nearbyPins = candidatePins
+      .map(p => ({
+        pin: p,
+        dist: calculateDistanceKm(center.lat, center.lng, p.lat, p.lng),
+      }))
+      .filter(item => item.dist <= MAX_NEARBY_FRAMING_KM)
+      .sort((a, b) => a.dist - b.dist);
+
+    if (nearbyPins.length > 0 && LatLngBounds) {
+      const targetPins = nearbyPins.slice(0, 3);
+      const minDelta = 0.0055;
+      const maxLatDiff = Math.max(...targetPins.map(t => Math.abs(t.pin.lat - center.lat)), minDelta);
+      const maxLngDiff = Math.max(...targetPins.map(t => Math.abs(t.pin.lng - center.lng)), minDelta);
+
+      const bounds = new LatLngBounds();
+      bounds.extend({ lat: center.lat - maxLatDiff, lng: center.lng - maxLngDiff });
+      bounds.extend({ lat: center.lat + maxLatDiff, lng: center.lng + maxLngDiff });
+      map.fitBounds(bounds, padding);
+    } else {
+      map.panTo({ lat: center.lat, lng: center.lng });
+      map.setZoom(14);
+    }
+  }, []);
+
+  // Auto-center on user GPS location with symmetric framing of closest classes when first detected
+  useEffect(() => {
+    if (!userLocation || !mapReady || !mapRef.current) return;
+    if (!hasCenteredGpsRef.current) {
+      hasCenteredGpsRef.current = true;
+      frameLocationWithNearbyPins(userLocation, pins);
+    }
+  }, [userLocation, mapReady, pins, frameLocationWithNearbyPins]);
+
+  // Initial center when using GeoIP fallback (no GPS yet)
+  useEffect(() => {
+    if (userLocation || !fallbackLocation || !mapReady || !mapRef.current) return;
+    if (!hasCenteredFallbackRef.current) {
+      hasCenteredFallbackRef.current = true;
+      frameLocationWithNearbyPins(fallbackLocation, pins);
+    }
+  }, [userLocation, fallbackLocation, mapReady, pins, frameLocationWithNearbyPins]);
+
+  const handleLocateUser = useCallback(() => {
+    if (userLocation && mapRef.current) {
+      frameLocationWithNearbyPins(userLocation, pinsRef.current);
+    } else {
+      onLocateUserRef.current?.();
+    }
+  }, [userLocation, frameLocationWithNearbyPins]);
 
   const focusPin = useCallback((id: string | null) => {
     setOpenPinId(id);
@@ -298,10 +433,18 @@ export default function GoogleMap({
         latLngClassRef.current = coreLib.LatLng;
         latLngBoundsClassRef.current = coreLib?.LatLngBounds || (window as unknown as { google?: { maps?: { LatLngBounds?: new () => GoogleLatLngBoundsInstance } } }).google?.maps?.LatLngBounds || null;
 
-        const initialCenter = pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : { lat: -12.046374, lng: -77.042793 };
+        const currentUserLoc = userLocationRef.current;
+        const fallbackLoc = fallbackLocationRef.current;
+        const initialCenter = currentUserLoc
+          ? { lat: currentUserLoc.lat, lng: currentUserLoc.lng }
+          : fallbackLoc
+          ? { lat: fallbackLoc.lat, lng: fallbackLoc.lng }
+          : pins[0]
+          ? { lat: pins[0].lat, lng: pins[0].lng }
+          : { lat: -12.046374, lng: -77.042793 };
         const map = new Map(container, {
           center: initialCenter,
-          zoom: 15,
+          zoom: currentUserLoc || fallbackLoc ? 14 : 15,
           disableDefaultUI: true,
           zoomControl: false,
           gestureHandling,
@@ -330,6 +473,12 @@ export default function GoogleMap({
         map.addListener('dragstart', () => {
           if (cancelled) return;
           notifyMoving(true);
+        });
+
+        map.addListener('dragend', () => {
+          if (cancelled) return;
+          skipNextRecenterRef.current = true;
+          onUserDragRef.current?.();
         });
 
         map.addListener('zoom_changed', () => {
@@ -382,7 +531,6 @@ export default function GoogleMap({
     const map = mapRef.current;
     const OverlayView = overlayViewClassRef.current;
     const LatLng = latLngClassRef.current;
-    const LatLngBoundsClass = latLngBoundsClassRef.current;
     if (!mapReady || !map || !OverlayView || !LatLng) return;
 
     // Clear previous overlays
@@ -390,7 +538,7 @@ export default function GoogleMap({
     pinOverlaysRef.current = [];
     pinElementsRef.current.clear();
 
-    if (pins.length === 0) {
+    if (pins.length === 0 && !userLocation && !fallbackLocation) {
       if (openPinIdRef.current) {
         setOpenPinId(null);
         onPinClickRef.current?.(null);
@@ -399,22 +547,117 @@ export default function GoogleMap({
     }
 
     const recenter = () => {
+      if (!mapReady || !mapRef.current) return;
+      const map = mapRef.current;
+      const LatLngBoundsClass = latLngBoundsClassRef.current;
+
+      if (pins.length === 0) {
+        const activeLocation = userLocation || fallbackLocation;
+        if (activeLocation) {
+          map.panTo({ lat: activeLocation.lat, lng: activeLocation.lng });
+          map.setZoom(14);
+        }
+        return;
+      }
+
       if (pins.length === 1 || !LatLngBoundsClass) {
-        map.setCenter({ lat: pins[0].lat, lng: pins[0].lng });
+        map.panTo({ lat: pins[0].lat, lng: pins[0].lng });
+        map.setZoom(15);
+        return;
+      }
+
+      // Anti-world-map clustering:
+      // Group pins into geographic clusters (50 km proximity threshold)
+      const clusters: MapPin[][] = [];
+      for (const pin of pins) {
+        let placed = false;
+        for (const cluster of clusters) {
+          if (cluster.some(c => calculateDistanceKm(c.lat, c.lng, pin.lat, pin.lng) <= 50)) {
+            cluster.push(pin);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          clusters.push([pin]);
+        }
+      }
+
+      // Pick target cluster: closest to current map center or the largest
+      let targetCluster = clusters[0];
+      if (clusters.length > 1) {
+        const currentCenterLatLng = map.getCenter?.();
+        if (currentCenterLatLng) {
+          const currentCenter = { lat: currentCenterLatLng.lat(), lng: currentCenterLatLng.lng() };
+          let minDist = Infinity;
+          for (const cluster of clusters) {
+            const dist = Math.min(...cluster.map(p => calculateDistanceKm(currentCenter.lat, currentCenter.lng, p.lat, p.lng)));
+            if (dist < minDist) {
+              minDist = dist;
+              targetCluster = cluster;
+            }
+          }
+        } else {
+          targetCluster = clusters.sort((a, b) => b.length - a.length)[0];
+        }
+      }
+
+      if (targetCluster.length === 1) {
+        map.panTo({ lat: targetCluster[0].lat, lng: targetCluster[0].lng });
+        map.setZoom(15);
       } else {
         const bounds = new LatLngBoundsClass();
-        pins.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
+        targetCluster.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
         map.fitBounds(bounds, 48);
+
+        // Prevent over-zooming if all pins in cluster are at the exact same venue
+        let hasAdjustedZoom = false;
+        map.addListener('idle', () => {
+          if (hasAdjustedZoom) return;
+          hasAdjustedZoom = true;
+          const zoom = map.getZoom?.();
+          if (zoom && zoom > 16) {
+            map.setZoom(16);
+          }
+        });
       }
     };
     recenterRef.current = recenter;
+
+    // When the pins set changes (e.g. user selected a location or filter),
+    // automatically re-frame the map camera to show the matching results,
+    // unless the change was triggered by the user dragging the map.
+    const pinsKey = pins.map(p => p.id).sort().join(',');
+    if (prevPinsKeyRef.current && prevPinsKeyRef.current !== pinsKey) {
+      if (skipNextRecenterRef.current) {
+        skipNextRecenterRef.current = false;
+      } else {
+        recenter();
+      }
+    }
+    prevPinsKeyRef.current = pinsKey;
 
     // If currently open pin is no longer in pins, close popup
     if (openPinIdRef.current && !pins.some(p => p.id === openPinIdRef.current)) {
       setOpenPinId(null);
       onPinClickRef.current?.(null);
     }
+  }, [pins, userLocation, fallbackLocation, mapReady, frameLocationWithNearbyPins]);
 
+  // External recenter trigger (e.g. user re-clicked a location in search to refresh)
+  useEffect(() => {
+    if (recenterTrigger && recenterRef.current) {
+      setOpenPinId(null);
+      onPinClickRef.current?.(null);
+      recenterRef.current();
+    }
+  }, [recenterTrigger]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const OverlayView = overlayViewClassRef.current;
+    const LatLng = latLngClassRef.current;
+    if (!mapReady || !map || !OverlayView || !LatLng) return;
     const overlayViewClass = OverlayView;
     const latLngClass = LatLng;
 
@@ -422,7 +665,7 @@ export default function GoogleMap({
     const latLngMap = new Map<string, GoogleLatLng>();
     const pinElements = pinElementsRef.current;
     pins.forEach(pin => {
-      latLngMap.set(pin.id, new latLngClass(pin.lat, pin.lng));
+      latLngMap.set(pin.id, new LatLng(pin.lat, pin.lng));
       const pinDiv = buildPinElement(pin);
       pinElements.set(pin.id, pinDiv);
       if (pin.title) pinDiv.title = pin.title;
@@ -440,6 +683,13 @@ export default function GoogleMap({
         applyPinState(pinDiv, openPinIdRef.current === pin.id ? 'selected' : 'rest');
       });
     });
+
+    let userLocationElement: HTMLDivElement | null = null;
+    let userLatLng: GoogleLatLng | null = null;
+    if (userLocation) {
+      userLatLng = new latLngClass(userLocation.lat, userLocation.lng);
+      userLocationElement = buildUserLocationElement();
+    }
 
     class PinsOverlay extends (overlayViewClass as unknown as { new(): GoogleOverlayViewInstance }) {
       private container: HTMLDivElement | null = null;
@@ -461,6 +711,11 @@ export default function GoogleMap({
           overlayViewClass.preventMapHitsAndGesturesFrom(pinDiv);
           container.appendChild(pinDiv);
         });
+
+        if (userLocationElement) {
+          overlayViewClass.preventMapHitsAndGesturesFrom(userLocationElement);
+          container.appendChild(userLocationElement);
+        }
       }
 
       draw() {
@@ -476,6 +731,13 @@ export default function GoogleMap({
             pinDiv.style.transform = `translate3d(${Math.round(pos.x)}px, ${Math.round(pos.y)}px, 0)`;
           }
         });
+
+        if (userLocationElement && userLatLng) {
+          const pos = projection.fromLatLngToDivPixel(userLatLng);
+          if (pos) {
+            userLocationElement.style.transform = `translate3d(${Math.round(pos.x)}px, ${Math.round(pos.y)}px, 0)`;
+          }
+        }
       }
 
       onRemove() {
@@ -492,12 +754,21 @@ export default function GoogleMap({
 
     pinElements.forEach((el, id) => applyPinState(el, id === openPinIdRef.current ? 'selected' : 'rest'));
 
+    // Refresh visible pins for the current viewport after new pin overlays mount
+    if (onVisibleChangeRef.current && map) {
+      const bounds = map.getBounds?.();
+      if (bounds) {
+        const visible = new Set(pins.filter(p => bounds.contains({ lat: p.lat, lng: p.lng })).map(p => p.id));
+        onVisibleChangeRef.current(visible);
+      }
+    }
+
     return () => {
       pinOverlaysRef.current.forEach(o => o.setMap(null));
       pinOverlaysRef.current = [];
       pinElements.clear();
     };
-  }, [mapReady, pins, focusPin]);
+  }, [mapReady, pins, focusPin, userLocation]);
 
   if (error || !GOOGLE_MAPS_API_KEY) {
     return (
@@ -541,9 +812,28 @@ export default function GoogleMap({
           </button>
           <button
             type="button"
+            onClick={handleLocateUser}
+            aria-label="Mi ubicación"
+            title={userLocation ? 'Ir a mi ubicación' : 'Activar mi ubicación'}
+            disabled={userLocationStatus === 'prompting'}
+            className={`w-9 h-9 mt-1 rounded-btn border flex items-center justify-center active:scale-95 transition-[background-color,transform,border-color,color] ${
+              userLocation
+                ? 'border-blue-600 bg-white text-blue-600 hover:bg-blue-50 shadow-sm'
+                : 'border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100'
+            }`}
+          >
+            {userLocationStatus === 'prompting' ? (
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+            ) : (
+              <Navigation className={`w-4 h-4 ${userLocation ? 'fill-blue-600' : ''}`} />
+            )}
+          </button>
+          <button
+            type="button"
             onClick={() => recenterRef.current?.()}
             aria-label="Centrar mapa"
-            className="w-9 h-9 mt-1 rounded-btn border border-neutral-900 bg-white flex items-center justify-center hover:bg-neutral-100 active:scale-95 transition-[background-color,transform]"
+            title="Centrar mapa"
+            className="w-9 h-9 rounded-btn border border-neutral-900 bg-white flex items-center justify-center hover:bg-neutral-100 active:scale-95 transition-[background-color,transform]"
           >
             <LocateFixed className="w-4 h-4 text-neutral-900" />
           </button>

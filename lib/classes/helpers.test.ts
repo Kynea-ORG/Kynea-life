@@ -45,6 +45,28 @@ describe('buildClassColumns — contact_mode', () => {
   });
 });
 
+describe('buildClassColumns — slug', () => {
+  it('omits slug when absent from FormData (does not trigger slug update)', () => {
+    const cols = buildClassColumns(fdWith(null), { levelId: null, venueId: null });
+    expect(cols.slug).toBeUndefined();
+    expect('slug' in cols).toBe(false);
+  });
+
+  it('includes trimmed slug when present in FormData', () => {
+    const fd = fdWith(null);
+    fd.set('slug', '  salsa-cubana-avanzada  ');
+    const cols = buildClassColumns(fd, { levelId: null, venueId: null });
+    expect(cols.slug).toBe('salsa-cubana-avanzada');
+  });
+
+  it('includes empty string when slug is empty (requests trigger regeneration from title)', () => {
+    const fd = fdWith(null);
+    fd.set('slug', '   ');
+    const cols = buildClassColumns(fd, { levelId: null, venueId: null });
+    expect(cols.slug).toBe('');
+  });
+});
+
 // ─── venueNeedsUpdate ───────────────────────────────────────────────────────
 // Pure function, no mocks. Determines whether updateClassFromForm must
 // re-run findOrCreateVenue (dedup lookup / insert) or keep the existing

@@ -1,8 +1,9 @@
 import { Suspense } from 'react';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { fetchPublishedClasses, fetchClassCountries } from '@/lib/classes/queries';
 import type { ClassFilters } from '@/lib/classes/types';
-import { fetchDanceStyles, fetchClassLevels } from '@/lib/catalog/queries';
+import { fetchDanceStyles, fetchClassLevels, fetchLocationOptions } from '@/lib/catalog/queries';
 import { fetchAcademiasWithLocation } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
 import ClasesContent from './ClasesContent';
@@ -34,21 +35,39 @@ export default async function ClasesPage({
     days:       asArray(params.day),
     city:       (params.city as string | undefined) || undefined,
     country:    (params.country as string | undefined) || undefined,
+    district:   (params.district as string | undefined) || undefined,
     withSpots:  params.spots === '1' || undefined,
   };
 
   const hasFilters = !!(
     filters.query || filters.styles?.length || filters.levels?.length ||
     filters.modalities?.length || filters.types?.length || filters.days?.length ||
-    filters.city || filters.country || filters.withSpots
+    filters.city || filters.country || filters.district || filters.withSpots
   );
 
-  const [classes, danceStyles, levels, academias, countries] = await Promise.all([
+  let fallbackLocation: { lat: number; lng: number } | null = null;
+  try {
+    const headersList = await headers();
+    const latHeader = headersList.get('x-vercel-ip-latitude');
+    const lngHeader = headersList.get('x-vercel-ip-longitude');
+    if (latHeader && lngHeader) {
+      const lat = parseFloat(latHeader);
+      const lng = parseFloat(lngHeader);
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        fallbackLocation = { lat, lng };
+      }
+    }
+  } catch {
+    // Ignore fallback header errors if headers are unavailable
+  }
+
+  const [classes, danceStyles, levels, academias, countries, locationOptions] = await Promise.all([
     fetchPublishedClasses(hasFilters ? filters : undefined),
     fetchDanceStyles(),
     fetchClassLevels(),
     fetchAcademiasWithLocation(),
     fetchClassCountries(),
+    fetchLocationOptions(),
   ]);
 
   return (
@@ -63,6 +82,8 @@ export default async function ClasesPage({
         danceStyles={danceStyles.map(s => s.name)}
         levels={levels.map(l => l.name)}
         countries={countries}
+        locationOptions={locationOptions}
+        fallbackLocation={fallbackLocation}
       />
     </Suspense>
   );

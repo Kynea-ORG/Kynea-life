@@ -8,6 +8,7 @@ export default function AdminNav({ pendingCount }: { pendingCount: number }) {
   const isResumen = pathname === '/dashboard/admin/resumen' || pathname === '/dashboard/admin';
   const isAcademias = pathname.startsWith('/dashboard/admin/academias');
   const isUsuarios = pathname.startsWith('/dashboard/admin/usuarios') || pathname.startsWith('/dashboard/admin/crear-usuario');
+  const isBlog = pathname.startsWith('/dashboard/admin/blog');
 
   const tabClass = (active: boolean) =>
     `text-sm font-semibold px-3 py-2.5 border-b-2 transition-colors active:opacity-60 ${
@@ -31,6 +32,9 @@ export default function AdminNav({ pendingCount }: { pendingCount: number }) {
             {pendingCount}
           </span>
         )}
+      </Link>
+      <Link href="/dashboard/admin/blog" className={tabClass(isBlog)}>
+        Blog
       </Link>
     </div>
   );

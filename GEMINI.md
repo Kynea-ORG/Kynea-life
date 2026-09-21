@@ -36,10 +36,11 @@ Este archivo proporciona contexto, directrices de arquitectura y reglas de desar
 
 > [!IMPORTANT]
 > **Todo PR en este repo que modifique `lib/`, `supabase/` o `proxy.ts` DEBE ser creado con la cuenta bot `joseniquen08-pr`** (nunca con `joseniquen08`).
+> Push directo a `main` o `develop` está bloqueado en remoto (Branch Protection) y en local mediante `.githooks/pre-push`.
 
 **Motivo:** [`CODEOWNERS`](file:///Users/joseniquen/Documents/Freelos/Repos/kynea/Kynea-life/.github/CODEOWNERS) exige la aprobación obligatoria de `@joseniquen08` en esas rutas. GitHub impide que el autor de un PR apruebe su propio PR. Si el PR es creado por `joseniquen08`, queda bloqueado e inaprobable.
 
-**Forma correcta de crear PRs:**
+**Forma de crear PRs con bot (si aplica):**
 ```bash
 GH_TOKEN=$(cat ~/.kynea-bot-token) gh pr create --repo Kynea-ORG/Kynea-life ...
 ```

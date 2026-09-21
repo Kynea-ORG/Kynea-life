@@ -18,6 +18,7 @@ const FOOTER_STYLES = [
 
 const EXPLORAR_LINKS = [
   { label: 'Explorar clases', href: '/clases' },
+  { label: 'Blog', href: '/blog' },
   { label: 'Profesores', href: '/profesores' },
   { label: 'Academias', href: '/academias' },
   { label: 'Mapa de clases', href: '/mapa' },

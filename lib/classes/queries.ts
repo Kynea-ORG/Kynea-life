@@ -165,13 +165,26 @@ async function resolveDayClassIds(
   return [...new Set((data ?? []).map((r: { class_id: string }) => r.class_id))];
 }
 
-async function resolveCityVenueIds(
+async function resolveLocationVenueIds(
   supabase: SupabaseClient,
-  city: string | undefined
+  city: string | undefined,
+  district: string | undefined
 ): Promise<string[] | null> {
-  if (!city) return null;
-  const { data } = await supabase
-    .from('venues').select('id').eq('city', city);
+  if (!city && !district) return null;
+  let q = supabase.from('venues').select('id');
+  if (city) {
+    const cleanCity = city.trim().replace(/^provincia de /i, '').replace(/ province$/i, '');
+    q = q.ilike('city', `%${cleanCity}%`);
+  }
+  if (district) {
+    const trimmedDistrict = district.trim();
+    if (trimmedDistrict.toLowerCase() === 'santiago de surco' || trimmedDistrict.toLowerCase() === 'surco') {
+      q = q.ilike('district', '%Surco%');
+    } else {
+      q = q.ilike('district', `%${trimmedDistrict}%`);
+    }
+  }
+  const { data } = await q;
   return (data ?? []).map((r: { id: string }) => r.id);
 }
 
@@ -190,7 +203,6 @@ async function resolveCountryVenueIds(
 function sanitizeForOrFilter(text: string): string {
   return text.replace(/[,()]/g, ' ').trim();
 }
-
 
 // One search keyword's match condition, ORed across every field it could
 // plausibly hit (title, dance style, venue city/district) — e.g. for
@@ -254,6 +266,7 @@ function serializeFilters(filters?: ClassFilters): string {
   if (filters.days?.length)        norm.days = [...filters.days].sort();
   if (filters.city?.trim())        norm.city = filters.city.trim().toLowerCase();
   if (filters.country?.trim())     norm.country = filters.country.trim().toUpperCase();
+  if (filters.district?.trim())    norm.district = filters.district.trim().toLowerCase();
   if (filters.withSpots)           norm.withSpots = true;
   return Object.keys(norm).length ? JSON.stringify(norm) : '';
 }
@@ -263,18 +276,18 @@ async function queryPublishedClasses(filters?: ClassFilters): Promise<DanceClass
   const keywords = filters?.query ? searchKeywords(filters.query) : [];
 
   // Resolve join-based filters in parallel — null means inactive, [] means no matches
-  const [styleClassIds, levelIds, dayClassIds, cityVenueIds, countryVenueIds, keywordConditions] = await Promise.all([
+  const [styleClassIds, levelIds, dayClassIds, locationVenueIds, countryVenueIds, keywordConditions] = await Promise.all([
     resolveStyleClassIds(supabase, filters?.styles),
     resolveLevelIds(supabase, filters?.levels),
     resolveDayClassIds(supabase, filters?.days),
-    resolveCityVenueIds(supabase, filters?.city),
+    resolveLocationVenueIds(supabase, filters?.city, filters?.district),
     resolveCountryVenueIds(supabase, filters?.country),
     resolveKeywordConditions(supabase, keywords),
   ]);
 
   // Early exit: any active filter resolved to zero matches → no results possible
   if (styleClassIds?.length === 0 || levelIds?.length === 0 ||
-      dayClassIds?.length === 0 || cityVenueIds?.length === 0 || countryVenueIds?.length === 0) {
+      dayClassIds?.length === 0 || locationVenueIds?.length === 0 || countryVenueIds?.length === 0) {
     return [];
   }
 
@@ -299,11 +312,11 @@ async function queryPublishedClasses(filters?: ClassFilters): Promise<DanceClass
   for (const condition of keywordConditions) q = q.or(condition);
 
   // ID-based filters (from join resolution)
-  if (styleClassIds?.length) q = q.in('id', styleClassIds);
-  if (levelIds?.length)      q = q.in('level_id', levelIds);
-  if (dayClassIds?.length)   q = q.in('id', dayClassIds);
-  if (cityVenueIds?.length)  q = q.in('venue_id', cityVenueIds);
-  if (countryVenueIds?.length) q = q.in('venue_id', countryVenueIds);
+  if (styleClassIds?.length)    q = q.in('id', styleClassIds);
+  if (levelIds?.length)         q = q.in('level_id', levelIds);
+  if (dayClassIds?.length)      q = q.in('id', dayClassIds);
+  if (locationVenueIds?.length) q = q.in('venue_id', locationVenueIds);
+  if (countryVenueIds?.length)  q = q.in('venue_id', countryVenueIds);
 
   const { data, error } = await q;
   if (error) {

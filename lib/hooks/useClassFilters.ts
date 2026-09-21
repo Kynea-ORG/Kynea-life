@@ -45,7 +45,7 @@ function matchesTimeOfDay(cls: DanceClass, bucket: string): boolean {
   });
 }
 
-function buildSearchParams(query: string, filters: Filters, includeStyles: boolean): URLSearchParams {
+function buildSearchParams(query: string, filters: Filters, includeStyles: boolean, vista?: string | null): URLSearchParams {
   const p = new URLSearchParams();
   if (query) p.set('q', query);
   if (includeStyles) filters.styles.forEach(s => p.append('style', s));
@@ -55,7 +55,9 @@ function buildSearchParams(query: string, filters: Filters, includeStyles: boole
   filters.days.forEach(d => p.append('day', d));
   if (filters.city)      p.set('city', filters.city);
   if (filters.country)   p.set('country', filters.country);
+  if (filters.district)  p.set('district', filters.district);
   if (filters.withSpots) p.set('spots', '1');
+  if (vista)             p.set('vista', vista);
   return p;
 }
 
@@ -69,6 +71,7 @@ function initFiltersFromUrl(sp: ReturnType<typeof useSearchParams>, includeStyle
     days:       sp.getAll('day'),
     city:       sp.get('city') || '',
     country:    sp.get('country') || '',
+    district:   sp.get('district') || '',
     withSpots:  sp.get('spots') === '1',
     // priceMax and timesOfDay are client-only: not in URL
   };
@@ -101,12 +104,13 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
   }, [filters]);
 
   const pushUrl = useCallback((q: string, f: Filters) => {
-    const params = buildSearchParams(q, f, includeStyles);
+    const vista = sp.get('vista');
+    const params = buildSearchParams(q, f, includeStyles, vista);
     const qs = params.toString();
     startTransition(() => {
       router.replace(`${baseUrl}${qs ? '?' + qs : ''}`, { scroll: false });
     });
-  }, [router, baseUrl, includeStyles]);
+  }, [router, baseUrl, includeStyles, sp]);
 
   const handleFiltersChange = (newFilters: Filters) => {
     setFilters(newFilters);
@@ -127,8 +131,10 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
     if (queryTimerRef.current) clearTimeout(queryTimerRef.current);
     setFilters(EMPTY_FILTERS);
     setQuery('');
+    const vista = sp.get('vista');
+    const qs = vista ? `?vista=${vista}` : '';
     startTransition(() => {
-      router.replace(baseUrl, { scroll: false });
+      router.replace(`${baseUrl}${qs}`, { scroll: false });
     });
   };
 
@@ -161,8 +167,19 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
       const classdays = cls.timeSlots.flatMap(s => s.days);
       if (!filters.days.some(d => classdays.includes(d))) return false;
     }
-    if (filters.city && cls.city !== filters.city) return false;
+    if (filters.city) {
+      const normCity = filters.city.toLowerCase().replace(/provincia de | province/g, '').trim();
+      if (!(cls.city || '').toLowerCase().includes(normCity)) return false;
+    }
     if (filters.country && cls.countryCode !== filters.country) return false;
+    if (filters.district) {
+      const normDist = filters.district.toLowerCase().trim();
+      const clsDist = (cls.district || '').toLowerCase().trim();
+      const isSurco =
+        (normDist === 'santiago de surco' || normDist === 'surco') &&
+        (clsDist === 'santiago de surco' || clsDist === 'surco');
+      if (clsDist !== normDist && !isSurco) return false;
+    }
     return true;
   });
 
@@ -178,7 +195,7 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
   const activeCount =
     filters.styles.length + filters.levels.length + filters.days.length +
     filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
-    filters.types.length + (filters.withSpots ? 1 : 0) + (filters.city ? 1 : 0) +
+    filters.types.length + (filters.withSpots ? 1 : 0) + (filters.city || filters.district ? 1 : 0) +
     (filters.country ? 1 : 0) + (query ? 1 : 0);
 
   return { query, filters, isPending, results, activeCount, handleQueryChange, handleFiltersChange, handleClearAll };
