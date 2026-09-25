@@ -121,7 +121,7 @@ Clases publicadas por profesores y academias.
 | `price_type` | text | `Gratis` \| `Por clase` \| `Mensual` \| `Paquete` |
 | `price` | numeric(10,2) | Precio |
 | `offer_price` | numeric(10,2) | Precio con descuento (opcional) |
-| `currency` | text | `PEN` \| `USD` (default `PEN`) |
+| `currency` | text | Código ISO 4217 de 3 letras (ej: `PEN`, `USD`, `CLP`, `EUR`; default `PEN`) |
 | `is_trial_free` | boolean | Si la primera clase es gratis |
 | `max_spots` | integer | Cupo máximo |
 | `available_spots` | integer | Cupos disponibles |
