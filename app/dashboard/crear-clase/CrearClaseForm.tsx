@@ -16,6 +16,8 @@ import {
   MAX_FULL_DESC, validateForPublish, formDataToValidationInput, parsePublishError, profileFixHref,
 } from '@/lib/classes/validation';
 import PlacesAddressField from '@/components/PlacesAddressField';
+import CurrencySelect from '@/components/CurrencySelect';
+import { getCurrencySymbol } from '@/lib/currencies';
 import type { DanceClass } from '@/lib/types';
 
 // Maps a validator field name to the wizard step where it's editable, so a
@@ -986,41 +988,60 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           </div>
         </div>
 
-        {form.priceType !== 'Gratis' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <FieldLabel>Precio base</FieldLabel>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-600 font-bold pointer-events-none">
-                    {form.currency === 'PEN' ? 'S/' : '$'}
-                  </span>
-                  <input type="number" className="input pl-10" value={form.price}
-                    onChange={e => set('price', e.target.value)} placeholder="0" min={0} />
+        {form.priceType !== 'Gratis' && (() => {
+          const currSymbol = getCurrencySymbol(form.currency);
+          const symbolPadding = Math.max(40, currSymbol.length * 9 + 22);
+
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <FieldLabel>Precio base</FieldLabel>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-600 font-bold pointer-events-none select-none">
+                      {currSymbol}
+                    </span>
+                    <input
+                      type="number"
+                      className="input"
+                      style={{ paddingLeft: `${symbolPadding}px` }}
+                      value={form.price}
+                      onChange={e => set('price', e.target.value)}
+                      placeholder="0"
+                      min={0}
+                    />
+                  </div>
+                  {fieldErrors.price && <p className="text-xs text-red mt-1">{fieldErrors.price}</p>}
                 </div>
-                {fieldErrors.price && <p className="text-xs text-red mt-1">{fieldErrors.price}</p>}
+                <div>
+                  <FieldLabel>Moneda</FieldLabel>
+                  <CurrencySelect
+                    value={form.currency}
+                    onChange={val => set('currency', val)}
+                  />
+                </div>
               </div>
               <div>
-                <FieldLabel>Moneda</FieldLabel>
-                <NativeSelect value={form.currency} onChange={e => set('currency', e.target.value)}>
-                  <option value="PEN">PEN – Soles</option>
-                  <option value="USD">USD – Dólares</option>
-                </NativeSelect>
+                <FieldLabel>Precio preventa <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-600 font-bold pointer-events-none select-none">
+                    {currSymbol}
+                  </span>
+                  <input
+                    type="number"
+                    className="input"
+                    style={{ paddingLeft: `${symbolPadding}px` }}
+                    value={form.offerPrice}
+                    onChange={e => set('offerPrice', e.target.value)}
+                    placeholder="0"
+                    min={0}
+                  />
+                </div>
+                <Hint>Deja vacío si no hay descuento. El precio base se mostrará tachado.</Hint>
               </div>
             </div>
-            <div>
-              <FieldLabel>Precio preventa <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-600 font-bold pointer-events-none">
-                  {form.currency === 'PEN' ? 'S/' : '$'}
-                </span>
-                <input type="number" className="input pl-10" value={form.offerPrice}
-                  onChange={e => set('offerPrice', e.target.value)} placeholder="0" min={0} />
-              </div>
-              <Hint>Deja vacío si no hay descuento. El precio base se mostrará tachado.</Hint>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         <div>
           <FieldLabel>Cupos máximos</FieldLabel>
@@ -1128,11 +1149,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   // ── Step 4: Revisión y publicación ────────────────────────────────────────
   const renderStep3 = () => {
-    const currSymbol = form.currency === 'PEN' ? 'S/' : '$';
+    const currSymbol = getCurrencySymbol(form.currency);
+    const space = /[a-zA-Z]$/.test(currSymbol) ? ' ' : '';
     const priceLabel = form.priceType === 'Gratis'
       ? 'Gratis'
       : form.price
-        ? `${currSymbol}${form.price} (${form.priceType})${form.offerPrice ? ` → preventa ${currSymbol}${form.offerPrice}` : ''}`
+        ? `${currSymbol}${space}${form.price} (${form.priceType})${form.offerPrice ? ` → preventa ${currSymbol}${space}${form.offerPrice}` : ''}`
         : '—';
     const locationLabel = form.modality !== 'Online'
       ? [form.address, form.district, form.city].filter(Boolean).join(', ') || '—'
