@@ -1,3 +1,5 @@
+import { getCurrencySymbol } from './currencies';
+
 // Portada por defecto que ve una academia en el onboarding/conversión antes
 // de subir la suya — así entiende que puede cambiarla en vez de ver un
 // recuadro vacío. No se persiste en profiles.cover_image_url a menos que
@@ -47,17 +49,19 @@ export function getTypeLabel(type: string): string {
 
 export function formatPrice(priceType: string, price: number, currency: string): string {
   if (priceType === 'Gratis') return 'Gratis';
-  const symbol = currency === 'PEN' ? 'S/' : '$';
+  const symbol = getCurrencySymbol(currency);
   const suffix = priceType === 'Mensual' ? '/mes' : priceType === 'Por clase' ? '/clase' : '';
-  return `${symbol}${price}${suffix}`;
+  const needsSpace = /[a-zA-Z]$/.test(symbol);
+  return `${symbol}${needsSpace ? ' ' : ''}${price}${suffix}`;
 }
 
 // Bare price for space-constrained UI (map pin pills) — no periodicity
 // suffix, since that varies per class and doesn't fit a small pill.
 export function formatPriceShort(priceType: string, price: number, currency: string): string {
   if (priceType === 'Gratis') return 'Gratis';
-  const symbol = currency === 'PEN' ? 'S/' : '$';
-  return `${symbol}${price}`;
+  const symbol = getCurrencySymbol(currency);
+  const needsSpace = /[a-zA-Z]$/.test(symbol);
+  return `${symbol}${needsSpace ? ' ' : ''}${price}`;
 }
 
 // "2026-08-10" -> "Lun 10 Ago" — corto y amigable para cards/detalle, en vez
