@@ -71,6 +71,7 @@ export function mapTeacher(t: any): Teacher {
     venueCity:          t.venue?.city ?? undefined,
     venueLat:           t.venue?.lat ?? undefined,
     venueLng:           t.venue?.lng ?? undefined,
+    academiaApprovedAt: t.academia_approved_at ?? undefined,
   };
 }
 
@@ -78,6 +79,7 @@ export const PROFILE_SELECT = `
   id, slug, name, role, photo_url, photo_position, photo_zoom, bio, years_experience,
   nationality, whatsapp, show_whatsapp, instagram, tiktok, youtube, website,
   team_size, branch_count, cover_image_url, cover_image_position, cover_image_zoom,
+  academia_approved_at,
   profile_styles(style_id, dance_styles(name))
 `;
 

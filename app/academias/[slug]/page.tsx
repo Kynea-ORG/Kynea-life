@@ -4,13 +4,13 @@ import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { isClassActive } from '@/lib/classes/helpers';
 import { fetchTeacherBySlug } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
-import { DEFAULT_ACADEMIA_COVER, truncateForMeta, buildInstagramUrl, buildTikTokUrl } from '@/lib/utils';
+import { DEFAULT_ACADEMIA_COVER, truncateForMeta, buildInstagramUrl, buildTikTokUrl, safeJsonLd } from '@/lib/utils';
 import ProfesorDetailClient from '@/app/profesores/[slug]/ProfesorDetailClient';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const teacher = await fetchTeacherBySlug(slug);
-  if (!teacher) return { title: 'Perfil no encontrado — Kynea' };
+  if (!teacher || (teacher.type === 'academia' && !teacher.academiaApprovedAt)) return { title: 'Perfil no encontrado — Kynea' };
 
   if (teacher.type === 'profesor') {
     return {
@@ -44,7 +44,7 @@ export default async function AcademiaPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
 
   const teacher = await fetchTeacherBySlug(slug);
-  if (!teacher) notFound();
+  if (!teacher || (teacher.type === 'academia' && !teacher.academiaApprovedAt)) notFound();
 
   if (teacher.type === 'profesor') {
     permanentRedirect(`/profesores/${slug}`);
@@ -81,7 +81,7 @@ export default async function AcademiaPage({ params }: { params: Promise<{ slug:
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <ProfesorDetailClient teacher={teacher} classes={classes} />
     </>
   );

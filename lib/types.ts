@@ -41,6 +41,7 @@ export interface Teacher {
   venueCity?: string;
   venueLat?: number;
   venueLng?: number;
+  academiaApprovedAt?: string | null;
 }
 
 export interface TimeSlot {
