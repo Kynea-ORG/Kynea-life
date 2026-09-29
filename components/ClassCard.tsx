@@ -88,7 +88,7 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges 
             zoom — an inline style would silently override any transform
             utility class placed on the same element. */}
         <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
-          <Link href={classUrl(cls)} aria-label={cls.title} className="absolute inset-0" onClick={handleSelectItem}>
+          <Link href={classUrl(cls)} prefetch={false} aria-label={cls.title} className="absolute inset-0" onClick={handleSelectItem}>
             <SmartImage
               src={cls.coverImage || '/logo.png'}
               alt={cls.title}
@@ -147,7 +147,7 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges 
             </span>
             {cls.offerPrice ? (
               <span className="flex items-baseline gap-1.5">
-                <span className="text-[12px] text-neutral-400 line-through font-medium">
+                <span className="text-[12px] text-neutral-500 line-through font-medium">
                   {formatPrice(cls.priceType, cls.price, cls.currency)}
                 </span>
                 <span className="text-[15px] font-bold text-primary">
@@ -164,7 +164,7 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges 
           <div>
             <h3 className="font-bold text-neutral-900 text-[15px] leading-snug">{cls.title}</h3>
             <p className="text-[13px] text-neutral-600 mt-0.5">
-              {cls.teacher.name} · <span className="text-neutral-400">{cls.level}</span>
+              {cls.teacher.name} · <span className="text-neutral-500 font-medium">{cls.level}</span>
             </p>
             {matchBadges && matchBadges.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
@@ -224,6 +224,7 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges 
           <div className="flex gap-2 mt-auto pt-1">
             <Link
               href={classUrl(cls)}
+              prefetch={false}
               onClick={handleSelectItem}
               className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
             >

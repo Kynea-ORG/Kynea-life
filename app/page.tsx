@@ -171,6 +171,20 @@ export default async function Page() {
 
   return (
     <>
+      <link
+        rel="preload"
+        as="image"
+        href="/Background-Mobile.webp"
+        media="(max-width: 767px)"
+        fetchPriority="high"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href="/Background.webp"
+        media="(min-width: 768px)"
+        fetchPriority="high"
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(homeJsonLd) }}

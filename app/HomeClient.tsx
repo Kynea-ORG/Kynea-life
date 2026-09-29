@@ -134,7 +134,7 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
             <p className="text-neutral-600 text-[15px] mt-1">Las clases de {style} más populares</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href={`/clases?style=${encodeURIComponent(style)}`} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+            <Link href={`/clases?style=${encodeURIComponent(style)}`} prefetch={false} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
               Ver todas →
             </Link>
             <div className="hidden sm:flex items-center gap-2">
@@ -763,15 +763,21 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
-    const interval = setInterval(() => {
-      if (carouselPausedRef.current || mobileSearchRef.current !== null) return;
-      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
-        el.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        el.scrollBy({ left: 320, behavior: 'smooth' });
-      }
-    }, 3000);
-    return () => clearInterval(interval);
+    let interval: NodeJS.Timeout | null = null;
+    const timeout = setTimeout(() => {
+      interval = setInterval(() => {
+        if (carouselPausedRef.current || mobileSearchRef.current !== null) return;
+        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
+          el.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          el.scrollBy({ left: 320, behavior: 'smooth' });
+        }
+      }, 3500);
+    }, 4000);
+    return () => {
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   const numClasses = activeSuggestions.classes.length;
@@ -978,19 +984,19 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <main id="main-content" className="min-h-screen bg-white">
       <TopAnnouncementRibbon />
 
       {/* ── HERO — desktop (A1) ── */}
       <div className="hidden md:block relative bg-[#1A1A19] min-h-[400px] z-20">
         <div className="absolute inset-0 overflow-hidden">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/Background.webp"
             alt="Bailarina en movimiento"
-            fill
-            priority
-            sizes="1440px"
-            className="object-cover"
+            fetchPriority="high"
+            decoding="async"
+            className="w-full h-full object-cover"
             style={{ objectPosition: '50% 0%' }}
           />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.55) 0%, rgba(13,13,13,.35) 38%, rgba(13,13,13,.72) 100%)' }} />
@@ -1402,13 +1408,13 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         <Header transparent homeNav />
 
         <div className="relative overflow-hidden pb-7">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/Background-Mobile.webp"
             alt="Bailarina en movimiento"
-            fill
-            priority
-            sizes="(max-width: 768px) 100vw, 0vw"
-            className="absolute inset-0 object-cover"
+            fetchPriority="high"
+            decoding="async"
+            className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: '55% 25%' }}
           />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.5) 0%, rgba(13,13,13,.15) 45%, rgba(13,13,13,0) 100%)' }} />
@@ -1422,7 +1428,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
           <div className="relative z-10 mx-5 mt-7 bg-white rounded-3xl shadow-xl p-5 flex flex-col gap-2.5">
             {/* Header móvil: Switch arriba a la derecha */}
             <div className="flex items-center justify-between pb-1">
-              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
                 {isAiMode ? 'Búsqueda con IA' : 'Búsqueda clásica'}
               </span>
               <button
@@ -1520,48 +1526,52 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       </div>
 
       {/* ── Overlay mobile: buscador de estilo (G2) ── */}
-      <MobileStyleSearchOverlay
-        key={mobileSearch === 'style' ? 'style-open' : 'style-closed'}
-        isOpen={mobileSearch === 'style'}
-        shouldRender={shouldRenderStyleSearch}
-        initialQuery={query}
-        isAiMode={isAiMode}
-        toggleAiMode={toggleAiMode}
-        isLoading={isLoading}
-        danceStylesWithClasses={danceStylesWithClasses}
-        onClose={(finalQuery) => {
-          setQuery(finalQuery);
-          setMobileSearch(null);
-        }}
-        onSearch={(finalQuery) => {
-          navigateSearch(finalQuery);
-        }}
-        pickStyle={pickStyle}
-        goToClass={goToClass}
-        goToProfile={goToProfile}
-        rotatingPlaceholder={rotatingPlaceholder}
-      />
+      {shouldRenderStyleSearch && (
+        <MobileStyleSearchOverlay
+          key={mobileSearch === 'style' ? 'style-open' : 'style-closed'}
+          isOpen={mobileSearch === 'style'}
+          shouldRender={shouldRenderStyleSearch}
+          initialQuery={query}
+          isAiMode={isAiMode}
+          toggleAiMode={toggleAiMode}
+          isLoading={isLoading}
+          danceStylesWithClasses={danceStylesWithClasses}
+          onClose={(finalQuery) => {
+            setQuery(finalQuery);
+            setMobileSearch(null);
+          }}
+          onSearch={(finalQuery) => {
+            navigateSearch(finalQuery);
+          }}
+          pickStyle={pickStyle}
+          goToClass={goToClass}
+          goToProfile={goToProfile}
+          rotatingPlaceholder={rotatingPlaceholder}
+        />
+      )}
 
       {/* ── Overlay mobile: buscador de ciudad (G3) ── */}
-      <MobileCitySearchOverlay
-        key={mobileSearch === 'city' ? 'city-open' : 'city-closed'}
-        isOpen={mobileSearch === 'city'}
-        shouldRender={shouldRenderCitySearch}
-        initialCity={city}
-        cityNames={stats.cityNames}
-        onClose={(finalCity) => {
-          setCity(finalCity);
-          setMobileSearch(null);
-        }}
-        onPickCity={pickCity}
-      />
+      {shouldRenderCitySearch && (
+        <MobileCitySearchOverlay
+          key={mobileSearch === 'city' ? 'city-open' : 'city-closed'}
+          isOpen={mobileSearch === 'city'}
+          shouldRender={shouldRenderCitySearch}
+          initialCity={city}
+          cityNames={stats.cityNames}
+          onClose={(finalCity) => {
+            setCity(finalCity);
+            setMobileSearch(null);
+          }}
+          onPickCity={pickCity}
+        />
+      )}
 
       {/* ── CATEGORÍAS ── */}
       <section className="bg-white py-8">
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex items-end justify-between mb-4">
             <h2 className="text-[22px] font-extrabold text-neutral-900 tracking-tight">Categorías</h2>
-            <Link href="/categorias" className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors whitespace-nowrap">
+            <Link href="/categorias" prefetch={false} className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors whitespace-nowrap">
               Ver todas <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -1573,6 +1583,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
               <Link
                 key={style.id}
                 href={`/clases?style=${encodeURIComponent(style.name)}`}
+                prefetch={false}
                 className="relative shrink-0 w-[168px] h-[152px] rounded-2xl border border-neutral-900 cursor-pointer group select-none block overflow-hidden"
               >
                 {/* Background: curated photo per style, falls back to a generic one if not uploaded yet */}
@@ -1587,6 +1598,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                     aria-hidden="true"
                     fill
                     sizes="168px"
+                    loading="lazy"
                     className="object-cover"
                   />
                 </div>
@@ -1758,6 +1770,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                 <Link
                   key={t.id}
                   href={`/academias/${t.slug}`}
+                  prefetch={false}
                   onClick={() => trackSelectProfile({ role: 'academia', profileId: t.id, profileName: t.name, listName: 'home_academias' })}
                   className="group relative shrink-0 w-[250px] sm:w-[280px] aspect-[3/4] rounded-2xl overflow-hidden transition-transform duration-300 ease-out hover:-translate-y-1"
                   style={{ scrollSnapAlign: 'start' }}
@@ -1869,6 +1882,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                   <Link
                     key={t.id}
                     href={`/profesores/${t.slug}`}
+                    prefetch={false}
                     onClick={() => trackSelectProfile({ role: 'profesor', profileId: t.id, profileName: t.name, listName: 'home_profesores' })}
                     className="shrink-0 w-[210px] rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
                     style={{ scrollSnapAlign: 'start' }}
@@ -1896,7 +1910,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                     </div>
                     <div className="px-4 pt-3.5 pb-4">
                       <h3 className="font-bold text-neutral-900 text-[16px] leading-tight mb-0.5 truncate">{t.name}</h3>
-                      {t.nationality && <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.nationality}</p>}
+                      {t.nationality && <p className="text-[12.5px] text-neutral-500 font-medium mb-2.5 truncate">{t.nationality}</p>}
                       <div className="flex flex-wrap gap-1.5 mb-3 min-h-[26px]">
                         {t.styles.slice(0, 2).map(s => (
                           <span key={s} className="badge-pink text-[11.5px] px-2.5 py-1">{s}</span>
@@ -1968,6 +1982,6 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       <Footer />
 
       <BottomSignupRibbon />
-    </div>
+    </main>
   );
 }
