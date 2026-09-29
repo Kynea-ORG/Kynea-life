@@ -252,10 +252,17 @@ export default function Header({
             fuera de homeNav, una sola imagen según `transparent`. */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           {homeNav ? (
-            <>
-              <Image src="/logo.png" alt="Kynea" width={110} height={37} priority style={{ width: '110px', height: 'auto' }} className="md:hidden" />
-              <Image src="/logo-white.png" alt="Kynea" width={110} height={37} priority style={{ width: '110px', height: 'auto' }} className="hidden md:block" />
-            </>
+            <picture>
+              <source media="(max-width: 767px)" srcSet="/logo.png" />
+              <source media="(min-width: 768px)" srcSet="/logo-white.png" />
+              <img
+                src="/logo.png"
+                alt="Kynea"
+                width={110}
+                height={37}
+                className="w-[110px] h-auto"
+              />
+            </picture>
           ) : (
             <Image
               src={transparent ? '/logo-white.png' : '/logo.png'}

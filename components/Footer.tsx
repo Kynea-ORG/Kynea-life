@@ -38,11 +38,11 @@ const LEGAL_LINKS = [
 function FooterColumn({ title, links }: { title: string; links: { label: string; href: string }[] }) {
   return (
     <div>
-      <h3 className="font-sans text-[13px] font-bold uppercase tracking-wide text-neutral-500 mb-4">{title}</h3>
+      <h3 className="font-sans text-[13px] font-bold uppercase tracking-wide text-neutral-400 mb-4">{title}</h3>
       <ul className="space-y-2.5">
         {links.map(l => (
           <li key={l.href}>
-            <Link href={l.href} className="font-sans text-[14px] text-neutral-300 hover:text-white transition-colors">
+            <Link href={l.href} prefetch={false} className="font-sans text-[14px] text-neutral-300 hover:text-white transition-colors">
               {l.label}
             </Link>
           </li>
@@ -74,7 +74,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 pt-8 border-t border-white/10">
-          <p className="font-sans text-[13px] text-neutral-500">
+          <p className="font-sans text-[13px] text-neutral-400">
             © {new Date().getFullYear()} Kynea. Todos los derechos reservados.
           </p>
           <a href="mailto:hola@kynea.pe" className="font-sans text-[13px] text-neutral-400 hover:text-white transition-colors">
