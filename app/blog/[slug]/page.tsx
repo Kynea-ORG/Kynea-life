@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { fetchPostBySlug, fetchPostBySlugAny, fetchRelatedPosts } from '@/lib/blog/queries';
 import { extractHeadings, extractFaqs, estimateReadingTime, publishedDateIso, BLOG_FALLBACK_IMAGE } from '@/lib/blog/helpers';
 import { SITE_URL } from '@/lib/constants';
-import { truncateForMeta } from '@/lib/utils';
+import { truncateForMeta, safeJsonLd } from '@/lib/utils';
 import BlogPostClient from './BlogPostClient';
 
 type PageParams = { slug: string };
@@ -125,10 +125,10 @@ export default async function BlogPostPage({
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }} />
       {faqJsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }} />
       )}
       <BlogPostClient post={post} relatedPosts={relatedPosts} headings={headings} />
     </>

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getPublicClient } from '@/lib/supabase/public';
 import { safeCache } from '@/lib/cache';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getUser } from '@/lib/auth/getUser';
 import { mapTeacher } from '@/lib/profiles/queries';
 import { searchKeywords } from '@/lib/search/normalize';
 import { DAY_MAP } from './helpers';
@@ -39,7 +40,10 @@ function schedulesToTimeSlots(schedules: DbClassRow['class_schedules']): TimeSlo
   return Array.from(groups.values());
 }
 
-export function mapDbClassToType(row: DbClassRow): DanceClass {
+export function mapDbClassToType(
+  row: DbClassRow,
+  options?: { includePrivateAccess?: boolean }
+): DanceClass {
   const stylesRows: DbClassStyle[] = row.class_styles ?? [];
   const mainStyleRow = stylesRows.find((s) => s.is_main);
   const style: DanceStyle = mainStyleRow?.dance_styles?.name ?? '';
@@ -89,7 +93,7 @@ export function mapDbClassToType(row: DbClassRow): DanceClass {
     lng:              venue?.lng ?? undefined,
     mapImageUrl:      venue?.map_image_url ?? undefined,
     platform:         row.platform ?? undefined,
-    accessLink:       row.access_link ?? undefined,
+    accessLink:       options?.includePrivateAccess ? (row.access_link ?? undefined) : undefined,
     coverImage:       row.cover_image ?? '',
     coverImagePosition: row.cover_image_position || '50% 50%',
     coverImageZoom:   row.cover_image_zoom ?? 1,
@@ -349,7 +353,10 @@ export async function fetchClassCountries(): Promise<string[]> {
   return [...new Set(classes.map(c => c.countryCode).filter((c): c is string => Boolean(c)))].sort();
 }
 
-export async function fetchClassById(id: string): Promise<DanceClass | null> {
+export async function fetchClassById(
+  id: string,
+  options?: { includePrivateAccess?: boolean }
+): Promise<DanceClass | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('classes')
@@ -357,7 +364,16 @@ export async function fetchClassById(id: string): Promise<DanceClass | null> {
     .eq('id', id)
     .single();
   if (error || !data) return null;
-  return mapDbClassToType(data as unknown as DbClassRow);
+
+  let includePrivateAccess = options?.includePrivateAccess ?? false;
+  if (!includePrivateAccess) {
+    const user = await getUser();
+    if (user && user.id === (data as unknown as DbClassRow).teacher_id) {
+      includePrivateAccess = true;
+    }
+  }
+
+  return mapDbClassToType(data as unknown as DbClassRow, { includePrivateAccess });
 }
 
 async function getClassBySlug(slug: string): Promise<DanceClass | null> {

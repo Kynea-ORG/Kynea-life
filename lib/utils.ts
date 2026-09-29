@@ -141,6 +141,14 @@ export function safeRedirectPath(value: string | null | undefined): string | nul
   return value.startsWith('/') && !value.startsWith('//') ? value : null;
 }
 
+/**
+ * Serializes an object to JSON safely for embedding inside an HTML `<script>` tag.
+ * Replaces `<` with `\u003c` to neutralize HTML closing tag breakouts (Stored XSS).
+ */
+export function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, '\\u003c');
+}
+
 export function getProfileUrl(profile: { type?: string; role?: string; slug: string }): string {
   const isAcademia = profile.type === 'academia' || profile.role === 'academia';
   return isAcademia ? `/academias/${profile.slug}` : `/profesores/${profile.slug}`;

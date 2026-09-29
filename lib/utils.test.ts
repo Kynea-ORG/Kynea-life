@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getProfileUrl, safeRedirectPath, calculateDistanceKm, formatDistance } from './utils';
+import { getProfileUrl, safeRedirectPath, calculateDistanceKm, formatDistance, safeJsonLd } from './utils';
 
 describe('getProfileUrl', () => {
   it('returns /academias/{slug} when type is academia', () => {
@@ -73,5 +73,20 @@ describe('formatDistance', () => {
   it('formats distances 10 km and above as whole numbers', () => {
     expect(formatDistance(12.4)).toBe('12 km');
     expect(formatDistance(25.8)).toBe('26 km');
+  });
+});
+
+describe('safeJsonLd', () => {
+  it('escapes < characters to \\u003c to prevent script tag injection', () => {
+    const malicious = { name: '</script><script>alert(1)</script>' };
+    const serialized = safeJsonLd(malicious);
+    expect(serialized).not.toContain('<');
+    expect(serialized).toContain('\\u003c/script>\\u003cscript>alert(1)\\u003c/script>');
+    expect(JSON.parse(serialized)).toEqual(malicious);
+  });
+
+  it('correctly serializes standard JSON objects without corruption', () => {
+    const standard = { title: 'Clase de Salsa', price: 50, active: true };
+    expect(JSON.parse(safeJsonLd(standard))).toEqual(standard);
   });
 });

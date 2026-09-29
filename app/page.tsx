@@ -5,6 +5,7 @@ import { fetchDanceStyles } from '@/lib/catalog/queries';
 import { fetchHomeStats } from '@/lib/stats/queries';
 import { createClient } from '@/lib/supabase/server';
 import { SITE_URL } from '@/lib/constants';
+import { safeJsonLd } from '@/lib/utils';
 import HomeClient from './HomeClient';
 import AuthErrorBanner from '@/components/AuthErrorBanner';
 
@@ -172,7 +173,7 @@ export default async function Page() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(homeJsonLd) }}
       />
       <AuthErrorBanner />
       <HomeClient

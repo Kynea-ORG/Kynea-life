@@ -2,6 +2,19 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { authRateLimiter, checkRateLimit } from '@/lib/ratelimit';
 
+function getClientIp(request: NextRequest): string {
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+
+  const vercelForwardedFor = request.headers.get('x-vercel-forwarded-for');
+  if (vercelForwardedFor) return vercelForwardedFor.split(',')[0].trim();
+
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) return forwardedFor.split(',')[0].trim();
+
+  return '127.0.0.1';
+}
+
 // Next.js 16: middleware.ts is deprecated and renamed to proxy.ts.
 // The exported function must be named `proxy`.
 export async function proxy(request: NextRequest) {
@@ -20,10 +33,7 @@ export async function proxy(request: NextRequest) {
     path.startsWith('/auth');
 
   if (isAuthRoute && !isPrefetch) {
-    const ip =
-      request.headers.get('x-real-ip') ||
-      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-      '127.0.0.1';
+    const ip = getClientIp(request);
     const { success, reset } = await checkRateLimit(authRateLimiter, ip);
     if (!success) {
       const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));

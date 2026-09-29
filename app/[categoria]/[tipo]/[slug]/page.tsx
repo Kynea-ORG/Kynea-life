@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { fetchClassBySlug, fetchClassById } from '@/lib/classes/queries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
 import { SITE_URL } from '@/lib/constants';
-import { truncateForMeta, getProfileUrl } from '@/lib/utils';
+import { truncateForMeta, getProfileUrl, safeJsonLd } from '@/lib/utils';
 import ClaseDetailClient from './ClaseDetailClient';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -83,7 +83,7 @@ export default async function ClaseDetailPage({
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <ClaseDetailClient cls={cls} />
     </>
   );
