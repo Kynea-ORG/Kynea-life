@@ -964,7 +964,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <FieldLabel>Enlace de acceso</FieldLabel>
             <input className="input" value={form.accessLink} onChange={e => set('accessLink', e.target.value)}
               placeholder="https://zoom.us/j/..." />
-            <Hint>Puedes ocultarlo hasta confirmar la inscripción</Hint>
+            <Hint>Por seguridad, este enlace se mantiene privado y no se muestra en el perfil público. Se recomienda compartirlo directamente con los alumnos confirmados.</Hint>
             {fieldErrors.accessLink && <p className="text-xs text-red mt-1">{fieldErrors.accessLink}</p>}
           </div>
         </div>
