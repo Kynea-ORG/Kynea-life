@@ -100,12 +100,74 @@ export function buildWhatsAppMessage(style: string, startDate: string, teacherPh
   return `https://wa.me/${teacherPhone.replace(/\s+/g, '')}?text=${text}`;
 }
 
-export function buildInstagramUrl(handle: string): string {
-  return `https://instagram.com/${handle.replace(/^@/, '')}`;
+/**
+ * Extracts a clean social handle from a raw input string, which could be:
+ * - A raw handle: "dario_boada"
+ * - A handle with @: "@dario_boada"
+ * - A full profile URL: "https://www.instagram.com/dario_boada?stkn=MWdqN2RvMDcwc2RzZA=="
+ * - A full TikTok URL: "https://www.tiktok.com/@dario_boada?_r=1&_t=ZS-9A9k9twWGFm"
+ * - Domain without protocol: "instagram.com/dario_boada"
+ * - Unclean input with spaces, slashes, query params or hashes.
+ */
+export function extractSocialHandle(input: string | null | undefined, platform?: 'instagram' | 'tiktok'): string {
+  if (!input) return '';
+  let cleaned = input.trim();
+  if (!cleaned) return '';
+
+  const lower = cleaned.toLowerCase();
+
+  // Strip protocol and platform domains if present (using last occurrence in case of duplicated prefixes)
+  if (lower.includes('instagram.com')) {
+    const idx = lower.lastIndexOf('instagram.com/');
+    if (idx !== -1) {
+      cleaned = cleaned.slice(idx + 'instagram.com/'.length);
+    } else {
+      cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\/?/i, '');
+    }
+  } else if (lower.includes('tiktok.com')) {
+    const idx = lower.lastIndexOf('tiktok.com/');
+    if (idx !== -1) {
+      cleaned = cleaned.slice(idx + 'tiktok.com/'.length);
+    } else {
+      cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:www\.)?(?:(?:vm|vt)\.)?tiktok\.com\/?/i, '');
+    }
+  } else if (platform === 'instagram') {
+    cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\/?/i, '');
+  } else if (platform === 'tiktok') {
+    cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:www\.)?(?:(?:vm|vt)\.)?tiktok\.com\/?/i, '');
+  }
+
+  // Remove query parameters and hash fragments (?stkn=... / #...)
+  cleaned = cleaned.split('?')[0].split('#')[0];
+
+  // Strip leading and trailing slashes
+  cleaned = cleaned.replace(/^\/+|\/+$/g, '');
+
+  // If path segments remain, take the first path segment
+  if (cleaned.includes('/')) {
+    const segments = cleaned.split('/').filter(Boolean);
+    cleaned = segments[0] || '';
+  }
+
+  // Strip leading '@' characters
+  cleaned = cleaned.replace(/^@+/, '');
+
+  return cleaned.trim();
 }
 
-export function buildTikTokUrl(handle: string): string {
-  return `https://tiktok.com/@${handle.replace(/^@/, '')}`;
+export function buildInstagramUrl(handleOrUrl: string | null | undefined): string {
+  const handle = extractSocialHandle(handleOrUrl, 'instagram');
+  return handle ? `https://instagram.com/${handle}` : '';
+}
+
+export function buildTikTokUrl(handleOrUrl: string | null | undefined): string {
+  const handle = extractSocialHandle(handleOrUrl, 'tiktok');
+  return handle ? `https://tiktok.com/@${handle}` : '';
+}
+
+export function formatSocialHandle(handleOrUrl: string | null | undefined, platform?: 'instagram' | 'tiktok'): string {
+  const handle = extractSocialHandle(handleOrUrl, platform);
+  return handle ? `@${handle}` : '';
 }
 
 // `venues.maps_url` exists in the schema but nothing writes to it — venues

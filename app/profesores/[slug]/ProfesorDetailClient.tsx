@@ -9,7 +9,7 @@ import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import { createClient } from '@/lib/supabase/client';
 import { trackGenerateLead, trackViewProfile, trackTeacherSocialClick } from '@/lib/analytics';
-import { buildInstagramUrl, buildTikTokUrl, formatExperience, formatPrice, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
+import { buildInstagramUrl, buildTikTokUrl, formatSocialHandle, formatExperience, formatPrice, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import type { Teacher, DanceClass } from '@/lib/types';
 import LinkifiedText from '@/components/LinkifiedText';
 
@@ -207,7 +207,7 @@ function ProfesorEditorial({
                     onClick={() => socialClick('instagram')}
                     className="flex items-center gap-2 bg-white/10 border border-white/30 text-white font-bold text-[14.5px] px-4.5 py-3 rounded-full hover:bg-white/15 transition-colors active:scale-[0.97]"
                   >
-                    <InstagramIcon className="w-4 h-4" /> {teacher.instagram}
+                    <InstagramIcon className="w-4 h-4" /> {formatSocialHandle(teacher.instagram, 'instagram')}
                   </a>
                 )}
                 {teacher.tiktok && (
@@ -218,7 +218,7 @@ function ProfesorEditorial({
                     onClick={() => socialClick('tiktok')}
                     className="flex items-center gap-1.5 text-white font-bold text-[14.5px] hover:text-white/80 transition-colors"
                   >
-                    <TikTokIcon className="w-3.5 h-3.5" /> {teacher.tiktok}
+                    <TikTokIcon className="w-3.5 h-3.5" /> {formatSocialHandle(teacher.tiktok, 'tiktok')}
                   </a>
                 )}
                 {teacher.website && (

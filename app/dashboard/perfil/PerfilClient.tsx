@@ -12,7 +12,7 @@ import PhoneCountrySelect from '@/components/PhoneCountrySelect';
 import { parsePhonePrefix, getPhonePlaceholder, getPhoneExample } from '@/lib/countries';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
-import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
+import { DEFAULT_ACADEMIA_COVER, extractSocialHandle } from '@/lib/utils';
 import ErrorBanner from '@/components/ErrorBanner';
 
 // Extracts the storage object path from a public Supabase Storage URL
@@ -260,7 +260,9 @@ export default function PerfilClient({
     setError('');
     setSaved(false);
     const whatsappFull = waNumber ? `${waCode}${waNumber}` : '';
-    if (isTeacher && !whatsappFull && !instagram) {
+    const cleanIg = extractSocialHandle(instagram, 'instagram');
+    const cleanTt = extractSocialHandle(tiktok, 'tiktok');
+    if (isTeacher && !whatsappFull && !cleanIg) {
       setError('Ingresa al menos tu WhatsApp o Instagram para que los alumnos puedan contactarte.');
       return;
     }
@@ -275,8 +277,8 @@ export default function PerfilClient({
           team_size: isAcademia ? (teamSize || '') : undefined,
           branch_count: isAcademia ? (branchCount || '') : undefined,
           whatsapp: waNumber ? `${waCode}${waNumber}` : '',
-          instagram,
-          tiktok,
+          instagram: cleanIg,
+          tiktok: cleanTt,
           youtube,
           website,
           style_names: styles,
@@ -610,7 +612,11 @@ export default function PerfilClient({
                 type="text"
                 value={instagram}
                 onChange={e => setInstagram(e.target.value)}
-                placeholder="Tu instagram"
+                onBlur={e => {
+                  const cleaned = extractSocialHandle(e.target.value, 'instagram');
+                  if (cleaned) setInstagram(cleaned);
+                }}
+                placeholder="Tu instagram o link de perfil"
                 className={`input ${
                   highlightField === 'instagram' ? '!border-amber ring-2 ring-amber/40' : ''
                 }`}
@@ -618,15 +624,23 @@ export default function PerfilClient({
             </div>
 
             {[
-              { label: 'TikTok', value: tiktok, set: setTiktok },
+              { label: 'TikTok', value: tiktok, set: setTiktok, platform: 'tiktok' as const },
               { label: 'YouTube', value: youtube, set: setYoutube },
               { label: 'Sitio web', value: website, set: setWebsite },
             ].map(f => (
               <div key={f.label}>
                 <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{f.label}</label>
-                <input type="text" value={f.value} onChange={e => f.set(e.target.value)}
+                <input
+                  type="text"
+                  value={f.value}
+                  onChange={e => f.set(e.target.value)}
+                  onBlur={f.platform ? e => {
+                    const cleaned = extractSocialHandle(e.target.value, f.platform);
+                    if (cleaned) f.set(cleaned);
+                  } : undefined}
                   placeholder={`Tu ${f.label.toLowerCase()}`}
-                  className="input" />
+                  className="input"
+                />
               </div>
             ))}
           </div>
