@@ -608,7 +608,9 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
             <img
               src="/Background.webp"
               alt="Bailarina en movimiento"
-              decoding="async"
+              width={1440}
+              height={700}
+              decoding="sync"
               className="w-full h-full object-cover"
               style={{ objectPosition: '50% 0%' }}
             />
@@ -1021,13 +1023,16 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
       <div className="md:hidden bg-white">
         <Header transparent homeNav />
 
-        <div className="relative overflow-hidden pb-7">
+        <div className="relative overflow-hidden pb-7 min-h-[380px]">
           <picture className="absolute inset-0 w-full h-full">
             <source media="(min-width: 768px)" srcSet="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
             <source media="(max-width: 767px)" srcSet="/Background-Mobile.webp" />
             <img
               src="/Background-Mobile.webp"
               alt="Bailarina en movimiento"
+              width={360}
+              height={540}
+              decoding="sync"
               className="absolute inset-0 w-full h-full object-cover"
               style={{ objectPosition: '55% 25%' }}
             />
