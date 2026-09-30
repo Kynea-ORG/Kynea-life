@@ -274,7 +274,7 @@ export default function Header({
             />
           )}
           {process.env.NEXT_PUBLIC_APP_ENV === 'development' && (
-            <span className="text-[10px] font-bold uppercase tracking-wide bg-amber text-amber-text rounded px-1.5 py-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-900 text-amber-100 rounded px-1.5 py-0.5">
               dev
             </span>
           )}
