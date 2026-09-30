@@ -593,8 +593,16 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   const shouldRenderStyleSearch = useDelayedUnmount(mobileSearch === 'style', 200);
   const shouldRenderCitySearch = useDelayedUnmount(mobileSearch === 'city', 200);
 
-  // Pausar animaciones del placeholder si el usuario está enfocado, hay texto o el overlay mobile está abierto
-  const isPlaceholderPaused = isSearchFocused || query.trim().length > 0 || mobileSearch !== null;
+  // Pausar animaciones del placeholder durante los primeros 3.5s de carga inicial para
+  // evitar que el timer de tipeo (cada 45ms) re-renderice todo el árbol del Home
+  // en el hilo principal durante la ventana crítica de métricas (TBT).
+  const [isRotatingReady, setIsRotatingReady] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsRotatingReady(true), 3500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isPlaceholderPaused = !isRotatingReady || isSearchFocused || query.trim().length > 0 || mobileSearch !== null;
   const rotatingPlaceholder = useRotatingPlaceholder(
     isAiMode ? AI_PLACEHOLDER_EXAMPLES : CLASSIC_PLACEHOLDER_EXAMPLES,
     isPlaceholderPaused
@@ -1026,7 +1034,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                   : 'bg-black/30 text-white/70 border-white/15 hover:bg-black/40 hover:text-white'
               }`}
               title={isAiMode ? 'Click para cambiar a búsqueda clásica' : 'Click para activar búsqueda inteligente con IA'}
-              aria-label={isAiMode ? 'Modo IA activado' : 'Modo IA desactivado'}
+              aria-label={isAiMode ? 'Búsqueda con IA (Modo IA activado)' : 'Búsqueda Clásica (Modo IA desactivado)'}
               aria-pressed={isAiMode}
             >
               <Sparkles className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${isAiMode ? 'text-primary-light' : 'text-white/40'}`} />
@@ -1095,7 +1103,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                   onBlur={() => setIsSearchFocused(false)}
                   onKeyDown={handleQueryKeyDown}
                   role={isAiMode ? undefined : 'combobox'}
-                  aria-expanded={!isAiMode && showSuggestions && (hasSuggestions || isSearching || query.trim().length >= 2)}
+                  aria-expanded={!isAiMode ? (showSuggestions && (hasSuggestions || isSearching || query.trim().length >= 2)) : undefined}
                   aria-autocomplete={isAiMode ? undefined : 'list'}
                   aria-controls={isAiMode ? undefined : 'query-autocomplete-list'}
                   aria-activedescendant={!isAiMode && activeOptionIndex >= 0 ? `query-option-${activeOptionIndex}` : undefined}
@@ -1439,7 +1447,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                     ? 'bg-primary/10 text-primary border-primary/25'
                     : 'bg-neutral-100 text-neutral-500 border-neutral-200'
                 }`}
-                aria-label={isAiMode ? 'Modo IA activado' : 'Modo IA desactivado'}
+                aria-label={isAiMode ? 'Modo IA (Modo IA activado)' : 'Clásico (Modo IA desactivado)'}
                 aria-pressed={isAiMode}
               >
                 <Sparkles className={`w-3 h-3 ${isAiMode ? 'text-primary' : 'text-neutral-400'}`} />
