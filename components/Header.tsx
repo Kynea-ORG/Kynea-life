@@ -303,7 +303,7 @@ export default function Header({
         {!showHomeAnon && (
           <nav className="hidden md:flex items-center gap-1 flex-1">
             {NAV_LINKS.map(item => (
-              <Link key={item.href} href={item.href} className={linkBase}>
+              <Link key={item.href} href={item.href} prefetch={false} className={linkBase}>
                 {item.label}
               </Link>
             ))}

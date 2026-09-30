@@ -87,7 +87,7 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges 
             image already carries an inline transform for the saved crop
             zoom — an inline style would silently override any transform
             utility class placed on the same element. */}
-        <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
+        <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'} bg-neutral-100`}>
           <Link href={classUrl(cls)} prefetch={false} aria-label={cls.title} className="absolute inset-0" onClick={handleSelectItem}>
             <SmartImage
               src={cls.coverImage || '/logo.png'}

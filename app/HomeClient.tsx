@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
 import SmartImage from '@/components/SmartImage';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
@@ -1406,7 +1405,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         </div>
 
         <div className="relative z-10 max-w-[880px] mx-auto px-6 text-center mt-[22px] pb-9">
-          <Link href="/clases" className="inline-flex items-center gap-2 font-bold text-[14.5px] text-white underline underline-offset-4 hover:text-white/80 transition-colors">
+          <Link href="/clases" prefetch={false} className="inline-flex items-center gap-2 font-bold text-[14.5px] text-white underline underline-offset-4 hover:text-white/80 transition-colors">
             Explorar todas las clases
             <ArrowRight className="w-[15px] h-[15px]" />
           </Link>
@@ -1529,7 +1528,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                 : (isLoading ? 'Buscando…' : 'Buscar')}
             </button>
 
-            <Link href="/clases" className="block text-center font-bold text-[13.5px] text-primary mt-1 py-1 active:opacity-60 transition-opacity">
+            <Link href="/clases" prefetch={false} className="block text-center font-bold text-[13.5px] text-primary mt-1 py-1 active:opacity-60 transition-opacity">
               Explorar clases
             </Link>
           </div>
@@ -1603,13 +1602,12 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                     className="absolute inset-0 -z-10"
                     style={{ background: CATEGORY_GRADIENTS[i % CATEGORY_GRADIENTS.length] }}
                   />
-                  <Image
+                  <SmartImage
                     src={STYLE_IMAGES[style.slug] ?? FALLBACK_CATEGORY_IMAGES[i % FALLBACK_CATEGORY_IMAGES.length]}
                     alt=""
                     aria-hidden="true"
                     fill
                     sizes="168px"
-                    loading="lazy"
                     className="object-cover"
                   />
                 </div>
@@ -1670,7 +1668,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
               <p className="text-neutral-600 text-[15px] mt-1">Seleccionadas para ti</p>
             </div>
             <div className="hidden sm:flex items-center gap-3">
-              <Link href="/clases" className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
+              <Link href="/clases" prefetch={false} className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
                 Ver todas <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -1716,7 +1714,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
           )}
 
           <div className="mt-6 text-center sm:hidden">
-            <Link href="/clases" className="btn-outline">Ver todas las clases</Link>
+            <Link href="/clases" prefetch={false} className="btn-outline">Ver todas las clases</Link>
           </div>
         </div>
       </section>
@@ -1968,7 +1966,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
           </div>
 
           <div className="flex justify-center mt-12">
-            <Link href="/clases" className="btn-dark">Empezar a buscar →</Link>
+            <Link href="/clases" prefetch={false} className="btn-dark">Empezar a buscar →</Link>
           </div>
         </div>
       </section>

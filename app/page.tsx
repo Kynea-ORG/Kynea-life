@@ -173,6 +173,7 @@ export default async function Page() {
     <>
       <link rel="preconnect" href="https://ik.imagekit.io" crossOrigin="anonymous" />
       <link rel="dns-prefetch" href="https://ik.imagekit.io" />
+
       <link
         rel="preload"
         as="image"
