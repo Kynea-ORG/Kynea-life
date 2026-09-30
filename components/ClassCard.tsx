@@ -7,9 +7,11 @@ import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
 import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
 import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
-import ContactModal from './ContactModal';
+
+const ContactModal = dynamic(() => import('./ContactModal'), { ssr: false });
 
 interface ClassCardProps {
   cls: DanceClass;

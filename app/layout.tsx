@@ -25,6 +25,7 @@ const figtree = Figtree({
   variable: "--font-figtree-loaded",
   weight: ["400", "500", "600"],
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {

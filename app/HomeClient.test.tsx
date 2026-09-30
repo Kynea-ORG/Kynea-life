@@ -84,7 +84,7 @@ describe('FeaturedCategoryRow', () => {
 
 describe('HomeClient AI Search Mode Toggle', () => {
   const defaultProps = {
-    initialClasses: [],
+    danceStylesWithClasses: [],
     recommendedClasses: [],
     featuredCategories: [],
     initialTeachers: [],

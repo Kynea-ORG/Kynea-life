@@ -35,25 +35,28 @@ export default async function Page() {
     userRole = profile?.role ?? null;
   }
 
+  const styleNamesWithClasses = new Set<string>();
   const classesByStyle = new Map<string, typeof classes>();
   for (const cls of classes) {
+    if (cls.style) styleNamesWithClasses.add(cls.style);
     for (const style of [cls.style, ...(cls.secondaryStyles ?? [])]) {
       if (!style) continue;
+      styleNamesWithClasses.add(style);
       const existing = classesByStyle.get(style);
       if (existing) existing.push(cls);
       else classesByStyle.set(style, [cls]);
     }
   }
 
+  const danceStylesWithClasses = danceStyles.filter(s => styleNamesWithClasses.has(s.name));
+
   const featuredCategories = [...classesByStyle.entries()]
     .filter(([, styleClasses]) => styleClasses.length > MIN_CLASSES_FOR_FEATURED_ROW)
     .sort(([, a], [, b]) => b.length - a.length)
     .map(([style, styleClasses]) => ({ style, classes: styleClasses }));
 
-  // "Clases de baile para ti" — un subset acotado y con tope por profesor,
-  // no las 70+ clases publicadas sin curar. `classes` (todas, sin recortar)
-  // sigue pasando intacto como initialClasses: HomeClient también lo usa
-  // para saber qué estilos tienen clases reales (sugerencias del buscador).
+  // "Clases de baile para ti" — un subset acotado y con tope por profesor.
+  // Ya no se serializan todas las clases al cliente, ahorrando ~81 KB de payload.
   const recommendedClasses = selectHomeRecommendedClasses(classes);
 
   const homeJsonLd = {
@@ -194,12 +197,12 @@ export default async function Page() {
       />
       <AuthErrorBanner />
       <HomeClient
-        initialClasses={classes}
         recommendedClasses={recommendedClasses}
         featuredCategories={featuredCategories}
         initialTeachers={teachers}
         initialAcademias={academias}
         danceStyles={danceStyles}
+        danceStylesWithClasses={danceStylesWithClasses}
         stats={stats}
         userRole={userRole}
       />
