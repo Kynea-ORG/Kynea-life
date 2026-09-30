@@ -9,7 +9,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ContactModal from '@/components/ContactModal';
 import MapPreview from '@/components/MapPreview';
-import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, getProfileUrl } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, formatSocialHandle, getProfileUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
@@ -132,8 +132,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const handleInstagramClick = () => {
     if (isLoggedIn && cls.teacher.instagram) {
       triggerContactIncrement(cls.id);
-      const handle = cls.teacher.instagram.startsWith('@') ? cls.teacher.instagram.slice(1) : cls.teacher.instagram;
-      window.open(`https://instagram.com/${handle}`, '_blank', 'noopener,noreferrer');
+      const url = buildInstagramUrl(cls.teacher.instagram);
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
       trackGenerateLead({
         channel: 'instagram', classId: cls.id, className: cls.title, classStyle: cls.style,
         teacherId: cls.teacher.id, teacherName: cls.teacher.name,
@@ -415,7 +417,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     onClick={() => socialClick('instagram')}
                     className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
                   >
-                    <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{cls.teacher.instagram}</span>
+                    <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.instagram, 'instagram')}</span>
                   </a>
                 )}
                 {cls.teacher.tiktok && (
@@ -426,7 +428,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     onClick={() => socialClick('tiktok')}
                     className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
                   >
-                    <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{cls.teacher.tiktok}</span>
+                    <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.tiktok, 'tiktok')}</span>
                   </a>
                 )}
                 {cls.teacher.website && (
@@ -639,7 +641,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     onClick={() => socialClick('instagram')}
                     className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
                   >
-                    <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{cls.teacher.instagram}</span>
+                    <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.instagram, 'instagram')}</span>
                   </a>
                 )}
                 {cls.teacher.tiktok && (
@@ -650,7 +652,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     onClick={() => socialClick('tiktok')}
                     className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
                   >
-                    <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{cls.teacher.tiktok}</span>
+                    <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.tiktok, 'tiktok')}</span>
                   </a>
                 )}
                 {cls.teacher.website && (
