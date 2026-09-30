@@ -252,7 +252,7 @@ export default function Header({
         {/* Logo — en homeNav el mobile siempre es la barra blanca (logo
             oscuro) y el desktop es el overlay transparente (logo blanco);
             fuera de homeNav, una sola imagen según `transparent`. */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
+        <Link href="/" prefetch={false} className="flex items-center gap-2 shrink-0">
           {homeNav ? (
             <picture>
               <source media="(max-width: 767px)" srcSet="/logo.png" />

@@ -180,6 +180,7 @@ export default async function Page() {
       <link
         rel="preload"
         as="image"
+        type="image/webp"
         href="/Background-Mobile.webp"
         media="(max-width: 767px)"
         fetchPriority="high"
@@ -187,6 +188,7 @@ export default async function Page() {
       <link
         rel="preload"
         as="image"
+        type="image/webp"
         href="/Background.webp"
         media="(min-width: 768px)"
         fetchPriority="high"
