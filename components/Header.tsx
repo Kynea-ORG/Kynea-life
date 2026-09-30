@@ -214,7 +214,7 @@ export default function Header({
       {isLoggedIn ? (
         <>
           {canPublish && (
-            <Link href="/dashboard/crear-clase" onClick={() => setMobileOpen(false)}
+            <Link href="/dashboard/crear-clase" prefetch={false} onClick={() => setMobileOpen(false)}
               className="font-sans flex items-center justify-center gap-2 mt-1 mb-2 text-[15px] font-bold px-5 py-3 bg-neutral-900 text-white rounded-btn hover:bg-neutral-800 active:scale-[0.97] transition-[background-color]">
               <PlusCircle className="w-4 h-4" /> Publicar clase
             </Link>
@@ -226,11 +226,11 @@ export default function Header({
         </>
       ) : (
         <>
-          <Link href="/login" onClick={() => { trackAuthCtaClick({ action: 'login', location: 'header_mobile' }); setMobileOpen(false); }}
+          <Link href="/login" prefetch={false} onClick={() => { trackAuthCtaClick({ action: 'login', location: 'header_mobile' }); setMobileOpen(false); }}
             className="font-sans flex items-center justify-center mt-1 mb-2 text-[15px] font-semibold px-5 py-3 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 active:scale-[0.97] transition-[background-color]">
             Iniciar sesión
           </Link>
-          <Link href="/registro" onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_registro' }); setMobileOpen(false); }}
+          <Link href="/registro" prefetch={false} onClick={() => { trackAuthCtaClick({ action: 'registro', location: 'header_mobile_registro' }); setMobileOpen(false); }}
             className="font-sans flex items-center justify-center mb-1 text-[15px] font-bold px-5 py-3 bg-primary text-white rounded-btn hover:bg-primary-dark active:scale-[0.97] transition-[background-color]">
             Regístrate gratis
           </Link>
@@ -423,26 +423,26 @@ export default function Header({
             </>
           ) : showHomeAnon ? (
             <>
-              <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_home_desktop' })}
+              <Link href="/login" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_home_desktop' })}
                 className="font-sans text-[14.5px] font-bold px-4.5 py-2 rounded-full border border-white/55 text-white hover:bg-white/10 transition-colors active:scale-[0.97]">
                 Iniciar sesión
               </Link>
-              <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_registro' })}
+              <Link href="/registro" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_registro' })}
                 className="font-sans text-[14.5px] font-black px-5 py-2 rounded-full bg-white text-neutral-900 hover:bg-neutral-100 transition-colors active:scale-[0.97]">
                 Regístrate gratis
               </Link>
             </>
           ) : (
             <>
-              <Link href="/academias/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_academia' })}
+              <Link href="/academias/unete" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_academia' })}
                 className="hidden lg:inline-flex items-center gap-1.5 font-sans text-[13px] font-bold px-3.5 py-2 rounded-full border border-pink-100 bg-pink-50 text-pink-600 hover:bg-pink-100 transition-colors active:scale-[0.97]">
                 <Building2 className="w-3.5 h-3.5" /> ¿Tienes una academia?
               </Link>
-              <Link href="/login" onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_desktop' })}
+              <Link href="/login" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_desktop' })}
                 className="font-sans text-[15px] font-semibold px-5 py-2 rounded-btn border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100 transition-[background-color] active:scale-[0.97]">
                 Iniciar sesión
               </Link>
-              <Link href="/unete/beneficios" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_profesor' })}
+              <Link href="/unete/beneficios" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_desktop_profesor' })}
                 className="font-sans text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800 transition-[background-color] active:scale-[0.97]">
                 Únete como profesor
               </Link>
@@ -470,7 +470,7 @@ export default function Header({
             </button>
           )}
           {showHomeAnon && (
-            <Link href="/registro" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_mobile_registro' })}
+            <Link href="/registro" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_mobile_registro' })}
               className="font-sans text-[13px] font-bold text-primary border border-neutral-200 rounded-full px-3.5 py-2">
               Regístrate
             </Link>
