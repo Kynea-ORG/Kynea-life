@@ -9,10 +9,12 @@ import {
   LayoutDashboard, PlusCircle, ChevronDown, Building2, GraduationCap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { trackAuthCtaClick } from '@/lib/analytics';
-import BecomeTeacherModal from '@/components/BecomeTeacherModal';
 import { useAuth, type UserRole as Role } from '@/components/AuthProvider';
+
+const BecomeTeacherModal = dynamic(() => import('@/components/BecomeTeacherModal'), { ssr: false });
 
 const ROLE_LABEL: Record<Role, string> = {
   alumno:   'Alumno',
