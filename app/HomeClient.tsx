@@ -998,15 +998,17 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       {/* ── HERO — desktop (A1) ── */}
       <div className="hidden md:block relative bg-[#1A1A19] min-h-[400px] z-20">
         <div className="absolute inset-0 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/Background.webp"
-            alt="Bailarina en movimiento"
-            fetchPriority="high"
-            decoding="async"
-            className="w-full h-full object-cover"
-            style={{ objectPosition: '50% 0%' }}
-          />
+          <picture className="w-full h-full">
+            <source media="(max-width: 767px)" srcSet="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+            <source media="(min-width: 768px)" srcSet="/Background.webp" />
+            <img
+              src="/Background.webp"
+              alt="Bailarina en movimiento"
+              decoding="async"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: '50% 0%' }}
+            />
+          </picture>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.55) 0%, rgba(13,13,13,.35) 38%, rgba(13,13,13,.72) 100%)' }} />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(138,17,188,.30) 0%, rgba(13,13,13,0) 55%)' }} />
         </div>
@@ -1416,15 +1418,16 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         <Header transparent homeNav />
 
         <div className="relative overflow-hidden pb-7">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/Background-Mobile.webp"
-            alt="Bailarina en movimiento"
-            fetchPriority="high"
-            decoding="async"
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ objectPosition: '55% 25%' }}
-          />
+          <picture className="absolute inset-0 w-full h-full">
+            <source media="(min-width: 768px)" srcSet="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+            <source media="(max-width: 767px)" srcSet="/Background-Mobile.webp" />
+            <img
+              src="/Background-Mobile.webp"
+              alt="Bailarina en movimiento"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ objectPosition: '55% 25%' }}
+            />
+          </picture>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.5) 0%, rgba(13,13,13,.15) 45%, rgba(13,13,13,0) 100%)' }} />
 
           <div className="relative z-10 px-6 pt-10">

@@ -93,7 +93,7 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges 
               src={cls.coverImage || '/logo.png'}
               alt={cls.title}
               fill
-              sizes="(max-width: 768px) 100vw, 400px"
+              sizes="(max-width: 640px) 288px, (max-width: 1024px) 320px, 400px"
               className="object-cover"
               style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }}
             />
