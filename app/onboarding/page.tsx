@@ -15,7 +15,7 @@ import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { trackSignUp, trackOnboardingStepComplete, trackOnboardingComplete } from '@/lib/analytics';
-import { safeRedirectPath, DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
+import { safeRedirectPath, DEFAULT_ACADEMIA_COVER, extractSocialHandle } from '@/lib/utils';
 import SmartImage from '@/components/SmartImage';
 import PlacesAddressField from '@/components/PlacesAddressField';
 import AlumnoWelcome from './AlumnoWelcome';
@@ -305,8 +305,8 @@ function OnboardingContent() {
           nationality:      form.nationality || undefined,
           ruc:              role === 'academia' && form.ruc ? form.ruc : undefined,
           whatsapp:         waNumber ? `${waCode}${waNumber}` : undefined,
-          instagram:        form.instagram || undefined,
-          tiktok:           form.tiktok || undefined,
+          instagram:        form.instagram ? extractSocialHandle(form.instagram, 'instagram') : undefined,
+          tiktok:           form.tiktok ? extractSocialHandle(form.tiktok, 'tiktok') : undefined,
           youtube:          form.youtube || undefined,
           website:          form.website || undefined,
           style_names:      form.styles.length ? form.styles : undefined,
@@ -551,8 +551,8 @@ function OnboardingContent() {
                   <p className="text-xs text-neutral-400 mt-1">Solo números locales, sin prefijo ni ceros iniciales. {getPhoneExample(waCode)}</p>
                 </div>
                 {[
-                  { key: 'instagram', label: 'Instagram', placeholder: '@tuperfil', required: true },
-                  { key: 'tiktok', label: 'TikTok', placeholder: '@tuperfil' },
+                  { key: 'instagram', label: 'Instagram', placeholder: '@tuperfil o enlace', required: true, platform: 'instagram' as const },
+                  { key: 'tiktok', label: 'TikTok', placeholder: '@tuperfil o enlace', platform: 'tiktok' as const },
                   { key: 'youtube', label: 'YouTube', placeholder: '@tucanal' },
                   { key: 'website', label: 'Sitio web', placeholder: 'https://tuweb.com' },
                 ].map(f => (
@@ -566,6 +566,10 @@ function OnboardingContent() {
                       placeholder={f.placeholder}
                       value={(form as Record<string, unknown>)[f.key] as string}
                       onChange={e => { set(f.key as keyof typeof form, e.target.value); setError(''); }}
+                      onBlur={f.platform ? e => {
+                        const cleaned = extractSocialHandle(e.target.value, f.platform);
+                        if (cleaned) set(f.key as keyof typeof form, cleaned);
+                      } : undefined}
                       className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900"
                     />
                   </div>

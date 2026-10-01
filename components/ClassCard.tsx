@@ -4,7 +4,7 @@ import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check, Sparkles } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
-import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildInstagramUrl } from '@/lib/utils';
 import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
 import dynamic from 'next/dynamic';
@@ -67,8 +67,8 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges 
       return;
     }
     if ((mode === 'instagram' || mode === 'both') && cls.teacher.instagram) {
-      const handle = cls.teacher.instagram.replace(/^@/, '');
-      window.open(`https://instagram.com/${handle}`, '_blank');
+      const url = buildInstagramUrl(cls.teacher.instagram);
+      if (url) window.open(url, '_blank');
       trackGenerateLead({
         channel: 'instagram', classId: cls.id, className: cls.title, classStyle: cls.style,
         teacherId: cls.teacher.id, teacherName: cls.teacher.name,

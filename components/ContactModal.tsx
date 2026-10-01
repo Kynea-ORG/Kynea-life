@@ -5,7 +5,7 @@ import SmartImage from '@/components/SmartImage';
 import { X, MessageCircle, Phone, Check, ShieldCheck } from 'lucide-react';
 import { InstagramIcon } from '@/components/icons/SocialIcons';
 import { DanceClass } from '@/lib/types';
-import { buildWhatsAppMessage } from '@/lib/utils';
+import { buildWhatsAppMessage, buildInstagramUrl, formatSocialHandle } from '@/lib/utils';
 import { classUrl } from '@/lib/classes/helpers';
 import { trackGenerateLead, trackAuthCtaClick } from '@/lib/analytics';
 
@@ -180,9 +180,8 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
   const whatsappUrl = hasWhatsapp
     ? buildWhatsAppMessage(cls.style, cls.startDate, cls.teacher.whatsapp)
     : '';
-  const instagramHandle = hasInstagram
-    ? (cls.teacher.instagram!.startsWith('@') ? cls.teacher.instagram!.slice(1) : cls.teacher.instagram!)
-    : '';
+  const instagramUrl = hasInstagram ? buildInstagramUrl(cls.teacher.instagram) : '';
+  const instagramHandle = hasInstagram ? formatSocialHandle(cls.teacher.instagram, 'instagram') : '';
 
   const hasContact = contactType === 'instagram' ? hasInstagram : hasWhatsapp;
 
@@ -193,6 +192,7 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
       contactType={contactType}
       hasContact={hasContact}
       whatsappUrl={whatsappUrl}
+      instagramUrl={instagramUrl}
       instagramHandle={instagramHandle}
     />
   );
@@ -201,13 +201,14 @@ export default function ContactModal({ cls, onClose, isLoggedIn = false, contact
 // Variantes "logueado" (sin contacto configurado / con contacto) — sin
 // cambios de diseño, fuera del alcance del rediseño del gate de registro.
 function ExistingGate({
-  cls, onClose, contactType, hasContact, whatsappUrl, instagramHandle,
+  cls, onClose, contactType, hasContact, whatsappUrl, instagramUrl, instagramHandle,
 }: {
   cls: DanceClass;
   onClose: () => void;
   contactType: 'whatsapp' | 'instagram';
   hasContact: boolean;
   whatsappUrl: string;
+  instagramUrl: string;
   instagramHandle: string;
 }) {
   const [closing, setClosing] = useState(false);
@@ -300,10 +301,10 @@ function ExistingGate({
                     <InstagramIcon className="w-4 h-4 text-instagram" />
                     <span className="text-[13px] font-semibold text-instagram">Instagram del profesor</span>
                   </div>
-                  <p className="text-[20px] font-bold text-neutral-900">{cls.teacher.instagram}</p>
+                  <p className="text-[20px] font-bold text-neutral-900">{instagramHandle}</p>
                 </div>
                 <a
-                  href={`https://instagram.com/${instagramHandle}`}
+                  href={instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={handleContactClick}

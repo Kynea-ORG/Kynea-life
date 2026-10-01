@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { safeRevalidateTag } from '@/lib/cache';
 import { createClient } from '@/lib/supabase/server';
+import { extractSocialHandle } from '@/lib/utils';
 
 export async function updateProfile(updates: {
   name?: string;
@@ -47,8 +48,14 @@ export async function updateProfile(updates: {
   if (updates.whatsapp         !== undefined) profileUpdate.whatsapp = updates.whatsapp;
   if (updates.show_whatsapp    !== undefined) profileUpdate.show_whatsapp = updates.show_whatsapp;
   if (updates.show_spots       !== undefined) profileUpdate.show_spots = updates.show_spots;
-  if (updates.instagram        !== undefined) profileUpdate.instagram = updates.instagram;
-  if (updates.tiktok           !== undefined) profileUpdate.tiktok = updates.tiktok;
+  if (updates.instagram        !== undefined) {
+    const cleaned = updates.instagram ? extractSocialHandle(updates.instagram, 'instagram') : '';
+    profileUpdate.instagram = cleaned || null;
+  }
+  if (updates.tiktok           !== undefined) {
+    const cleaned = updates.tiktok ? extractSocialHandle(updates.tiktok, 'tiktok') : '';
+    profileUpdate.tiktok = cleaned || null;
+  }
   if (updates.youtube          !== undefined) profileUpdate.youtube = updates.youtube;
   if (updates.website          !== undefined) profileUpdate.website = updates.website;
   if (updates.photo_url        !== undefined) profileUpdate.photo_url = updates.photo_url;
