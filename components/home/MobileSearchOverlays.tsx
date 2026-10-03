@@ -8,19 +8,19 @@ import { getTypeLabel } from '@/lib/utils';
 import type { DbDanceStyle } from '@/lib/types';
 import type { SearchClass, SearchProfile } from '@/app/HomeClient';
 import { getMainStyle } from '@/app/HomeClient';
+import {
+  AI_PLACEHOLDER_EXAMPLES, AI_QUICK_PROMPTS, AI_QUICK_PROMPTS_TITLE,
+  AI_SUBMIT_LABEL, AI_SUBMIT_LOADING_LABEL,
+} from '@/lib/search/aiSearchCopy';
 
-const AI_QUICK_PROMPTS = [
-  '🧘 Desestresarme después del trabajo',
-  '⚡ Clases energizantes',
-  '💃 Salsa para principiantes',
-  '👧 Clases para niños',
-];
 
 export interface MobileStyleSearchOverlayProps {
   isOpen: boolean;
   shouldRender: boolean;
   initialQuery: string;
   isAiMode: boolean;
+  /** Sugerencias salidas del catálogo real; si falta, se usan los textos base. */
+  quickPrompts?: string[];
   toggleAiMode: () => void;
   isLoading: boolean;
   danceStylesWithClasses: DbDanceStyle[];
@@ -38,6 +38,7 @@ export function MobileStyleSearchOverlay({
   initialQuery,
   isAiMode,
   toggleAiMode,
+  quickPrompts = AI_QUICK_PROMPTS,
   isLoading,
   danceStylesWithClasses,
   onClose,
@@ -133,7 +134,7 @@ export function MobileStyleSearchOverlay({
           <input
             autoFocus
             type="text"
-            placeholder={isInputFocused ? '' : (isAiMode ? '¿Qué buscas o cómo te sientes hoy?' : (rotatingPlaceholder || '¿Qué quieres bailar?'))}
+            placeholder={isInputFocused ? '' : (isAiMode ? AI_PLACEHOLDER_EXAMPLES[0] : (rotatingPlaceholder || '¿Qué quieres bailar?'))}
             value={localQuery}
             onChange={e => setLocalQuery(e.target.value)}
             onFocus={() => setIsInputFocused(true)}
@@ -181,13 +182,13 @@ export function MobileStyleSearchOverlay({
 
       <div className="flex-1 overflow-y-auto pb-8">
         {/* Sugerencias de búsqueda rápida cuando el input está vacío */}
-        {isAiMode && localQuery.trim().length === 0 && (
+        {isAiMode && quickPrompts.length > 0 && localQuery.trim().length === 0 && (
           <div className="px-5 pt-4 pb-2">
             <p className="pb-2 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">
-              Sugerencias de búsqueda con IA
+              {AI_QUICK_PROMPTS_TITLE}
             </p>
             <div className="flex flex-col gap-2">
-              {AI_QUICK_PROMPTS.map(prompt => (
+              {quickPrompts.map(prompt => (
                 <button
                   key={prompt}
                   type="button"
@@ -217,7 +218,7 @@ export function MobileStyleSearchOverlay({
               ) : (
                 <Sparkles className="w-4 h-4 shrink-0" />
               )}
-              <span>{isLoading ? 'Buscando con IA…' : 'Buscar con IA'}</span>
+              <span>{isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL}</span>
             </button>
           </div>
         )}

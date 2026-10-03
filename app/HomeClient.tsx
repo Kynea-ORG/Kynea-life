@@ -17,6 +17,11 @@ import { createClient } from '@/lib/supabase/client';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
 import { resolveSearch } from '@/lib/search/resolveSearch';
+import {
+  AI_SEARCH_LABEL, AI_PLACEHOLDER_EXAMPLES, AI_QUICK_PROMPTS, AI_QUICK_PROMPTS_TITLE,
+  AI_SUBMIT_LABEL, AI_SUBMIT_LOADING_LABEL,
+} from '@/lib/search/aiSearchCopy';
+import type { AiSuggestions } from '@/lib/search/catalogSignals';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { useRotatingPlaceholder } from '@/lib/hooks/useRotatingPlaceholder';
 import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES, CATEGORY_GRADIENTS } from '@/lib/catalog/styleImages';
@@ -49,14 +54,6 @@ const MOBILE_SEARCH_TRIGGER_CLASS = 'w-full flex items-center gap-3 border borde
 // buscar por estilo+zona, profesor o academia, no solo por clase. El primero
 // es el texto estático de siempre, para que el primer paint (antes de que
 // el hook empiece a rotar) sea idéntico al de antes.
-const AI_PLACEHOLDER_EXAMPLES = [
-  'Busca en lenguaje natural con IA…',
-  'Para desestresarme hoy después del trabajo…',
-  'Salsa para principiantes en Miraflores…',
-  'Clases los sábados por la mañana…',
-  'Urbano o heels para soltar el cuerpo…',
-  'Clases para niños los fines de semana…',
-];
 
 const CLASSIC_PLACEHOLDER_EXAMPLES = [
   'Busca clases, academias, profesores…',
@@ -66,12 +63,6 @@ const CLASSIC_PLACEHOLDER_EXAMPLES = [
   'Nombre de tu academia…',
 ];
 
-const AI_QUICK_PROMPTS = [
-  '🧘 Desestresarme después del trabajo',
-  '⚡ Clases energizantes',
-  '💃 Salsa para principiantes',
-  '👧 Clases para niños',
-];
 
 
 const AVATAR_PALETTE = [
@@ -111,6 +102,8 @@ interface Props {
   danceStylesWithClasses: DbDanceStyle[];
   stats:                  HomeStats;
   userRole:               'alumno' | 'profesor' | 'academia' | null;
+  /** Sugerencias del buscador con IA salidas del catálogo real; si falta, se usan los textos base. */
+  aiSuggestions?:         AiSuggestions;
 }
 
 // ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
@@ -179,7 +172,9 @@ const MobileCitySearchOverlay = dynamic(
 );
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole }: Props) {
+export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions }: Props) {
+  const aiPlaceholders  = aiSuggestions?.placeholders ?? AI_PLACEHOLDER_EXAMPLES;
+  const aiQuickPrompts  = aiSuggestions?.quickPrompts ?? AI_QUICK_PROMPTS;
   const router = useRouter();
   const [query, setQuery]         = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -220,7 +215,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
 
   const isPlaceholderPaused = !isRotatingReady || isSearchFocused || query.trim().length > 0 || mobileSearch !== null;
   const rotatingPlaceholder = useRotatingPlaceholder(
-    isAiMode ? AI_PLACEHOLDER_EXAMPLES : CLASSIC_PLACEHOLDER_EXAMPLES,
+    isAiMode ? aiPlaceholders : CLASSIC_PLACEHOLDER_EXAMPLES,
     isPlaceholderPaused
   );
 
@@ -692,7 +687,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
               )}
               <div className="text-left min-w-0 flex-1 min-h-[34px]">
                 <p className={`font-bold text-[12px] leading-none ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
-                  {isAiMode ? '¿Qué buscas o cómo te sientes?' : '¿Qué quieres bailar?'}
+                  {isAiMode ? AI_SEARCH_LABEL : '¿Qué quieres bailar?'}
                 </p>
                 <input
                   type="text"
@@ -980,18 +975,18 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
                 <Search className="w-4 h-4 shrink-0" />
               )}
               {isAiMode
-                ? (isLoading ? 'Buscando con IA…' : 'Buscar con IA')
+                ? (isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL)
                 : (isLoading ? 'Buscando…' : 'Buscar')}
             </button>
           </form>
 
           {/* Sugerencias rápidas (solo en modo IA) */}
-          {isAiMode && (
+          {isAiMode && aiQuickPrompts.length > 0 && (
             <div className="mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
               <span className="text-white/75 font-semibold flex items-center gap-1 text-[12.5px] shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-primary-light" /> Prueba:
+                <Sparkles className="w-3.5 h-3.5 text-primary-light" /> {AI_QUICK_PROMPTS_TITLE}:
               </span>
-              {AI_QUICK_PROMPTS.map((prompt) => (
+              {aiQuickPrompts.map((prompt) => (
                 <button
                   key={prompt}
                   type="button"
@@ -1092,7 +1087,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
               )}
               <div className="min-w-0 flex-1 min-h-[38px]">
                 <p className={`text-[11.5px] leading-[16px] font-bold ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
-                  {isAiMode ? '¿Qué buscas o cómo te sientes?' : '¿Qué quieres bailar?'}
+                  {isAiMode ? AI_SEARCH_LABEL : '¿Qué quieres bailar?'}
                 </p>
                 <p className="text-[15px] leading-[20px] mt-0.5 truncate">
                   {query
@@ -1134,7 +1129,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
                 <Search className="w-4 h-4 shrink-0" />
               )}
               {isAiMode
-                ? (isLoading ? 'Buscando con IA…' : 'Buscar con IA')
+                ? (isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL)
                 : (isLoading ? 'Buscando…' : 'Buscar')}
             </button>
 
@@ -1153,6 +1148,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
           shouldRender={shouldRenderStyleSearch}
           initialQuery={query}
           isAiMode={isAiMode}
+          quickPrompts={aiQuickPrompts}
           toggleAiMode={toggleAiMode}
           isLoading={isLoading}
           danceStylesWithClasses={danceStylesWithClasses}
