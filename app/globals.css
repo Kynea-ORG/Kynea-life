@@ -517,6 +517,43 @@
   animation: fadeInSmooth 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Header de la Home (desktop) al volverse barra fija con buscador: entra deslizándose
+   desde arriba, el buscador aparece un instante después, y al volver al hero sale
+   hacia arriba (COMPACT_EXIT_MS en Header.tsx debe coincidir con la salida). */
+@keyframes headerSlideIn {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes headerSlideOut {
+  from { transform: translateY(0);     opacity: 1; }
+  to   { transform: translateY(-100%); opacity: 0; }
+}
+@keyframes headerSearchIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+/* Solo desktop: el Header compacto no existe en mobile. Son clases CSS normales (no
+   utilidades de Tailwind), por eso no llevan prefijo md: en el JSX. */
+@media (min-width: 768px) {
+  .animate-header-slide-in {
+    animation: headerSlideIn 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-header-slide-out {
+    animation: headerSlideOut 240ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  .animate-header-search-in {
+    animation: headerSearchIn 300ms cubic-bezier(0.22, 1, 0.36, 1) 110ms both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-header-slide-in,
+  .animate-header-slide-out,
+  .animate-header-search-in {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
+
 /* Playful overshoot pop for save/like-style toggles — used sparingly, only on
    emotionally-charged one-tap actions (bookmark), not on utilitarian buttons. */
 @keyframes pop {

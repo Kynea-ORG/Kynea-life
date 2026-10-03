@@ -197,12 +197,20 @@ const SEARCH_RESPONSE_SCHEMA = {
   required: ['semanticQuery', 'aiSummary', 'matchBadges', 'isDirectProfileSearch'],
 };
 
-function buildSystemPrompt(knownStyles?: string[], knownDistricts?: string[]): string {
-  const stylesHint = knownStyles?.length
-    ? `\nEstilos disponibles en Kynea: ${knownStyles.join(', ')}.`
-    : '';
-  const districtsHint = knownDistricts?.length
-    ? `\nDistritos comunes en Lima / Perú: ${knownDistricts.join(', ')}.`
+export function buildSystemPrompt(
+  knownStyles?: string[],
+  knownDistricts?: string[],
+  knownLevels?: string[]
+): string {
+  const hints: string[] = [];
+  if (knownStyles?.length) hints.push(`Estilos con clases publicadas ahora en Kynea: ${knownStyles.join(', ')}.`);
+  if (knownDistricts?.length) hints.push(`Distritos con clases publicadas ahora: ${knownDistricts.join(', ')}.`);
+  if (knownLevels?.length) hints.push(`Niveles que existen: ${knownLevels.join(', ')}.`);
+  const catalogHint = hints.length
+    ? `\nCATÁLOGO REAL (lo único que podemos ofrecer hoy):\n${hints.join('\n')}\n` +
+      'En filters.style, filters.district y filters.level usa EXACTAMENTE uno de esos nombres (corrige tildes, diminutivos y apodos al nombre de la lista). ' +
+      'Si lo que pide el usuario NO está en la lista (un estilo, distrito o nivel que no ofrecemos), NO lo pongas en filters: ' +
+      'déjalo fuera y descríbelo en semanticQuery para que la búsqueda semántica encuentre lo más parecido.\n'
     : '';
 
   return `Eres el motor de búsqueda inteligente de Kynea, la plataforma líder de clases de baile en Perú.
@@ -223,7 +231,7 @@ Tu objetivo es interpretar consultas de usuarios en lenguaje natural y extraer u
 4. "matchBadges": Hasta 3 etiquetas cortas y verificables extraídas de la taxonomía estándar.
 5. "isDirectProfileSearch": true únicamente si la búsqueda es el nombre exacto de un profesor o academia reconocida.
 
-${stylesHint}${districtsHint}
+${catalogHint}
 
 CONTEXTO LABORAL Y HORARIOS EN PERÚ (LIMA):
 - Jornada laboral estándar: En Lima, el horario de oficina/trabajo ("chamba") es de Lunes a Viernes de 8:00 AM / 9:00 AM a 6:00 PM / 7:00 PM.
@@ -264,7 +272,7 @@ Responde estrictamente con el JSON solicitado.`;
  */
 export async function parseSearchQuery(
   query: string,
-  options?: { danceStyles?: string[]; districts?: string[] }
+  options?: { danceStyles?: string[]; districts?: string[]; levels?: string[] }
 ): Promise<AiSearchInterpretation | null> {
   const sanitized = sanitizeSearchQuery(query);
   const apiKey = getApiKey();
@@ -281,7 +289,7 @@ export async function parseSearchQuery(
     'gemini-2.5-flash',
   ];
 
-  const systemPrompt = buildSystemPrompt(options?.danceStyles, options?.districts);
+  const systemPrompt = buildSystemPrompt(options?.danceStyles, options?.districts, options?.levels);
 
   for (const model of modelsToTry) {
     try {

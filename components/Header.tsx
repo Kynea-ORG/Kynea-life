@@ -16,6 +16,9 @@ import { useAuth, type UserRole as Role } from '@/components/AuthProvider';
 
 const BecomeTeacherModal = dynamic(() => import('@/components/BecomeTeacherModal'), { ssr: false });
 
+// Debe coincidir con la duración de .animate-header-slide-out en globals.css.
+const COMPACT_EXIT_MS = 240;
+
 const ROLE_LABEL: Record<Role, string> = {
   alumno:   'Alumno',
   profesor: 'Profesor',
@@ -93,10 +96,16 @@ function Avatar({
 export default function Header({
   transparent = false,
   homeNav = false,
+  compact = false,
+  compactSearch,
   className = '',
 }: {
   transparent?: boolean;
   homeNav?: boolean;
+  /** Solo con homeNav (desktop): al hacer scroll pasado el buscador del hero, la barra pasa a
+   * blanca y muestra `compactSearch` en lugar de los links de negocio. */
+  compact?: boolean;
+  compactSearch?: React.ReactNode;
   className?: string;
 }) {
   const router = useRouter();
@@ -124,6 +133,25 @@ export default function Header({
   // simplificado) solo tiene sentido para un visitante anónimo — logueado
   // ya ve el flujo normal (Publicar clase / avatar) sin importar homeNav.
   const showHomeAnon = homeNav && !authLoading && !isLoggedIn;
+  const wantCompact = homeNav && compact && Boolean(compactSearch);
+  // Al volver al hero la barra no desaparece de golpe: se queda fija mientras
+  // se desliza hacia arriba (EXIT_MS) y recién ahí vuelve a absoluta.
+  const [leaving, setLeaving] = useState(false);
+  const [prevWantCompact, setPrevWantCompact] = useState(wantCompact);
+  if (wantCompact !== prevWantCompact) {
+    // Ajuste de estado durante el render (patrón de React para derivar de un cambio de prop).
+    setPrevWantCompact(wantCompact);
+    setLeaving(prevWantCompact && !wantCompact);
+  }
+  useEffect(() => {
+    if (!leaving) return;
+    const t = setTimeout(() => setLeaving(false), COMPACT_EXIT_MS);
+    return () => clearTimeout(t);
+  }, [leaving]);
+  const isCompact = wantCompact || leaving;
+  // Transparente sobre el hero; en modo compacto la barra es blanca, así que
+  // los colores "sobre fondo oscuro" pasan a los normales.
+  const overHero = transparent && !isCompact;
 
   async function logout() {
     await signOut();
@@ -133,7 +161,7 @@ export default function Header({
     router.refresh();
   }
 
-  const linkBase = transparent
+  const linkBase = overHero
     ? 'font-sans text-[15px] font-medium text-white/90 px-3.5 py-1.5 rounded-md hover:bg-white/10 active:opacity-70 transition-[background-color,color]'
     : 'font-sans nav-link';
 
@@ -242,7 +270,16 @@ export default function Header({
   return (
     <header className={
       homeNav
-        ? `bg-white border-b border-neutral-100 md:bg-transparent md:border-0 md:absolute md:top-0 md:left-0 md:right-0 md:z-50 ${className}`
+        ? `bg-white border-b border-neutral-100 md:top-0 md:left-0 md:right-0 md:z-50 md:transition-[background-color,box-shadow,border-color] md:duration-200 ${
+            // Arriba del todo es absoluto (no fijo): en la Home el banner amarillo
+            // vive en el flujo sobre el hero, y un header fijo en top-0 lo taparía.
+            // Solo en modo compacto pasa a fijo, cuando el banner ya salió de la vista.
+            isCompact
+              ? `md:fixed md:bg-white/95 md:backdrop-blur-md md:border-b md:border-neutral-200 md:shadow-sm ${
+                  leaving ? 'animate-header-slide-out' : 'animate-header-slide-in'
+                }`
+              : 'md:absolute md:bg-transparent md:border-0'
+          } ${className}`
         : transparent
         ? `absolute top-0 left-0 right-0 z-50 bg-transparent ${className}`
         : `bg-white border-b border-neutral-200 sticky top-0 z-50 ${className}`
@@ -253,7 +290,10 @@ export default function Header({
             oscuro) y el desktop es el overlay transparente (logo blanco);
             fuera de homeNav, una sola imagen según `transparent`. */}
         <Link href="/" prefetch={false} className="flex items-center gap-2 shrink-0">
-          {homeNav ? (
+          {homeNav && isCompact ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/logo.png" alt="Kynea" width={110} height={37} className="w-[110px] h-auto" />
+          ) : homeNav ? (
             <picture>
               <source media="(max-width: 767px)" srcSet="/logo.png" />
               <source media="(min-width: 768px)" srcSet="/logo-white.png" />
@@ -282,7 +322,11 @@ export default function Header({
           )}
         </Link>
 
-        {showHomeAnon && (
+        {isCompact && (
+          <div className="hidden md:flex flex-1 min-w-0 justify-center animate-header-search-in">{compactSearch}</div>
+        )}
+
+        {showHomeAnon && !isCompact && (
           <div className="hidden md:flex items-center gap-5 flex-1">
             <div className="w-px h-[22px] bg-white/25" />
             <Link href="/blog" className="font-sans text-[14px] font-medium text-white/85 hover:text-white transition-colors">
@@ -300,7 +344,7 @@ export default function Header({
         )}
 
         {/* Desktop nav */}
-        {!showHomeAnon && (
+        {!showHomeAnon && !isCompact && (
           <nav className="hidden md:flex items-center gap-1 flex-1">
             {NAV_LINKS.map(item => (
               <Link key={item.href} href={item.href} prefetch={false} className={linkBase}>
@@ -320,7 +364,7 @@ export default function Header({
                 <Link
                   href="/dashboard/crear-clase"
                   className={`font-sans text-[15px] font-bold px-5 py-2 rounded-btn border border-neutral-900 transition-[background-color] active:scale-[0.97] flex items-center gap-2 ${
-                    transparent
+                    overHero
                       ? 'bg-white text-neutral-900 hover:bg-neutral-100'
                       : 'bg-neutral-900 text-white hover:bg-neutral-800'
                   }`}
@@ -333,19 +377,19 @@ export default function Header({
                 <button
                   onClick={() => setUserMenuOpen(v => !v)}
                   className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl cursor-pointer transition-colors active:opacity-70 ${
-                    transparent ? 'hover:bg-white/10' : 'hover:bg-neutral-100'
+                    overHero ? 'hover:bg-white/10' : 'hover:bg-neutral-100'
                   }`}
                 >
                   <Avatar photoUrl={profile?.photo_url} photoPosition={profile?.photo_position} photoZoom={profile?.photo_zoom} name={profile?.name} sizeClass="w-8 h-8" />
                   <div className="text-left hidden lg:block">
-                    <p className={`font-sans text-[13px] font-bold leading-tight ${transparent ? 'text-white' : 'text-neutral-900'}`}>
+                    <p className={`font-sans text-[13px] font-bold leading-tight ${overHero ? 'text-white' : 'text-neutral-900'}`}>
                       {profile.name.split(' ')[0]}
                     </p>
-                    <p className={`font-sans text-[11px] leading-tight ${transparent ? 'text-white/70' : 'text-neutral-600'}`}>
+                    <p className={`font-sans text-[11px] leading-tight ${overHero ? 'text-white/70' : 'text-neutral-600'}`}>
                       {ROLE_LABEL[profile.role]}
                     </p>
                   </div>
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''} ${transparent ? 'text-white/70' : 'text-neutral-400'}`} />
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''} ${overHero ? 'text-white/70' : 'text-neutral-400'}`} />
                 </button>
 
                 {shouldRenderUserMenu && (
@@ -424,11 +468,15 @@ export default function Header({
           ) : showHomeAnon ? (
             <>
               <Link href="/login" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'login', location: 'header_home_desktop' })}
-                className="font-sans text-[14.5px] font-bold px-4.5 py-2 rounded-full border border-white/55 text-white hover:bg-white/10 transition-colors active:scale-[0.97]">
+                className={`font-sans text-[14.5px] font-bold px-4.5 py-2 rounded-full border transition-colors active:scale-[0.97] ${
+                  overHero ? 'border-white/55 text-white hover:bg-white/10' : 'border-neutral-300 text-neutral-900 hover:bg-neutral-100'
+                }`}>
                 Iniciar sesión
               </Link>
               <Link href="/registro" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'registro', location: 'header_home_desktop_registro' })}
-                className="font-sans text-[14.5px] font-black px-5 py-2 rounded-full bg-white text-neutral-900 hover:bg-neutral-100 transition-colors active:scale-[0.97]">
+                className={`font-sans text-[14.5px] font-black px-5 py-2 rounded-full transition-colors active:scale-[0.97] ${
+                  overHero ? 'bg-white text-neutral-900 hover:bg-neutral-100' : 'bg-primary text-white hover:bg-primary-dark'
+                }`}>
                 Regístrate gratis
               </Link>
             </>

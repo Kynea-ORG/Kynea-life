@@ -98,9 +98,9 @@ describe('HomeClient AI Search Mode Toggle', () => {
     const { default: HomeClient } = await import('./HomeClient');
     render(<HomeClient {...defaultProps} />);
 
-    // In AI mode, search buttons say "Buscar con IA"
-    const searchButtons = screen.getAllByRole('button', { name: /Buscar con IA/i });
-    expect(searchButtons.length).toBeGreaterThan(0);
+    // In AI mode, the search field asks the conversational question
+    expect(screen.getAllByText('¿Qué tienes ganas de bailar?').length).toBeGreaterThan(0);
+    expect(screen.queryByText('¿Qué quieres bailar?')).not.toBeInTheDocument();
 
     // In AI mode, city search input is not rendered
     expect(screen.queryByPlaceholderText('¿Dónde bailas?')).not.toBeInTheDocument();
@@ -113,8 +113,9 @@ describe('HomeClient AI Search Mode Toggle', () => {
     const { fireEvent } = await import('@testing-library/react');
     fireEvent.click(toggleButtons[0]);
 
-    // Now it should show "Buscar" instead of "Buscar con IA"
-    expect(screen.queryAllByRole('button', { name: /^Buscar$/i }).length).toBeGreaterThan(0);
+    // Now the classic question replaces the conversational one
+    expect(screen.getAllByText('¿Qué quieres bailar?').length).toBeGreaterThan(0);
+    expect(screen.queryByText('¿Qué tienes ganas de bailar?')).not.toBeInTheDocument();
 
     // In classic mode, city input is rendered
     expect(screen.getByPlaceholderText('¿Dónde bailas?')).toBeInTheDocument();

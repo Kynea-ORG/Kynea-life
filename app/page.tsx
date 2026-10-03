@@ -3,6 +3,7 @@ import { selectHomeRecommendedClasses } from '@/lib/classes/homeRecommendations'
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import { fetchDanceStyles } from '@/lib/catalog/queries';
 import { fetchHomeStats } from '@/lib/stats/queries';
+import { buildAiSuggestions, computeCatalogSignals } from '@/lib/search/catalogSignals';
 import { createClient } from '@/lib/supabase/server';
 import { SITE_URL } from '@/lib/constants';
 import { safeJsonLd } from '@/lib/utils';
@@ -58,6 +59,9 @@ export default async function Page() {
   // "Clases de baile para ti" — un subset acotado y con tope por profesor.
   // Ya no se serializan todas las clases al cliente, ahorrando ~81 KB de payload.
   const recommendedClasses = selectHomeRecommendedClasses(classes);
+
+  // Sugerencias del buscador con IA: solo lo que el catálogo real respalda.
+  const aiSuggestions = buildAiSuggestions(computeCatalogSignals(classes));
 
   const homeJsonLd = {
     '@context': 'https://schema.org',
@@ -207,6 +211,7 @@ export default async function Page() {
         danceStylesWithClasses={danceStylesWithClasses}
         stats={stats}
         userRole={userRole}
+        aiSuggestions={aiSuggestions}
       />
     </>
   );

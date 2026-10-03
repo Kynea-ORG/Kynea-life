@@ -4,7 +4,8 @@ import { fetchPublishedClasses, fetchClassesByIds } from '@/lib/classes/queries'
 import { fetchDanceStyles } from '@/lib/catalog/queries';
 import { generateEmbedding, parseSearchQuery, sanitizeSearchQuery } from './gemini';
 import { getValidClassBadges } from './badges';
-import type { AiSearchResult, AiSearchInterpretation } from './types';
+import { computeCatalogSignals } from '@/lib/search/catalogSignals';
+import type { AiSearchResult, AiSearchInterpretation, AiSearchFilters } from './types';
 
 const COMMON_DISTRICTS = [
   'Miraflores', 'San Isidro', 'Santiago de Surco', 'Surco', 'Barranco',
@@ -19,7 +20,15 @@ const COMMON_DISTRICTS = [
  */
 export async function searchClassesWithAi(
   query: string,
-  options?: { city?: string }
+  options?: {
+    city?: string;
+    /**
+     * Filtros ya definidos por el usuario (chips editados en /resultados).
+     * Reemplaza la interpretación de Gemini y desactiva las heurísticas sobre
+     * el texto original: lo que se ve en los chips es exactamente lo que se aplica.
+     */
+    refinement?: { filters: AiSearchFilters; tags: string[] };
+  }
 ): Promise<AiSearchResult> {
   const trimmed = sanitizeSearchQuery(query);
   if (!trimmed) {
@@ -27,24 +36,54 @@ export async function searchClassesWithAi(
     return { classes, aiSummary: null, matchBadges: [], interpretation: null };
   }
 
-  // 1. Obtener estilos del catálogo para alimentar el prompt con contexto
-  let danceStyles: string[] = [];
-  try {
-    const styles = await fetchDanceStyles();
-    danceStyles = styles.map(s => s.name);
-  } catch {
-    // Silencioso: si falla el catálogo, el parser igual puede funcionar
-  }
+  // Texto sobre el que se detectan heurísticas (niños, noche, mañana). En un
+  // refinamiento se ignora: si el usuario quitó "Niños", el texto original
+  // "salsa para niños" no debe volver a filtrar por niños.
+  const heuristicText = options?.refinement ? '' : trimmed.toLowerCase();
 
-  // 2. Interpretar la consulta en lenguaje natural con Gemini
   let interpretation: AiSearchInterpretation | null = null;
-  try {
-    interpretation = await parseSearchQuery(trimmed, {
-      danceStyles,
-      districts: COMMON_DISTRICTS,
-    });
-  } catch (err) {
-    console.warn('[searchClassesWithAi] Error parsing with Gemini:', err);
+  if (options?.refinement) {
+    interpretation = {
+      filters: options.refinement.filters,
+      semanticQuery: trimmed,
+      aiSummary: '',
+      matchBadges: options.refinement.tags,
+      isDirectProfileSearch: false,
+      profileTarget: null,
+    };
+  } else {
+    // 1. Contexto real para el prompt: solo lo que hoy tiene clases publicadas
+    //    (estilos, distritos, niveles). Si no se puede leer, se cae al catálogo
+    //    de estilos y a la lista de distritos de respaldo.
+    let danceStyles: string[] = [];
+    let districts: string[] = COMMON_DISTRICTS;
+    let levels: string[] = [];
+    try {
+      const signals = computeCatalogSignals(await fetchPublishedClasses());
+      danceStyles = signals.styles.map(s => s.name);
+      if (signals.districts.length > 0) districts = signals.districts.map(d => d.name);
+      levels = signals.levels;
+    } catch {
+      // Silencioso: la IA igual puede interpretar sin el contexto del catálogo
+    }
+    if (danceStyles.length === 0) {
+      try {
+        danceStyles = (await fetchDanceStyles()).map(s => s.name);
+      } catch {
+        // Silencioso
+      }
+    }
+
+    // 2. Interpretar la consulta en lenguaje natural con Gemini
+    try {
+      interpretation = await parseSearchQuery(trimmed, {
+        danceStyles,
+        districts,
+        levels,
+      });
+    } catch (err) {
+      console.warn('[searchClassesWithAi] Error parsing with Gemini:', err);
+    }
   }
 
   const supabase = getPublicClient();
@@ -74,14 +113,14 @@ export async function searchClassesWithAi(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let classMatches: any[] | null =
         !rpcError && Array.isArray(rpcMatches) && rpcMatches.length > 0 ? rpcMatches : null;
-      let finalSummary = interpretation.aiSummary;
+      let finalSummary: string | null = interpretation.aiSummary || null;
 
       // Detectar si la consulta pide explícitamente público infantil (Niños / Chibolos / Kids)
       const isKidsSearch = Boolean(
         filters.ageGroup?.toLowerCase().includes('niño') ||
-        trimmed.toLowerCase().includes('chibolo') ||
-        trimmed.toLowerCase().includes('niño') ||
-        trimmed.toLowerCase().includes('kid') ||
+        heuristicText.includes('chibolo') ||
+        heuristicText.includes('niño') ||
+        heuristicText.includes('kid') ||
         interpretation.matchBadges?.some(b => b.toLowerCase().includes('niño') || b.toLowerCase().includes('kid'))
       );
       const ageFilter = isKidsSearch ? 'Niños' : null;
@@ -146,13 +185,13 @@ export async function searchClassesWithAi(
         const isEveningSearch = Boolean(
           filters.timeOfDay === 'evening' ||
           filters.timeOfDay === 'night' ||
-          trimmed.toLowerCase().includes('despues del trabajo') ||
-          trimmed.toLowerCase().includes('post-trabajo') ||
-          trimmed.toLowerCase().includes('post trabajo') ||
-          trimmed.toLowerCase().includes('despues de la chamba') ||
-          trimmed.toLowerCase().includes('nocturno') ||
-          trimmed.toLowerCase().includes('noche') ||
-          trimmed.toLowerCase().includes('after office') ||
+          heuristicText.includes('despues del trabajo') ||
+          heuristicText.includes('post-trabajo') ||
+          heuristicText.includes('post trabajo') ||
+          heuristicText.includes('despues de la chamba') ||
+          heuristicText.includes('nocturno') ||
+          heuristicText.includes('noche') ||
+          heuristicText.includes('after office') ||
           interpretation.matchBadges?.some(b => {
             const norm = b.toLowerCase();
             return norm.includes('post-trabajo') || norm.includes('nocturno') || norm.includes('noche');
@@ -171,11 +210,11 @@ export async function searchClassesWithAi(
         // B2. Horario mañanero / pre-trabajo (antes de entrar a la oficina)
         const isMorningSearch = Boolean(
           filters.timeOfDay === 'morning' ||
-          trimmed.toLowerCase().includes('manana') ||
-          trimmed.toLowerCase().includes('temprano') ||
-          trimmed.toLowerCase().includes('antes del trabajo') ||
-          trimmed.toLowerCase().includes('antes de la chamba') ||
-          trimmed.toLowerCase().includes('pre-trabajo') ||
+          heuristicText.includes('manana') ||
+          heuristicText.includes('temprano') ||
+          heuristicText.includes('antes del trabajo') ||
+          heuristicText.includes('antes de la chamba') ||
+          heuristicText.includes('pre-trabajo') ||
           interpretation.matchBadges?.some(b => b.toLowerCase().includes('manana') || b.toLowerCase().includes('temprano'))
         );
 

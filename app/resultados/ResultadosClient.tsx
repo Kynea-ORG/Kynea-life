@@ -7,18 +7,26 @@ import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import SmartImage from '@/components/SmartImage';
 import TrackedProfileLink from '@/components/TrackedProfileLink';
-import { Sparkles, Search, ArrowRight } from 'lucide-react';
+import { Sparkles, Search, ArrowRight, X } from 'lucide-react';
 import { recordRecentSearch } from '@/lib/recentSearches';
 import { trackRecentSearchAdded } from '@/lib/analytics';
 import { getValidClassBadges } from '@/lib/ai/badges';
+import { buildFilterChips, buildRefinementHref, removeChip } from '@/lib/ai/filterParams';
+import ResultadosSearchBar from './ResultadosSearchBar';
 import type { DanceClass, Teacher } from '@/lib/types';
+import type { AiSearchFilters } from '@/lib/ai/types';
+import type { Relaxation } from '@/lib/ai/relaxations';
 
 
 type Tab = 'clases' | 'profesores' | 'academias';
 
-const POPULAR_SEARCH_SUGGESTIONS = ['Salsa', 'Bachata', 'Reggaetón', 'Urbano', 'Heels', 'Ballet'];
+function plural(n: number) {
+  return `${n} clase${n !== 1 ? 's' : ''}`;
+}
 
-function EmptySection({ query, tab }: { query: string; tab: Tab }) {
+function EmptySection({
+  query, tab, relaxations = [], suggestedStyles = [],
+}: { query: string; tab: Tab; relaxations?: Relaxation[]; suggestedStyles?: string[] }) {
   const tabTitles: Record<Tab, { title: string; subtitle: string }> = {
     clases: {
       title: `No encontramos clases para “${query}”`,
@@ -49,13 +57,36 @@ function EmptySection({ query, tab }: { query: string; tab: Tab }) {
         {subtitle}
       </p>
 
-      {tab === 'clases' && (
+      {tab === 'clases' && relaxations.length > 0 && (
         <div className="flex flex-col items-center gap-2.5 mb-7">
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-            Estilos populares
+            Con un pequeño cambio sí hay
+          </span>
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 w-full max-w-[520px]">
+            {relaxations.map(r => (
+              <Link
+                key={`${r.kind}-${r.label}`}
+                href={r.href}
+                scroll={false}
+                className="text-[14px] font-semibold bg-white hover:bg-primary-bg text-neutral-800 px-4 py-2 rounded-full border border-primary/25 hover:border-primary/50 shadow-2xs transition-colors active:scale-95"
+              >
+                {r.kind === 'city'
+                  ? <>Buscar fuera de <strong>{r.label}</strong></>
+                  : <>Sin <strong>{r.label}</strong></>}
+                <span className="text-neutral-500 font-medium"> · {plural(r.count)}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'clases' && suggestedStyles.length > 0 && (
+        <div className="flex flex-col items-center gap-2.5 mb-7">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+            Estilos con clases ahora
           </span>
           <div className="flex flex-wrap justify-center gap-2 max-w-[460px]">
-            {POPULAR_SEARCH_SUGGESTIONS.map(style => (
+            {suggestedStyles.map(style => (
               <Link
                 key={style}
                 href={`/resultados?q=${encodeURIComponent(style)}`}
@@ -127,6 +158,11 @@ function ProfileResultCard({ teacher, listName }: { teacher: Teacher; listName: 
 
 export default function ResultadosClient({
   query,
+  city,
+  interpretedFilters,
+  interpretedTags,
+  relaxations = [],
+  suggestedStyles = [],
   classes,
   profesores,
   academias,
@@ -134,6 +170,14 @@ export default function ResultadosClient({
   matchBadges,
 }: {
   query: string;
+  city?: string;
+  /** Filtros que la IA aplicó (o el usuario dejó tras editar los chips). null si la IA no interpretó. */
+  interpretedFilters: AiSearchFilters | null;
+  interpretedTags: string[];
+  /** Solo con 0 clases: qué filtro quitar para obtener resultados (con la cantidad real). */
+  relaxations?: Relaxation[];
+  /** Solo con 0 clases: estilos que hoy tienen clases publicadas. */
+  suggestedStyles?: string[];
   classes: DanceClass[];
   profesores: Teacher[];
   academias: Teacher[];
@@ -174,6 +218,12 @@ export default function ResultadosClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, totalResults]);
 
+  const chips = interpretedFilters ? buildFilterChips(interpretedFilters, interpretedTags) : [];
+  const chipHref = (chip: (typeof chips)[number]) => {
+    const next = removeChip(interpretedFilters!, interpretedTags, chip);
+    return buildRefinementHref(query, city, next.filters, next.tags);
+  };
+
   // Badges que realmente están presentes en al menos una clase mostrada
   const activeBadges = (matchBadges ?? []).filter(b =>
     classes.some(cls => getValidClassBadges(cls, [b]).length > 0)
@@ -190,31 +240,45 @@ export default function ResultadosClient({
           {totalResults} resultado{totalResults !== 1 ? 's' : ''} en total
         </p>
 
-        {aiSummary && (
-          <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary-bg via-pink-50/40 to-white border border-primary/20 flex items-start gap-3.5 shadow-xs">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5 flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-primary">Búsqueda Inteligente</span>
+        <ResultadosSearchBar query={query} city={city} />
+
+        {(aiSummary || chips.length > 0) && (
+          <section aria-label="Cómo interpretamos tu búsqueda" className="mb-8">
+            {aiSummary && (
+              <p className="flex items-start gap-2 text-[14px] sm:text-[15px] text-neutral-700 leading-snug mb-3">
+                <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+                <span>{aiSummary}</span>
+              </p>
+            )}
+            {chips.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mr-1">
+                  Entendimos
+                </span>
+                {chips.map(chip => (
+                  <Link
+                    key={`${chip.kind}-${chip.label}`}
+                    href={chipHref(chip)}
+                    scroll={false}
+                    aria-label={`Quitar filtro ${chip.label}`}
+                    className="group inline-flex items-center gap-1.5 text-[13px] font-semibold bg-primary-bg text-neutral-900 pl-3 pr-2 py-1 rounded-full border border-primary/20 transition-[background-color,border-color,transform] hover:bg-white hover:border-primary/40 active:scale-95"
+                  >
+                    {chip.label}
+                    <X className="w-3.5 h-3.5 text-neutral-400 group-hover:text-primary" aria-hidden="true" />
+                  </Link>
+                ))}
+                {chips.length > 1 && (
+                  <Link
+                    href={buildRefinementHref(query, city, {}, [])}
+                    scroll={false}
+                    className="text-[13px] font-semibold text-neutral-500 hover:text-neutral-800 underline-offset-2 hover:underline px-1"
+                  >
+                    Limpiar filtros
+                  </Link>
+                )}
               </div>
-              <p className="text-[15px] sm:text-[15.5px] font-semibold text-neutral-900 leading-snug">{aiSummary}</p>
-              {activeBadges.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {activeBadges.map(b => (
-                    <span
-                      key={b}
-                      className="inline-flex items-center gap-1.5 text-[12px] font-semibold bg-white/95 text-neutral-800 px-3 py-1 rounded-full border border-primary/20 shadow-2xs transition-transform hover:scale-[1.02]"
-                    >
-                      <Sparkles className="w-3 h-3 text-primary shrink-0" />
-                      {b}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+            )}
+          </section>
         )}
 
         <div className="flex gap-1 mb-8 bg-neutral-100 rounded-xl p-1 w-fit overflow-x-auto">
@@ -233,7 +297,7 @@ export default function ResultadosClient({
 
         {tab === 'clases' && (
           classes.length === 0 ? (
-            <EmptySection query={query} tab="clases" />
+            <EmptySection query={query} tab="clases" relaxations={relaxations} suggestedStyles={suggestedStyles} />
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {classes.map(cls => (

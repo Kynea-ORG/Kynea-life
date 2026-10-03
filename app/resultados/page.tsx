@@ -1,6 +1,10 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { searchClassesWithAi } from '@/lib/ai/searchService';
+import { parseFilterParams } from '@/lib/ai/filterParams';
+import { findRelaxations } from '@/lib/ai/relaxations';
+import { fetchPublishedClasses } from '@/lib/classes/queries';
+import { computeCatalogSignals } from '@/lib/search/catalogSignals';
 import { searchProfilesByName } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
 import ResultadosClient from './ResultadosClient';
@@ -36,10 +40,32 @@ export default async function ResultadosPage({
 
   if (!query) redirect('/clases');
 
+  // r=1 → el usuario editó los chips: se respetan sus filtros y no se vuelve a llamar a Gemini
+  const { filters, tags, refined } = parseFilterParams(params);
+
   const [aiSearchResult, profiles] = await Promise.all([
-    searchClassesWithAi(query, { city }),
+    searchClassesWithAi(query, { city, refinement: refined ? { filters, tags } : undefined }),
     searchProfilesByName(query),
   ]);
+
+  // Estado vacío guiado: qué pasaría al quitar cada filtro, y estilos reales
+  // con clases para explorar (nunca una lista fija).
+  const noClasses = aiSearchResult.classes.length === 0;
+  const interpreted = aiSearchResult.interpretation;
+  const [relaxations, suggestedStyles] = noClasses
+    ? await Promise.all([
+        findRelaxations({
+          query,
+          city,
+          filters: interpreted?.filters ?? {},
+          tags: interpreted?.matchBadges ?? [],
+          search: async o => (await searchClassesWithAi(query, { city: o.city, refinement: { filters: o.filters, tags: o.tags } })).classes.length,
+        }),
+        fetchPublishedClasses({ city })
+          .then(cs => computeCatalogSignals(cs).styles.slice(0, 6).map(s => s.name))
+          .catch(() => [] as string[]),
+      ])
+    : [[], [] as string[]];
 
   const profesores = profiles.filter(p => p.type === 'profesor');
   const academias = profiles.filter(p => p.type === 'academia');
@@ -47,6 +73,11 @@ export default async function ResultadosPage({
   return (
     <ResultadosClient
       query={query}
+      city={city}
+      relaxations={relaxations}
+      suggestedStyles={suggestedStyles}
+      interpretedFilters={aiSearchResult.interpretation?.filters ?? null}
+      interpretedTags={aiSearchResult.interpretation?.matchBadges ?? []}
       classes={aiSearchResult.classes}
       profesores={profesores}
       academias={academias}

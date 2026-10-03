@@ -201,5 +201,94 @@ describe('searchClassesWithAi', () => {
     // Badges en banner
     expect(result.matchBadges).toContain('Post-trabajo');
   });
-});
 
+  describe('refinamiento (filtros editados por el usuario)', () => {
+    function mockRpc(ids: string[]) {
+      const rpc = vi.fn().mockResolvedValue({ data: ids.map(id => ({ id })), error: null });
+      vi.spyOn(publicClient, 'getPublicClient').mockReturnValue(
+        { rpc } as unknown as ReturnType<typeof publicClient.getPublicClient>
+      );
+      vi.spyOn(geminiModule, 'generateEmbedding').mockResolvedValue(null);
+      return rpc;
+    }
+
+    it('no llama a Gemini y usa exactamente los filtros recibidos', async () => {
+      const parseSpy = vi.spyOn(geminiModule, 'parseSearchQuery');
+      const rpc = mockRpc(['cls-weekend']);
+      vi.spyOn(classesQueries, 'fetchClassesByIds').mockResolvedValue([mockWeekendClass]);
+
+      const result = await searchClassesWithAi('Salsa en Lince los sábados', {
+        refinement: { filters: { style: 'Salsa' }, tags: [] },
+      });
+
+      expect(parseSpy).not.toHaveBeenCalled();
+      expect(rpc).toHaveBeenCalledWith('match_classes_hybrid', expect.objectContaining({
+        filter_style: 'Salsa',
+        filter_district: null,
+        filter_days: null,
+      }));
+      expect(result.classes).toHaveLength(1);
+      expect(result.interpretation?.filters).toEqual({ style: 'Salsa' });
+    });
+
+    it('no reaplica heurísticas del texto original si el usuario quitó el filtro (niños)', async () => {
+      mockRpc(['cls-adult']);
+      vi.spyOn(classesQueries, 'fetchClassesByIds').mockResolvedValue([mockAdultClass]);
+
+      const result = await searchClassesWithAi('Salsa para niños', {
+        refinement: { filters: { style: 'Salsa' }, tags: [] },
+      });
+
+      expect(result.classes.map(c => c.id)).toEqual(['cls-adult']);
+    });
+
+    it('con tags aplica coincidencia mínima y devuelve los tags activos', async () => {
+      mockRpc(['cls-adult', 'cls-weekend']);
+      vi.spyOn(classesQueries, 'fetchClassesByIds').mockResolvedValue([mockAdultClass, mockWeekendClass]);
+
+      const result = await searchClassesWithAi('Salsa', {
+        refinement: { filters: { style: 'Salsa' }, tags: ['Fin de semana'] },
+      });
+
+      expect(result.classes.map(c => c.id)).toEqual(['cls-weekend']);
+      expect(result.matchBadges).toEqual(['Fin de semana']);
+    });
+  });
+
+  describe('contexto del catálogo para la IA', () => {
+    const classes = [
+      { ...mockAdultClass, id: 'a', style: 'Salsa', district: 'Lince', level: 'Principiante' },
+      { ...mockAdultClass, id: 'b', style: 'Heels', district: 'Miraflores', level: 'Avanzado' },
+    ] as DanceClass[];
+
+    beforeEach(() => {
+      vi.spyOn(publicClient, 'getPublicClient').mockReturnValue(
+        {} as unknown as ReturnType<typeof publicClient.getPublicClient>
+      );
+    });
+
+    it('le pasa a Gemini los estilos, distritos y niveles de las clases publicadas', async () => {
+      vi.spyOn(classesQueries, 'fetchPublishedClasses').mockResolvedValue(classes);
+      const parseSpy = vi.spyOn(geminiModule, 'parseSearchQuery').mockResolvedValue(null);
+
+      await searchClassesWithAi('heels en miraflores');
+
+      const opts = parseSpy.mock.calls[0][1];
+      expect(opts?.danceStyles).toEqual(['Heels', 'Salsa']);
+      expect(opts?.districts).toEqual(['Lince', 'Miraflores']);
+      expect(opts?.levels).toEqual(['Avanzado', 'Principiante']);
+    });
+
+    it('si no se pudo leer el catálogo, igual interpreta con la lista de distritos de respaldo', async () => {
+      vi.spyOn(classesQueries, 'fetchPublishedClasses')
+        .mockRejectedValueOnce(new Error('db down'))
+        .mockResolvedValue([]);
+      const parseSpy = vi.spyOn(geminiModule, 'parseSearchQuery').mockResolvedValue(null);
+
+      await searchClassesWithAi('salsa en lince');
+
+      expect(parseSpy).toHaveBeenCalledTimes(1);
+      expect(parseSpy.mock.calls[0][1]?.districts).toContain('Miraflores');
+    });
+  });
+});

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   generateEmbedding,
   parseSearchQuery,
+  buildSystemPrompt,
   sanitizeSearchQuery,
   clearAiCache,
   MAX_SEARCH_QUERY_LENGTH,
@@ -177,6 +178,29 @@ describe('Gemini AI Client', () => {
     it('retorna string vacío si la entrada es nula o vacía', () => {
       expect(sanitizeSearchQuery('')).toBe('');
       expect(sanitizeSearchQuery('   ')).toBe('');
+    });
+  });
+
+  describe('buildSystemPrompt (contexto real del catálogo)', () => {
+    it('lista solo los estilos, distritos y niveles recibidos', () => {
+      const p = buildSystemPrompt(['Salsa', 'Heels'], ['Miraflores', 'Lince'], ['Principiante', 'Avanzado']);
+      expect(p).toContain('Estilos con clases publicadas ahora en Kynea: Salsa, Heels.');
+      expect(p).toContain('Distritos con clases publicadas ahora: Miraflores, Lince.');
+      expect(p).toContain('Niveles que existen: Principiante, Avanzado.');
+      expect(p).not.toContain('Callao');
+    });
+
+    it('pide usar nombres exactos y no inventar filtros fuera del catálogo', () => {
+      const p = buildSystemPrompt(['Salsa'], ['Lince']);
+      expect(p).toMatch(/EXACTAMENTE/);
+      expect(p).toMatch(/no (lo )?pongas en filters|NO lo pongas en filters/i);
+    });
+
+    it('omite las secciones cuyo listado viene vacío', () => {
+      const p = buildSystemPrompt([], undefined, []);
+      expect(p).not.toContain('Estilos con clases publicadas');
+      expect(p).not.toContain('Distritos con clases publicadas');
+      expect(p).not.toContain('Niveles que existen');
     });
   });
 });
