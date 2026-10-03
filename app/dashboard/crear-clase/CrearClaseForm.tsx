@@ -19,6 +19,8 @@ import PlacesAddressField from '@/components/PlacesAddressField';
 import CurrencySelect from '@/components/CurrencySelect';
 import { getCurrencySymbol } from '@/lib/currencies';
 import type { DanceClass } from '@/lib/types';
+import WizardShell from './WizardShell';
+import { slugifyTitle, sanitizeSlugInput } from '@/lib/classes/slug';
 
 // Maps a validator field name to the wizard step where it's editable, so a
 // blocked publish attempt can jump the user straight to the offending step.
@@ -133,45 +135,6 @@ function buildInitialForm(editClass: DanceClass | null) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SegmentedProgress({ step }: { step: number }) {
-  return (
-    <div className="mb-8">
-      {/* Step labels with numbered circles */}
-      <div className="flex items-center gap-x-3 mb-3 flex-wrap gap-y-2">
-        {STEPS.map((s, i) => (
-          <div
-            key={i}
-            className={`flex items-center gap-2 text-[13px] font-semibold transition-colors ${
-              i === step ? 'text-neutral-900' : i < step ? 'text-neutral-400' : 'text-neutral-300'
-            }`}
-          >
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 transition-colors ${
-              i <= step ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-400'
-            }`}>
-              {i < step ? '✓' : i + 1}
-            </span>
-            <span className="hidden sm:block">{s.label}</span>
-            {i < STEPS.length - 1 && (
-              <span className="text-neutral-300 hidden sm:block select-none">›</span>
-            )}
-          </div>
-        ))}
-      </div>
-      {/* Segmented progress bar */}
-      <div className="flex gap-1.5">
-        {STEPS.map((_, i) => (
-          <div
-            key={i}
-            className={`flex-1 h-2 rounded-full transition-colors duration-300 ${
-              i <= step ? 'bg-primary' : 'bg-neutral-100'
-            }`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function Pill({ active, onClick, disabled, badge, children }: {
   active: boolean; onClick: () => void; disabled?: boolean; badge?: string; children: React.ReactNode;
 }) {
@@ -180,7 +143,7 @@ function Pill({ active, onClick, disabled, badge, children }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full px-4 py-2 border text-sm font-semibold transition-[background-color,color] inline-flex items-center gap-1.5 ${
+      className={`rounded-full px-3.5 py-1.5 border text-[13px] font-semibold transition-[background-color,color] inline-flex items-center gap-1.5 ${
         disabled
           ? 'border-neutral-100 text-neutral-300 cursor-not-allowed opacity-60'
           : active
@@ -199,11 +162,21 @@ function Pill({ active, onClick, disabled, badge, children }: {
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{children}</label>;
+  return <label className="block text-xs font-semibold text-neutral-700 mb-1">{children}</label>;
+}
+
+// Etiqueta con contador a la derecha: ahorra la línea de Hint "N/80 caracteres".
+function CountLabel({ children, count, max }: { children: React.ReactNode; count: number; max: number }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 mb-1">
+      <label className="block text-xs font-semibold text-neutral-700">{children}</label>
+      <span className="text-[11px] text-neutral-400 tabular-nums">{count}/{max}</span>
+    </div>
+  );
 }
 
 function Hint({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-neutral-400 mt-1">{children}</p>;
+  return <p className="text-[11px] leading-snug text-neutral-400 mt-1">{children}</p>;
 }
 
 function NativeSelect({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
@@ -255,6 +228,15 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const [form, setForm] = useState(() => buildInitialForm(editClass));
 
   const set = (k: keyof typeof form, v: unknown) => setForm(f => ({ ...f, [k]: v }));
+
+  // URL: al crear una clase se genera sola mientras se escribe el título, y el
+  // profesor puede retocarla (ej: mi-clase-02). Una vez que la edita a mano deja de
+  // seguir al título. Al editar una clase existente NO se sincroniza: cambiar la
+  // URL rompe los links ya compartidos.
+  const [slugTouched, setSlugTouched] = useState(false);
+  const autoSlug = slugifyTitle(form.title);
+  const onTitleChange = (title: string) =>
+    setForm(f => ({ ...f, title, ...(!isEdit && !slugTouched ? { slug: slugifyTitle(title) } : {}) }));
 
   const handleFileSelect = async (file: File) => {
     if (!file) return;
@@ -314,10 +296,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   const goNext = () => {
     trackCreateClassStepComplete({ stepNumber: step, stepName: STEPS[step].label, isEdit: Boolean(classId) });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     setStep(s => Math.min(s + 1, STEPS.length - 1));
   };
-  const goBack = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); setStep(s => Math.max(s - 1, 0)); };
+  const goBack = () => setStep(s => Math.max(s - 1, 0));
 
   const handlePublish = (status: string) => {
     setSubmitError('');
@@ -377,7 +358,6 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             setFieldErrors(errorsByField);
             setSubmitError('Completa los campos obligatorios antes de publicar.');
             const firstStep = FIELD_STEP[result.errors[0].field] ?? 0;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
             setStep(firstStep);
             return;
           }
@@ -412,7 +392,6 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             setFieldErrors(errorsByField);
             setSubmitError(payload.message);
             const firstStep = FIELD_STEP[payload.errors[0].field] ?? 0;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
             setStep(firstStep);
             return;
           }
@@ -460,12 +439,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   // ── Step 1: Información básica ────────────────────────────────────────────
   const renderStep0 = () => (
-    <div className="space-y-6">
-      <h2 className="text-lg font-bold text-neutral-900 mb-5">Información básica</h2>
-
+    <div className="space-y-4">
       <div>
         <FieldLabel>Tipo de publicación</FieldLabel>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {[
             { value: 'clase-suelta', label: 'Clase suelta', desc: 'Sesión única', emoji: '🎯' },
             { value: 'taller', label: 'Taller', desc: 'Taller puntual', emoji: '🛠️' },
@@ -475,54 +452,69 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { value: 'workshop', label: 'Workshop', desc: 'Sesión intensiva', emoji: '🚀' },
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('type', opt.value)}
-              className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] ${
+              title={opt.desc}
+              className={`text-left px-3 py-2 rounded-xl border-2 transition-[border-color,background-color] ${
                 form.type === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
               }`}>
-              <p className="text-xl mb-1">{opt.emoji}</p>
-              <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
-              <p className="text-xs text-neutral-600">{opt.desc}</p>
+              <p className="font-bold text-[13px] text-neutral-900 leading-tight">
+                <span className="mr-1">{opt.emoji}</span>{opt.label}
+              </p>
+              <p className="hidden sm:block text-[11px] text-neutral-600 leading-tight mt-0.5">{opt.desc}</p>
             </button>
           ))}
         </div>
       </div>
 
-      <div>
-        <FieldLabel>Título de la clase *</FieldLabel>
-        <input className="input" value={form.title} onChange={e => set('title', e.target.value)}
-          placeholder="Ej: Salsa Básico desde cero" maxLength={80} />
-        <Hint>{form.title.length}/80 caracteres</Hint>
-        {fieldErrors.title && <p className="text-xs text-red mt-1">{fieldErrors.title}</p>}
-      </div>
+      <div className="grid md:grid-cols-2 gap-x-4 gap-y-4">
+        <div>
+          <CountLabel count={form.title.length} max={80}>Título de la clase *</CountLabel>
+          <input className="input" value={form.title} onChange={e => onTitleChange(e.target.value)}
+            placeholder="Ej: Salsa Básico desde cero" maxLength={80} />
+          {fieldErrors.title && <p className="text-xs text-red mt-1">{fieldErrors.title}</p>}
+        </div>
 
-      <div>
-        <FieldLabel>URL de la clase</FieldLabel>
-        {isEdit && editClass && (
-          <div className="space-y-1 mb-1.5">
-            <p className="text-xs text-neutral-500 truncate">
-              URL actual: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold text-neutral-700">{editClass.slug}</span>
-            </p>
-            {form.slug.trim() && form.slug.trim() !== editClass.slug && (
-              <p className="text-xs text-primary truncate">
-                Nueva URL: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold">{form.slug.trim()}</span>
+        <div>
+          <FieldLabel>URL de la clase</FieldLabel>
+          {isEdit && editClass && (
+            <div className="space-y-0.5 mb-1">
+              <p className="text-[11px] text-neutral-500 truncate">
+                URL actual: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold text-neutral-700">{editClass.slug}</span>
               </p>
-            )}
-            {!form.slug.trim() && (
-              <p className="text-xs text-amber-600 truncate">
-                Se regenerará automáticamente a partir del título actual.
-              </p>
-            )}
-          </div>
-        )}
-        <input className="input" value={form.slug} onChange={e => set('slug', e.target.value)}
-          placeholder={isEdit ? 'Vacío = regenerar del título actual' : 'se genera del título si lo dejas vacío'} />
-        <Hint>
-          {isEdit
-            ? 'Cambiarla mueve la URL de la clase — cualquier link ya compartido con la anterior dejará de funcionar. Vacío = regenerar del título actual (útil para corregir tras duplicar).'
-            : 'Si lo dejas vacío, se genera automáticamente del título.'}
-        </Hint>
-      </div>
+              {form.slug.trim() && form.slug.trim() !== editClass.slug && (
+                <p className="text-[11px] text-primary truncate">
+                  Nueva URL: /{editClass.styleSlug}/{editClass.type}/<span className="font-semibold">{form.slug.trim()}</span>
+                </p>
+              )}
+              {!form.slug.trim() && (
+                <p className="text-[11px] text-amber-600 truncate">
+                  Se regenerará automáticamente a partir del título actual.
+                </p>
+              )}
+            </div>
+          )}
+          <input className="input" value={form.slug}
+            onChange={e => {
+              set('slug', sanitizeSlugInput(e.target.value));
+              setSlugTouched(true);
+            }}
+            placeholder={isEdit ? 'Vacío = regenerar del título actual' : 'Se crea sola al escribir el título'} />
+          <Hint>
+            {isEdit
+              ? 'Cambiarla mueve la URL: los links ya compartidos con la anterior dejarán de funcionar.'
+              : (
+                <>
+                  Se crea sola con el título; puedes ajustarla (ej: mi-clase-02).
+                  {slugTouched && form.slug !== autoSlug && (
+                    <button type="button" className="ml-1 font-semibold text-primary hover:underline"
+                      onClick={() => { set('slug', autoSlug); setSlugTouched(false); }}>
+                      Volver a la del título
+                    </button>
+                  )}
+                </>
+              )}
+          </Hint>
+        </div>
 
-      <div className="grid sm:grid-cols-2 gap-4">
         <div>
           <FieldLabel>Estilo de baile *</FieldLabel>
           <NativeSelect value={form.style} onChange={e => set('style', e.target.value)}>
@@ -542,85 +534,89 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       </div>
 
       <div>
-        <FieldLabel>Descripción corta <span className="font-normal text-neutral-400">(máx. 120 caracteres)</span></FieldLabel>
+        <CountLabel count={form.shortDesc.length} max={120}>
+          Descripción corta <span className="font-normal text-neutral-400">(se muestra en la tarjeta)</span>
+        </CountLabel>
         <input className="input" value={form.shortDesc} onChange={e => set('shortDesc', e.target.value)}
           placeholder="Aprende los fundamentos en un ambiente divertido…" maxLength={120} />
-        <Hint>{form.shortDesc.length}/120 caracteres — se muestra en la tarjeta</Hint>
       </div>
 
-      <div>
-        <FieldLabel>Descripción completa</FieldLabel>
-        <textarea rows={5} value={form.fullDesc} onChange={e => set('fullDesc', e.target.value)}
-          placeholder="Cuéntanos todo sobre la clase: qué aprenderán, para quién es, dinámica, requisitos…"
-          maxLength={MAX_FULL_DESC}
-          className="input resize-none" />
-        <Hint>{form.fullDesc.length}/{MAX_FULL_DESC} caracteres</Hint>
-        {fieldErrors.fullDesc && <p className="text-xs text-red mt-1">{fieldErrors.fullDesc}</p>}
-      </div>
+      {/* Descripción completa + portada lado a lado en pantallas grandes */}
+      <div className="grid lg:grid-cols-[1fr_20rem] gap-x-4 gap-y-4">
+        <div className="flex flex-col">
+          <CountLabel count={form.fullDesc.length} max={MAX_FULL_DESC}>Descripción completa</CountLabel>
+          <textarea rows={4} value={form.fullDesc} onChange={e => set('fullDesc', e.target.value)}
+            placeholder="Cuéntanos todo sobre la clase: qué aprenderán, para quién es, dinámica, requisitos…"
+            maxLength={MAX_FULL_DESC}
+            className="input resize-none flex-1 lg:min-h-[10.5rem]" />
+          {fieldErrors.fullDesc && <p className="text-xs text-red mt-1">{fieldErrors.fullDesc}</p>}
+        </div>
 
-      {/* Cover image upload */}
-      <div>
-        <FieldLabel>Imagen de portada *</FieldLabel>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }}
-        />
+        {/* Cover image upload */}
+        <div>
+          <FieldLabel>Imagen de portada *</FieldLabel>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }}
+          />
 
-        {coverImageUrl ? (
-          <div className="relative rounded-xl overflow-hidden border border-neutral-200">
-            <ImagePositionPicker
-              src={coverImageUrl}
-              value={coverImagePosition}
-              onChange={setCoverImagePosition}
-              zoom={coverImageZoom}
-              onZoomChange={setCoverImageZoom}
-              frameClassName="w-full h-48"
-              sizes="(max-width: 768px) 100vw, 600px"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setCoverImageUrl('');
-                setCoverImagePosition('50% 50%');
-                setCoverImageZoom(1);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-              }}
-              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors active:scale-90 z-10"
+          {coverImageUrl ? (
+            <div className="relative rounded-xl overflow-hidden border border-neutral-200">
+              <ImagePositionPicker
+                src={coverImageUrl}
+                value={coverImagePosition}
+                onChange={setCoverImagePosition}
+                zoom={coverImageZoom}
+                onZoomChange={setCoverImageZoom}
+                frameClassName="w-full h-40"
+                sizes="(max-width: 1024px) 100vw, 320px"
+              />
+              <button
+                type="button"
+                aria-label="Quitar imagen de portada"
+                onClick={() => {
+                  setCoverImageUrl('');
+                  setCoverImagePosition('50% 50%');
+                  setCoverImageZoom(1);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors active:scale-90 z-10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-neutral-200 rounded-xl p-3 lg:p-0 lg:h-[10.5rem] flex lg:flex-col items-center justify-center gap-3 lg:gap-1.5 text-left lg:text-center hover:border-neutral-400 transition-colors cursor-pointer group"
             >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-neutral-200 rounded-xl p-8 text-center hover:border-neutral-400 transition-colors cursor-pointer group"
-          >
-            {uploadingImage ? (
-              <Loader2 className="w-10 h-10 text-neutral-400 mx-auto mb-3 animate-spin" />
-            ) : (
-              <Upload className="w-10 h-10 text-neutral-300 group-hover:text-neutral-400 mx-auto mb-3 transition-colors" />
-            )}
-            <p className="text-sm font-semibold text-neutral-600">
-              {uploadingImage ? 'Subiendo imagen…' : 'Arrastra tu imagen o haz clic para seleccionar'}
-            </p>
-            <p className="text-xs text-neutral-400 mt-1">PNG, JPG, WebP · Máx. 5 MB</p>
-          </div>
-        )}
+              {uploadingImage ? (
+                <Loader2 className="w-7 h-7 text-neutral-400 shrink-0 animate-spin" />
+              ) : (
+                <Upload className="w-7 h-7 text-neutral-300 group-hover:text-neutral-400 shrink-0 transition-colors" />
+              )}
+              <div>
+                <p className="text-sm font-semibold text-neutral-600">
+                  {uploadingImage ? 'Subiendo imagen…' : 'Arrastra tu imagen o haz clic'}
+                </p>
+                <p className="text-[11px] text-neutral-400">PNG, JPG, WebP · Máx. 5 MB · 1200×630 px</p>
+              </div>
+            </div>
+          )}
 
-        {uploadError && <p className="text-xs text-red mt-1 animate-fade-in">{uploadError}</p>}
-        {fieldErrors.coverImage && <p className="text-xs text-red mt-1 animate-fade-in">{fieldErrors.coverImage}</p>}
-        <Hint>Recomendado: 1200×630 px, formato JPG o PNG</Hint>
+          {uploadError && <p className="text-xs text-red mt-1 animate-fade-in">{uploadError}</p>}
+          {fieldErrors.coverImage && <p className="text-xs text-red mt-1 animate-fade-in">{fieldErrors.coverImage}</p>}
+        </div>
       </div>
     </div>
   );
 
   // ── Step 2: Horario y ubicación ───────────────────────────────────────────
   const renderStep1 = () => (
-    <div className="space-y-6">
-      <h2 className="text-lg font-bold text-neutral-900 mb-5">Horario y ubicación</h2>
+    <div className="space-y-4">
 
       {fieldErrors.schedule && (
         <p className="text-xs text-red bg-red-bg border border-red rounded-lg px-3 py-2">{fieldErrors.schedule}</p>
@@ -649,8 +645,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       {/* CLASE ÚNICA */}
       {form.recurrence === 'unica' && (
         <>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="col-span-2 sm:col-span-1">
               <FieldLabel>Fecha de la clase</FieldLabel>
               <input type="date" className="input" value={form.startDate}
                 onChange={e => {
@@ -666,13 +662,6 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               {fieldErrors.startDate && <p className="text-xs text-red mt-1">{fieldErrors.startDate}</p>}
             </div>
             <div>
-              <FieldLabel>Fecha de fin</FieldLabel>
-              <input type="date" className="input" value={form.startDate} disabled
-                style={{ opacity: 0.5, cursor: 'not-allowed' }} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
               <FieldLabel>Hora inicio</FieldLabel>
               <input type="time" className="input" value={slots[0].startTime}
                 onChange={e => updateSlot(0, 'startTime', e.target.value)} />
@@ -684,11 +673,11 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             </div>
           </div>
           {form.startDate && (
-            <div className="text-xs text-neutral-600 bg-white px-3 py-2.5 rounded-lg border border-neutral-200">
+            <p className="text-xs text-neutral-600">
               1 sesión el <span className="font-semibold">
                 {new Date(form.startDate + 'T12:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })}
               </span> de {slots[0].startTime} a {slots[0].endTime}
-            </div>
+            </p>
           )}
         </>
       )}
@@ -710,15 +699,9 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               {fieldErrors.endDate && <p className="text-xs text-red mt-1">{fieldErrors.endDate}</p>}
             </div>
           </div>
-          {(form.startDate || form.endDate) && (
-            <div className="text-xs text-neutral-600 bg-white px-3 py-2.5 rounded-lg border border-neutral-200">
-              Desde <span className="font-semibold">{form.startDate || '—'}</span> hasta{' '}
-              <span className="font-semibold">{form.endDate || '—'}</span>
-            </div>
-          )}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {slots.map((slot, i) => (
-              <div key={i} className="border border-neutral-200 rounded-xl p-4 space-y-4 bg-neutral-50/50">
+              <div key={i} className="border border-neutral-200 rounded-xl p-3 space-y-3 bg-neutral-50/50">
                 {slots.length > 1 && (
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold text-neutral-700">Horario {i + 1}</p>
@@ -727,33 +710,35 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                     </button>
                   </div>
                 )}
-                <div>
-                  <p className="text-xs font-semibold text-neutral-600 mb-2">Días de la semana</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {DAYS.map(d => (
-                      <button key={d} type="button" onClick={() => toggleSlotDay(i, d)}
-                        className={`text-xs px-2.5 py-1.5 rounded-full border-2 font-semibold transition-colors ${
-                          slot.days.includes(d) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
-                        }`}>
-                        {d.slice(0, 3)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-[1fr_21rem] gap-x-4 gap-y-3 items-end">
                   <div>
-                    <FieldLabel>Hora inicio</FieldLabel>
-                    <input type="time" className="input" value={slot.startTime}
-                      onChange={e => updateSlot(i, 'startTime', e.target.value)} />
+                    <p className="text-xs font-semibold text-neutral-600 mb-1">Días de la semana</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DAYS.map(d => (
+                        <button key={d} type="button" onClick={() => toggleSlotDay(i, d)}
+                          className={`text-xs px-2.5 py-1.5 rounded-full border-2 font-semibold transition-colors ${
+                            slot.days.includes(d) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 text-neutral-600 hover:border-neutral-900'
+                          }`}>
+                          {d.slice(0, 3)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <FieldLabel>Hora fin</FieldLabel>
-                    <input type="time" className="input" value={slot.endTime}
-                      onChange={e => updateSlot(i, 'endTime', e.target.value)} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <FieldLabel>Hora inicio</FieldLabel>
+                      <input type="time" className="input" value={slot.startTime}
+                        onChange={e => updateSlot(i, 'startTime', e.target.value)} />
+                    </div>
+                    <div>
+                      <FieldLabel>Hora fin</FieldLabel>
+                      <input type="time" className="input" value={slot.endTime}
+                        onChange={e => updateSlot(i, 'endTime', e.target.value)} />
+                    </div>
                   </div>
                 </div>
                 {slot.days.length > 0 && (
-                  <p className="text-xs text-neutral-600 bg-white px-3 py-2.5 rounded-lg border border-neutral-200">
+                  <p className="text-xs text-neutral-600">
                     Los <span className="font-semibold">{slot.days.join(', ')}</span> de {slot.startTime} a {slot.endTime}
                   </p>
                 )}
@@ -862,19 +847,19 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
       {/* Modality — 2 options only */}
       <div>
         <FieldLabel>Modalidad</FieldLabel>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           {[
             { value: 'Presencial', label: 'Presencial', desc: 'En un estudio o academia', icon: MapPin },
             { value: 'Online', label: 'Online', desc: 'Por videollamada', icon: Monitor },
           ].map(opt => (
             <button key={opt.value} type="button" onClick={() => set('modality', opt.value)}
-              className={`text-left p-4 rounded-xl border-2 transition-[border-color,background-color] flex items-start gap-3 ${
+              className={`text-left px-3 py-2.5 rounded-xl border-2 transition-[border-color,background-color] flex items-center gap-3 ${
                 form.modality === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
               }`}>
-              <opt.icon className={`w-5 h-5 mt-0.5 shrink-0 ${form.modality === opt.value ? 'text-primary' : 'text-neutral-400'}`} />
+              <opt.icon className={`w-5 h-5 shrink-0 ${form.modality === opt.value ? 'text-primary' : 'text-neutral-400'}`} />
               <div>
                 <p className="font-bold text-sm text-neutral-900">{opt.label}</p>
-                <p className="text-xs text-neutral-600">{opt.desc}</p>
+                <p className="hidden sm:block text-xs text-neutral-600">{opt.desc}</p>
               </div>
             </button>
           ))}
@@ -883,14 +868,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
       {/* Location — address first */}
       {form.modality !== 'Online' && (
-        <div className="space-y-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50/50">
+        <div className="space-y-3 border border-neutral-200 rounded-xl p-3 sm:p-4 bg-neutral-50/50">
           <p className="text-xs font-bold text-neutral-700">Ubicación presencial</p>
-          <div>
-            <FieldLabel>Nombre del local <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
-            <input className="input" value={form.venueName} onChange={e => set('venueName', e.target.value)}
-              placeholder="Ej: Danxestudio" />
-            <Hint>Se muestra junto a la dirección. Déjalo vacío si no aplica.</Hint>
-          </div>
           <div>
             <FieldLabel>Dirección</FieldLabel>
             <PlacesAddressField
@@ -940,17 +919,25 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               </p>
             </div>
           )}
-          <div>
-            <FieldLabel>Referencia</FieldLabel>
-            <input className="input" value={form.reference} onChange={e => set('reference', e.target.value)}
-              placeholder="Ej: Frente al parque Kennedy" />
+          <div className="grid sm:grid-cols-2 gap-x-4 gap-y-3">
+            <div>
+              <FieldLabel>Nombre del local <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+              <input className="input" value={form.venueName} onChange={e => set('venueName', e.target.value)}
+                placeholder="Ej: Danxestudio" />
+            </div>
+            <div>
+              <FieldLabel>Referencia <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+              <input className="input" value={form.reference} onChange={e => set('reference', e.target.value)}
+                placeholder="Ej: Frente al parque Kennedy" />
+            </div>
           </div>
         </div>
       )}
 
       {form.modality !== 'Presencial' && (
-        <div className="space-y-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50/50">
+        <div className="space-y-3 border border-neutral-200 rounded-xl p-3 sm:p-4 bg-neutral-50/50">
           <p className="text-xs font-bold text-neutral-700">Acceso online</p>
+          <div className="grid md:grid-cols-[14rem_1fr] gap-x-4 gap-y-3">
           <div>
             <FieldLabel>Plataforma</FieldLabel>
             <NativeSelect value={form.platform} onChange={e => set('platform', e.target.value)}>
@@ -964,9 +951,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             <FieldLabel>Enlace de acceso</FieldLabel>
             <input className="input" value={form.accessLink} onChange={e => set('accessLink', e.target.value)}
               placeholder="https://zoom.us/j/..." />
-            <Hint>Por seguridad, este enlace se mantiene privado y no se muestra en el perfil público. Se recomienda compartirlo directamente con los alumnos confirmados.</Hint>
             {fieldErrors.accessLink && <p className="text-xs text-red mt-1">{fieldErrors.accessLink}</p>}
           </div>
+          </div>
+          <Hint>Por seguridad, este enlace es privado y no se muestra en el perfil público. Compártelo con los alumnos confirmados.</Hint>
         </div>
       )}
     </div>
@@ -975,26 +963,30 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   // ── Step 3: Precio y detalles ─────────────────────────────────────────────
   const renderStep2 = () => {
     const otherSelected = form.toBring.includes('Otro');
+    const currSymbol = getCurrencySymbol(form.currency);
+    const symbolPadding = Math.max(40, currSymbol.length * 9 + 22);
+    const ColTitle = ({ children }: { children: React.ReactNode }) => (
+      <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 border-b border-neutral-100 pb-1">{children}</p>
+    );
+
     return (
-      <div className="space-y-6">
-        <h2 className="text-lg font-bold text-neutral-900 mb-5">Precio y detalles</h2>
+      <div className="grid lg:grid-cols-2 gap-x-8 gap-y-5">
+        {/* Columna izquierda: precio, cupos y contacto */}
+        <div className="space-y-4">
+          <ColTitle>Precio y cupos</ColTitle>
 
-        <div>
-          <FieldLabel>Tipo de precio</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {['Gratis', 'Por clase', 'Mensual', 'Paquete'].map(pt => (
-              <Pill key={pt} active={form.priceType === pt} onClick={() => set('priceType', pt)}>{pt}</Pill>
-            ))}
+          <div>
+            <FieldLabel>Tipo de precio</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {['Gratis', 'Por clase', 'Mensual', 'Paquete'].map(pt => (
+                <Pill key={pt} active={form.priceType === pt} onClick={() => set('priceType', pt)}>{pt}</Pill>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {form.priceType !== 'Gratis' && (() => {
-          const currSymbol = getCurrencySymbol(form.currency);
-          const symbolPadding = Math.max(40, currSymbol.length * 9 + 22);
-
-          return (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            {form.priceType !== 'Gratis' && (
+              <>
                 <div>
                   <FieldLabel>Precio base</FieldLabel>
                   <div className="relative">
@@ -1020,128 +1012,131 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                     onChange={val => set('currency', val)}
                   />
                 </div>
-              </div>
-              <div>
-                <FieldLabel>Precio preventa <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-600 font-bold pointer-events-none select-none">
-                    {currSymbol}
-                  </span>
-                  <input
-                    type="number"
-                    className="input"
-                    style={{ paddingLeft: `${symbolPadding}px` }}
-                    value={form.offerPrice}
-                    onChange={e => set('offerPrice', e.target.value)}
-                    placeholder="0"
-                    min={0}
-                  />
-                </div>
-                <Hint>Deja vacío si no hay descuento. El precio base se mostrará tachado.</Hint>
-              </div>
-            </div>
-          );
-        })()}
-
-        <div>
-          <FieldLabel>Cupos máximos</FieldLabel>
-          <input type="number" className="input" value={form.maxSpots}
-            onChange={e => set('maxSpots', e.target.value)} placeholder="Ej: 20" min={1} />
-        </div>
-
-        <div>
-          <FieldLabel>Modalidad de contacto</FieldLabel>
-          <div className="space-y-2">
-            {[
-              { value: 'whatsapp', label: 'WhatsApp', desc: 'Los alumnos te contactan por WhatsApp' },
-              { value: 'instagram', label: 'Instagram', desc: 'Los alumnos te escriben por Instagram' },
-              { value: 'both', label: 'WhatsApp e Instagram', desc: 'Los alumnos pueden contactarte por ambos canales' },
-            ].map(opt => (
-              <label key={opt.value}
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
-                  form.contactMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
-                }`}>
-                <input type="radio" name="contactMode" value={opt.value}
-                  checked={form.contactMode === opt.value} onChange={() => set('contactMode', opt.value)}
-                  className="mt-0.5 accent-primary" />
                 <div>
-                  <p className="text-sm font-semibold text-neutral-900">{opt.label}</p>
-                  <p className="text-xs text-neutral-600 mt-0.5">{opt.desc}</p>
+                  <FieldLabel>Precio preventa <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-600 font-bold pointer-events-none select-none">
+                      {currSymbol}
+                    </span>
+                    <input
+                      type="number"
+                      className="input"
+                      style={{ paddingLeft: `${symbolPadding}px` }}
+                      value={form.offerPrice}
+                      onChange={e => set('offerPrice', e.target.value)}
+                      placeholder="0"
+                      min={0}
+                    />
+                  </div>
                 </div>
-              </label>
-            ))}
-          </div>
-          <Hint>El profesor debe tener configurado su WhatsApp o Instagram en el perfil.</Hint>
-        </div>
-
-        <div>
-          <FieldLabel>Calzado recomendado</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {['Zapatillas', 'Tacos / heels', 'Medias', 'Zapatos de salsa', 'Zapatos de ballet', 'Otro'].map(opt => (
-              <Pill key={opt} active={form.footwear.includes(opt)} onClick={() => {
-                const list = form.footwear.includes(opt)
-                  ? form.footwear.filter(x => x !== opt)
-                  : [...form.footwear, opt];
-                set('footwear', list);
-              }}>{opt}</Pill>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <FieldLabel>Ropa recomendada</FieldLabel>
-          <input className="input" value={form.clothing} onChange={e => set('clothing', e.target.value)}
-            placeholder="Ej: Ropa cómoda y transpirable" />
-        </div>
-
-        <div>
-          <FieldLabel>Requisitos previos</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {['Sin experiencia previa', 'Experiencia previa', 'Evaluación previa'].map(opt => (
-              <Pill key={opt} active={form.prerequisites.includes(opt)} onClick={() => {
-                const list = form.prerequisites.includes(opt)
-                  ? form.prerequisites.filter(x => x !== opt)
-                  : [...form.prerequisites, opt];
-                set('prerequisites', list);
-              }}>{opt}</Pill>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <FieldLabel>Edad recomendada</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {['Apto para todos', 'Niños', 'Mayor +18 años'].map(opt => (
-              <Pill key={opt} active={form.ageGroup === opt} onClick={() => set('ageGroup', form.ageGroup === opt ? '' : opt)}>{opt}</Pill>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <FieldLabel>Qué llevar</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {['Agua', 'Toalla', 'Rodilleras', 'Mat', 'Otro'].map(opt => (
-              <Pill key={opt} active={form.toBring.includes(opt)} onClick={() => {
-                const list = form.toBring.includes(opt)
-                  ? form.toBring.filter(x => x !== opt)
-                  : [...form.toBring, opt];
-                set('toBring', list);
-                if (opt === 'Otro' && form.toBring.includes('Otro')) setCustomToBring('');
-              }}>{opt}</Pill>
-            ))}
-          </div>
-          {otherSelected && (
-            <div className="mt-2">
-              <input
-                className="input"
-                value={customToBring}
-                onChange={e => setCustomToBring(e.target.value)}
-                placeholder="Especificar qué llevar…"
-                maxLength={60}
-                autoFocus
-              />
+              </>
+            )}
+            <div>
+              <FieldLabel>Cupos máximos</FieldLabel>
+              <input type="number" className="input" value={form.maxSpots}
+                onChange={e => set('maxSpots', e.target.value)} placeholder="Ej: 20" min={1} />
             </div>
-          )}
+            {form.priceType !== 'Gratis' && (
+              <p className="col-span-2 text-[11px] text-neutral-400 -mt-1">Preventa: deja vacío si no hay descuento; el precio base se mostrará tachado.</p>
+            )}
+          </div>
+
+          <div>
+            <FieldLabel>Modalidad de contacto</FieldLabel>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'whatsapp', label: 'WhatsApp', desc: 'Los alumnos te contactan por WhatsApp' },
+                { value: 'instagram', label: 'Instagram', desc: 'Los alumnos te escriben por Instagram' },
+                { value: 'both', label: 'Ambos', desc: 'Los alumnos pueden contactarte por WhatsApp e Instagram' },
+              ].map(opt => (
+                <label key={opt.value} title={opt.desc}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
+                    form.contactMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
+                  }`}>
+                  <input type="radio" name="contactMode" value={opt.value}
+                    checked={form.contactMode === opt.value} onChange={() => set('contactMode', opt.value)}
+                    className="accent-primary shrink-0" />
+                  <span className="text-[13px] font-semibold text-neutral-900 leading-tight">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+            <Hint>Debes tener configurado tu WhatsApp o Instagram en el perfil.</Hint>
+          </div>
+        </div>
+
+        {/* Columna derecha: detalles de la clase */}
+        <div className="space-y-4">
+          <ColTitle>Detalles de la clase</ColTitle>
+
+          <div>
+            <FieldLabel>Calzado recomendado</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {['Zapatillas', 'Tacos / heels', 'Medias', 'Zapatos de salsa', 'Zapatos de ballet', 'Otro'].map(opt => (
+                <Pill key={opt} active={form.footwear.includes(opt)} onClick={() => {
+                  const list = form.footwear.includes(opt)
+                    ? form.footwear.filter(x => x !== opt)
+                    : [...form.footwear, opt];
+                  set('footwear', list);
+                }}>{opt}</Pill>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Ropa recomendada</FieldLabel>
+            <input className="input" value={form.clothing} onChange={e => set('clothing', e.target.value)}
+              placeholder="Ej: Ropa cómoda y transpirable" />
+          </div>
+
+          <div>
+            <FieldLabel>Requisitos previos</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {['Sin experiencia previa', 'Experiencia previa', 'Evaluación previa'].map(opt => (
+                <Pill key={opt} active={form.prerequisites.includes(opt)} onClick={() => {
+                  const list = form.prerequisites.includes(opt)
+                    ? form.prerequisites.filter(x => x !== opt)
+                    : [...form.prerequisites, opt];
+                  set('prerequisites', list);
+                }}>{opt}</Pill>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Edad recomendada</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {['Apto para todos', 'Niños', 'Mayor +18 años'].map(opt => (
+                <Pill key={opt} active={form.ageGroup === opt} onClick={() => set('ageGroup', form.ageGroup === opt ? '' : opt)}>{opt}</Pill>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Qué llevar</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {['Agua', 'Toalla', 'Rodilleras', 'Mat', 'Otro'].map(opt => (
+                <Pill key={opt} active={form.toBring.includes(opt)} onClick={() => {
+                  const list = form.toBring.includes(opt)
+                    ? form.toBring.filter(x => x !== opt)
+                    : [...form.toBring, opt];
+                  set('toBring', list);
+                  if (opt === 'Otro' && form.toBring.includes('Otro')) setCustomToBring('');
+                }}>{opt}</Pill>
+              ))}
+            </div>
+            {otherSelected && (
+              <div className="mt-2">
+                <input
+                  className="input"
+                  value={customToBring}
+                  onChange={e => setCustomToBring(e.target.value)}
+                  placeholder="Especificar qué llevar…"
+                  maxLength={60}
+                  autoFocus
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -1173,10 +1168,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
     }).join(' | ') || '—';
 
     return (
-      <div className="space-y-6">
-        <h2 className="text-lg font-bold text-neutral-900 mb-5">Revisión y publicación</h2>
-
-        <div className="border border-neutral-200 rounded-xl overflow-hidden">
+      <div className="grid lg:grid-cols-[1fr_18rem] gap-x-6 gap-y-4">
+        <div className="border border-neutral-200 rounded-xl overflow-hidden grid sm:grid-cols-2 self-start">
           {[
             { label: 'Tipo', value: form.type },
             { label: 'Título', value: form.title || '—' },
@@ -1189,53 +1182,55 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { label: 'Precio', value: priceLabel },
             { label: 'Contacto', value: form.contactMode === 'both' ? 'WhatsApp e Instagram' : form.contactMode === 'instagram' ? 'Instagram' : 'WhatsApp' },
             { label: 'Cupos', value: form.maxSpots ? `${form.maxSpots} cupos` : '—' },
-          ].map((row, i) => (
-            <div key={row.label} className={`flex gap-4 px-4 py-3 ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}`}>
-              <span className="text-xs font-bold text-neutral-600 w-24 shrink-0 pt-0.5">{row.label}</span>
-              <span className="text-sm text-neutral-800 break-words flex-1">{row.value}</span>
+          ].map(row => (
+            <div key={row.label} className="flex gap-3 px-3 py-2 border-b border-neutral-100 last:border-b-0 sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+              <span className="text-xs font-bold text-neutral-600 w-20 shrink-0 pt-0.5">{row.label}</span>
+              <span className="text-[13px] text-neutral-800 break-words min-w-0 flex-1">{row.value}</span>
             </div>
           ))}
         </div>
 
-        {coverImageUrl ? (
-          <div>
-            <p className="text-xs font-bold text-neutral-600 uppercase tracking-wider mb-2">Imagen de portada</p>
-            <div className="rounded-xl border border-neutral-200 overflow-hidden">
-              <ImagePositionPicker
-                src={coverImageUrl}
-                value={coverImagePosition}
-                onChange={setCoverImagePosition}
-                zoom={coverImageZoom}
-                onZoomChange={setCoverImageZoom}
-                frameClassName="w-full h-40"
-                sizes="(max-width: 768px) 100vw, 600px"
-              />
-            </div>
-          </div>
-        ) : (
-          <p className="text-xs text-red bg-red-bg border border-red rounded-lg px-3 py-2">
-            La imagen de portada es obligatoria para publicar. Agrega una foto en el paso &quot;Información básica&quot;.
-          </p>
-        )}
-
-        {academiaPending ? (
-          <div className="bg-amber-bg border border-amber rounded-xl p-4 flex items-start gap-3">
-            <span className="text-xl shrink-0">⏳</span>
+        <div className="space-y-4">
+          {coverImageUrl ? (
             <div>
-              <p className="text-xs font-bold text-amber-text mb-0.5">Academia en proceso de revisión</p>
-              <p className="text-xs text-amber-text leading-relaxed">
-                Tu cuenta de academia está siendo revisada por el equipo de Kynea. Por ahora solo puedes guardar tus clases como borrador. En cuanto sea aprobada, podrás publicarlas con un solo clic.
+              <p className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider mb-1.5">Imagen de portada</p>
+              <div className="rounded-xl border border-neutral-200 overflow-hidden">
+                <ImagePositionPicker
+                  src={coverImageUrl}
+                  value={coverImagePosition}
+                  onChange={setCoverImagePosition}
+                  zoom={coverImageZoom}
+                  onZoomChange={setCoverImageZoom}
+                  frameClassName="w-full h-36"
+                  sizes="(max-width: 1024px) 100vw, 288px"
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-red bg-red-bg border border-red rounded-lg px-3 py-2">
+              La imagen de portada es obligatoria para publicar. Agrega una foto en el paso &quot;Información básica&quot;.
+            </p>
+          )}
+
+          {academiaPending ? (
+            <div className="bg-amber-bg border border-amber rounded-xl p-3 flex items-start gap-3">
+              <span className="text-xl shrink-0">⏳</span>
+              <div>
+                <p className="text-xs font-bold text-amber-text mb-0.5">Academia en proceso de revisión</p>
+                <p className="text-xs text-amber-text leading-relaxed">
+                  Tu cuenta de academia está siendo revisada por el equipo de Kynea. Por ahora solo puedes guardar tus clases como borrador. En cuanto sea aprobada, podrás publicarlas con un solo clic.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-bg border border-amber rounded-xl p-3">
+              <p className="text-xs font-bold text-amber-text mb-1">💡 Consejo</p>
+              <p className="text-xs text-amber-text">
+                Puedes guardar como borrador y publicar después. Una vez activa, tu clase aparecerá en el buscador de Kynea.
               </p>
             </div>
-          </div>
-        ) : (
-          <div className="bg-amber-bg border border-amber rounded-xl p-4">
-            <p className="text-xs font-bold text-amber-text mb-1">💡 Consejo</p>
-            <p className="text-xs text-amber-text">
-              Puedes guardar como borrador y publicar después. Una vez activa, tu clase aparecerá en el buscador de Kynea.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
@@ -1247,116 +1242,112 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   // remaining step — a one-field tweak on step 0 should be savable right away.
   const showFinalize = isLastStep || Boolean(classId);
 
-  return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
-      <SegmentedProgress step={step} />
-
-      <div className="mb-6">
-        <h1 className="text-3xl font-black text-neutral-900">
-          {classId ? 'Editar clase' : 'Crea tu clase de baile'}
-        </h1>
-        <p className="text-sm text-neutral-600 mt-1">
-          {classId ? 'Modifica los campos y guarda los cambios.' : 'Completa cada paso para publicar tu clase.'}
+  const footerNotice = (submitError || contactGateError) ? (
+    <div className="space-y-0.5">
+      {submitError && <p className="text-[13px] text-red font-medium animate-fade-in">{submitError}</p>}
+      {contactGateError && (
+        <p className="text-[13px] text-red font-medium flex items-center gap-1.5 animate-fade-in">
+          {contactGateError.message}
+          <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
+            Completar perfil
+          </Link>
         </p>
-      </div>
+      )}
+    </div>
+  ) : null;
 
-      <div key={step} className="bg-white rounded-xl border border-neutral-900 p-6 mb-6 shadow-sm animate-fade-in">
+  // Botones del footer fijo: más bajos que los .btn-* globales (py-2.5) y con
+  // "Atrás" solo ícono en mobile para que quepan Guardar borrador + Publicar en 360 px.
+  const BTN = 'py-2.5 px-4 sm:px-5 whitespace-nowrap';
+
+  const footer = (
+    <div className="flex items-center justify-between gap-2 sm:gap-3">
+      {step === 0 ? (
+        <Link href="/dashboard/mis-clases" className={`btn-outline ${BTN}`}>Cancelar</Link>
+      ) : (
+        <button type="button" onClick={goBack} aria-label="Atrás" className={`btn-outline flex items-center gap-2 ${BTN}`}>
+          <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Atrás</span>
+        </button>
+      )}
+
+      {!showFinalize ? (
+        <button type="button" onClick={goNext} className={`btn-dark flex items-center gap-2 ${BTN}`}>
+          Continuar <ChevronRight className="w-4 h-4" />
+        </button>
+      ) : isLastStep ? (
+        <div className="flex gap-2 sm:gap-3 min-w-0">
+          {academiaPending ? (
+            <>
+              <button
+                type="button"
+                onClick={() => handlePublish('draft')}
+                disabled={isPending}
+                className={`btn-dark flex items-center gap-2 ${BTN}`}
+              >
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {classId ? 'Guardar cambios' : 'Guardar borrador'}
+              </button>
+              <button
+                type="button"
+                disabled
+                title="Tu cuenta de academia está en proceso de revisión"
+                className={`btn-outline flex items-center gap-2 ${BTN}`}
+              >
+                Publicar clase <span className="text-[10px] bg-amber-bg text-amber-text font-bold px-1.5 py-0.5 rounded">En revisión</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')} disabled={isPending}
+                className={`btn-outline flex items-center gap-2 ${BTN}`}>
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {classId ? 'Guardar cambios' : 'Guardar borrador'}
+              </button>
+              <button type="button" onClick={() => handlePublish('published')} disabled={isPending}
+                className={`btn-dark flex items-center gap-2 ${BTN}`}>
+                {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                {classId ? 'Guardar y publicar' : 'Publicar clase'}
+                {!isPending && <ChevronRight className="w-4 h-4" />}
+              </button>
+            </>
+          )}
+        </div>
+      ) : (
+        // Edit mode, not on the last step: a subtle quick-save link next to
+        // the primary Continuar, instead of stacking full-weight buttons —
+        // keeps the wizard's forward flow visually primary while still
+        // letting a mid-wizard tweak save without walking every step.
+        <div className="flex items-center gap-3 sm:gap-5">
+          <button type="button" onClick={() => handlePublish(editClass?.status ?? 'draft')} disabled={isPending}
+            className="text-sm font-semibold text-neutral-600 hover:text-neutral-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+            {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Guardar cambios
+          </button>
+          <button type="button" onClick={goNext} className={`btn-dark flex items-center gap-2 ${BTN}`}>
+            Continuar <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <WizardShell
+      title={classId ? 'Editar clase' : 'Crear clase'}
+      steps={STEPS}
+      step={step}
+      cancelHref="/dashboard/mis-clases"
+      bannerOffset={academiaPending}
+      footerNotice={footerNotice}
+      footer={footer}
+    >
+      {/* Densidad: inputs más bajos solo dentro del wizard (sin tocar .input global) */}
+      <div className="bg-white rounded-xl border border-neutral-900 p-4 sm:p-5 shadow-sm [&_.input]:py-2.5">
         {step === 0 && renderStep0()}
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
       </div>
-
-      <div className="flex justify-between items-center pt-2">
-        {step === 0 ? (
-          <Link href="/dashboard/mis-clases" className="btn-outline">Cancelar</Link>
-        ) : (
-          <button type="button" onClick={goBack} className="btn-outline flex items-center gap-2">
-            <ChevronLeft className="w-4 h-4" /> Atrás
-          </button>
-        )}
-
-        {!showFinalize ? (
-          <button type="button" onClick={goNext} className="btn-dark flex items-center gap-2">
-            Continuar <ChevronRight className="w-4 h-4" />
-          </button>
-        ) : isLastStep ? (
-          <div className="flex flex-col gap-3 items-end">
-            {submitError && <p className="text-[13px] text-red font-medium animate-fade-in">{submitError}</p>}
-            {contactGateError && (
-              <p className="text-[13px] text-red font-medium flex items-center gap-1.5 animate-fade-in">
-                {contactGateError.message}
-                <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
-                  Completar perfil
-                </Link>
-              </p>
-            )}
-            <div className="flex gap-3">
-              {academiaPending ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handlePublish('draft')}
-                    disabled={isPending}
-                    className="btn-dark flex items-center gap-2"
-                  >
-                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {classId ? 'Guardar cambios' : 'Guardar borrador'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    title="Tu cuenta de academia está en proceso de revisión"
-                    className="btn-outline flex items-center gap-2"
-                  >
-                    Publicar clase <span className="text-[10px] bg-amber-bg text-amber-text font-bold px-1.5 py-0.5 rounded">En revisión</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button type="button" onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')} disabled={isPending}
-                    className="btn-outline flex items-center gap-2">
-                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {classId ? 'Guardar cambios' : 'Guardar borrador'}
-                  </button>
-                  <button type="button" onClick={() => handlePublish('published')} disabled={isPending}
-                    className="btn-dark flex items-center gap-2">
-                    {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {classId ? 'Guardar y publicar' : 'Publicar clase'}
-                    {!isPending && <ChevronRight className="w-4 h-4" />}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        ) : (
-          // Edit mode, not on the last step: a subtle quick-save link next to
-          // the primary Continuar, instead of stacking full-weight buttons —
-          // keeps the wizard's forward flow visually primary while still
-          // letting a mid-wizard tweak save without walking every step.
-          <div className="flex flex-col gap-3 items-end">
-            {submitError && <p className="text-[13px] text-red font-medium animate-fade-in">{submitError}</p>}
-            {contactGateError && (
-              <p className="text-[13px] text-red font-medium flex items-center gap-1.5 animate-fade-in">
-                {contactGateError.message}
-                <Link href={contactGateError.href} className="underline font-bold whitespace-nowrap">
-                  Completar perfil
-                </Link>
-              </p>
-            )}
-            <div className="flex items-center gap-5">
-              <button type="button" onClick={() => handlePublish(editClass?.status ?? 'draft')} disabled={isPending}
-                className="text-sm font-semibold text-neutral-600 hover:text-neutral-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
-                {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Guardar cambios
-              </button>
-              <button type="button" onClick={goNext} className="btn-dark flex items-center gap-2">
-                Continuar <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    </WizardShell>
   );
 }
