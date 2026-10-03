@@ -34,7 +34,8 @@ interface FilterPanelProps {
   hideStyles?: boolean;
   /** ISO codes with at least one published class — see fetchClassCountries.
    * The "País" section only renders when there's more than one, since a
-   * single-country catalog has nothing to filter. */
+   * single-country catalog has nothing to filter. Sits right under "Estilo
+   * de baile" so it's visible without scrolling. */
   countries?: string[];
 }
 
@@ -130,6 +131,33 @@ function CountryFilterSearch({ countries, value, onChange }: { countries: string
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Hasta este número de países se muestran como chips (un toque, sin
+// escribir); con más, el buscador evita una lista que crece sin control.
+const COUNTRY_CHIPS_MAX = 5;
+
+function CountryFilter({ countries, value, onChange }: { countries: string[]; value: string; onChange: (code: string) => void }) {
+  if (countries.length > COUNTRY_CHIPS_MAX) {
+    return <CountryFilterSearch countries={countries} value={value} onChange={onChange} />;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {countries
+        .map(code => findCountryByCode(code))
+        .filter((c): c is NonNullable<typeof c> => Boolean(c))
+        .map(c => (
+          <button
+            key={c.code}
+            onClick={() => onChange(value === c.code ? '' : c.code)}
+            aria-pressed={value === c.code}
+            className={chipClass(value === c.code)}
+          >
+            {c.flag} {c.name}
+          </button>
+        ))}
     </div>
   );
 }
@@ -259,6 +287,12 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
         </Section>
       )}
 
+      {countries.length > 1 && (
+        <Section title="País">
+          <CountryFilter countries={countries} value={filters.country} onChange={code => set('country', code)} />
+        </Section>
+      )}
+
       <Section title="Nivel">
         <div className="flex flex-wrap gap-2">
           {levels.map(l => (
@@ -314,12 +348,6 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
           </label>
         ))}
       </Section>
-
-      {countries.length > 1 && (
-        <Section title="País">
-          <CountryFilterSearch countries={countries} value={filters.country} onChange={code => set('country', code)} />
-        </Section>
-      )}
 
       <Section title="Precio">
         <div className="px-0.5">
