@@ -14,6 +14,7 @@ import ClassCard from '@/components/ClassCard';
 import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
 import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import HomeCompactSearch from '@/components/home/HomeCompactSearch';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
 import { resolveSearch } from '@/lib/search/resolveSearch';
@@ -243,6 +244,24 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
   const [isSearching, setIsSearching]       = useState(false);
   const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Desktop: cuando el buscador del hero sale por arriba de la pantalla, el
+  // Header pasa a barra blanca fija con una versión compacta del buscador.
+  // El margen de -64px es la altura del Header: se activa justo cuando el
+  // buscador queda detrás de él. En mobile el hero está oculto (display:none),
+  // su top es 0 y nunca se activa.
+  const heroSearchRef = useRef<HTMLDivElement>(null);
+  const [heroSearchOut, setHeroSearchOut] = useState(false);
+  useEffect(() => {
+    const el = heroSearchRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeroSearchOut(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { rootMargin: '-64px 0px 0px 0px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const activeSuggestions = !isAiMode && query.trim().length >= 2 ? suggestions : { classes: [] as SearchClass[], profiles: [] as SearchProfile[] };
 
@@ -614,7 +633,21 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
           <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(138,17,188,.30) 0%, rgba(13,13,13,0) 55%)' }} />
         </div>
 
-        <Header transparent homeNav />
+        <Header
+          transparent
+          homeNav
+          compact={heroSearchOut}
+          compactSearch={
+            <HomeCompactSearch
+              value={query}
+              onChange={setQuery}
+              onSubmit={navigateSearch}
+              isAiMode={isAiMode}
+              isLoading={isLoading}
+              placeholder={isAiMode ? AI_SEARCH_LABEL : 'Busca clases, academias, profesores…'}
+            />
+          }
+        />
 
         <div className="relative z-10 max-w-[1240px] mx-auto px-6 pt-[84px] text-center">
           <h1 className="font-black text-[52px] leading-[1.08] tracking-[-0.03em] text-white mb-4">
@@ -625,7 +658,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
           </p>
         </div>
 
-        <div className="relative z-20 max-w-[880px] mx-auto px-6">
+        <div ref={heroSearchRef} className="relative z-20 max-w-[880px] mx-auto px-6">
           {/* Switch Modo IA arriba a la derecha de la barra */}
           <div className="flex justify-end mb-2.5">
             <button
