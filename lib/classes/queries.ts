@@ -113,6 +113,10 @@ export function mapDbClassToType(
     },
     createdAt:   row.created_at ?? '',
     publishedAt: row.published_at ?? undefined,
+    seriesId:          row.series_id ?? undefined,
+    autoPublishAt:     row.auto_publish_at ?? undefined,
+    autoPublishedAt:   row.auto_published_at ?? undefined,
+    autoPublishError:  row.auto_publish_error ?? undefined,
   };
 }
 

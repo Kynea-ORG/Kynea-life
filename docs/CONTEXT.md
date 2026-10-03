@@ -140,6 +140,12 @@ Clases publicadas por profesores y academias.
 | `saved_count` | integer | Contador de guardados (NOT NULL DEFAULT 0) |
 | `status` | text | `draft` \| `published` \| `finished` \| `archived` |
 | `created_at` / `published_at` / `updated_at` | timestamptz | — |
+| `series_id` | uuid | Agrupa la clase original y sus copias mensuales (migración 62). NULL = clase suelta |
+| `auto_publish_at` | date | Fecha (Lima) desde la cual el job diario publica esta copia en borrador (`start_date − 14`). NULL = no se publica sola |
+| `auto_published_at` | timestamptz | Cuándo la publicó el job (para avisar al profesor) |
+| `auto_publish_error` | text | Motivo del primer intento fallido (falta WhatsApp/Instagram, academia sin aprobar). Se limpia al publicarse |
+
+**Series mensuales:** al crear una clase `mensual`, el wizard permite marcar meses extra; `createClass` crea una copia independiente en borrador por mes (`lib/classes/seriesCopies.ts`, fechas desplazadas con `shiftToMonth`, tope 11 meses dentro de los próximos 12). Si la original sale publicada, cada copia queda con `auto_publish_at`; el job `pg_cron` `publish-series-copies` (diario 11:00 UTC = 06:00 Lima) ejecuta `publish_due_series_copies()`, que respeta el trigger `protect_class_publish`. Editar la original no propaga a las copias.
 
 Ubicación (`address`, `reference`, `maps_url`, `lat`, `lng`), estilos y horarios **no** son columnas de `classes` — viven en `venues`, `class_styles` y `class_schedules` respectivamente.
 

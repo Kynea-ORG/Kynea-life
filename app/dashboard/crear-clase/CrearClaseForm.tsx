@@ -20,6 +20,8 @@ import CurrencySelect from '@/components/CurrencySelect';
 import { getCurrencySymbol } from '@/lib/currencies';
 import type { DanceClass } from '@/lib/types';
 import WizardShell from './WizardShell';
+import YearMonthPicker from './YearMonthPicker';
+import { limaToday, monthLabel, parseSeriesMonths } from '@/lib/classes/series';
 import { slugifyTitle, sanitizeSlugInput } from '@/lib/classes/slug';
 
 // Maps a validator field name to the wizard step where it's editable, so a
@@ -91,6 +93,7 @@ function buildInitialForm(editClass: DanceClass | null) {
       ageGroup: '',
       toBring: [] as string[],
       status: 'draft',
+      seriesMonths: [] as string[],
     };
   }
   return {
@@ -130,6 +133,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     ageGroup: editClass.ageGroup ?? '',
     toBring: editClass.toBring ?? [],
     status: editClass.status ?? 'draft',
+    seriesMonths: [] as string[],
   };
 }
 
@@ -345,6 +349,10 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         ).filter(x => x !== 'Otro' || customToBring.trim());
         fd.set('toBring', JSON.stringify(finalToBring));
         fd.set('timeSlots', JSON.stringify(slots));
+        // Copias mensuales: solo al crear una clase Mensual (el servidor las valida de nuevo).
+        if (!classId && form.recurrence === 'mensual' && form.seriesMonths.length > 0) {
+          fd.set('seriesMonths', JSON.stringify(form.seriesMonths));
+        }
         if (coverImageUrl) fd.set('coverImage', coverImageUrl);
         if (coverImageUrl) fd.set('coverImagePosition', coverImagePosition);
         if (coverImageUrl) fd.set('coverImageZoom', String(coverImageZoom));
@@ -749,6 +757,14 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             className="flex items-center gap-1.5 text-xs text-neutral-900 font-semibold hover:bg-neutral-100 px-3 py-1.5 rounded-lg transition-colors border border-neutral-200">
             <Plus className="w-3.5 h-3.5" /> Agregar otro horario
           </button>
+          {!isEdit && form.startDate && form.endDate && (
+            <YearMonthPicker
+              today={limaToday()}
+              startDate={form.startDate}
+              value={form.seriesMonths}
+              onChange={months => set('seriesMonths', months)}
+            />
+          )}
         </>
       )}
 
@@ -1144,6 +1160,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
   // ── Step 4: Revisión y publicación ────────────────────────────────────────
   const renderStep3 = () => {
+    // Solo los meses que el servidor aceptaría (si cambió la fecha de inicio después de marcarlos).
+    const seriesValid = !isEdit && form.recurrence === 'mensual'
+      ? parseSeriesMonths(JSON.stringify(form.seriesMonths), limaToday(), form.startDate)
+      : [];
+    const seriesCount = seriesValid.length;
+    const seriesLabels = seriesValid.map(m => monthLabel(m, { short: true })).join(', ');
     const currSymbol = getCurrencySymbol(form.currency);
     const space = /[a-zA-Z]$/.test(currSymbol) ? ' ' : '';
     const priceLabel = form.priceType === 'Gratis'
@@ -1169,12 +1191,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
     return (
       <div className="grid lg:grid-cols-[1fr_18rem] gap-x-6 gap-y-4">
-        <div className="border border-neutral-200 rounded-xl overflow-hidden grid sm:grid-cols-2 self-start">
+        <div className="self-start space-y-2">
+        <div className="border border-neutral-200 rounded-xl overflow-hidden grid sm:grid-cols-2">
           {[
             { label: 'Tipo', value: form.type },
             { label: 'Título', value: form.title || '—' },
             { label: 'Estilo', value: form.style || '—' },
             { label: 'Nivel', value: form.level || '—' },
+            ...(seriesCount > 0
+              ? [{ label: 'Copias', value: `${seriesCount} ${seriesCount === 1 ? 'mes' : 'meses'}: ${seriesLabels}` }]
+              : []),
             { label: 'Recurrencia', value: form.recurrence === 'unica' ? 'Clase única' : form.recurrence === 'mensual' ? 'Mensual' : 'Personalizado' },
             { label: 'Modalidad', value: form.modality },
             { label: 'Ubicación', value: locationLabel },
@@ -1188,6 +1214,12 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
               <span className="text-[13px] text-neutral-800 break-words min-w-0 flex-1">{row.value}</span>
             </div>
           ))}
+        </div>
+        {seriesCount > 0 && (
+          <p className="text-[11px] leading-snug text-neutral-500">
+            Al publicar, las copias quedan en borrador y se publican solas 14 días antes de cada inicio. Si guardas como borrador, tampoco se publican solas.
+          </p>
+        )}
         </div>
 
         <div className="space-y-4">
