@@ -222,6 +222,8 @@ export default function GoogleMap({
   onMapMoving,
   renderPopup,
   gestureHandling = 'greedy',
+  controls = true,
+  errorFallback,
   className = 'w-full h-full',
   recenterTrigger,
   onUserDrag,
@@ -260,6 +262,10 @@ export default function GoogleMap({
   /** 'greedy' allows single-finger map panning on mobile (for full map views).
    * 'cooperative' requires two fingers on mobile to avoid trapping page scroll (for embedded previews). */
   gestureHandling?: 'greedy' | 'cooperative' | 'none' | 'auto';
+  /** Botones de zoom / mi ubicación / centrar sobre el mapa. Falso para recuadros pequeños (ej. el mini mapa del detalle). */
+  controls?: boolean;
+  /** Qué mostrar si el mapa no se puede cargar (sin clave, API no habilitada…). Por defecto, el texto "No se pudo cargar el mapa". */
+  errorFallback?: React.ReactNode;
   className?: string;
   recenterTrigger?: number;
 }) {
@@ -771,6 +777,7 @@ export default function GoogleMap({
   }, [mapReady, pins, focusPin, userLocation]);
 
   if (error || !GOOGLE_MAPS_API_KEY) {
+    if (errorFallback !== undefined) return <>{errorFallback}</>;
     return (
       <div className={`${className} flex items-center justify-center bg-neutral-100 text-[13px] text-neutral-400`}>
         No se pudo cargar el mapa
@@ -792,7 +799,7 @@ export default function GoogleMap({
           <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
         </div>
       )}
-      {loaded && (
+      {loaded && controls && (
         <div className="absolute right-4 top-4 z-10 flex flex-col gap-1.5">
           <button
             type="button"

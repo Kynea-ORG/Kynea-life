@@ -14,10 +14,20 @@ describe('ClampedText', () => {
     expect(screen.getByRole('button', { name: 'Leer más' })).toBeInTheDocument();
   });
 
-  it('en desktop no recorta (lg:line-clamp-none) y el botón solo existe en mobile (lg:hidden)', () => {
+  it('un texto de largo medio se recorta en mobile pero se ve completo en desktop (sin botón ahí)', () => {
     render(<ClampedText text={LONG} data-testid="p" />);
     expect(screen.getByTestId('p').className).toContain('lg:line-clamp-none');
     expect(screen.getByRole('button', { name: 'Leer más' }).className).toContain('lg:hidden');
+  });
+
+  it('un texto muy largo también se recorta en desktop (6 líneas) y el botón se ve en ambos', () => {
+    render(<ClampedText text={'a'.repeat(1100)} data-testid="p" />);
+    const p = screen.getByTestId('p');
+    expect(p.className).toContain('line-clamp-4');
+    expect(p.className).toContain('lg:line-clamp-6');
+    const btn = screen.getByRole('button', { name: 'Leer más' });
+    expect(btn.className).toContain('lg:inline-block');
+    expect(btn.className).not.toContain('lg:hidden');
   });
 
   it('un texto corto se muestra completo, sin botón', () => {

@@ -171,13 +171,15 @@ describe('ClaseDetailClient · bloques de mobile más abajo', () => {
 
   it('la biografía de la academia va recortada con "Ver perfil"', () => {
     render(<ClaseDetailClient cls={makeClass()} />);
-    const card = screen.getByTestId('teacher-card-mobile');
+    const card = screen.getByTestId('teacher-card');
     expect(within(card).getByRole('link', { name: 'Ver perfil de la academia' })).toHaveAttribute('href', '/academias/atempo');
   });
 
   it('el bloque "Antes de ir" reúne requisitos y qué traer', () => {
     render(<ClaseDetailClient cls={makeClass()} />);
-    expect(screen.getByText('Antes de ir')).toBeInTheDocument();
+    // Una versión para mobile (lista) y otra para desktop (chips): cada una con su título.
+    expect(screen.getAllByText('Antes de ir')).toHaveLength(2);
+    expect(screen.getAllByText('Evaluación previa').length).toBeGreaterThan(0);
   });
 });
 
@@ -201,5 +203,72 @@ describe('ClaseDetailClient · barra fija inferior', () => {
     render(<ClaseDetailClient cls={makeClass()} />);
     fireEvent.click(within(screen.getByTestId('sticky-bar')).getByRole('button', { name: /WhatsApp/ }));
     expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
+  });
+});
+
+describe('ClaseDetailClient · cupos informativos', () => {
+  it('chip de cupos en mobile (neutro y solo mobile) cuando el profesor los muestra', () => {
+    render(<ClaseDetailClient cls={makeClass()} />);
+    const chip = within(screen.getByTestId('detail-chips')).getByText('7 cupos disponibles');
+    expect(chip.className).toContain('lg:hidden');
+    expect(chip.className).not.toMatch(/yellow|red/);
+  });
+
+  it('sin "mostrar cupos" no hay chip ni línea de cupos', () => {
+    render(<ClaseDetailClient cls={makeClass({ teacher: { ...makeClass().teacher, showSpots: false } })} />);
+    expect(within(screen.getByTestId('detail-chips')).queryByText(/cupos/)).toBeNull();
+    expect(screen.queryByText(/cupos disponibles/)).toBeNull();
+  });
+
+  it('en la tarjeta de desktop los cupos son una línea de texto, sin barra de progreso', () => {
+    render(<ClaseDetailClient cls={makeClass()} />);
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.getAllByText(/cupos disponibles/).length).toBeGreaterThan(0);
+  });
+});
+
+describe('ClaseDetailClient · recuadros y desktop', () => {
+  it('el recuadro "Cuándo" separa INICIA de HORARIO', () => {
+    render(<ClaseDetailClient cls={makeClass()} />);
+    const tile = screen.getByTestId('when-tile');
+    expect(within(tile).getByText('INICIA')).toBeInTheDocument();
+    expect(within(tile).getByText('HORARIO')).toBeInTheDocument();
+    expect(within(tile).getByText('11:00 – 12:00')).toBeInTheDocument();
+  });
+
+  it('desktop: migas de pan con inicio, clases y estilo', () => {
+    render(<ClaseDetailClient cls={makeClass()} />);
+    const nav = screen.getByRole('navigation', { name: 'Migas de pan' });
+    expect(within(nav).getByRole('link', { name: 'Inicio' })).toHaveAttribute('href', '/');
+    expect(within(nav).getByRole('link', { name: 'Clases' })).toHaveAttribute('href', '/clases');
+    expect(within(nav).getByRole('link', { name: 'Flamenco' })).toHaveAttribute('href', '/clases?estilo=Flamenco');
+  });
+
+  it('desktop: compartir y guardar arriba a la derecha', () => {
+    render(<ClaseDetailClient cls={makeClass()} />);
+    const nav = screen.getByRole('navigation', { name: 'Migas de pan' });
+    const row = nav.parentElement!;
+    expect(within(row).getByRole('button', { name: /Compartir/ })).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: /Guardar/ })).toBeInTheDocument();
+  });
+
+  it('desktop: la línea del local va bajo el título y las secciones nuevas existen', () => {
+    render(<ClaseDetailClient cls={makeClass()} />);
+    expect(screen.getByTestId('title-venue')).toHaveTextContent('Garage Studio · Miraflores, Lima');
+    expect(screen.getByTestId('class-essentials')).toBeInTheDocument();
+    expect(screen.getByTestId('class-schedule')).toBeInTheDocument();
+  });
+
+  it('desktop: la tarjeta de reserva muestra INICIA y HORARIO con su etiqueta y el precio', () => {
+    render(<ClaseDetailClient cls={makeClass()} />);
+    const box = screen.getByTestId('booking-when');
+    expect(within(box).getByText('INICIA')).toBeInTheDocument();
+    expect(within(box).getByText('HORARIO')).toBeInTheDocument();
+    expect(within(box).getByText('Domingo · 11:00 – 12:00')).toBeInTheDocument();
+  });
+
+  it('desktop: el botón "Ver perfil" de la fila de la academia', () => {
+    render(<ClaseDetailClient cls={makeClass()} />);
+    expect(within(screen.getByTestId('teacher-row')).getByText('Ver perfil')).toBeInTheDocument();
   });
 });
