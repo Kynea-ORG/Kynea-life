@@ -16,6 +16,8 @@ import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import HomeCompactSearch from '@/components/home/HomeCompactSearch';
 import WomenTeachersBanner from '@/components/home/WomenTeachersBanner';
+import BlogHighlightCard from '@/components/home/BlogHighlightCard';
+import type { BlogHighlight } from '@/lib/blog/highlight';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
 import { resolveSearch } from '@/lib/search/resolveSearch';
@@ -108,6 +110,8 @@ interface Props {
   aiSuggestions?:         AiSuggestions;
   /** Clases dictadas por profesoras (etiquetadas por un admin). null/undefined = no mostrar la sección. */
   womenTeachersClassCount?: number | null;
+  /** Último artículo publicado del blog para la tarjeta que invita a leerlo. null = no mostrar. */
+  blogHighlight?: BlogHighlight | null;
 }
 
 // ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
@@ -176,7 +180,7 @@ const MobileCitySearchOverlay = dynamic(
 );
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions, womenTeachersClassCount }: Props) {
+export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions, womenTeachersClassCount, blogHighlight }: Props) {
   const aiPlaceholders  = aiSuggestions?.placeholders ?? AI_PLACEHOLDER_EXAMPLES;
   const aiQuickPrompts  = aiSuggestions?.quickPrompts ?? AI_QUICK_PROMPTS;
   const router = useRouter();
@@ -1580,6 +1584,9 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
           </div>
         </section>
       )}
+
+      {/* ── BLOG ── */}
+      {blogHighlight && <BlogHighlightCard post={blogHighlight} />}
 
       {/* ── CÓMO FUNCIONA ── */}
       <section className="bg-white py-20">

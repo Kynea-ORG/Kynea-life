@@ -1,11 +1,9 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import SmartImage from '@/components/SmartImage';
 
 export const WOMEN_TEACHERS_HREF = '/clases?profesoras=1';
 
-// Imagen de fondo del banner (wide, ~1600×600 webp). Si el archivo no existe, se ve el degradado
-// de la marca: mismo patrón de "degradado detrás + imagen encima" que las tarjetas de categorías.
+// Imagen de fondo del banner (ancha, ~1600×600 webp). Si el archivo no existe se ve el degradado de la marca.
 const BANNER_IMAGE = '/profesoras-banner.webp';
 
 // Sección del Home que lleva a las clases dictadas por profesoras (etiquetadas por el equipo
@@ -19,14 +17,17 @@ export default function WomenTeachersBanner({ classCount }: { classCount: number
           prefetch={false}
           className="group relative block overflow-hidden rounded-3xl border border-neutral-900 min-h-[170px] sm:min-h-[200px]"
         >
+          {/* Imagen + degradado como fondos múltiples: si el archivo todavía no existe (404) solo se ve
+              el degradado, sin el ícono de imagen rota que dejaría un <img>. */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 -z-0"
-            style={{ background: 'linear-gradient(110deg, #6d0d97 0%, #8a11bc 45%, #c026a3 100%)' }}
+            className="absolute inset-0 scale-100 group-hover:scale-105 transition-transform duration-500 ease-out"
+            style={{
+              backgroundImage: `url('${BANNER_IMAGE}'), linear-gradient(110deg, #6d0d97 0%, #8a11bc 45%, #c026a3 100%)`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
           />
-          <div className="absolute inset-0 scale-100 group-hover:scale-105 transition-transform duration-500 ease-out">
-            <SmartImage src={BANNER_IMAGE} alt="" aria-hidden="true" fill sizes="(max-width: 1200px) 100vw, 1200px" className="object-cover" />
-          </div>
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-black/0 transition-opacity duration-300 group-hover:from-primary-dark/75"
