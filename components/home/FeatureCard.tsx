@@ -14,22 +14,31 @@ export const FEATURE_CARD_TEXT = 'text-[14.5px] sm:text-[15.5px] leading-snug te
 
 export default function FeatureCard({
   background,
+  bgClassName,
   children,
 }: {
   /** Fondo CSS (imagen y/o degradado). Con varios fondos, si la imagen falla se ve el degradado. */
-  background: CSSProperties['background'];
+  background?: CSSProperties['background'];
+  /** Alternativa con clases de Tailwind (permite elegir otra imagen por breakpoint). */
+  bgClassName?: string;
   children: ReactNode;
 }) {
   return (
     <article className="group relative h-full min-h-[260px] md:min-h-[320px] overflow-hidden rounded-3xl border border-neutral-900">
       <div
         aria-hidden="true"
-        className="absolute inset-0 scale-100 transition-transform duration-500 ease-out group-hover:scale-105"
-        style={{ background, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        className={`absolute inset-0 scale-100 transition-transform duration-500 ease-out group-hover:scale-105 ${bgClassName ?? ''}`}
+        style={background ? { background, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+      />
+      {/* Mismos dos velos del hero (oscuro de abajo hacia arriba + tinte de marca desde la izquierda) */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/10 transition-opacity duration-300 group-hover:from-primary-dark/80"
       />
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/15 transition-opacity duration-300 group-hover:from-primary-dark/80"
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(100deg, rgba(138,17,188,.30) 0%, rgba(13,13,13,0) 55%)' }}
       />
       <div className="relative z-10 flex h-full min-h-[260px] md:min-h-[320px] flex-col justify-end gap-3 p-6 sm:p-8">
         {children}

@@ -4,16 +4,16 @@ import FeatureCard, { FEATURE_CARD_CTA, FEATURE_CARD_TEXT, FEATURE_CARD_TITLE } 
 
 export const WOMEN_TEACHERS_HREF = '/clases?profesoras=1';
 
-// Imagen de fondo (ancha, ~1200×800 webp). Si el archivo no existe se ve el degradado de la marca.
-const BANNER_IMAGE = '/profesoras-banner.webp';
+// Fondo: la misma textura del hero del Home (la de mobile es liviana, 8 KB; la de desktop se carga
+// solo en md+). bg-primary es el color de respaldo mientras carga o si falla.
+const BG_CLASS =
+  "bg-primary bg-cover bg-center bg-[url('/Background-Mobile.webp')] md:bg-[url('/Background.webp')]";
 
 // Tarjeta que lleva a las clases dictadas por profesoras (etiquetadas por el equipo de Kynea, migración 63).
 // El título es un enlace "estirado": toda la tarjeta es clicable.
 export default function WomenTeachersBanner({ classCount }: { classCount: number }) {
   return (
-    <FeatureCard
-      background={`url('${BANNER_IMAGE}'), linear-gradient(135deg, #6d0d97 0%, #8a11bc 50%, #c026a3 100%)`}
-    >
+    <FeatureCard bgClassName={BG_CLASS}>
       <h2 className={FEATURE_CARD_TITLE}>
         <Link href={WOMEN_TEACHERS_HREF} prefetch={false} className="after:absolute after:inset-0 after:content-['']">
           Clases con profesoras mujeres
