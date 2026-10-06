@@ -45,7 +45,10 @@ export async function createSeriesCopies(
   if (!seriesId) {
     seriesId = globalThis.crypto.randomUUID();
     const { error } = await supabase.from('classes').update({ series_id: seriesId }).eq('id', originalId);
-    if (error) return { ok: false, message: 'No se pudo vincular la serie de clases' };
+    if (error) {
+      console.error('[createSeriesCopies] vincular serie:', error.code, error.message);
+      return { ok: false, message: 'No se pudo vincular la serie de clases' };
+    }
   }
 
   const base = { ...original };
@@ -81,7 +84,10 @@ export async function createSeriesCopies(
       .select('id')
       .single();
 
-    if (error || !created) return rollback('No se pudo crear una de las copias de la clase');
+    if (error || !created) {
+      console.error('[createSeriesCopies] crear copia:', error?.code, error?.message);
+      return rollback('No se pudo crear una de las copias de la clase');
+    }
     const copyId = (created as { id: string }).id;
     createdIds.push(copyId);
 

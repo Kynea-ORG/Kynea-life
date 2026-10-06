@@ -37,12 +37,13 @@ export default async function ClasesPage({
     country:    (params.country as string | undefined) || undefined,
     district:   (params.district as string | undefined) || undefined,
     withSpots:  params.spots === '1' || undefined,
+    womenTeachers: params.profesoras === '1' || undefined,
   };
 
   const hasFilters = !!(
     filters.query || filters.styles?.length || filters.levels?.length ||
     filters.modalities?.length || filters.types?.length || filters.days?.length ||
-    filters.city || filters.country || filters.district || filters.withSpots
+    filters.city || filters.country || filters.district || filters.withSpots || filters.womenTeachers
   );
 
   let fallbackLocation: { lat: number; lng: number } | null = null;

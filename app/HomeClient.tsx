@@ -15,6 +15,7 @@ import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibb
 import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import HomeCompactSearch from '@/components/home/HomeCompactSearch';
+import WomenTeachersBanner from '@/components/home/WomenTeachersBanner';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
 import { resolveSearch } from '@/lib/search/resolveSearch';
@@ -105,6 +106,8 @@ interface Props {
   userRole:               'alumno' | 'profesor' | 'academia' | null;
   /** Sugerencias del buscador con IA salidas del catálogo real; si falta, se usan los textos base. */
   aiSuggestions?:         AiSuggestions;
+  /** Clases dictadas por profesoras (etiquetadas por un admin). null/undefined = no mostrar la sección. */
+  womenTeachersClassCount?: number | null;
 }
 
 // ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
@@ -173,7 +176,7 @@ const MobileCitySearchOverlay = dynamic(
 );
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions }: Props) {
+export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions, womenTeachersClassCount }: Props) {
   const aiPlaceholders  = aiSuggestions?.placeholders ?? AI_PLACEHOLDER_EXAMPLES;
   const aiQuickPrompts  = aiSuggestions?.quickPrompts ?? AI_QUICK_PROMPTS;
   const router = useRouter();
@@ -1265,6 +1268,9 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
           </div>
         </div>
       </section>
+
+      {/* ── CLASES CON PROFESORAS MUJERES ── */}
+      {womenTeachersClassCount != null && <WomenTeachersBanner classCount={womenTeachersClassCount} />}
 
       {/* ── BÚSQUEDAS RECIENTES ── */}
       {recentSearches.length > 0 && (

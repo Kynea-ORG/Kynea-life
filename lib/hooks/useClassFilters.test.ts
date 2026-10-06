@@ -115,3 +115,60 @@ describe('useClassFilters — district filtering', () => {
     expect(ids).not.toContain('c-miraflores');
   });
 });
+
+describe('useClassFilters — profesoras (?profesoras=1)', () => {
+  beforeEach(() => {
+    mockSearchParams = new URLSearchParams();
+    mockPush.mockReset();
+    mockReplace.mockReset();
+  });
+
+  const classes = [createSampleClass({ id: 'c1' }), createSampleClass({ id: 'c2' })];
+
+  it('lee el filtro desde la URL y cuenta como filtro activo', () => {
+    mockSearchParams = new URLSearchParams({ profesoras: '1' });
+    const { result } = renderHook(() =>
+      useClassFilters({ initialClasses: classes, baseUrl: '/clases', includeStyles: true })
+    );
+    expect(result.current.filters.withWomenTeachers).toBe(true);
+    expect(result.current.activeCount).toBe(1);
+  });
+
+  it('sin el parámetro el filtro está apagado', () => {
+    const { result } = renderHook(() =>
+      useClassFilters({ initialClasses: classes, baseUrl: '/clases', includeStyles: true })
+    );
+    expect(result.current.filters.withWomenTeachers).toBe(false);
+    expect(result.current.activeCount).toBe(0);
+  });
+
+  it('no filtra en el cliente (el servidor ya trae solo clases de profesoras)', () => {
+    mockSearchParams = new URLSearchParams({ profesoras: '1' });
+    const { result } = renderHook(() =>
+      useClassFilters({ initialClasses: classes, baseUrl: '/clases', includeStyles: true })
+    );
+    expect(result.current.results.map(c => c.id)).toEqual(['c1', 'c2']);
+  });
+
+  it('al cambiar otro filtro conserva profesoras=1 en la URL', () => {
+    mockSearchParams = new URLSearchParams({ profesoras: '1' });
+    const { result } = renderHook(() =>
+      useClassFilters({ initialClasses: classes, baseUrl: '/clases', includeStyles: true })
+    );
+    result.current.handleFiltersChange({ ...result.current.filters, levels: ['Principiante'] });
+    const url = mockReplace.mock.calls.at(-1)?.[0] as string;
+    const params = new URL(url, 'http://x').searchParams;
+    expect(params.get('profesoras')).toBe('1');
+    expect(params.getAll('level')).toEqual(['Principiante']);
+  });
+
+  it('al apagarlo se quita de la URL', () => {
+    mockSearchParams = new URLSearchParams({ profesoras: '1' });
+    const { result } = renderHook(() =>
+      useClassFilters({ initialClasses: classes, baseUrl: '/clases', includeStyles: true })
+    );
+    result.current.handleFiltersChange({ ...result.current.filters, withWomenTeachers: false });
+    const url = mockReplace.mock.calls.at(-1)?.[0] as string;
+    expect(new URL(url, 'http://x').searchParams.get('profesoras')).toBeNull();
+  });
+});

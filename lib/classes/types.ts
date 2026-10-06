@@ -20,6 +20,8 @@ export interface ClassFilters {
   country?:    string;
   district?:   string;
   withSpots?:  boolean;
+  /** Solo clases dictadas por profesoras (profiles.is_woman, etiquetadas por un admin). */
+  womenTeachers?: boolean;
 }
 
 export interface ClassUpdatePayload {

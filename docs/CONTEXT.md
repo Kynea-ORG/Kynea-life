@@ -76,6 +76,7 @@ Extiende `auth.users`. Se crea automáticamente vía trigger `handle_new_user` a
 | `website` | text | URL de sitio web |
 | `is_admin` | boolean | `NOT NULL DEFAULT false` — solo escribible vía conexión directa a la DB (`postgres`/`service_role`/`supabase_admin`), ver Funciones / Triggers |
 | `created_by` | uuid | `NULL` — FK → `auth.users`, `ON DELETE SET NULL`. `NULL` = se registró solo; no-`NULL` = uuid del admin que creó la cuenta desde `/dashboard/admin`. Advisory: no es un control de seguridad, ver Funciones / Triggers |
+| `is_woman` | boolean | `NULL` = sin etiquetar, `true` = profesora (migración 63). Lo etiqueta un admin desde `/dashboard/admin/profesoras` (RPC `admin_set_profile_woman`, protegido por trigger como `is_admin`); no lo declara el usuario ni se infiere del nombre. Solo `role = 'profesor'`. Alimenta la sección del Home «Clases con profesoras mujeres» y `/clases?profesoras=1` |
 | `created_at` | timestamptz | — |
 | `updated_at` | timestamptz | Se actualiza en cada mutación (trigger) |
 

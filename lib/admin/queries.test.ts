@@ -25,7 +25,7 @@ vi.mock('@/lib/supabase/server', () => ({
   })),
 }));
 
-import { fetchAdminCreatedUsers, fetchIsAdmin, fetchUserCounts } from './queries';
+import { fetchAdminCreatedUsers, fetchIsAdmin, fetchUserCounts, fetchAdminProfesores, ADMIN_PROFESORES_PAGE_SIZE } from './queries';
 
 describe('fetchIsAdmin', () => {
   beforeEach(() => {
@@ -197,5 +197,58 @@ describe('fetchUserCounts', () => {
     expect(result.academia).toBe(0);
     expect(consoleSpy).toHaveBeenCalledWith('fetchUserCounts (academia) error:', 'boom');
     consoleSpy.mockRestore();
+  });
+});
+
+describe('fetchAdminProfesores', () => {
+  afterEach(() => {
+    mockFrom.mockImplementation(defaultFromImpl);
+  });
+
+  // Cadena awaitable: select → eq → [ilike] → order → range
+  function mockProfilesQuery(result: { data: unknown; count?: number | null; error: { code?: string; message: string } | null }) {
+    const calls: { filters: [string, unknown][]; ilike?: [string, string]; range?: [number, number]; order?: string } = { filters: [] };
+    const builder: Record<string, unknown> = {
+      select: vi.fn(() => builder),
+      eq: vi.fn((c: string, v: unknown) => { calls.filters.push([c, v]); return builder; }),
+      ilike: vi.fn((c: string, v: string) => { calls.ilike = [c, v]; return builder; }),
+      order: vi.fn((c: string) => { calls.order = c; return builder; }),
+      range: vi.fn((a: number, b: number) => { calls.range = [a, b]; return builder; }),
+      then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => Promise.resolve(result).then(res, rej),
+    };
+    mockFrom.mockImplementation(() => builder);
+    return calls;
+  }
+
+  const ROW = { id: 'p1', name: 'Ana', slug: 'ana', photo_url: null, is_woman: true, created_at: '2026-01-01' };
+
+  it('lista solo profesores y mapea las filas', async () => {
+    const calls = mockProfilesQuery({ data: [ROW, { ...ROW, id: 'p2', name: 'Luis', is_woman: null }], count: 2, error: null });
+    const res = await fetchAdminProfesores({ page: 1 });
+    expect(calls.filters).toContainEqual(['role', 'profesor']);
+    expect(res.total).toBe(2);
+    expect(res.profesores).toEqual([
+      { id: 'p1', name: 'Ana', slug: 'ana', photoUrl: null, isWoman: true },
+      { id: 'p2', name: 'Luis', slug: 'ana', photoUrl: null, isWoman: false },
+    ]);
+  });
+
+  it('pagina de a ADMIN_PROFESORES_PAGE_SIZE', async () => {
+    const calls = mockProfilesQuery({ data: [], count: 0, error: null });
+    await fetchAdminProfesores({ page: 3 });
+    expect(calls.range).toEqual([2 * ADMIN_PROFESORES_PAGE_SIZE, 3 * ADMIN_PROFESORES_PAGE_SIZE - 1]);
+  });
+
+  it('filtra por nombre sin dejar que el texto rompa el patrón', async () => {
+    const calls = mockProfilesQuery({ data: [], count: 0, error: null });
+    await fetchAdminProfesores({ search: '  an%a_  ', page: 1 });
+    expect(calls.ilike).toEqual(['name', '%ana%']);
+  });
+
+  it('si la columna no existe (migración 63 pendiente) lo indica en vez de romper', async () => {
+    mockProfilesQuery({ data: null, count: null, error: { code: '42703', message: 'column profiles.is_woman does not exist' } });
+    const res = await fetchAdminProfesores({ page: 1 });
+    expect(res.profesores).toEqual([]);
+    expect(res.migrationPending).toBe(true);
   });
 });
