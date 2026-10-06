@@ -1272,9 +1272,6 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
         </div>
       </section>
 
-      {/* ── DESTACADOS: clases con profesoras (izquierda) + blog (derecha) ── */}
-      <HomeFeatureCards womenClassCount={womenTeachersClassCount} blogHighlight={blogHighlight} />
-
       {/* ── BÚSQUEDAS RECIENTES ── */}
       {recentSearches.length > 0 && (
         <section className="bg-white pb-8">
@@ -1306,6 +1303,9 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
           </div>
         </section>
       )}
+
+      {/* ── DESTACADOS: clases con profesoras (izquierda) + blog (derecha) ── */}
+      <HomeFeatureCards womenClassCount={womenTeachersClassCount} blogHighlight={blogHighlight} />
 
       {/* ── CLASES ESTA SEMANA ── */}
       <section className="bg-neutral-50 py-16">

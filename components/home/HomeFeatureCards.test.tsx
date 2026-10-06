@@ -39,4 +39,30 @@ describe('HomeFeatureCards', () => {
     const { container } = render(<HomeFeatureCards womenClassCount={null} blogHighlight={null} />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('en mobile es un slider horizontal con snap; desde md vuelve a dos columnas', () => {
+    const { container } = render(<HomeFeatureCards womenClassCount={4} blogHighlight={post} />);
+    const track = container.querySelector('section > div > div')!;
+    expect(track.className).toContain('overflow-x-auto');
+    expect(track.className).toContain('snap-x');
+    expect(track.className).toContain('md:grid');
+    expect(track.className).toContain('md:overflow-visible');
+  });
+
+  it('cada tarjeta ocupa casi todo el ancho en mobile para dejar asomar la siguiente', () => {
+    const { container } = render(<HomeFeatureCards womenClassCount={4} blogHighlight={post} />);
+    const items = container.querySelectorAll('section > div > div > div');
+    expect(items).toHaveLength(2);
+    for (const item of items) {
+      expect(item.className).toContain('snap-start');
+      expect(item.className).toContain('shrink-0');
+      expect(item.className).toMatch(/w-\[\d+%\]/);
+      expect(item.className).toContain('md:w-auto');
+    }
+  });
+
+  it('con una sola tarjeta no hay slider', () => {
+    const { container } = render(<HomeFeatureCards womenClassCount={4} blogHighlight={null} />);
+    expect(container.querySelector('section > div > div')!.className).not.toContain('overflow-x-auto');
+  });
 });
