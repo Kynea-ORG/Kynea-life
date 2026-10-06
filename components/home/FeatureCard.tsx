@@ -33,7 +33,7 @@ export default function FeatureCard({
         className={`absolute inset-0 scale-100 transition-transform duration-500 ease-out group-hover:scale-105 ${bgClassName ?? ''}`}
         style={background ? { background, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
       />
-      {veil && <div aria-hidden="true" className="absolute inset-0" style={{ background: 'rgba(34, 6, 52, 0.42)' }} />}
+      {veil && <div aria-hidden="true" className="absolute inset-0" style={{ background: 'rgba(34, 6, 52, 0.62)' }} />}
       {/* Mismos dos velos del hero (oscuro de abajo hacia arriba + tinte de marca desde la izquierda) */}
       <div
         aria-hidden="true"
