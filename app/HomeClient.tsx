@@ -1001,9 +1001,8 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
                 setActiveOptionIndex(-1);
               }}
               className={`shrink-0 flex items-center gap-2 font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-all active:scale-[0.98] disabled:opacity-75 disabled:cursor-wait text-white ${
-                isAiMode
-                  ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary-dark hover:to-purple-700 shadow-md shadow-primary/25'
-                  : 'bg-primary hover:bg-primary-dark'
+                // Morado sólido de la marca en ambos modos (el degradado se veía mal, sobre todo en mobile)
+                'bg-primary hover:bg-primary-dark'
               } ${isLoading ? 'animate-pulse' : ''}`}
             >
               {isLoading ? (
@@ -1155,9 +1154,8 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
               onClick={navigateSearch}
               disabled={isLoading}
               className={`w-full font-black text-[15.5px] text-white rounded-full py-3.5 mt-1.5 cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-75 disabled:cursor-wait flex items-center justify-center gap-2 ${
-                isAiMode
-                  ? 'bg-gradient-to-r from-primary to-purple-600 shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
-                  : 'bg-primary hover:bg-primary-dark active:bg-primary-dark shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
+                // Morado sólido de la marca en ambos modos (el degradado se veía mal en mobile)
+                'bg-primary hover:bg-primary-dark active:bg-primary-dark shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
               } ${isLoading ? 'animate-pulse' : ''}`}
             >
               {isLoading ? (
