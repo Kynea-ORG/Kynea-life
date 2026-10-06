@@ -10,6 +10,7 @@ import { classUrl, isClassExpired } from '@/lib/classes/helpers';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
 import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
+import ClassCardMobile from '@/components/ClassCardMobile';
 
 const ContactModal = dynamic(() => import('./ContactModal'), { ssr: false });
 
@@ -21,9 +22,12 @@ interface ClassCardProps {
   // trackSelectItem in lib/analytics.ts and each call site below.
   listName: string;
   matchBadges?: string[];
+  /** Si se indica, en mobile (< md) se usa la tarjeta compacta de ClassCardMobile: 'carousel' para
+   *  carruseles, 'row' para listas. Desde md siempre se usa esta tarjeta vertical. */
+  mobileLayout?: 'carousel' | 'row';
 }
 
-export default function ClassCard({ cls, compact = false, listName, matchBadges }: ClassCardProps) {
+export default function ClassCard({ cls, compact = false, listName, matchBadges, mobileLayout }: ClassCardProps) {
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -83,7 +87,12 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges 
 
   return (
     <>
-      <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 flex flex-col group hover:-translate-y-0.5">
+      {mobileLayout && (
+        <div className="md:hidden">
+          <ClassCardMobile cls={cls} layout={mobileLayout} listName={listName} matchBadges={matchBadges} />
+        </div>
+      )}
+      <div className={`bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 ${mobileLayout ? 'hidden md:flex' : 'flex'} flex-col group hover:-translate-y-0.5`}>
         {/* Image */}
         {/* Hover zoom lives on this wrapper (not the <Image>) because the
             image already carries an inline transform for the saved crop

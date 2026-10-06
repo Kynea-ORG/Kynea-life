@@ -490,8 +490,8 @@ export default function ClassBrowser({
             // `pb-20` en mobile deja espacio para el botón flotante "Mapa"
             // de abajo — si no, tapa la última fila (mismo problema que ya
             // resolvimos en ClasesMapView para su propio toggle flotante).
-            <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-5 ${enableMapView ? 'pb-20 lg:pb-0' : ''}`}>
-              {results.map(cls => <ClassCard key={cls.id} cls={cls} listName={listName} />)}
+            <div className={`grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5 ${enableMapView ? 'pb-20 lg:pb-0' : ''}`}>
+              {results.map(cls => <ClassCard key={cls.id} cls={cls} listName={listName} mobileLayout="row" />)}
             </div>
           )}
         </main>

@@ -77,8 +77,19 @@ describe('FeaturedCategoryRow', () => {
   it('links "Ver todas" to the style-filtered classes page', () => {
     render(<FeaturedCategoryRow style="Contemporáneo" classes={[makeClass('1')]} />);
 
-    const link = screen.getByRole('link', { name: /Ver todas/ });
-    expect(link).toHaveAttribute('href', `/clases?style=${encodeURIComponent('Contemporáneo')}`);
+    // Dos accesos: el enlace de la cabecera y, solo en mobile, la tarjeta final del carrusel.
+    const links = screen.getAllByRole('link', { name: /Ver todas/ });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', `/clases?style=${encodeURIComponent('Contemporáneo')}`);
+    }
+  });
+
+  it('el carrusel termina con una tarjeta "Ver todas las clases" solo para mobile', () => {
+    render(<FeaturedCategoryRow style="Heels" classes={[makeClass('1')]} />);
+
+    const tile = screen.getByRole('link', { name: 'Ver todas las clases' });
+    expect(tile.className).toContain('md:hidden');
   });
 });
 
