@@ -16,6 +16,8 @@ export interface Filters {
   priceMax: number | null;
   types: string[];
   withSpots: boolean;
+  /** Solo clases dictadas por profesoras (etiquetadas por un admin). */
+  withWomenTeachers: boolean;
 }
 
 export const MAX_PRICE = 300;
@@ -41,7 +43,7 @@ interface FilterPanelProps {
 
 export const EMPTY_FILTERS: Filters = {
   city: '', district: '', country: '', styles: [], levels: [], days: [],
-  timesOfDay: [], modalities: [], priceMax: null, types: [], withSpots: false,
+  timesOfDay: [], modalities: [], priceMax: null, types: [], withSpots: false, withWomenTeachers: false,
 };
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -208,7 +210,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
   const activeCount =
     filters.styles.length + filters.levels.length + filters.days.length +
     filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
-    filters.types.length + (filters.withSpots ? 1 : 0) +
+    filters.types.length + (filters.withSpots ? 1 : 0) + (filters.withWomenTeachers ? 1 : 0) +
     [filters.city, filters.district, filters.country].filter(Boolean).length;
 
   // Los estilos ya seleccionados siempre se muestran (aunque el grupo visible
@@ -386,6 +388,16 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
           </label>
         ))}
       </Section>
+
+      <label className="flex items-center gap-3 cursor-pointer mb-3">
+        <input
+          type="checkbox"
+          checked={filters.withWomenTeachers}
+          onChange={e => set('withWomenTeachers', e.target.checked)}
+          className="accent-neutral-900 w-4 h-4"
+        />
+        <span className="text-[13px] font-medium text-neutral-700">Dictadas por profesoras</span>
+      </label>
 
       <label className="flex items-center gap-3 cursor-pointer">
         <input

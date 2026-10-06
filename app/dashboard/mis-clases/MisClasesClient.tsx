@@ -5,7 +5,10 @@ import SmartImage from '@/components/SmartImage';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal, Clock, BookOpen } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
-import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction } from '@/lib/classes/actions';
+import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction, cancelAutoPublish } from '@/lib/classes/actions';
+import { creationToast } from '@/lib/classes/seriesLabels';
+import { limaToday } from '@/lib/classes/series';
+import SeriesBadges from './SeriesBadges';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { parsePublishError, profileFixHref } from '@/lib/classes/validation';
 import { classUrl } from '@/lib/classes/helpers';
@@ -38,26 +41,29 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  // Publish success signal survives the server redirect via ?published=1
-  // (set by createClass/updateClassFromForm) — read once via a lazy
-  // initializer so the initial toast doesn't require a setState-in-effect.
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'info' | 'error'; href?: string; actionLabel?: string } | null>(() =>
-    searchParams.get('published') === '1'
-      ? { msg: 'Tu clase fue publicada correctamente.', type: 'success' }
-      : null
+  // Publish/series signals survive the server redirect via ?published=1 / ?series=N
+  // (set by createClass/updateClassFromForm) — read once via a lazy initializer so
+  // the initial toast doesn't require a setState-in-effect.
+  const [initialToast] = useState(() =>
+    creationToast(searchParams.get('published') === '1', Number(searchParams.get('series')) || 0)
   );
-  const [toastOpen, setToastOpen] = useState(() => searchParams.get('published') === '1');
+  const [toastDuration, setToastDuration] = useState(initialToast?.durationMs ?? 3000);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'info' | 'error'; href?: string; actionLabel?: string } | null>(() =>
+    initialToast ? { msg: initialToast.msg, type: 'success' } : null
+  );
+  const [toastOpen, setToastOpen] = useState(() => initialToast !== null);
   const shouldRenderToast = useDelayedUnmount(toastOpen, 200);
+  const today = limaToday();
 
   useEffect(() => {
     if (!toastOpen) return;
-    const timer = setTimeout(() => setToastOpen(false), 3000);
+    const timer = setTimeout(() => setToastOpen(false), toastDuration);
     return () => clearTimeout(timer);
-  }, [toastOpen]);
+  }, [toastOpen, toastDuration]);
 
-  // Clear the ?published=1 param so a refresh doesn't re-show the toast.
+  // Clear the ?published / ?series params so a refresh doesn't re-show the toast.
   useEffect(() => {
-    if (searchParams.get('published') === '1') {
+    if (searchParams.get('published') === '1' || searchParams.get('series')) {
       router.replace('/dashboard/mis-clases');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,6 +71,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
 
   const showToast = (msg: string, type: 'success' | 'info' | 'error' = 'success', href?: string, actionLabel?: string) => {
     setToast({ msg, type, href, actionLabel });
+    setToastDuration(3000);
     setToastOpen(true);
   };
 
@@ -139,6 +146,18 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
         setRemovingId(null);
         showToast('Error al eliminar (recarga la página)', 'error');
         router.refresh();
+      }
+    });
+  };
+
+  const handleCancelAutoPublish = (id: string) => {
+    startTransition(async () => {
+      try {
+        await cancelAutoPublish(id);
+        setClasses(prev => prev.map(c => (c.id === id ? { ...c, autoPublishAt: undefined } : c)));
+        showToast('Listo: esta copia ya no se publicará sola. Puedes publicarla cuando quieras.', 'success');
+      } catch {
+        showToast('No se pudo cancelar la publicación automática', 'error');
       }
     });
   };
@@ -261,6 +280,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                   <div className="min-w-0">
                     <p className="font-semibold text-neutral-900 text-sm truncate">{cls.title}</p>
                     <p className="text-xs text-neutral-600 truncate">{cls.style} · {cls.level}</p>
+                    <SeriesBadges cls={cls} today={today} />
                   </div>
                 </div>
                 <div role="cell">
@@ -326,6 +346,12 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                         className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-700 transition-colors active:scale-90">
                         <Edit2 className="w-4 h-4" />
                       </Link>
+                      {cls.status === 'draft' && cls.autoPublishAt && (
+                        <button type="button" title="No publicar sola" onClick={() => handleCancelAutoPublish(cls.id)} disabled={isPending}
+                          className="text-[11px] font-semibold text-neutral-500 hover:text-neutral-800 underline-offset-2 hover:underline disabled:opacity-50 whitespace-nowrap">
+                          No publicar sola
+                        </button>
+                      )}
                       <button title="Duplicar" onClick={() => handleDuplicate(cls.id)} disabled={isPending}
                         className="p-1.5 hover:bg-blue-50 rounded-lg text-neutral-400 hover:text-blue-600 transition-colors active:scale-90 disabled:opacity-50">
                         <Copy className="w-4 h-4" />
@@ -366,6 +392,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                   <div>
                     <p className="font-bold text-neutral-900 text-sm">{cls.title}</p>
                     <p className="text-xs text-neutral-600">{cls.style} · {cls.level}</p>
+                    <SeriesBadges cls={cls} today={today} />
                   </div>
                   <button onClick={() => setOpenMenu(openMenu === cls.id ? null : cls.id)} className="p-1 text-neutral-400">
                     <MoreHorizontal className="w-5 h-5" />
@@ -421,6 +448,12 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                     className="text-xs font-medium text-neutral-900 flex items-center gap-1 bg-neutral-100 px-3 py-1.5 rounded-lg">
                     <Edit2 className="w-3 h-3" /> Editar
                   </Link>
+                  {cls.status === 'draft' && cls.autoPublishAt && (
+                    <button type="button" onClick={() => { handleCancelAutoPublish(cls.id); setOpenMenu(null); }} disabled={isPending}
+                      className="text-xs font-medium text-neutral-600 flex items-center gap-1 bg-neutral-100 px-3 py-1.5 rounded-lg disabled:opacity-50">
+                      No publicar sola
+                    </button>
+                  )}
                   <button onClick={() => { handleDuplicate(cls.id); setOpenMenu(null); }} disabled={isPending}
                     className="text-xs font-medium text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg disabled:opacity-50">
                     <Copy className="w-3 h-3" /> Duplicar

@@ -15,6 +15,8 @@ import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibb
 import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import HomeCompactSearch from '@/components/home/HomeCompactSearch';
+import HomeFeatureCards from '@/components/home/HomeFeatureCards';
+import type { BlogHighlight } from '@/lib/blog/highlight';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
 import { resolveSearch } from '@/lib/search/resolveSearch';
@@ -105,23 +107,44 @@ interface Props {
   userRole:               'alumno' | 'profesor' | 'academia' | null;
   /** Sugerencias del buscador con IA salidas del catálogo real; si falta, se usan los textos base. */
   aiSuggestions?:         AiSuggestions;
+  /** Clases dictadas por profesoras (etiquetadas por un admin). null/undefined = no mostrar la sección. */
+  womenTeachersClassCount?: number | null;
+  /** Último artículo publicado del blog para la tarjeta que invita a leerlo. null = no mostrar. */
+  blogHighlight?: BlogHighlight | null;
 }
 
 // ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
 // Each row owns its own scroll ref, so this can't be inlined in a .map() —
 // hooks can't be called a variable number of times in a loop body.
 // Exported for unit testing.
+// Tarjeta final de los carruseles en mobile: reemplaza al botón "Ver todas las clases" de ancho completo.
+function SeeAllTile({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      prefetch={false}
+      className="md:hidden shrink-0 self-start w-[120px] h-[189px] rounded-2xl border border-neutral-200 bg-white flex flex-col items-center justify-center gap-2 text-center active:scale-[0.97] transition-transform"
+      style={{ scrollSnapAlign: 'start' }}
+    >
+      <span className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+        <ArrowRight className="w-[18px] h-[18px]" aria-hidden="true" />
+      </span>
+      <span className="text-[13.5px] font-extrabold leading-tight text-neutral-900 px-2">Ver todas las clases</span>
+    </Link>
+  );
+}
+
 export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
   const scrollRef = useRef<HTMLDivElement>(null);
   if (classes.length === 0) return null;
 
   return (
-    <section className="bg-white py-16 border-t border-neutral-100">
-      <div className="max-w-[1200px] mx-auto px-6">
-        <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+    <section className="bg-white py-6 md:py-16 border-t border-neutral-100">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6">
+        <div className="flex items-end justify-between gap-6 mb-3 md:mb-7 flex-wrap">
           <div>
-            <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">{style}</h2>
-            <p className="text-neutral-600 text-[15px] mt-1">Las clases de {style} más populares</p>
+            <h2 className="text-[20px] md:text-[27px] font-extrabold text-neutral-900 tracking-tight">{style}</h2>
+            <p className="hidden md:block text-neutral-600 text-[15px] mt-1">Las clases de {style} más populares</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href={`/clases?style=${encodeURIComponent(style)}`} prefetch={false} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
@@ -148,14 +171,15 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
 
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-3 pt-1"
+          className="flex gap-3 md:gap-4 overflow-x-auto pb-3 pt-1 -mx-4 px-4 md:mx-0 md:px-0 scroll-pl-4 md:scroll-pl-0"
           style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
         >
           {classes.map(cls => (
-            <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-              <ClassCard cls={cls} compact listName={`home_featured_${style}`} />
+            <div key={cls.id} className="shrink-0 w-[252px] md:w-80" style={{ scrollSnapAlign: 'start' }}>
+              <ClassCard cls={cls} compact mobileLayout="carousel" listName={`home_featured_${style}`} />
             </div>
           ))}
+          <SeeAllTile href={`/clases?style=${encodeURIComponent(style)}`} />
         </div>
       </div>
     </section>
@@ -173,7 +197,7 @@ const MobileCitySearchOverlay = dynamic(
 );
 
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions }: Props) {
+export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions, womenTeachersClassCount, blogHighlight }: Props) {
   const aiPlaceholders  = aiSuggestions?.placeholders ?? AI_PLACEHOLDER_EXAMPLES;
   const aiQuickPrompts  = aiSuggestions?.quickPrompts ?? AI_QUICK_PROMPTS;
   const router = useRouter();
@@ -995,9 +1019,8 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
                 setActiveOptionIndex(-1);
               }}
               className={`shrink-0 flex items-center gap-2 font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-all active:scale-[0.98] disabled:opacity-75 disabled:cursor-wait text-white ${
-                isAiMode
-                  ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary-dark hover:to-purple-700 shadow-md shadow-primary/25'
-                  : 'bg-primary hover:bg-primary-dark'
+                // Morado sólido de la marca en ambos modos (el degradado se veía mal, sobre todo en mobile)
+                'bg-primary hover:bg-primary-dark'
               } ${isLoading ? 'animate-pulse' : ''}`}
             >
               {isLoading ? (
@@ -1149,9 +1172,8 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
               onClick={navigateSearch}
               disabled={isLoading}
               className={`w-full font-black text-[15.5px] text-white rounded-full py-3.5 mt-1.5 cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-75 disabled:cursor-wait flex items-center justify-center gap-2 ${
-                isAiMode
-                  ? 'bg-gradient-to-r from-primary to-purple-600 shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
-                  : 'bg-primary hover:bg-primary-dark active:bg-primary-dark shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
+                // Morado sólido de la marca en ambos modos (el degradado se veía mal en mobile)
+                'bg-primary hover:bg-primary-dark active:bg-primary-dark shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
               } ${isLoading ? 'animate-pulse' : ''}`}
             >
               {isLoading ? (
@@ -1298,16 +1320,19 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
         </section>
       )}
 
+      {/* ── DESTACADOS: clases con profesoras (izquierda) + blog (derecha) ── */}
+      <HomeFeatureCards womenClassCount={womenTeachersClassCount} blogHighlight={blogHighlight} />
+
       {/* ── CLASES ESTA SEMANA ── */}
-      <section className="bg-neutral-50 py-16">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="flex items-end justify-between mb-6">
+      <section className="bg-neutral-50 py-6 md:py-16">
+        <div className="max-w-[1200px] mx-auto px-4 md:px-6">
+          <div className="flex items-end justify-between mb-3 md:mb-6">
             <div>
-              <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases de baile para ti</h2>
-              <p className="text-neutral-600 text-[15px] mt-1">Seleccionadas para ti</p>
+              <h2 className="text-[20px] md:text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases de baile para ti</h2>
+              <p className="hidden md:block text-neutral-600 text-[15px] mt-1">Seleccionadas para ti</p>
             </div>
-            <div className="hidden sm:flex items-center gap-3">
-              <Link href="/clases" prefetch={false} className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
+            <div className="flex items-center gap-3">
+              <Link href="/clases" prefetch={false} className="flex items-center gap-1 text-[13.5px] md:text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors whitespace-nowrap">
                 Ver todas <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -1330,16 +1355,17 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
 
               <div
                 ref={carouselRef}
-                className="flex gap-4 overflow-x-auto pb-4"
+                className="flex gap-3 md:gap-4 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 scroll-pl-4 md:scroll-pl-0"
                 style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
                 onMouseEnter={() => { carouselPausedRef.current = true; }}
                 onMouseLeave={() => { carouselPausedRef.current = false; }}
               >
                 {recommendedClasses.map(cls => (
-                  <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-                    <ClassCard cls={cls} compact listName="home_recommended" />
+                  <div key={cls.id} className="shrink-0 w-[252px] md:w-80" style={{ scrollSnapAlign: 'start' }}>
+                    <ClassCard cls={cls} compact mobileLayout="carousel" listName="home_recommended" />
                   </div>
                 ))}
+                <SeeAllTile href="/clases" />
               </div>
 
               <button
@@ -1352,9 +1378,6 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
             </div>
           )}
 
-          <div className="mt-6 text-center sm:hidden">
-            <Link href="/clases" prefetch={false} className="btn-outline">Ver todas las clases</Link>
-          </div>
         </div>
       </section>
 

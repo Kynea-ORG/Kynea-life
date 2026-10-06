@@ -67,6 +67,10 @@ Existen **dos proyectos Supabase** separados:
 | `kynea-dev` | `uibigobubqrolozvrkzd` | Pruebas de migraciones, ambiente desechable |
 | Producción | `hmvonvxgmvwfnhlmrgpg` | Proyecto compartido en vivo |
 
+### Jobs programados (`pg_cron`)
+
+La migración 62 habilita la extensión `pg_cron` y agenda `publish-series-copies` (diario, 11:00 UTC = 06:00 Lima), que publica las copias de series mensuales cuya fecha de publicación ya llegó (`publish_due_series_copies()`). Corre dentro de cada proyecto Supabase, así que existe igual en `kynea-dev` y en producción — no usa Vercel Cron ni variables de entorno. Verificar tras migrar: `select jobname, schedule, active from cron.job;` y, para probar a mano, `select public.publish_due_series_copies();`. Si `pg_cron` no se puede habilitar en el proyecto, la migración falla a propósito (sin el job las copias nunca se publicarían solas).
+
 ### Flujo local / manual
 
 ```bash

@@ -4,6 +4,10 @@ import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import { fetchDanceStyles } from '@/lib/catalog/queries';
 import { fetchHomeStats } from '@/lib/stats/queries';
 import { buildAiSuggestions, computeCatalogSignals } from '@/lib/search/catalogSignals';
+import { getPublicClient } from '@/lib/supabase/public';
+import { fetchPublishedPosts } from '@/lib/blog/queries';
+import { toBlogHighlight } from '@/lib/blog/highlight';
+import { fetchWomanTeacherIds, countClassesTaughtBy, shouldShowWomenSection } from '@/lib/profiles/women';
 import { createClient } from '@/lib/supabase/server';
 import { SITE_URL } from '@/lib/constants';
 import { safeJsonLd } from '@/lib/utils';
@@ -17,12 +21,14 @@ const MIN_CLASSES_FOR_FEATURED_ROW = 4;
 
 export default async function Page() {
   const supabase = await createClient();
-  const [classes, teachers, academias, danceStyles, stats, { data: { user } }] = await Promise.all([
+  const [classes, teachers, academias, danceStyles, stats, womanTeacherIds, posts, { data: { user } }] = await Promise.all([
     fetchPublishedClasses(),
     fetchFeaturedProfiles('profesor', 6),
     fetchFeaturedProfiles('academia', 4),
     fetchDanceStyles(),
     fetchHomeStats(),
+    fetchWomanTeacherIds(getPublicClient()),
+    fetchPublishedPosts().catch(() => []),
     supabase.auth.getUser(),
   ]);
 
@@ -61,7 +67,14 @@ export default async function Page() {
   const recommendedClasses = selectHomeRecommendedClasses(classes);
 
   // Sugerencias del buscador con IA: solo lo que el catálogo real respalda.
+  const blogHighlight = toBlogHighlight(posts);
   const aiSuggestions = buildAiSuggestions(computeCatalogSignals(classes));
+
+  // Sección "Clases con profesoras mujeres": solo si hay clases de profesoras etiquetadas (o en desarrollo).
+  const womenClassCount = countClassesTaughtBy(classes, womanTeacherIds);
+  const womenTeachersClassCount = shouldShowWomenSection(womenClassCount, process.env.NEXT_PUBLIC_APP_ENV)
+    ? womenClassCount
+    : null;
 
   const homeJsonLd = {
     '@context': 'https://schema.org',
@@ -212,6 +225,8 @@ export default async function Page() {
         stats={stats}
         userRole={userRole}
         aiSuggestions={aiSuggestions}
+        womenTeachersClassCount={womenTeachersClassCount}
+        blogHighlight={blogHighlight}
       />
     </>
   );

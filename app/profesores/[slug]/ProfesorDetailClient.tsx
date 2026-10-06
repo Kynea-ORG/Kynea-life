@@ -302,8 +302,8 @@ function ProfesorEditorial({
             </p>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {classes.map(cls => <ClassCard key={cls.id} cls={cls} listName="profesor_detail" />)}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
+            {classes.map(cls => <ClassCard key={cls.id} cls={cls} listName="profesor_detail" mobileLayout="row" />)}
           </div>
         )}
       </div>

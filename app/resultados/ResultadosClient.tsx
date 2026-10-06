@@ -299,11 +299,12 @@ export default function ResultadosClient({
           classes.length === 0 ? (
             <EmptySection query={query} tab="clases" relaxations={relaxations} suggestedStyles={suggestedStyles} />
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
               {classes.map(cls => (
                 <ClassCard
                   key={cls.id}
                   cls={cls}
+                  mobileLayout="row"
                   listName="resultados"
                   matchBadges={getValidClassBadges(cls, activeBadges)}
                 />

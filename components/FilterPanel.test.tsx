@@ -62,3 +62,18 @@ describe('FilterPanel · País', () => {
     expect(screen.getByPlaceholderText('Buscar país…')).toBeInTheDocument();
   });
 });
+
+describe('FilterPanel · Dictadas por profesoras', () => {
+  it('muestra el filtro y lo activa/desactiva', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<FilterPanel filters={EMPTY_FILTERS} onChange={onChange} {...props} />);
+    const box = screen.getByRole('checkbox', { name: /Dictadas por profesoras/ });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    expect(onChange).toHaveBeenLastCalledWith({ ...EMPTY_FILTERS, withWomenTeachers: true });
+
+    rerender(<FilterPanel filters={{ ...EMPTY_FILTERS, withWomenTeachers: true }} onChange={onChange} {...props} />);
+    expect(screen.getByRole('checkbox', { name: /Dictadas por profesoras/ })).toBeChecked();
+    expect(screen.getByText('1 filtro activo')).toBeInTheDocument();
+  });
+});

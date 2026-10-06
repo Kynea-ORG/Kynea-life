@@ -161,3 +161,62 @@ export async function fetchIsAdmin(): Promise<boolean> {
   const profile = await getCurrentProfile();
   return profile?.is_admin === true;
 }
+
+export const ADMIN_PROFESORES_PAGE_SIZE = 25;
+
+export type AdminProfesor = {
+  id: string;
+  name: string | null;
+  slug: string | null;
+  photoUrl: string | null;
+  isWoman: boolean;
+};
+
+export type AdminProfesoresPage = {
+  profesores: AdminProfesor[];
+  total: number;
+  page: number;
+  totalPages: number;
+  /** true cuando profiles.is_woman todavía no existe (migración 63 sin aplicar). */
+  migrationPending?: boolean;
+};
+
+// Lista TODOS los profesores (a diferencia de fetchAdminCreatedUsers, que solo trae las cuentas
+// creadas por un admin) para poder etiquetar a las profesoras. profiles es legible para
+// cualquier sesión por la policy de SELECT (profesor/academia son públicos), no hace falta RPC.
+export async function fetchAdminProfesores(
+  { search, page = 1 }: { search?: string; page?: number },
+): Promise<AdminProfesoresPage> {
+  const supabase = await createClient();
+  const from = (page - 1) * ADMIN_PROFESORES_PAGE_SIZE;
+
+  let q = supabase
+    .from('profiles')
+    .select('id, name, slug, photo_url, is_woman', { count: 'exact' })
+    .eq('role', 'profesor');
+
+  // % y _ son comodines de ILIKE: se quitan para que el texto buscado sea literal.
+  const term = (search ?? '').replace(/[%_,()]/g, '').trim();
+  if (term) q = q.ilike('name', `%${term}%`);
+
+  const { data, count, error } = await q
+    .order('name', { ascending: true })
+    .range(from, from + ADMIN_PROFESORES_PAGE_SIZE - 1);
+
+  if (error) {
+    const migrationPending = error.code === '42703';
+    if (!migrationPending) console.error('fetchAdminProfesores error:', error.message);
+    return { profesores: [], total: 0, page, totalPages: 1, migrationPending };
+  }
+
+  type Row = { id: string; name: string | null; slug: string | null; photo_url: string | null; is_woman: boolean | null };
+  const total = count ?? 0;
+  return {
+    profesores: ((data ?? []) as Row[]).map(r => ({
+      id: r.id, name: r.name, slug: r.slug, photoUrl: r.photo_url, isWoman: r.is_woman === true,
+    })),
+    total,
+    page,
+    totalPages: Math.max(1, Math.ceil(total / ADMIN_PROFESORES_PAGE_SIZE)),
+  };
+}

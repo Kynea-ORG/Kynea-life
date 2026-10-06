@@ -89,3 +89,31 @@ export async function approveAcademiaRequest(requestId: string, approve: boolean
   safeRevalidateTag('profiles', 'max');
   safeRevalidateTag('stats', 'max');
 }
+
+// Etiqueta (o quita la etiqueta) de "profesora" a un profesor — alimenta la sección del Home
+// "Clases con profesoras" y /clases?profesoras=1 (migración 63). El permiso real vive en
+// admin_set_profile_woman() (SECURITY DEFINER, valida is_admin()) y en el trigger
+// protect_profile_is_woman; este guard es defensa en profundidad, igual que arriba.
+export async function setProfileIsWoman(
+  profileId: string,
+  isWoman: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+  if (!(await fetchIsAdmin())) throw new Error('No autorizado');
+  if (!profileId) return { ok: false, error: 'Falta el profesor' };
+
+  const { error } = await supabase.rpc('admin_set_profile_woman', {
+    p_profile_id: profileId,
+    p_is_woman: isWoman,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/dashboard/admin/profesoras');
+  revalidatePath('/clases');
+  revalidatePath('/');
+  safeRevalidateTag('profiles', 'max');
+  safeRevalidateTag('classes', 'max');
+  return { ok: true };
+}

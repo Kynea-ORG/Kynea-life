@@ -621,6 +621,9 @@ Ver 5.1. El `<select>` de ordenamiento no aplica ningún `.sort()`.
 ### Monitoring
 Instalar **Sentry**. Los `catch` de los server actions solo hacen `console.error`.
 
+### Series mensuales — pendientes (PR 2)
+Implementado: calendario anual en el wizard, copias en borrador por mes, publicación automática 14 días antes (`pg_cron`), etiquetas en Mis clases. **Falta:** email al profesor cuando una copia se publica sola o falla (tabla outbox + ruta `app/api/internal/send-class-emails` + Resend; el repo no envía emails propios todavía). Mejora futura: agrupar por `series_id` en resultados de búsqueda y botón "editar toda la serie".
+
 ### Deploy del schema
 Migraciones versionadas en `supabase/migrations/`, aplicadas con `supabase db push` (Supabase CLI).
 

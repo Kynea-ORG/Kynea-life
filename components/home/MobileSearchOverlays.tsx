@@ -211,7 +211,7 @@ export function MobileStyleSearchOverlay({
               type="button"
               onClick={() => onSearch(localQuery)}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-primary to-purple-600 text-white font-bold text-[15px] shadow-md shadow-primary/25 cursor-pointer active:scale-[0.98] transition-all disabled:opacity-75 disabled:cursor-wait"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-5 rounded-2xl bg-primary hover:bg-primary-dark text-white font-bold text-[15px] shadow-md shadow-primary/25 cursor-pointer active:scale-[0.98] transition-all disabled:opacity-75 disabled:cursor-wait"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin shrink-0" />

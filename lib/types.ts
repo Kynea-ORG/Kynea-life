@@ -120,4 +120,9 @@ export interface DanceClass {
   metrics: ClassMetrics;
   createdAt: string;
   publishedAt?: string;
+  // Series mensuales (migración 62): copias en borrador que se publican solas 14 días antes de su inicio.
+  seriesId?: string;
+  autoPublishAt?: string;
+  autoPublishedAt?: string;
+  autoPublishError?: string;
 }
