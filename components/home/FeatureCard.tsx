@@ -15,12 +15,15 @@ export const FEATURE_CARD_TEXT = 'text-[14.5px] sm:text-[15.5px] leading-snug te
 export default function FeatureCard({
   background,
   bgClassName,
+  veil = false,
   children,
 }: {
   /** Fondo CSS (imagen y/o degradado). Con varios fondos, si la imagen falla se ve el degradado. */
   background?: CSSProperties['background'];
   /** Alternativa con clases de Tailwind (permite elegir otra imagen por breakpoint). */
   bgClassName?: string;
+  /** Velo morado oscuro extra sobre la imagen: baja el contraste de fotos muy marcadas (ej. portadas del blog). */
+  veil?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -30,6 +33,7 @@ export default function FeatureCard({
         className={`absolute inset-0 scale-100 transition-transform duration-500 ease-out group-hover:scale-105 ${bgClassName ?? ''}`}
         style={background ? { background, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
       />
+      {veil && <div aria-hidden="true" className="absolute inset-0" style={{ background: 'rgba(34, 6, 52, 0.42)' }} />}
       {/* Mismos dos velos del hero (oscuro de abajo hacia arriba + tinte de marca desde la izquierda) */}
       <div
         aria-hidden="true"

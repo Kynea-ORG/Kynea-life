@@ -13,7 +13,7 @@ export default function BlogHighlightCard({ post }: { post: BlogHighlight }) {
   const background = post.coverImage ? `url('${post.coverImage}'), ${fallback}` : fallback;
 
   return (
-    <FeatureCard background={background}>
+    <FeatureCard background={background} veil={Boolean(post.coverImage)}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white/90">
           <BookOpen className="w-3.5 h-3.5" aria-hidden="true" />
