@@ -6,10 +6,11 @@ import WomenTeachersBanner, { WOMEN_TEACHERS_HREF } from './WomenTeachersBanner'
 afterEach(cleanup);
 
 describe('WomenTeachersBanner', () => {
-  it('es un solo enlace a las clases de profesoras', () => {
+  it('todos sus enlaces llevan a las clases de profesoras', () => {
     render(<WomenTeachersBanner classCount={12} />);
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/clases?profesoras=1');
+    const hrefs = screen.getAllByRole('link').map(l => l.getAttribute('href'));
+    expect(hrefs.length).toBeGreaterThan(0);
+    expect(new Set(hrefs)).toEqual(new Set(['/clases?profesoras=1']));
     expect(WOMEN_TEACHERS_HREF).toBe('/clases?profesoras=1');
   });
 
@@ -29,5 +30,6 @@ describe('WomenTeachersBanner', () => {
   it('el enlace tiene un nombre accesible claro', () => {
     render(<WomenTeachersBanner classCount={5} />);
     expect(screen.getByRole('link', { name: /Clases con profesoras mujeres/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Ver clases/ })).toBeInTheDocument();
   });
 });

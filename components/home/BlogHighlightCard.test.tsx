@@ -19,6 +19,7 @@ describe('BlogHighlightCard', () => {
     render(<BlogHighlightCard post={post} />);
     expect(screen.getByText('Del blog de Kynea')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: post.title })).toBeInTheDocument();
+    // el resumen se oculta en pantallas muy chicas con CSS (hidden sm:block), pero está en el DOM
     expect(screen.getByText(post.excerpt)).toBeInTheDocument();
     expect(screen.getByText('Tendencias')).toBeInTheDocument();
   });

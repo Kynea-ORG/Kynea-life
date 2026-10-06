@@ -15,8 +15,7 @@ import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibb
 import { getTypeLabel, formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import HomeCompactSearch from '@/components/home/HomeCompactSearch';
-import WomenTeachersBanner from '@/components/home/WomenTeachersBanner';
-import BlogHighlightCard from '@/components/home/BlogHighlightCard';
+import HomeFeatureCards from '@/components/home/HomeFeatureCards';
 import type { BlogHighlight } from '@/lib/blog/highlight';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
@@ -1273,8 +1272,8 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
         </div>
       </section>
 
-      {/* ── CLASES CON PROFESORAS MUJERES ── */}
-      {womenTeachersClassCount != null && <WomenTeachersBanner classCount={womenTeachersClassCount} />}
+      {/* ── DESTACADOS: clases con profesoras (izquierda) + blog (derecha) ── */}
+      <HomeFeatureCards womenClassCount={womenTeachersClassCount} blogHighlight={blogHighlight} />
 
       {/* ── BÚSQUEDAS RECIENTES ── */}
       {recentSearches.length > 0 && (
@@ -1584,9 +1583,6 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
           </div>
         </section>
       )}
-
-      {/* ── BLOG ── */}
-      {blogHighlight && <BlogHighlightCard post={blogHighlight} />}
 
       {/* ── CÓMO FUNCIONA ── */}
       <section className="bg-white py-20">
