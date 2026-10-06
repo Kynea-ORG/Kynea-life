@@ -4,15 +4,16 @@ import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { Bookmark, Calendar, MapPin, Sparkles } from 'lucide-react';
 import type { DanceClass } from '@/lib/types';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getTypeLabel } from '@/lib/utils';
 import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
-import { cardKindLabel, cardPlaceLabel, cardWhenLabel } from '@/lib/classes/cardInfo';
+import { cardPlaceLabel, cardWhenLabel } from '@/lib/classes/cardInfo';
 import { trackSelectItem } from '@/lib/analytics';
 
 // Tarjetas compactas para mobile (< md). Dos formatos:
 //  · carousel: foto 4:3 sin borde y cuatro líneas de texto; para carruseles del Home.
 //  · row: miniatura a la izquierda; para listas (/clases, resultados, perfil).
+// El tipo de publicación (Taller, Evento, Programa…) va como etiqueta sobre la foto.
 // Sin botones ni descripción: tocar la tarjeta abre la clase (el título es un enlace "estirado")
 // y el contacto vive en el detalle. No muestra cupos: hoy no se conoce la cantidad real.
 // Desde md se usa la tarjeta vertical de ClassCard.
@@ -34,7 +35,7 @@ export default function ClassCardMobile({
 
   const when = cardWhenLabel(cls, isExpired);
   const place = cardPlaceLabel(cls);
-  const kind = cardKindLabel(cls);
+  const typeLabel = getTypeLabel(cls.type);
 
   const handleOpen = () =>
     trackSelectItem({
@@ -55,8 +56,8 @@ export default function ClassCardMobile({
 
   const flag = country && (
     <span
-      className={`absolute top-2 left-2 rounded-full bg-white/90 backdrop-blur-sm shadow-xs flex items-center justify-center ${
-        layout === 'carousel' ? 'w-7 h-7 text-[14px]' : 'w-6 h-6 text-[12px]'
+      className={`absolute rounded-full bg-white/90 backdrop-blur-sm shadow-xs flex items-center justify-center ${
+        layout === 'carousel' ? 'top-2 left-2 w-7 h-7 text-[14px]' : 'top-1.5 left-1.5 w-6 h-6 text-[12px]'
       }`}
       title={`Clase en ${country.name}`}
       aria-label={`Clase en ${country.name}`}
@@ -114,6 +115,19 @@ export default function ClassCardMobile({
     </div>
   );
 
+  // "Flamenco · Básico": el estilo es la categoría; el tipo (Taller, Evento…) va sobre la foto.
+  const styleLevel = (
+    <div className={`flex items-center gap-1.5 text-[12.5px] text-neutral-500 min-w-0 ${layout === 'row' ? 'pr-8' : ''}`}>
+      <span className="font-bold text-primary-dark shrink-0">{cls.style}</span>
+      {cls.level && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span className="truncate">{cls.level}</span>
+        </>
+      )}
+    </div>
+  );
+
   if (layout === 'carousel') {
     return (
       <article className="relative w-full">
@@ -123,12 +137,12 @@ export default function ClassCardMobile({
           {flag}
           {isExpired && <span className="badge-gray text-[11px] absolute top-2 left-11">Finalizada</span>}
           <span className="absolute left-2.5 bottom-2.5 text-[11px] font-bold bg-white/95 text-neutral-900 px-2.5 py-1 rounded-full">
-            {cls.style}
+            {typeLabel}
           </span>
           {bookmark}
         </div>
         <div className="pt-2.5 px-0.5 flex flex-col gap-0.5">
-          <div className="text-[12.5px] text-neutral-500 truncate">{kind}</div>
+          {styleLevel}
           <h3 className="font-bold text-neutral-900 text-[15px] leading-snug truncate">{titleLink}</h3>
           {placeLine}
           {whenLine}
@@ -144,13 +158,12 @@ export default function ClassCardMobile({
         {image}
         {isExpired && <div className="absolute inset-0 bg-black/20 pointer-events-none" />}
         {flag}
+        <span className="absolute left-1.5 bottom-1.5 max-w-[calc(100%-12px)] truncate text-[10px] font-bold bg-white/95 text-neutral-900 px-1.5 py-0.5 rounded-full">
+          {typeLabel}
+        </span>
       </div>
       <div className="relative min-w-0 flex-1 flex flex-col gap-0.5">
-        <div className="flex items-center gap-1.5 text-[12px] text-neutral-500 pr-8 min-w-0">
-          <span className="font-bold text-primary-dark shrink-0">{cls.style}</span>
-          <span aria-hidden="true">·</span>
-          <span className="truncate">{kind}</span>
-        </div>
+        {styleLevel}
         <h3 className="font-bold text-neutral-900 text-[15px] leading-snug line-clamp-2 pr-8">{titleLink}</h3>
         {isExpired && <span className="badge-gray text-[11px] self-start">Finalizada</span>}
         {whenLine}

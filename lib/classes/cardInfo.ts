@@ -1,8 +1,7 @@
 // lib/classes/cardInfo.ts
 //
-// Textos cortos para las tarjetas compactas de clase (mobile): cuándo inicia y a qué hora,
-// dónde es y de qué tipo/nivel. Módulo puro, sin dependencias de React.
-import { formatFriendlyDate, getTypeLabel } from '@/lib/utils';
+// Textos cortos para las tarjetas compactas de clase (mobile): cuándo inicia y a qué hora y dónde es. Módulo puro, sin dependencias de React.
+import { formatFriendlyDate } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 
 const hhmm = (t: string) => t.slice(0, 5);
@@ -36,9 +35,4 @@ export function cardPlaceLabel(
   if (cls.venueName) return cls.venueName;
   if (cls.district && cls.city) return `${cls.district}, ${cls.city}`;
   return cls.district || cls.city || '';
-}
-
-/** "Taller · Principiante". */
-export function cardKindLabel(cls: Pick<DanceClass, 'type' | 'level'>): string {
-  return [getTypeLabel(cls.type), cls.level].filter(Boolean).join(' · ');
 }

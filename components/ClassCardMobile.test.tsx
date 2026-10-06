@@ -33,12 +33,24 @@ function makeClass(over: Partial<DanceClass> = {}): DanceClass {
 describe.each(['carousel', 'row'] as const)('ClassCardMobile · %s', layout => {
   it('muestra categoría, título, nivel, lugar, cuándo inicia con su horario y precio', () => {
     render(<ClassCardMobile cls={makeClass()} layout={layout} listName="test" />);
-    expect(screen.getAllByText('Heels').length).toBeGreaterThan(0);
+    // La categoría va en el texto (una sola vez); sobre la foto solo va el tipo de publicación.
+    expect(screen.getAllByText('Heels')).toHaveLength(1);
     expect(screen.getByRole('link', { name: 'Heels Method Principiantes' })).toHaveAttribute('href', '/heels/taller/heels-method');
-    expect(screen.getByText('Taller · Principiante')).toBeInTheDocument();
+    expect(screen.getByText('Principiante')).toBeInTheDocument();
     expect(screen.getByText('Freesoul Studio · Miraflores')).toBeInTheDocument();
     expect(screen.getByText(`Inicia ${formatFriendlyDate('2099-09-14')} · 20:30–22:00`)).toBeInTheDocument();
     expect(screen.getByText('S/120/mes')).toBeInTheDocument();
+  });
+
+  it('muestra el tipo de publicación como etiqueta (Taller, Evento, Programa…)', () => {
+    const { rerender } = render(<ClassCardMobile cls={makeClass({ type: 'taller' })} layout={layout} listName="test" />);
+    expect(screen.getByText('Taller')).toBeInTheDocument();
+    rerender(<ClassCardMobile cls={makeClass({ type: 'evento' })} layout={layout} listName="test" />);
+    expect(screen.getByText('Evento')).toBeInTheDocument();
+    rerender(<ClassCardMobile cls={makeClass({ type: 'programa' })} layout={layout} listName="test" />);
+    expect(screen.getByText('Programa')).toBeInTheDocument();
+    rerender(<ClassCardMobile cls={makeClass({ type: 'clase-suelta' })} layout={layout} listName="test" />);
+    expect(screen.getByText('Clase suelta')).toBeInTheDocument();
   });
 
   it('muestra la bandera del país de la clase', () => {

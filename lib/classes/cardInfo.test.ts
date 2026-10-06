@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cardWhenLabel, cardPlaceLabel, cardKindLabel } from './cardInfo';
+import { cardWhenLabel, cardPlaceLabel } from './cardInfo';
 import { formatFriendlyDate } from '@/lib/utils';
 
 const slot = (startTime = '20:30:00', endTime = '22:00:00') => ({ days: ['Lunes'], startTime, endTime });
@@ -57,16 +57,5 @@ describe('cardPlaceLabel', () => {
 
   it('sin ningún dato de lugar devuelve vacío', () => {
     expect(cardPlaceLabel({ modality: 'Presencial', district: '', city: '' })).toBe('');
-  });
-});
-
-describe('cardKindLabel', () => {
-  it('tipo y nivel', () => {
-    expect(cardKindLabel({ type: 'taller', level: 'Principiante' })).toBe('Taller · Principiante');
-    expect(cardKindLabel({ type: 'clase-suelta', level: 'All levels' })).toBe('Clase suelta · All levels');
-  });
-
-  it('sin nivel solo el tipo', () => {
-    expect(cardKindLabel({ type: 'evento', level: '' })).toBe('Evento');
   });
 });
