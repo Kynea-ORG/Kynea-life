@@ -13,9 +13,19 @@ describe('toBlogHighlight', () => {
     expect(toBlogHighlight([])).toBeNull();
   });
 
-  it('elige el más reciente (la lista ya viene ordenada por fecha)', () => {
+  it('sin ninguno destacado elige el más reciente (la lista ya viene ordenada por fecha)', () => {
     const h = toBlogHighlight([post({ slug: 'nuevo' }), post({ slug: 'viejo' })]);
     expect(h?.slug).toBe('nuevo');
+  });
+
+  it('si hay un artículo marcado como destacado, gana aunque no sea el más reciente', () => {
+    const h = toBlogHighlight([post({ slug: 'nuevo' }), post({ slug: 'elegido', isFeatured: true }), post({ slug: 'viejo' })]);
+    expect(h?.slug).toBe('elegido');
+  });
+
+  it('con varios destacados toma el más reciente de ellos (mismo criterio que /blog)', () => {
+    const h = toBlogHighlight([post({ slug: 'a' }), post({ slug: 'b', isFeatured: true }), post({ slug: 'c', isFeatured: true })]);
+    expect(h?.slug).toBe('b');
   });
 
   it('solo conserva lo que necesita la tarjeta', () => {
