@@ -17,6 +17,9 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+      tiptap:
+        patterns:
+          - "@tiptap/*"
     ignore:
       # typescript-eslint doesn't support TS 7.0 yet — see
       # https://github.com/typescript-eslint/typescript-eslint/issues/10940
