@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { X, MessageCircle, Phone, Check, ShieldCheck } from 'lucide-react';
+import { X, MessageCircle, Phone, Check } from 'lucide-react';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import { InstagramIcon } from '@/components/icons/SocialIcons';
 import { DanceClass } from '@/lib/types';
