@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { X, MessageCircle, Phone, Check, ShieldCheck } from 'lucide-react';
+import VerifiedBadge from '@/components/VerifiedBadge';
 import { InstagramIcon } from '@/components/icons/SocialIcons';
 import { DanceClass } from '@/lib/types';
 import { buildWhatsAppMessage, buildInstagramUrl, formatSocialHandle } from '@/lib/utils';
@@ -45,9 +46,7 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
               <X className="w-4 h-4 text-neutral-900" />
             </button>
 
-            <div className="flex items-center gap-1 text-[11px] font-bold text-pink-600 uppercase tracking-wide mb-3.5">
-              <ShieldCheck className="w-[13px] h-[13px]" /> Profesor verificado
-            </div>
+            <VerifiedBadge className="text-[11px] font-bold text-pink-600 uppercase tracking-wide mb-3.5" iconClassName="w-[13px] h-[13px]" />
 
             <h1 className="text-[32px] font-black text-neutral-900 tracking-tight leading-[1.08] mb-3.5">
               Contacta a tu profesor
@@ -131,8 +130,8 @@ function RegisterGate({ cls, onClose }: { cls: DanceClass; onClose: () => void }
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1 text-[10.5px] font-bold text-pink-600 uppercase tracking-wide mb-0.5">
-                <ShieldCheck className="w-3 h-3" /> Profesor verificado
+              <div className="mb-0.5">
+                <VerifiedBadge className="text-[10.5px] font-bold text-pink-600 uppercase tracking-wide" iconClassName="w-3 h-3" />
               </div>
               <span className="font-extrabold text-[16px] text-neutral-900">{cls.teacher.name}</span>
               <div className="font-figtree text-[12px] text-neutral-600 whitespace-nowrap overflow-hidden text-ellipsis">{teacherMeta}</div>

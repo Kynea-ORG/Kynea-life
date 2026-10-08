@@ -31,7 +31,7 @@ const PROFESIONALES_LINKS = [
 
 const LEGAL_LINKS = [
   { label: 'Términos y condiciones', href: '/terminos' },
-  { label: 'Términos de publicación', href: '/terminos-publicacion' },
+  { label: 'Reglas de publicación', href: '/terminos-publicacion' },
   { label: 'Privacidad', href: '/privacidad' },
 ];
 
