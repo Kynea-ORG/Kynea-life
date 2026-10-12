@@ -6,13 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   Search, MapPin, ArrowRight, Star, CalendarCheck,
-  MessageCircle, ChevronLeft, ChevronRight, Loader2, X, Clock, Sparkles,
+  MessageCircle, ChevronLeft, ChevronRight, Loader2, X, Clock,
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
-import { getTypeLabel, formatExperience } from '@/lib/utils';
+import { formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import HomeCompactSearch from '@/components/home/HomeCompactSearch';
 import HomeFeatureCards from '@/components/home/HomeFeatureCards';
@@ -21,7 +21,7 @@ import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAd
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
 import { resolveSearch } from '@/lib/search/resolveSearch';
 import {
-  AI_SEARCH_LABEL, AI_PLACEHOLDER_EXAMPLES, AI_QUICK_PROMPTS, AI_QUICK_PROMPTS_TITLE,
+  AI_SEARCH_LABEL, AI_QUICK_PROMPTS,
   AI_SUBMIT_LABEL, AI_SUBMIT_LOADING_LABEL,
 } from '@/lib/search/aiSearchCopy';
 import type { AiSuggestions } from '@/lib/search/catalogSignals';
@@ -37,17 +37,6 @@ export type SearchProfile = { id: string; slug: string; name: string; role: stri
 export function getMainStyle(cls: SearchClass) {
   const styleRow = cls.class_styles?.find(s => s.is_main) ?? cls.class_styles?.[0];
   return styleRow?.dance_styles ?? null;
-}
-
-// Sorteo sin reemplazo — alimenta el subset "en frío" de estilos sugeridos
-// (ver randomStyles más abajo), re-sorteado cada vez que se abre el buscador.
-function pickRandomStyles(list: DbDanceStyle[], n: number): DbDanceStyle[] {
-  const arr = [...list];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr.slice(0, n);
 }
 
 // Estilo compartido por los dos campos-botón del buscador mobile (F1).
@@ -196,10 +185,24 @@ const MobileCitySearchOverlay = dynamic(
   { ssr: false }
 );
 
+const AI_ASSISTANT_PLACEHOLDERS = [
+  'Búsqueda inteligente: escribe con tus palabras…',
+  'Pídelo como hablas: salsa en Miraflores…',
+  'Pídelo como hablas: algo para soltar el estrés…',
+  'Pídelo como hablas: clases de heels desde cero…',
+  'Pídelo como hablas: bachata los fines de semana…',
+];
+
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions, womenTeachersClassCount, blogHighlight }: Props) {
-  const aiPlaceholders  = aiSuggestions?.placeholders ?? AI_PLACEHOLDER_EXAMPLES;
-  const aiQuickPrompts  = aiSuggestions?.quickPrompts ?? AI_QUICK_PROMPTS;
+  const aiPlaceholders  = AI_ASSISTANT_PLACEHOLDERS;
+  const aiQuickPrompts  = useMemo(() => {
+    const list = [...(aiSuggestions?.quickPrompts ?? AI_QUICK_PROMPTS)];
+    if (!list.some(p => p.toLowerCase().includes('fin de semana') && (p.toLowerCase().includes('salsa') || p.toLowerCase().includes('bachata')))) {
+      list.push('🕺 Salsa o bachata este fin de semana');
+    }
+    return list;
+  }, [aiSuggestions]);
   const router = useRouter();
   const [query, setQuery]         = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -229,12 +232,10 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
   const shouldRenderStyleSearch = useDelayedUnmount(mobileSearch === 'style', 200);
   const shouldRenderCitySearch = useDelayedUnmount(mobileSearch === 'city', 200);
 
-  // Pausar animaciones del placeholder durante los primeros 3.5s de carga inicial para
-  // evitar que el timer de tipeo (cada 45ms) re-renderice todo el árbol del Home
-  // en el hilo principal durante la ventana crítica de métricas (TBT).
+  // Pausar animaciones del placeholder brevemente durante la carga inicial
   const [isRotatingReady, setIsRotatingReady] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => setIsRotatingReady(true), 3500);
+    const timer = setTimeout(() => setIsRotatingReady(true), 800);
     return () => clearTimeout(timer);
   }, []);
 
@@ -292,35 +293,8 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
   // ── Ciudad (segundo campo del buscador) — filtro cliente sobre
   // stats.cityNames (ya viene de fetchHomeStats), sin query nueva.
   const [city, setCity] = useState('');
-  const [cityOpen, setCityOpen] = useState(false);
-  const [activeCityIndex, setActiveCityIndex] = useState(-1);
-  const cityRef = useRef<HTMLDivElement>(null);
-  const filteredCities = useMemo(() => {
-    const c = city.trim().toLowerCase();
-    return stats.cityNames
-      .filter(cityName => cityName.toLowerCase().includes(c))
-      .slice(0, 8);
-  }, [city, stats.cityNames]);
 
 
-  // Sugerencia "en frío" (sin texto tipeado) de la sección "Estilos": un
-  // subset al azar de 4, re-sorteado cada vez que se abre el buscador — para
-  // no mostrar siempre los mismos 4 primeros por orden alfabético.
-  const [randomStyles, setRandomStyles] = useState<DbDanceStyle[]>(
-    () => danceStylesWithClasses.slice(0, 4)
-  );
-
-  // Estilos que matchean el texto tipeado — alimenta la sección "Estilos"
-  // del dropdown desktop y el overlay mobile de búsqueda (filtro cliente,
-  // sin query nueva). Sin texto tipeado, usa el subset al azar de arriba.
-  const matchingStyles = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q.length > 0
-      ? danceStylesWithClasses
-          .filter(s => s.name.toLowerCase().includes(q))
-          .slice(0, 4)
-      : randomStyles;
-  }, [query, danceStylesWithClasses, randomStyles]);
 
   // Bloqueo de scroll en body mientras el overlay mobile esté abierto
   useEffect(() => {
@@ -391,10 +365,6 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
         setActiveOptionIndex(-1);
-      }
-      if (cityRef.current && !cityRef.current.contains(e.target as Node)) {
-        setCityOpen(false);
-        setActiveCityIndex(-1);
       }
     }
     document.addEventListener('mousedown', onClickOutside);
@@ -561,33 +531,6 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
     }
   };
 
-  const handleCityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!cityOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-      setCityOpen(true);
-      return;
-    }
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (filteredCities.length > 0) {
-        setActiveCityIndex(prev => (prev + 1) % filteredCities.length);
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (filteredCities.length > 0) {
-        setActiveCityIndex(prev => (prev <= 0 ? filteredCities.length - 1 : prev - 1));
-      }
-    } else if (e.key === 'Escape') {
-      setCityOpen(false);
-      setActiveCityIndex(-1);
-    } else if (e.key === 'Enter') {
-      if (cityOpen && activeCityIndex >= 0 && activeCityIndex < filteredCities.length) {
-        e.preventDefault();
-        pickCity(filteredCities[activeCityIndex]);
-      }
-    }
-  };
-
   // Compartidos entre el dropdown desktop y el overlay mobile (G2): cierran
   // ambas UIs de búsqueda además de navegar.
   function goToClass(cls: SearchClass) {
@@ -628,8 +571,6 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
   }
   function pickCity(name: string) {
     setCity(name);
-    setCityOpen(false);
-    setActiveCityIndex(-1);
     setMobileSearch(null);
   }
 
@@ -683,381 +624,89 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
         </div>
 
         <div ref={heroSearchRef} className="relative z-20 max-w-[880px] mx-auto px-6">
-          {/* Switch Modo IA arriba a la derecha de la barra */}
-          <div className="flex justify-end mb-2.5">
-            <button
-              type="button"
-              onClick={toggleAiMode}
-              className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer select-none backdrop-blur-md border ${
-                isAiMode
-                  ? 'bg-white/20 text-white border-white/30 hover:bg-white/30 shadow-sm'
-                  : 'bg-black/30 text-white/70 border-white/15 hover:bg-black/40 hover:text-white'
-              }`}
-              title={isAiMode ? 'Click para cambiar a búsqueda clásica' : 'Click para activar búsqueda inteligente con IA'}
-              aria-label={isAiMode ? 'Búsqueda con IA (Modo IA activado)' : 'Búsqueda Clásica (Modo IA desactivado)'}
-              aria-pressed={isAiMode}
-            >
-              <Sparkles className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${isAiMode ? 'text-primary-light' : 'text-white/40'}`} />
-              <span>{isAiMode ? 'Búsqueda con IA' : 'Búsqueda Clásica'}</span>
-              <span
-                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                  isAiMode ? 'bg-primary' : 'bg-white/30'
-                }`}
+          <div className="relative group">
+            <div
+              aria-hidden="true"
+              className="absolute -inset-[3.5px] rounded-[30px] ai-border-gradient animate-ai-shimmer blur-lg opacity-75 pointer-events-none"
+            />
+            <div className="relative p-[2.5px] rounded-[26px] ai-border-gradient animate-ai-shimmer shadow-[0_16px_48px_rgba(0,0,0,0.4)]">
+              <form
+                onSubmit={handleSearch}
+                className="w-full bg-white rounded-[23.5px] p-2 flex items-center gap-3 transition-all"
               >
-                <span
-                  className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                    isAiMode ? 'translate-x-3' : 'translate-x-0'
-                  }`}
-                />
-              </span>
-            </button>
+                <div className="pl-3.5 shrink-0">
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 text-primary shrink-0 animate-spin" />
+                  ) : (
+                    <Search className="w-5 h-5 text-primary shrink-0" />
+                  )}
+                </div>
+
+                <div className="text-left min-w-0 flex-1 py-1">
+                  <p className="text-[11.5px] leading-[15px] font-bold text-primary select-none">
+                    {AI_SEARCH_LABEL}
+                  </p>
+                  <input
+                    type="text"
+                    placeholder={isSearchFocused ? '' : rotatingPlaceholder}
+                    value={query}
+                    onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                    onKeyDown={handleQueryKeyDown}
+                    className="w-full text-[15px] md:text-[16px] placeholder:text-[13.5px] md:placeholder:text-[15px] font-normal leading-[22px] text-neutral-900 placeholder:text-neutral-400 outline-none bg-transparent truncate mt-0.5"
+                  />
+                </div>
+
+                {query.length > 0 && !isSearching && (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => { setQuery(''); setActiveOptionIndex(-1); }}
+                    aria-label="Limpiar búsqueda"
+                    className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-full transition-colors shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="shrink-0 font-black text-[15px] px-8 py-3.5 rounded-2xl cursor-pointer transition-all active:scale-[0.98] disabled:opacity-75 disabled:cursor-wait text-white bg-primary hover:bg-primary-dark shadow-xs"
+                >
+                  {isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL}
+                </button>
+              </form>
+            </div>
           </div>
 
-          <form
-            onSubmit={handleSearch}
-            className={`w-full bg-white rounded-3xl p-2 flex items-stretch gap-1 transition-all duration-300 ${
-              isAiMode
-                ? 'shadow-[0_12px_40px_rgba(138,17,188,0.22)] ring-2 ring-primary/40'
-                : 'shadow-2xl border border-neutral-100'
-            }`}
-          >
-            <div
-              className={`${isAiMode ? 'flex-1' : 'flex-[1.6]'} relative flex items-center gap-3 px-5 py-2.5 rounded-2xl min-w-0`}
-              ref={searchRef}
-              onFocusCapture={() => {
-                setCityOpen(false);
-                setActiveCityIndex(-1);
-              }}
-              onBlur={e => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  setShowSuggestions(false);
-                  setActiveOptionIndex(-1);
-                }
-              }}
-            >
-              {isLoading ? (
-                <Loader2 className="w-[19px] h-[19px] text-primary shrink-0 animate-spin" />
-              ) : isAiMode ? (
-                <Sparkles className="w-[19px] h-[19px] text-primary shrink-0 animate-pulse" />
-              ) : (
-                <Search className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
-              )}
-              <div className="text-left min-w-0 flex-1 min-h-[34px]">
-                <p className={`font-bold text-[12px] leading-none ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
-                  {isAiMode ? AI_SEARCH_LABEL : '¿Qué quieres bailar?'}
-                </p>
-                <input
-                  type="text"
-                  placeholder={isSearchFocused ? '' : rotatingPlaceholder}
-                  value={query}
-                  onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
-                  onFocus={() => {
-                    setIsSearchFocused(true);
-                    if (!isAiMode) {
-                      setShowSuggestions(true);
-                      setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4));
-                    }
-                    setCityOpen(false);
-                    setActiveCityIndex(-1);
-                  }}
-                  onBlur={() => setIsSearchFocused(false)}
-                  onKeyDown={handleQueryKeyDown}
-                  role={isAiMode ? undefined : 'combobox'}
-                  aria-expanded={!isAiMode ? (showSuggestions && (hasSuggestions || isSearching || query.trim().length >= 2)) : undefined}
-                  aria-autocomplete={isAiMode ? undefined : 'list'}
-                  aria-controls={isAiMode ? undefined : 'query-autocomplete-list'}
-                  aria-activedescendant={!isAiMode && activeOptionIndex >= 0 ? `query-option-${activeOptionIndex}` : undefined}
-                  className="w-full mt-0.5 min-h-[20px] text-[14.5px] leading-[20px] text-neutral-500 placeholder:text-neutral-700 outline-none bg-transparent truncate"
-                />
+          {/* Sugerencias rápidas: Línea 1 (encabezado) / Línea 2 (frases) */}
+          {aiQuickPrompts.length > 0 && (
+            <div className="mt-4 space-y-2 text-left">
+              <div className="flex items-center gap-1.5 px-1">
+                <span className="text-white/85 font-semibold text-[13px] tracking-wide">
+                  Búsqueda inteligente, prueba sugerencias como:
+                </span>
               </div>
-              {query.length > 0 && !isSearching && (
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => { setQuery(''); setActiveOptionIndex(-1); }}
-                  aria-label="Limpiar búsqueda"
-                  className="text-neutral-400 hover:text-neutral-600 p-1 rounded-full transition-colors shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              {isSearching && <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0" />}
-
-              {/* Autocomplete dropdown (solo en modo clásico) */}
-              {!isAiMode && showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
-                <div
-                  id="query-autocomplete-list"
-                  role="listbox"
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 max-h-[420px] overflow-y-auto overflow-x-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95"
-                >
-
-                  {isSearching && (
-                    <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-neutral-400">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando…
-                    </div>
-                  )}
-
-                  {!isSearching && !hasSuggestions && matchingStyles.length === 0 && (
-                    <p className="px-4 py-3 text-[13px] text-neutral-400">
-                      Sin resultados para &ldquo;{query}&rdquo;
-                    </p>
-                  )}
-
-                  {/* Styles */}
-                  {matchingStyles.length > 0 && (
-                    <div>
-                      <div className="px-4 pt-3 pb-1">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Estilos</span>
-                      </div>
-                      {matchingStyles.map(s => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onMouseDown={e => e.preventDefault()}
-                          onClick={() => pickStyle(s.name)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0">
-                            <Search className="w-4 h-4 text-primary" />
-                          </div>
-                          <span className="text-[14px] font-semibold text-neutral-900">{s.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Classes */}
-                  {activeSuggestions.classes.length > 0 && (
-                    <div>
-                      <div className="px-4 pt-3 pb-1">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Clases</span>
-                      </div>
-                      {activeSuggestions.classes.map((cls, i) => {
-                        const mainStyle = getMainStyle(cls);
-                        const isActive = activeOptionIndex === i;
-                        return (
-                          <button
-                            key={cls.id}
-                            id={`query-option-${i}`}
-                            role="option"
-                            aria-selected={isActive}
-                            type="button"
-                            onMouseDown={e => e.preventDefault()}
-                            onClick={() => goToClass(cls)}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
-                              isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'
-                            }`}
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0 text-sm">
-                              💃
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[14px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                              <p className="text-[11px] text-neutral-400">{mainStyle?.name ? `${mainStyle.name} · ` : ''}{getTypeLabel(cls.type)}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Profiles */}
-                  {activeSuggestions.profiles.length > 0 && (
-                    <div className={activeSuggestions.classes.length > 0 ? 'border-t border-neutral-100' : ''}>
-                      <div className="px-4 pt-3 pb-1">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Profesores</span>
-                      </div>
-                      {activeSuggestions.profiles.map((p, pIdx) => {
-                        const globalIdx = numClasses + pIdx;
-                        const isActive = activeOptionIndex === globalIdx;
-                        return (
-                          <button
-                            key={p.id}
-                            id={`query-option-${globalIdx}`}
-                            role="option"
-                            aria-selected={isActive}
-                            type="button"
-                            onMouseDown={e => e.preventDefault()}
-                            onClick={() => goToProfile(p)}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
-                              isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'
-                            }`}
-                          >
-                            {p.photo_url ? (
-                              <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
-                                <SmartImage src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
-                              </div>
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
-                                {p.name.charAt(0)}
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {hasSuggestions && (
-                    <div className={`border-t border-neutral-100 px-4 py-2.5 ${activeOptionIndex === numClasses + numProfiles ? 'bg-neutral-100' : ''}`}>
-                      <button
-                        type="button"
-                        id={`query-option-${numClasses + numProfiles}`}
-                        role="option"
-                        aria-selected={activeOptionIndex === numClasses + numProfiles}
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={navigateSearch}
-                        disabled={isResolvingSearch}
-                        className="text-[13px] text-primary font-semibold hover:underline w-full text-left disabled:opacity-60 flex items-center gap-1.5"
-                      >
-                        {isAiMode && <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />}
-                        {isAiMode
-                          ? `Buscar "${query}" con Inteligencia Artificial →`
-                          : `Ver todos los resultados de "${query}" →`}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {!isAiMode && (
-              <>
-                <div className="w-px bg-neutral-200 my-2" />
-
-                <div
-                  className="flex-1 relative flex items-center gap-3 px-5 py-2.5 min-w-0"
-                  ref={cityRef}
-                  onFocusCapture={() => {
-                    setShowSuggestions(false);
-                    setActiveOptionIndex(-1);
-                  }}
-                  onBlur={e => {
-                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                      setCityOpen(false);
-                      setActiveCityIndex(-1);
-                    }
-                  }}
-                >
-                  <MapPin className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
-                  <div className="text-left min-w-0 flex-1">
-                    <p className="font-bold text-[12px] text-neutral-900 leading-none">¿En qué ciudad?</p>
-                    <input
-                      type="text"
-                      placeholder="¿Dónde bailas?"
-                      value={city}
-                      onChange={e => { setCity(e.target.value); setActiveCityIndex(-1); }}
-                      onFocus={() => {
-                        setCityOpen(true);
-                        setShowSuggestions(false);
-                        setActiveOptionIndex(-1);
-                      }}
-                      onKeyDown={handleCityKeyDown}
-                      role="combobox"
-                      aria-expanded={cityOpen && filteredCities.length > 0}
-                      aria-autocomplete="list"
-                      aria-controls="city-autocomplete-list"
-                      aria-activedescendant={activeCityIndex >= 0 ? `city-option-${activeCityIndex}` : undefined}
-                      className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
-                    />
-                  </div>
-
-                  {city.length > 0 && (
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={() => { setCity(''); setActiveCityIndex(-1); }}
-                      aria-label="Limpiar ciudad"
-                      className="text-neutral-400 hover:text-neutral-600 p-1 rounded-full transition-colors shrink-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  {cityOpen && filteredCities.length > 0 && (
-                    <div
-                      id="city-autocomplete-list"
-                      role="listbox"
-                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50 max-h-[280px] overflow-y-auto overflow-x-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95"
-                    >
-                      {filteredCities.map((c, idx) => {
-                        const isActive = activeCityIndex === idx;
-                        return (
-                          <button
-                            key={c}
-                            id={`city-option-${idx}`}
-                            role="option"
-                            aria-selected={isActive}
-                            type="button"
-                            onMouseDown={e => e.preventDefault()}
-                            onClick={() => pickCity(c)}
-                            className={`w-full text-left px-4 py-2.5 text-[13.5px] transition-colors ${
-                              isActive ? 'bg-neutral-100 font-bold text-neutral-900' : 'text-neutral-700 hover:bg-neutral-50'
-                            }`}
-                          >
-                            {c}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              onFocus={() => {
-                setCityOpen(false);
-                setShowSuggestions(false);
-                setActiveCityIndex(-1);
-                setActiveOptionIndex(-1);
-              }}
-              className={`shrink-0 flex items-center gap-2 font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-all active:scale-[0.98] disabled:opacity-75 disabled:cursor-wait text-white ${
-                // Morado sólido de la marca en ambos modos (el degradado se veía mal, sobre todo en mobile)
-                'bg-primary hover:bg-primary-dark'
-              } ${isLoading ? 'animate-pulse' : ''}`}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              ) : isAiMode ? (
-                <Sparkles className="w-4 h-4 shrink-0" />
-              ) : (
-                <Search className="w-4 h-4 shrink-0" />
-              )}
-              {isAiMode
-                ? (isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL)
-                : (isLoading ? 'Buscando…' : 'Buscar')}
-            </button>
-          </form>
-
-          {/* Sugerencias rápidas (solo en modo IA) */}
-          {isAiMode && aiQuickPrompts.length > 0 && (
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-              <span className="text-white/75 font-semibold flex items-center gap-1 text-[12.5px] shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-primary-light" /> {AI_QUICK_PROMPTS_TITLE}:
-              </span>
-              {aiQuickPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => {
-                    setQuery(prompt);
-                    trackSearch({ searchTerm: prompt, city: '' });
-                    const params = new URLSearchParams({ q: prompt });
-                    router.push(`/resultados?${params.toString()}`);
-                  }}
-                  className="shrink-0 bg-white/15 hover:bg-white/25 active:bg-white/35 backdrop-blur-md border border-white/20 text-white rounded-full px-3 py-1 transition-all text-[12px] font-medium cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-wait"
-                >
-                  {prompt}
-                </button>
-              ))}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 [mask-image:linear-gradient(to_right,black_calc(100%-48px),transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-48px),transparent_100%)]">
+                {aiQuickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => {
+                      setQuery(prompt);
+                      trackSearch({ searchTerm: prompt, city: '' });
+                      const params = new URLSearchParams({ q: prompt });
+                      router.push(`/resultados?${params.toString()}`);
+                    }}
+                    className="shrink-0 bg-white/20 hover:bg-white/30 active:bg-white/40 backdrop-blur-md border border-white/30 hover:border-white/45 text-white shadow-xs rounded-full px-3.5 py-1.5 transition-all text-[12.5px] font-medium cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1096,101 +745,64 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
             </h1>
           </div>
 
-          <div className="relative z-10 mx-5 mt-7 bg-white rounded-3xl shadow-xl p-5 flex flex-col gap-2.5">
-            {/* Header móvil: Switch arriba a la derecha */}
-            <div className="flex items-center justify-between pb-1">
-              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
-                {isAiMode ? 'Búsqueda con IA' : 'Búsqueda clásica'}
-              </span>
-              <button
-                type="button"
-                onClick={toggleAiMode}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border cursor-pointer ${
-                  isAiMode
-                    ? 'bg-primary/10 text-primary border-primary/25'
-                    : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-                }`}
-                aria-label={isAiMode ? 'Modo IA (Modo IA activado)' : 'Clásico (Modo IA desactivado)'}
-                aria-pressed={isAiMode}
-              >
-                <Sparkles className={`w-3 h-3 ${isAiMode ? 'text-primary' : 'text-neutral-400'}`} />
-                <span>{isAiMode ? 'Modo IA' : 'Clásico'}</span>
-                <span
-                  className={`relative inline-flex h-3.5 w-6 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                    isAiMode ? 'bg-primary' : 'bg-neutral-300'
-                  }`}
+          <div className="relative z-10 mx-5 mt-7">
+            {/* Halo de luz difusa exterior en mobile */}
+            <div
+              aria-hidden="true"
+              className="absolute -inset-[2.5px] rounded-[28px] ai-border-gradient animate-ai-shimmer blur-md opacity-70 pointer-events-none"
+            />
+            <div className="relative p-[2px] rounded-[26px] ai-border-gradient animate-ai-shimmer shadow-xl">
+              <div className="bg-white rounded-[24px] p-5 flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setMobileSearch('style')}
+                  className={MOBILE_SEARCH_TRIGGER_CLASS}
                 >
-                  <span
-                    className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                      isAiMode ? 'translate-x-2.5' : 'translate-x-0'
-                    }`}
-                  />
-                </span>
-              </button>
-            </div>
+                  {isLoading ? (
+                    <Loader2 className="w-[19px] h-[19px] text-primary shrink-0 animate-spin" />
+                  ) : (
+                    <Search className="w-[19px] h-[19px] text-primary shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1 min-h-[38px]">
+                    <p className={`text-[11.5px] leading-[16px] font-bold ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
+                      {isAiMode ? AI_SEARCH_LABEL : '¿Qué quieres bailar?'}
+                    </p>
+                    <p className="text-[13px] sm:text-[14px] leading-[19px] mt-0.5 truncate">
+                      {query
+                        ? <span className="text-neutral-900">{query}</span>
+                        : <span className="text-neutral-500">{rotatingPlaceholder}</span>
+                      }
+                    </p>
+                  </div>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => { setMobileSearch('style'); setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4)); }}
-              className={MOBILE_SEARCH_TRIGGER_CLASS}
-            >
-              {isLoading ? (
-                <Loader2 className="w-[19px] h-[19px] text-primary shrink-0 animate-spin" />
-              ) : isAiMode ? (
-                <Sparkles className="w-[19px] h-[19px] text-primary shrink-0" />
-              ) : (
-                <Search className="w-[19px] h-[19px] text-primary shrink-0" />
-              )}
-              <div className="min-w-0 flex-1 min-h-[38px]">
-                <p className={`text-[11.5px] leading-[16px] font-bold ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
-                  {isAiMode ? AI_SEARCH_LABEL : '¿Qué quieres bailar?'}
-                </p>
-                <p className="text-[15px] leading-[20px] mt-0.5 truncate">
-                  {query
-                    ? <span className="text-neutral-900">{query}</span>
-                    : <span className="text-neutral-700">{rotatingPlaceholder}</span>
-                  }
-                </p>
+                {!isAiMode && (
+                  <button type="button" onClick={() => setMobileSearch('city')}
+                    className={MOBILE_SEARCH_TRIGGER_CLASS}>
+                    <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
+                    <div className="min-w-0 flex-1 min-h-[38px]">
+                      <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿En qué ciudad?</p>
+                      <p className="text-[15px] leading-[20px] text-neutral-900 mt-0.5 truncate">
+                        {city || '¿Dónde bailas?'}
+                      </p>
+                    </div>
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  onClick={navigateSearch}
+                  disabled={isLoading}
+                  className="w-full font-black text-[15.5px] text-white rounded-full py-3.5 mt-1.5 cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-75 disabled:cursor-wait flex items-center justify-center bg-primary hover:bg-primary-dark active:bg-primary-dark shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]"
+                >
+                  <span>{isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL}</span>
+                </button>
+
+                <Link href="/clases" prefetch={false} className="block text-center font-bold text-[13.5px] text-primary mt-1 py-1 active:opacity-60 transition-opacity">
+                  Explorar clases
+                </Link>
               </div>
-            </button>
-
-            {!isAiMode && (
-              <button type="button" onClick={() => setMobileSearch('city')}
-                className={MOBILE_SEARCH_TRIGGER_CLASS}>
-                <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
-                <div className="min-w-0 flex-1 min-h-[38px]">
-                  <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿En qué ciudad?</p>
-                  <p className="text-[15px] leading-[20px] text-neutral-900 mt-0.5 truncate">
-                    {city || '¿Dónde bailas?'}
-                  </p>
-                </div>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={navigateSearch}
-              disabled={isLoading}
-              className={`w-full font-black text-[15.5px] text-white rounded-full py-3.5 mt-1.5 cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-75 disabled:cursor-wait flex items-center justify-center gap-2 ${
-                // Morado sólido de la marca en ambos modos (el degradado se veía mal en mobile)
-                'bg-primary hover:bg-primary-dark active:bg-primary-dark shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]'
-              } ${isLoading ? 'animate-pulse' : ''}`}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              ) : isAiMode ? (
-                <Sparkles className="w-4 h-4 shrink-0" />
-              ) : (
-                <Search className="w-4 h-4 shrink-0" />
-              )}
-              {isAiMode
-                ? (isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL)
-                : (isLoading ? 'Buscando…' : 'Buscar')}
-            </button>
-
-            <Link href="/clases" prefetch={false} className="block text-center font-bold text-[13.5px] text-primary mt-1 py-1 active:opacity-60 transition-opacity">
-              Explorar clases
-            </Link>
+            </div>
           </div>
         </div>
       </div>

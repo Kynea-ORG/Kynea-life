@@ -118,14 +118,14 @@ export function buildAiSuggestions(s: CatalogSignals): AiSuggestions {
   const place: string[] = [NEUTRAL_PLACEHOLDER];
 
   if (s.hasWellness) {
-    quick.push('🧘 Quiero desestresarme bailando');
+    quick.push('🧘 Desestresarme bailando');
     place.push('Quiero soltar el estrés bailando…');
   } else if (s.hasEvening) {
     quick.push('🧘 Algo para después del trabajo');
   }
 
   if (s.beginnerStyle) {
-    quick.push(`💃 Quiero aprender ${s.beginnerStyle} desde cero`);
+    quick.push(`💃 Aprender ${s.beginnerStyle} desde cero`);
     place.push('Nunca he bailado, ¿por dónde empiezo?');
   }
   if (s.beginnerPair) {
@@ -133,15 +133,15 @@ export function buildAiSuggestions(s: CatalogSignals): AiSuggestions {
   }
 
   if (s.hasKids) {
-    quick.push(s.hasKidsWeekend ? '👧 Algo para mis niños el fin de semana' : '👧 Una clase para mis niños');
+    quick.push(s.hasKidsWeekend ? '👧 Clases para mis niños el fin de semana' : '👧 Clases para mis niños');
     place.push('Una clase para mis niños…');
   }
 
   if (s.topPair) {
-    quick.push(`📍 Quiero bailar ${s.topPair.style} en ${s.topPair.district}`);
+    quick.push(`📍 Bailar ${s.topPair.style} en ${s.topPair.district}`);
   }
 
-  if (s.hasEnergy) quick.push('⚡ Algo para subir la energía');
+  if (s.hasEnergy) quick.push('⚡ Subir la energía bailando');
 
   if (s.hasEvening) place.push('Algo para después del trabajo…');
   if (s.hasSaturdayMorning) place.push('Algo los sábados en la mañana…');

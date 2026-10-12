@@ -1,5 +1,5 @@
 'use client';
-import { Search, Sparkles, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 
 // Versión compacta del buscador del hero, que vive en el Header al hacer
 // scroll (desktop). Comparte el estado de la Home — mismo texto, mismo envío.
@@ -27,10 +27,8 @@ export default function HomeCompactSearch({
     >
       {isLoading ? (
         <Loader2 className="w-4 h-4 text-primary shrink-0 animate-spin" aria-hidden="true" />
-      ) : isAiMode ? (
-        <Sparkles className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
       ) : (
-        <Search className="w-4 h-4 text-neutral-400 shrink-0" aria-hidden="true" />
+        <Search className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
       )}
       <input
         type="search"
