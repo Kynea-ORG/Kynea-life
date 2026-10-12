@@ -131,7 +131,7 @@ export default function ClassCardMobile({
   if (layout === 'carousel') {
     return (
       <article className="relative w-full">
-        <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-neutral-100">
+        <div className="relative aspect-[1200/630] overflow-hidden rounded-2xl bg-neutral-100">
           {image}
           {isExpired && <div className="absolute inset-0 bg-black/20 pointer-events-none" />}
           {flag}
@@ -141,44 +141,76 @@ export default function ClassCardMobile({
           </span>
           {bookmark}
         </div>
-        <div className="pt-2.5 px-0.5 flex flex-col gap-0.5">
-          {styleLevel}
-          <h3 className="font-bold text-neutral-900 text-[15px] leading-snug truncate">{titleLink}</h3>
-          {placeLine}
-          {whenLine}
-          <div className="mt-0.5 flex items-baseline">{price}</div>
+        <div className="pt-3 pb-1 px-0.5 flex flex-col gap-2.5">
+          {/* Grupo 1: Categoría y nivel con título */}
+          <div className="flex flex-col gap-0.5">
+            {styleLevel}
+            <h3 className="font-bold text-neutral-900 text-[15px] leading-snug truncate">{titleLink}</h3>
+          </div>
+
+          {/* Grupo 2: Ubicación con fecha */}
+          {(placeLine || whenLine) && (
+            <div className="flex flex-col gap-0.5">
+              {placeLine}
+              {whenLine}
+            </div>
+          )}
+
+          {/* Grupo 3: Precio */}
+          <div className="flex items-baseline">{price}</div>
         </div>
       </article>
     );
   }
 
   return (
-    <article className="relative flex gap-3 py-3 border-b border-neutral-100 last:border-b-0">
-      <div className="relative shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-neutral-100">
+    <article className="relative flex gap-3.5 py-4 border-b border-neutral-100 last:border-b-0">
+      <div className="relative shrink-0 w-[108px] h-[108px] rounded-2xl overflow-hidden bg-neutral-100 self-center">
         {image}
         {isExpired && <div className="absolute inset-0 bg-black/20 pointer-events-none" />}
         {flag}
-        <span className="absolute left-1.5 bottom-1.5 max-w-[calc(100%-12px)] truncate text-[10px] font-bold bg-white/95 text-neutral-900 px-1.5 py-0.5 rounded-full">
-          {typeLabel}
-        </span>
       </div>
-      <div className="relative min-w-0 flex-1 flex flex-col gap-0.5">
-        {styleLevel}
-        <h3 className="font-bold text-neutral-900 text-[15px] leading-snug line-clamp-2 pr-8">{titleLink}</h3>
-        {isExpired && <span className="badge-gray text-[11px] self-start">Finalizada</span>}
-        {whenLine}
-        {placeLine}
-        <div className="mt-0.5 flex items-baseline">{price}</div>
-        {matchBadges && matchBadges.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {matchBadges.slice(0, 2).map(b => (
-              <span key={b} className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary-bg text-primary px-2 py-0.5 rounded-full border border-primary/20">
-                <Sparkles className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
-                {b}
-              </span>
-            ))}
+      <div className="relative min-w-0 flex-1 flex flex-col justify-center gap-2">
+        {/* Grupo 1: Categoría, tipo, nivel y título */}
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5 text-[12px] text-neutral-500 pr-8 min-w-0">
+            <span className="font-bold text-primary-dark shrink-0">{cls.style}</span>
+            <span aria-hidden="true">·</span>
+            <span className="font-semibold text-neutral-700 shrink-0">{typeLabel}</span>
+            {cls.level && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="truncate">{cls.level}</span>
+              </>
+            )}
+          </div>
+          <h3 className="font-bold text-neutral-900 text-[15px] leading-snug line-clamp-2 pr-8">{titleLink}</h3>
+          {isExpired && <span className="badge-gray text-[11px] self-start mt-0.5">Finalizada</span>}
+        </div>
+
+        {/* Grupo 2: Ubicación con fecha */}
+        {(placeLine || whenLine) && (
+          <div className="flex flex-col gap-0.5">
+            {placeLine}
+            {whenLine}
           </div>
         )}
+
+        {/* Grupo 3: Precio y badges */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-baseline">{price}</div>
+          {matchBadges && matchBadges.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {matchBadges.slice(0, 2).map(b => (
+                <span key={b} className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary-bg text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                  <Sparkles className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+                  {b}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         {bookmark}
       </div>
     </article>

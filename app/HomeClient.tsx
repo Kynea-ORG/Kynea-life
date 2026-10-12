@@ -196,12 +196,11 @@ const AI_ASSISTANT_PLACEHOLDERS = [
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions, womenTeachersClassCount, blogHighlight }: Props) {
   const aiPlaceholders  = AI_ASSISTANT_PLACEHOLDERS;
-  const aiQuickPrompts  = useMemo(() => {
-    const list = [...(aiSuggestions?.quickPrompts ?? AI_QUICK_PROMPTS)];
-    if (!list.some(p => p.toLowerCase().includes('fin de semana') && (p.toLowerCase().includes('salsa') || p.toLowerCase().includes('bachata')))) {
-      list.push('🕺 Salsa o bachata este fin de semana');
+  const aiQuickPrompts = useMemo(() => {
+    if (aiSuggestions?.quickPrompts && aiSuggestions.quickPrompts.length > 0) {
+      return aiSuggestions.quickPrompts.slice(0, 5);
     }
-    return list;
+    return AI_QUICK_PROMPTS.slice(0, 5);
   }, [aiSuggestions]);
   const router = useRouter();
   const [query, setQuery]         = useState('');
@@ -746,35 +745,31 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
           </div>
 
           <div className="relative z-10 mx-5 mt-7">
-            {/* Halo de luz difusa exterior en mobile */}
-            <div
-              aria-hidden="true"
-              className="absolute -inset-[2.5px] rounded-[28px] ai-border-gradient animate-ai-shimmer blur-md opacity-70 pointer-events-none"
-            />
-            <div className="relative p-[2px] rounded-[26px] ai-border-gradient animate-ai-shimmer shadow-xl">
-              <div className="bg-white rounded-[24px] p-5 flex flex-col gap-2.5">
+            <div className="bg-white rounded-[24px] p-4 shadow-xl border border-neutral-100 flex flex-col gap-2.5">
+              <div className="p-[2.5px] rounded-[18px] ai-border-gradient animate-ai-shimmer">
                 <button
                   type="button"
                   onClick={() => setMobileSearch('style')}
-                  className={MOBILE_SEARCH_TRIGGER_CLASS}
+                  className="w-full flex items-center gap-3 bg-white rounded-[15.5px] px-3.5 py-2.5 text-left cursor-pointer transition-all active:scale-[0.99]"
                 >
-                  {isLoading ? (
-                    <Loader2 className="w-[19px] h-[19px] text-primary shrink-0 animate-spin" />
-                  ) : (
-                    <Search className="w-[19px] h-[19px] text-primary shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1 min-h-[38px]">
-                    <p className={`text-[11.5px] leading-[16px] font-bold ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
-                      {isAiMode ? AI_SEARCH_LABEL : '¿Qué quieres bailar?'}
-                    </p>
-                    <p className="text-[13px] sm:text-[14px] leading-[19px] mt-0.5 truncate">
-                      {query
-                        ? <span className="text-neutral-900">{query}</span>
-                        : <span className="text-neutral-500">{rotatingPlaceholder}</span>
-                      }
-                    </p>
-                  </div>
-                </button>
+                    {isLoading ? (
+                      <Loader2 className="w-[19px] h-[19px] text-primary shrink-0 animate-spin" />
+                    ) : (
+                      <Search className="w-[19px] h-[19px] text-primary shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1 min-h-[38px]">
+                      <p className={`text-[11.5px] leading-[16px] font-bold ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
+                        {isAiMode ? AI_SEARCH_LABEL : '¿Qué quieres bailar?'}
+                      </p>
+                      <p className="text-[13px] sm:text-[14px] leading-[19px] mt-0.5 truncate">
+                        {query
+                          ? <span className="text-neutral-900">{query}</span>
+                          : <span className="text-neutral-500">{rotatingPlaceholder}</span>
+                        }
+                      </p>
+                    </div>
+                  </button>
+                </div>
 
                 {!isAiMode && (
                   <button type="button" onClick={() => setMobileSearch('city')}
@@ -805,7 +800,6 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
             </div>
           </div>
         </div>
-      </div>
 
       {/* ── Overlay mobile: buscador de estilo (G2) ── */}
       {shouldRenderStyleSearch && (

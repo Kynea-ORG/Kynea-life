@@ -3,7 +3,7 @@ import { selectHomeRecommendedClasses } from '@/lib/classes/homeRecommendations'
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import { fetchDanceStyles } from '@/lib/catalog/queries';
 import { fetchHomeStats } from '@/lib/stats/queries';
-import { buildAiSuggestions, computeCatalogSignals } from '@/lib/search/catalogSignals';
+import { generateCatalogAiSuggestions } from '@/lib/search/catalogSignals';
 import { getPublicClient } from '@/lib/supabase/public';
 import { fetchPublishedPosts } from '@/lib/blog/queries';
 import { toBlogHighlight } from '@/lib/blog/highlight';
@@ -66,9 +66,9 @@ export default async function Page() {
   // Ya no se serializan todas las clases al cliente, ahorrando ~81 KB de payload.
   const recommendedClasses = selectHomeRecommendedClasses(classes);
 
-  // Sugerencias del buscador con IA: solo lo que el catálogo real respalda.
+  // Sugerencias del buscador con IA: dinámicas según las clases de hoy y generadas por IA.
   const blogHighlight = toBlogHighlight(posts);
-  const aiSuggestions = buildAiSuggestions(computeCatalogSignals(classes));
+  const aiSuggestions = await generateCatalogAiSuggestions(classes, supabase);
 
   // Sección "Clases con profesoras mujeres": solo si hay clases de profesoras etiquetadas (o en desarrollo).
   const womenClassCount = countClassesTaughtBy(classes, womanTeacherIds);

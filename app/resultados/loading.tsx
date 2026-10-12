@@ -30,7 +30,7 @@ export default function ResultadosLoading() {
               <span className="text-[11px] font-bold uppercase tracking-wider text-primary">Búsqueda Inteligente</span>
             </div>
             <p className="text-[15px] font-medium text-neutral-800 leading-snug">
-              Buscando las mejores clases con Inteligencia Artificial…
+              Buscando las mejores clases…
             </p>
           </div>
         </div>

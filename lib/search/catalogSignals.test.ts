@@ -1,8 +1,17 @@
 // lib/search/catalogSignals.test.ts
-import { describe, it, expect } from 'vitest';
-import { computeCatalogSignals, buildAiSuggestions } from './catalogSignals';
+import { describe, it, expect, vi } from 'vitest';
+import {
+  computeCatalogSignals,
+  buildAiSuggestions,
+  getTodayLimaDateStr,
+  getTodayWeekdayName,
+  fetchDailySuggestionsFromDb,
+  saveDailySuggestionsToDb,
+  generateCatalogAiSuggestions,
+} from './catalogSignals';
 import { getValidClassBadges } from '@/lib/ai/badges';
 import type { DanceClass } from '@/lib/types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 function cls(over: Partial<DanceClass> & { id: string }): DanceClass {
   return {
@@ -149,5 +158,101 @@ describe('buildAiSuggestions', () => {
         }
       }
     }
+  });
+});
+
+describe('daily_search_suggestions db integration', () => {
+  it('getTodayLimaDateStr formatea correctamente YYYY-MM-DD en hora de Lima', () => {
+    // 2026-10-12T15:00:00Z en Lima (UTC-5) es 2026-10-12
+    const d = new Date('2026-10-12T15:00:00Z');
+    expect(getTodayLimaDateStr(d)).toBe('2026-10-12');
+  });
+
+  it('getTodayWeekdayName devuelve el día de la semana capitalizado en español', () => {
+    const d = new Date('2026-10-12T15:00:00Z');
+    expect(getTodayWeekdayName(d)).toBe('Lunes');
+  });
+
+  it('fetchDailySuggestionsFromDb devuelve null si no hay fila o hay error', async () => {
+    const mockClient = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    const res = await fetchDailySuggestionsFromDb(mockClient, '2026-10-12');
+    expect(res).toBeNull();
+  });
+
+  it('fetchDailySuggestionsFromDb devuelve prompts y placeholders cuando existen', async () => {
+    const mockClient = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                quick_prompts: ['🕺 Salsa este fin de semana', '💃 Bachata en Miraflores'],
+                placeholders: ['¿Qué quieres bailar hoy?'],
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    const res = await fetchDailySuggestionsFromDb(mockClient, '2026-10-12');
+    expect(res).not.toBeNull();
+    expect(res?.quickPrompts).toEqual(['🕺 Salsa este fin de semana', '💃 Bachata en Miraflores']);
+    expect(res?.placeholders).toEqual(['¿Qué quieres bailar hoy?']);
+  });
+
+  it('saveDailySuggestionsToDb invoca la RPC save_daily_search_suggestions', async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const mockClient = {
+      rpc: rpcMock,
+    } as unknown as SupabaseClient;
+
+    await saveDailySuggestionsToDb(
+      { quickPrompts: ['🕺 Salsa'], placeholders: ['Buscar salsa…'] },
+      mockClient,
+      '2026-10-12',
+      'Lunes'
+    );
+
+    expect(rpcMock).toHaveBeenCalledWith('save_daily_search_suggestions', {
+      p_date: '2026-10-12',
+      p_weekday: 'Lunes',
+      p_quick_prompts: ['🕺 Salsa'],
+      p_placeholders: ['Buscar salsa…'],
+    });
+  });
+
+  it('generateCatalogAiSuggestions utiliza la caché de BD si está presente', async () => {
+    const mockClient = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                quick_prompts: ['🌟 Salsa desde la BD'],
+                placeholders: ['Placeholder BD'],
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+      rpc: vi.fn(),
+    } as unknown as SupabaseClient;
+
+    const res = await generateCatalogAiSuggestions([], mockClient);
+    expect(res.quickPrompts).toEqual(['🌟 Salsa desde la BD']);
+    expect(res.placeholders).toEqual(['Placeholder BD']);
+    expect(mockClient.rpc).not.toHaveBeenCalled();
   });
 });
