@@ -125,13 +125,8 @@ export function MobileStyleSearchOverlay({
         <button type="button" onClick={() => onClose(localQuery)} aria-label="Volver">
           <ArrowLeft className="w-5 h-5 text-neutral-900" />
         </button>
-        <div className="relative flex-1 group">
-          <div
-            aria-hidden="true"
-            className="absolute -inset-[2px] rounded-[16px] ai-border-gradient animate-ai-shimmer blur-xs opacity-65 pointer-events-none"
-          />
-          <div className="relative p-[2px] rounded-[14px] ai-border-gradient animate-ai-shimmer">
-            <div className="w-full flex items-center gap-2.5 bg-neutral-50 rounded-[12px] px-3.5 py-2">
+        <div className="flex-1 p-[2px] rounded-[14px] ai-border-gradient animate-ai-shimmer">
+          <div className="w-full flex items-center gap-2.5 bg-neutral-50 rounded-[12px] px-3.5 py-2">
               <Search className="w-[17px] h-[17px] text-primary shrink-0" />
               <input
                 autoFocus
@@ -166,7 +161,6 @@ export function MobileStyleSearchOverlay({
               )}
             </div>
           </div>
-        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-8">

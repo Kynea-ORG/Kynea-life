@@ -77,6 +77,9 @@ export async function proxy(request: NextRequest) {
   // Production env scope (kynea.dance). Leaving it unset in dev/preview keeps
   // those environments fully open. Toggle off in Vercel to launch for real.
   if (process.env.COMING_SOON_MODE === 'true') {
+    if (path.startsWith('/api/')) {
+      return NextResponse.next({ request });
+    }
     if (path !== '/coming-soon') {
       return NextResponse.rewrite(new URL('/coming-soon', request.url));
     }

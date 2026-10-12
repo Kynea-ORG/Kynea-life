@@ -41,6 +41,7 @@ const MAX_CACHE_ENTRIES = 500;
 
 const queryInterpretationCache = new Map<string, CacheEntry<AiSearchInterpretation | null>>();
 const embeddingCache = new Map<string, CacheEntry<number[] | null>>();
+const dynamicSuggestionsCache = new Map<string, CacheEntry<string[]>>();
 
 function getFromCache<T>(cache: Map<string, CacheEntry<T>>, key: string): T | undefined {
   const entry = cache.get(key);
@@ -63,6 +64,7 @@ function setInCache<T>(cache: Map<string, CacheEntry<T>>, key: string, value: T)
 export function clearAiCache(): void {
   queryInterpretationCache.clear();
   embeddingCache.clear();
+  dynamicSuggestionsCache.clear();
 }
 
 /**
@@ -341,6 +343,101 @@ export async function parseSearchQuery(
       return result;
     } catch (err) {
       console.warn(`[gemini:parseSearchQuery] Error with model ${model}:`, err);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Genera con Gemini 5 sugerencias de búsqueda rápida personalizadas para el día de hoy,
+ * basadas en los estilos, distritos y clases que realmente se imparten hoy en Kynea.
+ */
+export async function generateDynamicDaySuggestions(params: {
+  todayWeekday: string;
+  styles: string[];
+  districts: string[];
+  levels: string[];
+  hasEvening?: boolean;
+  hasMorning?: boolean;
+  hasKids?: boolean;
+  hasBeginners?: boolean;
+}): Promise<string[] | null> {
+  const apiKey = getApiKey();
+  if (!apiKey || params.styles.length === 0) return null;
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const cacheKey = `${params.todayWeekday.toLowerCase()}-${dateStr}-${params.styles.slice(0, 5).join(',')}`;
+  const cached = getFromCache(dynamicSuggestionsCache, cacheKey);
+  if (cached !== undefined) return cached;
+
+  const modelsToTry = [
+    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+  ];
+
+  const prompt = `Eres el generador de sugerencias de búsqueda de Kynea, la plataforma líder de clases de baile en Perú.
+Hoy es ${params.todayWeekday}.
+Clases programadas para hoy:
+- Estilos con clases hoy: ${params.styles.slice(0, 8).join(', ')}.
+- Distritos con clases hoy: ${params.districts.slice(0, 6).join(', ')}.
+- Niveles disponibles: ${params.levels.slice(0, 4).join(', ') || 'Principiante, Intermedio'}.
+${params.hasEvening ? '- Hay clases disponibles en la noche después del trabajo (>= 18:00).' : ''}
+${params.hasMorning ? '- Hay clases disponibles en la mañana.' : ''}
+${params.hasKids ? '- Hay clases infantiles / para niños.' : ''}
+${params.hasBeginners ? '- Hay opciones para principiantes / desde cero.' : ''}
+
+Genera exactamente 5 sugerencias de búsqueda rápida atractivas, variadas y naturales para los usuarios que buscan bailar hoy ${params.todayWeekday}.
+Reglas estrictas:
+1. Cada una debe comenzar con UN solo emoji representativo (ej. 💃, 🕺, ✨, 🔥, 🧘).
+2. Deben ser frases reales que un alumno escribiría para buscar (ej. '💃 Salsa cubana hoy en Miraflores', '🧘 Desestresarme hoy después del trabajo', '🔥 Bachata principiante hoy en Surco').
+3. Solo menciona estilos y distritos que están en la lista proporcionada.
+4. Longitud entre 25 y 55 caracteres.
+
+Responde únicamente un JSON con formato: {"suggestions": ["...", "..."]}`;
+
+  for (const model of modelsToTry) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+      const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.3,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) continue;
+
+      const parsed = JSON.parse(rawText);
+      const suggestions = Array.isArray(parsed?.suggestions) ? parsed.suggestions : null;
+      if (Array.isArray(suggestions) && suggestions.length >= 3) {
+        const clean = suggestions
+          .filter((s: unknown): s is string => typeof s === 'string' && s.trim().length > 0)
+          .map((s: string) => s.trim().slice(0, 60))
+          .slice(0, 5);
+
+        if (clean.length >= 3) {
+          setInCache(dynamicSuggestionsCache, cacheKey, clean);
+          return clean;
+        }
+      }
+    } catch {
+      // Intentar el siguiente modelo o fallback silencioso
     }
   }
 

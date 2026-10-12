@@ -9,6 +9,9 @@
 // verifican con getValidClassBadges — la misma regla que usa la búsqueda
 // para validar resultados — así una sugerencia y su resultado nunca discrepan.
 import { getValidClassBadges } from '@/lib/ai/badges';
+import { generateDynamicDaySuggestions } from '@/lib/ai/gemini';
+import { getPublicClient } from '@/lib/supabase/public';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DanceClass } from '@/lib/types';
 
 export interface CatalogSignals {
@@ -109,7 +112,28 @@ export interface AiSuggestions {
 }
 
 export const NEUTRAL_PLACEHOLDER = 'Cuéntame qué tienes en mente…';
-const MAX_QUICK_PROMPTS = 4;
+export const MAX_QUICK_PROMPTS = 5;
+
+export function getTodayLimaDateStr(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(date);
+}
+
+export function getTodayWeekdayName(date: Date = new Date()): string {
+  const formatter = new Intl.DateTimeFormat('es-PE', { weekday: 'long', timeZone: 'America/Lima' });
+  const day = formatter.format(date);
+  return day.charAt(0).toUpperCase() + day.slice(1);
+}
+
+export function getClassesForToday(classes: DanceClass[], dayName?: string): DanceClass[] {
+  const targetDay = (dayName ?? getTodayWeekdayName()).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return classes.filter(c =>
+    (c.timeSlots ?? []).some(slot =>
+      slot.days?.some(d =>
+        d.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === targetDay
+      )
+    )
+  );
+}
 
 // Un prompt por tipo de intención, en orden de prioridad; se toman los
 // primeros MAX_QUICK_PROMPTS que el catálogo respalde.
@@ -147,8 +171,127 @@ export function buildAiSuggestions(s: CatalogSignals): AiSuggestions {
   if (s.hasSaturdayMorning) place.push('Algo los sábados en la mañana…');
   if (s.hasEconomic) place.push('Algo baratito para empezar…');
 
+  if (s.totalClasses > 0 && !quick.some(p => p.toLowerCase().includes('salsa') || p.toLowerCase().includes('bachata'))) {
+    quick.push('🕺 Salsa o bachata este fin de semana');
+  }
+
   return {
     quickPrompts: quick.slice(0, MAX_QUICK_PROMPTS),
     placeholders: [...new Set(place)],
   };
+}
+
+/**
+ * Consulta la base de datos para obtener las sugerencias cacheadas del día.
+ */
+export async function fetchDailySuggestionsFromDb(
+  client?: SupabaseClient | null,
+  dateStr: string = getTodayLimaDateStr()
+): Promise<AiSuggestions | null> {
+  try {
+    const sb = client ?? getPublicClient();
+    const { data, error } = await sb
+      .from('daily_search_suggestions')
+      .select('quick_prompts, placeholders')
+      .eq('suggestion_date', dateStr)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    const quick = Array.isArray(data.quick_prompts) ? (data.quick_prompts as string[]) : [];
+    const placeholders = Array.isArray(data.placeholders) ? (data.placeholders as string[]) : [];
+
+    if (quick.length === 0) return null;
+
+    return {
+      quickPrompts: quick.slice(0, MAX_QUICK_PROMPTS),
+      placeholders: placeholders.length > 0 ? placeholders : [NEUTRAL_PLACEHOLDER],
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guarda las sugerencias generadas del día en la base de datos de forma atómica.
+ */
+export async function saveDailySuggestionsToDb(
+  suggestions: AiSuggestions,
+  client?: SupabaseClient | null,
+  dateStr: string = getTodayLimaDateStr(),
+  weekday: string = getTodayWeekdayName()
+): Promise<void> {
+  try {
+    const sb = client ?? getPublicClient();
+    await sb.rpc('save_daily_search_suggestions', {
+      p_date: dateStr,
+      p_weekday: weekday,
+      p_quick_prompts: suggestions.quickPrompts,
+      p_placeholders: suggestions.placeholders,
+    });
+  } catch (err) {
+    console.error('[catalogSignals] Error saving daily suggestions:', err);
+  }
+}
+
+/**
+ * Genera sugerencias de búsqueda con IA dinámicas según las clases que hay en el día de hoy.
+ * 1. Lee primero desde la base de datos (0ms y $0 para visitas subsecuentes del día).
+ * 2. Si es la primera visita del día, genera con Gemini y guarda el resultado en PostgreSQL.
+ * 3. En caso de fallo de IA o de BD, degrada silenciosamente a las sugerencias deterministas del catálogo.
+ */
+export async function generateCatalogAiSuggestions(
+  classes: DanceClass[],
+  supabase?: SupabaseClient | null,
+  options?: { force?: boolean }
+): Promise<AiSuggestions> {
+  const todayDateStr = getTodayLimaDateStr();
+  const todayWeekday = getTodayWeekdayName();
+
+  // 1. Verificamos si ya existen sugerencias guardadas en la base de datos para hoy
+  if (!options?.force) {
+    const cachedFromDb = await fetchDailySuggestionsFromDb(supabase, todayDateStr);
+    if (cachedFromDb) {
+      return cachedFromDb;
+    }
+  }
+
+  // 2. Si no existen aún para hoy, generamos según las clases programadas para hoy
+  const todayClasses = getClassesForToday(classes, todayWeekday);
+  const targetClasses = todayClasses.length >= 2 ? todayClasses : classes;
+  const signals = computeCatalogSignals(targetClasses);
+
+  const styles = signals.styles.map(s => s.name);
+  const districts = signals.districts.map(d => d.name);
+  const levels = signals.levels;
+
+  const aiGenerated = await generateDynamicDaySuggestions({
+    todayWeekday,
+    styles,
+    districts,
+    levels,
+    hasEvening: signals.hasEvening,
+    hasMorning: signals.hasSaturdayMorning || targetClasses.some(c => (c.timeSlots ?? []).some(t => {
+      const h = parseInt(t.startTime?.split(':')[0] ?? '12', 10);
+      return h >= 6 && h < 12;
+    })),
+    hasKids: signals.hasKids,
+    hasBeginners: Boolean(signals.beginnerStyle || signals.beginnerPair),
+  }).catch(() => null);
+
+  const baseSuggestions = buildAiSuggestions(signals);
+
+  const finalSuggestions: AiSuggestions = (aiGenerated && aiGenerated.length >= 3)
+    ? {
+        placeholders: baseSuggestions.placeholders,
+        quickPrompts: aiGenerated.slice(0, MAX_QUICK_PROMPTS),
+      }
+    : baseSuggestions;
+
+  // 3. Persistimos de forma atómica en PostgreSQL para que las próximas visitas del día tarden 0ms
+  if (finalSuggestions.quickPrompts.length > 0) {
+    await saveDailySuggestionsToDb(finalSuggestions, supabase, todayDateStr, todayWeekday);
+  }
+
+  return finalSuggestions;
 }

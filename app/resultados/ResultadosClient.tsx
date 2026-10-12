@@ -7,7 +7,7 @@ import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import SmartImage from '@/components/SmartImage';
 import TrackedProfileLink from '@/components/TrackedProfileLink';
-import { Sparkles, Search, ArrowRight, X } from 'lucide-react';
+import { Search, ArrowRight, X } from 'lucide-react';
 import { recordRecentSearch } from '@/lib/recentSearches';
 import { trackRecentSearchAdded } from '@/lib/analytics';
 import { getValidClassBadges } from '@/lib/ai/badges';
@@ -243,17 +243,29 @@ export default function ResultadosClient({
         <ResultadosSearchBar query={query} city={city} />
 
         {(aiSummary || chips.length > 0) && (
-          <section aria-label="Cómo interpretamos tu búsqueda" className="mb-8">
+          <section
+            aria-label="Cómo interpretamos tu búsqueda"
+            className="mb-8 rounded-2xl bg-gradient-to-r from-primary/[0.04] via-neutral-50 to-neutral-50 border border-primary/15 p-4 sm:p-5 shadow-2xs w-full"
+          >
             {aiSummary && (
-              <p className="flex items-start gap-2 text-[14px] sm:text-[15px] text-neutral-700 leading-snug mb-3">
-                <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-                <span>{aiSummary}</span>
-              </p>
+              <div className="flex items-start gap-2.5 mb-3">
+                <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Search className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-primary block mb-0.5">
+                    Búsqueda inteligente
+                  </span>
+                  <p className="text-[14px] sm:text-[15px] text-neutral-800 font-medium leading-relaxed">
+                    {aiSummary}
+                  </p>
+                </div>
+              </div>
             )}
             {chips.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mr-1">
-                  Entendimos
+              <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t border-primary/10">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mr-1">
+                  Filtros aplicados:
                 </span>
                 {chips.map(chip => (
                   <Link
@@ -261,9 +273,9 @@ export default function ResultadosClient({
                     href={chipHref(chip)}
                     scroll={false}
                     aria-label={`Quitar filtro ${chip.label}`}
-                    className="group inline-flex items-center gap-1.5 text-[13px] font-semibold bg-primary-bg text-neutral-900 pl-3 pr-2 py-1 rounded-full border border-primary/20 transition-[background-color,border-color,transform] hover:bg-white hover:border-primary/40 active:scale-95"
+                    className="group inline-flex items-center gap-1.5 text-[12.5px] font-semibold bg-white text-neutral-800 pl-3 pr-2 py-1 rounded-full border border-primary/25 shadow-2xs transition-[background-color,border-color,transform] hover:border-primary hover:text-primary active:scale-95"
                   >
-                    {chip.label}
+                    <span>{chip.label}</span>
                     <X className="w-3.5 h-3.5 text-neutral-400 group-hover:text-primary" aria-hidden="true" />
                   </Link>
                 ))}
@@ -271,9 +283,9 @@ export default function ResultadosClient({
                   <Link
                     href={buildRefinementHref(query, city, {}, [])}
                     scroll={false}
-                    className="text-[13px] font-semibold text-neutral-500 hover:text-neutral-800 underline-offset-2 hover:underline px-1"
+                    className="text-[12.5px] font-semibold text-neutral-500 hover:text-primary underline-offset-2 hover:underline px-1.5"
                   >
-                    Limpiar filtros
+                    Limpiar todos
                   </Link>
                 )}
               </div>
@@ -281,16 +293,18 @@ export default function ResultadosClient({
           </section>
         )}
 
-        <div className="flex gap-1 mb-8 bg-neutral-100 rounded-xl p-1 w-fit overflow-x-auto">
+        <div className="flex gap-1.5 mb-8 bg-neutral-100/90 p-1.5 rounded-2xl w-fit overflow-x-auto border border-neutral-200/50">
           {tabs.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-[background-color,color,box-shadow] active:scale-[0.97] ${
-                tab === t.key ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-700'
+              className={`px-4 sm:px-5 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.97] ${
+                tab === t.key
+                  ? 'bg-white text-neutral-900 shadow-xs'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-white/50'
               }`}
             >
-              {t.label} ({t.count})
+              {t.label} <span className={`ml-1 text-xs font-semibold ${tab === t.key ? 'text-primary' : 'text-neutral-400'}`}>({t.count})</span>
             </button>
           ))}
         </div>

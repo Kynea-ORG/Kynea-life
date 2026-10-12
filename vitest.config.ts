@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['lib/**/*.test.ts', 'app/**/*.test.tsx', 'components/**/*.test.tsx'],
+    include: ['lib/**/*.test.ts', 'app/**/*.test.ts', 'app/**/*.test.tsx', 'components/**/*.test.tsx'],
     setupFiles: ['./vitest.setup.ts'],
   },
 });
