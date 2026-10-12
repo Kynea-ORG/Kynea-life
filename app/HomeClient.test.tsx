@@ -93,9 +93,9 @@ describe('FeaturedCategoryRow', () => {
   });
 });
 
-describe('HomeClient AI Search Mode Toggle', () => {
+describe('HomeClient AI Search Default Experience', () => {
   const defaultProps = {
-    danceStylesWithClasses: [],
+    danceStylesWithClasses: [{ id: 1, name: 'Salsa', slug: 'salsa', emoji: '💃' }],
     recommendedClasses: [],
     featuredCategories: [],
     initialTeachers: [],
@@ -105,31 +105,35 @@ describe('HomeClient AI Search Mode Toggle', () => {
     userRole: null as null,
   };
 
-  it('renders with Modo IA active by default and toggles to classic mode on click', async () => {
+  it('renders with intelligent AI search as the default experience with Descubrir button', async () => {
     const { default: HomeClient } = await import('./HomeClient');
     render(<HomeClient {...defaultProps} />);
 
-    // In AI mode, the search field asks the conversational question
-    expect(screen.getAllByText('¿Qué tienes ganas de bailar?').length).toBeGreaterThan(0);
-    expect(screen.queryByText('¿Qué quieres bailar?')).not.toBeInTheDocument();
-
-    // In AI mode, city search input is not rendered
+    // In default AI mode, classic city search input is not rendered
     expect(screen.queryByPlaceholderText('¿Dónde bailas?')).not.toBeInTheDocument();
 
-    // Toggle button exists
-    const toggleButtons = screen.getAllByRole('button', { name: /Modo IA activado/i });
-    expect(toggleButtons.length).toBeGreaterThan(0);
+    // Mode toggle button is eliminated
+    expect(screen.queryByRole('button', { name: /Modo IA/i })).not.toBeInTheDocument();
 
-    // Click toggle to switch to classic mode
+    // Submit button says Buscar
+    const submitButtons = screen.getAllByRole('button', { name: /Buscar/i });
+    expect(submitButtons.length).toBeGreaterThan(0);
+
+    // Micro-label is present
+    expect(screen.getAllByText('¿Qué tienes ganas de bailar?').length).toBeGreaterThan(0);
+
+    // Búsqueda inteligente suggestions header is present
+    expect(screen.getByText(/Búsqueda inteligente, prueba sugerencias como:/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Salsa o bachata este fin de semana/i })).toBeInTheDocument();
+
+    // Typing in the search input updates value and submits via router
     const { fireEvent } = await import('@testing-library/react');
-    fireEvent.click(toggleButtons[0]);
+    const input = screen.getAllByRole('textbox')[0];
+    fireEvent.change(input, { target: { value: 'salsa en Miraflores' } });
+    expect(input).toHaveValue('salsa en Miraflores');
 
-    // Now the classic question replaces the conversational one
-    expect(screen.getAllByText('¿Qué quieres bailar?').length).toBeGreaterThan(0);
-    expect(screen.queryByText('¿Qué tienes ganas de bailar?')).not.toBeInTheDocument();
-
-    // In classic mode, city input is rendered
-    expect(screen.getByPlaceholderText('¿Dónde bailas?')).toBeInTheDocument();
+    fireEvent.click(submitButtons[0]);
+    expect(pushMock).toHaveBeenCalledWith(expect.stringContaining('salsa+en+Miraflores'));
   });
 });
 

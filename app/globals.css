@@ -638,6 +638,34 @@
   }
 }
 
+/* Borde iridiscente Apple Intelligence para el buscador con IA */
+@keyframes aiShimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.ai-border-gradient {
+  background: linear-gradient(
+    115deg,
+    #fb7185 0%,
+    #e879f9 18%,
+    #c084fc 36%,
+    #818cf8 54%,
+    #38bdf8 72%,
+    #34d399 85%,
+    #fbbf24 93%,
+    #fb7185 100%
+  );
+  background-size: 250% 250%;
+}
+.animate-ai-shimmer {
+  background-size: 250% 250%;
+  animation: aiShimmer 5s ease infinite;
+}
+
 /* Barra de progreso indeterminada fluida para banners de carga */
 @keyframes indeterminate {
   0% {

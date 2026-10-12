@@ -21,12 +21,13 @@ export const AI_PLACEHOLDER_EXAMPLES = [
 // Se envían tal cual como consulta: el del niño debe seguir diciendo "niño"
 // para que el filtro infantil de searchService lo detecte.
 export const AI_QUICK_PROMPTS = [
-  '🧘 Quiero desestresarme después del trabajo',
-  '💃 Nunca he bailado, quiero empezar',
-  '⚡ Algo para subir la energía',
-  '👧 Algo para mis niños el fin de semana',
+  '🧘 Desestresarme después del trabajo',
+  '💃 Empezar a bailar desde cero',
+  '⚡ Subir la energía bailando',
+  '👧 Clases para mis niños el fin de semana',
+  '🕺 Salsa o bachata este fin de semana',
 ];
 
-export const AI_QUICK_PROMPTS_TITLE = 'Por ejemplo';
+export const AI_QUICK_PROMPTS_TITLE = 'Sugerencias';
 export const AI_SUBMIT_LABEL = 'Buscar';
 export const AI_SUBMIT_LOADING_LABEL = 'Buscando…';
