@@ -175,10 +175,11 @@ describe('ClaseDetailClient · bloques de mobile más abajo', () => {
     expect(within(card).getByRole('link', { name: 'Ver perfil de la academia' })).toHaveAttribute('href', '/academias/atempo');
   });
 
-  it('el bloque "Antes de ir" reúne requisitos y qué traer', () => {
+  it('el bloque de preparación reúne requisitos y qué traer', () => {
     render(<ClaseDetailClient cls={makeClass()} />);
-    // Una versión para mobile (lista) y otra para desktop (chips): cada una con su título.
-    expect(screen.getAllByText('Antes de ir')).toHaveLength(2);
+    // "Antes de ir" en desktop y bloque "Requisitos" en mobile
+    expect(screen.getByRole('heading', { name: 'Antes de ir' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Requisitos' })).toBeInTheDocument();
     expect(screen.getAllByText('Evaluación previa').length).toBeGreaterThan(0);
   });
 });

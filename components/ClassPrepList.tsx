@@ -1,58 +1,144 @@
 'use client';
-import { useState } from 'react';
-import { GraduationCap, UserCheck, ClipboardCheck, Backpack } from 'lucide-react';
-import { buildPrepLines, type PrepLine } from '@/lib/classes/detailInfo';
+import {
+  GraduationCap,
+  UserCheck,
+  ClipboardCheck,
+  Backpack,
+  Check,
+  Footprints,
+  Shirt,
+  Package,
+} from 'lucide-react';
 import type { DanceClass } from '@/lib/types';
 
-const ICONS: Record<PrepLine['key'], typeof GraduationCap> = {
-  learn: GraduationCap,
-  forWhom: UserCheck,
-  requirements: ClipboardCheck,
-  bring: Backpack,
-};
+type Props = Partial<
+  Pick<DanceClass, 'whatYouLearn' | 'forWhom' | 'requirements' | 'footwear' | 'clothing' | 'toBring'>
+>;
 
-const COLLAPSED_LINES = 3;
+// Bloques de preparación de la clase (solo mobile): secciones independientes para
+// ¿Qué aprenderás?, ¿Para quién es?, Requisitos y ¿Qué traer?, todas con la misma jerarquía visual.
+export default function ClassPrepList({ cls }: { cls: Props }) {
+  const hasLearn = Boolean(cls.whatYouLearn && cls.whatYouLearn.length > 0);
+  const hasForWhom = Boolean(cls.forWhom);
+  const hasRequirements = Boolean(cls.requirements && cls.requirements.length > 0);
+  const hasBring = Boolean(
+    (cls.footwear && cls.footwear.length > 0) ||
+    cls.clothing ||
+    (cls.toBring && cls.toBring.length > 0)
+  );
 
-// "Antes de ir" (solo mobile): reemplaza los bloques sueltos de qué aprenderás / para quién / requisitos /
-// qué traer por una lista simple de ícono + texto. Muestra 3 líneas y "Ver todo (N)" despliega el resto.
-export default function ClassPrepList({
-  cls,
-}: {
-  cls: Partial<Pick<DanceClass, 'whatYouLearn' | 'forWhom' | 'requirements' | 'footwear' | 'clothing' | 'toBring'>>;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = buildPrepLines(cls);
-  if (lines.length === 0) return null;
-
-  const visible = expanded ? lines : lines.slice(0, COLLAPSED_LINES);
-  const hasMore = lines.length > COLLAPSED_LINES;
+  if (!hasLearn && !hasForWhom && !hasRequirements && !hasBring) {
+    return null;
+  }
 
   return (
-    <section className="lg:hidden mt-6">
-      <h2 className="font-extrabold text-neutral-900 text-[18px] mb-1">Antes de ir</h2>
-      <ul>
-        {visible.map(l => {
-          const Icon = ICONS[l.key];
-          return (
-            <li key={l.key} className="flex items-start gap-3 py-2.5 border-b border-neutral-100 last:border-b-0">
-              <Icon className="w-[19px] h-[19px] text-primary shrink-0 mt-0.5" aria-hidden="true" />
-              <p className="text-[14px] leading-snug text-neutral-600 min-w-0 break-words [overflow-wrap:anywhere]">
-                <strong className="font-bold text-neutral-900">{l.label}:</strong> {l.text}
-              </p>
-            </li>
-          );
-        })}
-      </ul>
-      {hasMore && (
-        <button
-          type="button"
-          onClick={() => setExpanded(e => !e)}
-          aria-expanded={expanded}
-          className="mt-1.5 text-[14px] font-extrabold text-neutral-900 underline underline-offset-[3px]"
-        >
-          {expanded ? 'Ver menos' : `Ver todo (${lines.length})`}
-        </button>
+    <div data-testid="class-prep-mobile" className="lg:hidden">
+      {/* 1. ¿Qué aprenderás? */}
+      {hasLearn && (
+        <section className="mb-6 min-w-0">
+          <div className="flex items-center gap-2 mb-3.5">
+            <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+              <GraduationCap className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+            </div>
+            <h2 className="font-extrabold text-neutral-900 text-[18px]">¿Qué aprenderás?</h2>
+          </div>
+          <div className="grid gap-2">
+            {cls.whatYouLearn!.map(item => (
+              <div
+                key={item}
+                className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 min-w-0"
+              >
+                <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+                <span className="text-[13.5px] text-neutral-700 leading-snug break-words [overflow-wrap:anywhere]">
+                  {item}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
-    </section>
+
+      {/* 2. ¿Para quién es? */}
+      {hasForWhom && (
+        <section className="mb-6 min-w-0">
+          <div className="flex items-center gap-2 mb-3.5">
+            <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+              <UserCheck className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+            </div>
+            <h2 className="font-extrabold text-neutral-900 text-[18px]">¿Para quién es?</h2>
+          </div>
+          <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 min-w-0">
+            <p className="text-[13.5px] text-neutral-600 leading-relaxed break-words [overflow-wrap:anywhere]">
+              {cls.forWhom}
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* 3. Requisitos (misma estructura jerárquica que ¿Qué traer?) */}
+      {hasRequirements && (
+        <section className="mb-6 min-w-0">
+          <div className="flex items-center gap-2 mb-3.5">
+            <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+              <ClipboardCheck className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+            </div>
+            <h2 className="font-extrabold text-neutral-900 text-[18px]">Requisitos</h2>
+          </div>
+          <div className="grid gap-2">
+            {cls.requirements!.map(req => (
+              <div
+                key={req}
+                className="bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 min-w-0"
+              >
+                <span className="text-[13.5px] text-neutral-700 leading-snug break-words [overflow-wrap:anywhere]">
+                  {req}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 4. ¿Qué traer? */}
+      {hasBring && (
+        <section className="mb-6 min-w-0">
+          <div className="flex items-center gap-2 mb-3.5">
+            <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
+              <Backpack className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+            </div>
+            <h2 className="font-extrabold text-neutral-900 text-[18px]">¿Qué traer?</h2>
+          </div>
+          <div className="grid gap-2">
+            {cls.footwear && cls.footwear.length > 0 && (
+              <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 min-w-0">
+                <Footprints className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+                <span className="text-[13.5px] text-neutral-700 leading-snug break-words [overflow-wrap:anywhere]">
+                  <strong className="font-bold text-neutral-900">Calzado:</strong> {cls.footwear.join(', ')}
+                </span>
+              </div>
+            )}
+            {cls.clothing && (
+              <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 min-w-0">
+                <Shirt className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+                <span className="text-[13.5px] text-neutral-700 leading-snug break-words [overflow-wrap:anywhere]">
+                  <strong className="font-bold text-neutral-900">Ropa:</strong> {cls.clothing}
+                </span>
+              </div>
+            )}
+            {cls.toBring?.map(item => (
+              <div
+                key={item}
+                className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 min-w-0"
+              >
+                <Package className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+                <span className="text-[13.5px] text-neutral-700 leading-snug break-words [overflow-wrap:anywhere]">
+                  {item}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
