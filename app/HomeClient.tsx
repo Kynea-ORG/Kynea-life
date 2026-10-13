@@ -608,7 +608,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
               onSubmit={navigateSearch}
               isAiMode={isAiMode}
               isLoading={isLoading}
-              placeholder={isAiMode ? AI_SEARCH_LABEL : 'Busca clases, academias, profesores…'}
+              placeholder={isAiMode ? (rotatingPlaceholder || AI_SEARCH_LABEL) : 'Busca clases, academias, profesores…'}
             />
           }
         />

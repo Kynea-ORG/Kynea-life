@@ -36,4 +36,25 @@ describe('HomeCompactSearch', () => {
     fireEvent.submit(screen.getByRole('search'));
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('permite limpiar el texto con el botón de limpiar', () => {
+    const onChange = vi.fn();
+    render(<HomeCompactSearch {...base} value="salsa" onChange={onChange} />);
+    const clearBtn = screen.getByLabelText('Limpiar búsqueda');
+    expect(clearBtn).toBeInTheDocument();
+    fireEvent.click(clearBtn);
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('aplica las clases de gradiente de IA cuando isAiMode es true y borde neutral cuando es false', () => {
+    const { container, rerender } = render(<HomeCompactSearch {...base} isAiMode={true} />);
+    expect(container.querySelector('.ai-border-gradient')).toBeInTheDocument();
+    rerender(<HomeCompactSearch {...base} isAiMode={false} />);
+    expect(container.querySelector('.ai-border-gradient')).not.toBeInTheDocument();
+  });
+
+  it('muestra el texto de buscando cuando isLoading es true', () => {
+    render(<HomeCompactSearch {...base} value="salsa" isLoading={true} />);
+    expect(screen.getByText('Buscando…')).toBeInTheDocument();
+  });
 });
