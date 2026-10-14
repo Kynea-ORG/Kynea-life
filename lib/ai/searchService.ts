@@ -4,6 +4,7 @@ import { fetchPublishedClasses, fetchClassesByIds } from '@/lib/classes/queries'
 import { fetchDanceStyles } from '@/lib/catalog/queries';
 import { generateEmbedding, parseSearchQuery, sanitizeSearchQuery } from './gemini';
 import { getValidClassBadges } from './badges';
+import { checkQueryDomain } from './domainGuard';
 import { computeCatalogSignals } from '@/lib/search/catalogSignals';
 import type { AiSearchResult, AiSearchInterpretation, AiSearchFilters } from './types';
 
@@ -34,6 +35,27 @@ export async function searchClassesWithAi(
   if (!trimmed) {
     const classes = await fetchPublishedClasses({ city: options?.city });
     return { classes, aiSummary: null, matchBadges: [], interpretation: null };
+  }
+
+  // 0. Si la consulta está inequívocamente fuera del dominio de baile (ej. "que es json", programación, etc.)
+  if (!options?.refinement) {
+    const domainCheck = checkQueryDomain(trimmed);
+    if (domainCheck.isDefinitelyOutOfDomain) {
+      return {
+        classes: [],
+        aiSummary: 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.',
+        matchBadges: [],
+        interpretation: {
+          isOutOfDomain: true,
+          filters: {},
+          semanticQuery: '',
+          aiSummary: 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.',
+          matchBadges: [],
+          isDirectProfileSearch: false,
+          profileTarget: null,
+        },
+      };
+    }
   }
 
   // Texto sobre el que se detectan heurísticas (niños, noche, mañana). En un
@@ -84,6 +106,21 @@ export async function searchClassesWithAi(
     } catch (err) {
       console.warn('[searchClassesWithAi] Error parsing with Gemini:', err);
     }
+  }
+
+  // Si la consulta fue identificada por la IA como fuera de dominio
+  if (interpretation?.isOutOfDomain) {
+    return {
+      classes: [],
+      aiSummary: interpretation.aiSummary || 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.',
+      matchBadges: [],
+      interpretation: {
+        ...interpretation,
+        isOutOfDomain: true,
+        filters: {},
+        matchBadges: [],
+      },
+    };
   }
 
   const supabase = getPublicClient();

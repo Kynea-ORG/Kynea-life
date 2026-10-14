@@ -22,6 +22,7 @@ export interface AiSearchInterpretation {
     name: string;
     role: 'profesor' | 'academia';
   } | null;
+  isOutOfDomain?: boolean;
 }
 
 export interface ClassEmbeddingInput {

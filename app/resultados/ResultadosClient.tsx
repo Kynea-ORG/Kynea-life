@@ -25,20 +25,26 @@ function plural(n: number) {
 }
 
 function EmptySection({
-  query, tab, relaxations = [], suggestedStyles = [],
-}: { query: string; tab: Tab; relaxations?: Relaxation[]; suggestedStyles?: string[] }) {
+  query, tab, relaxations = [], suggestedStyles = [], isOutOfDomain = false,
+}: { query: string; tab: Tab; relaxations?: Relaxation[]; suggestedStyles?: string[]; isOutOfDomain?: boolean }) {
   const tabTitles: Record<Tab, { title: string; subtitle: string }> = {
     clases: {
       title: `No encontramos clases para “${query}”`,
-      subtitle: 'Prueba buscando con términos más generales, quitando restricciones de horario o explorando nuestros estilos más populares.',
+      subtitle: isOutOfDomain
+        ? 'Kynea es una plataforma exclusiva de clases de baile y danza en Perú. No encontramos resultados de baile para esta búsqueda. Te invitamos a explorar nuestros estilos disponibles:'
+        : 'Prueba buscando con términos más generales, quitando restricciones de horario o explorando nuestros estilos más populares.',
     },
     profesores: {
       title: `No encontramos profesores para “${query}”`,
-      subtitle: 'No hay profesores registrados que coincidan directamente con esta búsqueda. Puedes buscar por su nombre o especialidad.',
+      subtitle: isOutOfDomain
+        ? 'No encontramos profesores para esta búsqueda. Puedes buscar instructores de baile por su nombre o especialidad.'
+        : 'No hay profesores registrados que coincidan directamente con esta búsqueda. Puedes buscar por su nombre o especialidad.',
     },
     academias: {
       title: `No encontramos academias para “${query}”`,
-      subtitle: 'No hay academias registradas que coincidan con este nombre o zona.',
+      subtitle: isOutOfDomain
+        ? 'No encontramos academias para esta búsqueda. Puedes buscar academias o estudios de baile por su nombre o zona.'
+        : 'No hay academias registradas que coincidan con este nombre o zona.',
     },
   };
 
@@ -159,6 +165,7 @@ function ProfileResultCard({ teacher, listName }: { teacher: Teacher; listName: 
 export default function ResultadosClient({
   query,
   city,
+  isOutOfDomain = false,
   interpretedFilters,
   interpretedTags,
   relaxations = [],
@@ -171,6 +178,7 @@ export default function ResultadosClient({
 }: {
   query: string;
   city?: string;
+  isOutOfDomain?: boolean;
   /** Filtros que la IA aplicó (o el usuario dejó tras editar los chips). null si la IA no interpretó. */
   interpretedFilters: AiSearchFilters | null;
   interpretedTags: string[];
@@ -311,7 +319,7 @@ export default function ResultadosClient({
 
         {tab === 'clases' && (
           classes.length === 0 ? (
-            <EmptySection query={query} tab="clases" relaxations={relaxations} suggestedStyles={suggestedStyles} />
+            <EmptySection query={query} tab="clases" isOutOfDomain={isOutOfDomain} relaxations={relaxations} suggestedStyles={suggestedStyles} />
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
               {classes.map(cls => (
@@ -329,7 +337,7 @@ export default function ResultadosClient({
 
         {tab === 'profesores' && (
           profesores.length === 0 ? (
-            <EmptySection query={query} tab="profesores" />
+            <EmptySection query={query} tab="profesores" isOutOfDomain={isOutOfDomain} />
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
               {profesores.map(p => <ProfileResultCard key={p.id} teacher={p} listName="resultados" />)}
@@ -339,7 +347,7 @@ export default function ResultadosClient({
 
         {tab === 'academias' && (
           academias.length === 0 ? (
-            <EmptySection query={query} tab="academias" />
+            <EmptySection query={query} tab="academias" isOutOfDomain={isOutOfDomain} />
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
               {academias.map(a => <ProfileResultCard key={a.id} teacher={a} listName="resultados" />)}
