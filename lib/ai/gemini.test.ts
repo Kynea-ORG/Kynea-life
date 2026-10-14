@@ -159,6 +159,50 @@ describe('Gemini AI Client', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(first).toEqual(second);
     });
+
+    it('identifica consultas fuera de dominio sin llamar a la API externa', async () => {
+      process.env.GEMINI_API_KEY = 'mock-key';
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      const result = await parseSearchQuery('que es json y como esta estructurado?');
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(result).not.toBeNull();
+      expect(result?.isOutOfDomain).toBe(true);
+      expect(result?.filters).toEqual({});
+      expect(result?.matchBadges).toEqual([]);
+      expect(result?.semanticQuery).toBe('');
+      expect(result?.aiSummary).toContain('exclusiva de clases de baile');
+    });
+
+    it('procesa correctamente cuando Gemini clasifica isOutOfDomain como true', async () => {
+      process.env.GEMINI_API_KEY = 'mock-key';
+
+      const mockAiPayload = {
+        isOutOfDomain: true,
+        filters: { style: 'Inexistente' },
+        semanticQuery: 'algo raro',
+        aiSummary: 'No relacionado',
+        matchBadges: ['Educativo'],
+        isDirectProfileSearch: false,
+        profileTarget: null,
+      };
+
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(mockAiPayload) }] } }],
+        }),
+      } as Response);
+
+      // Usar una query que pase el guard pero Gemini marque como fuera de dominio
+      const result = await parseSearchQuery('cuanto pesa un elefante africano');
+      expect(result).not.toBeNull();
+      expect(result?.isOutOfDomain).toBe(true);
+      expect(result?.filters).toEqual({});
+      expect(result?.matchBadges).toEqual([]);
+      expect(result?.semanticQuery).toBe('');
+    });
   });
 
   describe('sanitizeSearchQuery', () => {

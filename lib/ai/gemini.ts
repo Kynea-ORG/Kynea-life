@@ -1,5 +1,6 @@
 // lib/ai/gemini.ts
 import type { AiSearchInterpretation } from './types';
+import { checkQueryDomain } from './domainGuard';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -158,6 +159,9 @@ export async function batchGenerateEmbeddings(texts: string[]): Promise<(number[
 const SEARCH_RESPONSE_SCHEMA = {
   type: 'OBJECT',
   properties: {
+    isOutOfDomain: {
+      type: 'BOOLEAN',
+    },
     filters: {
       type: 'OBJECT',
       properties: {
@@ -196,7 +200,7 @@ const SEARCH_RESPONSE_SCHEMA = {
       nullable: true,
     },
   },
-  required: ['semanticQuery', 'aiSummary', 'matchBadges', 'isDirectProfileSearch'],
+  required: ['isOutOfDomain', 'semanticQuery', 'aiSummary', 'matchBadges', 'isDirectProfileSearch'],
 };
 
 export function buildSystemPrompt(
@@ -218,7 +222,10 @@ export function buildSystemPrompt(
   return `Eres el motor de búsqueda inteligente de Kynea, la plataforma líder de clases de baile en Perú.
 Tu objetivo es interpretar consultas de usuarios en lenguaje natural y extraer una estructura JSON precisa:
 
-1. "filters": Filtros relacionales:
+1. "isOutOfDomain": Booleano de pertenencia al dominio de Kynea:
+   - true: Si la consulta NO guarda ninguna relación con el baile, danza, movimiento corporal, música bailable, academias o profesores de baile (ej. preguntas de programación informática como "¿qué es json?", recetas de cocina, tareas de matemáticas, medicina, mecánica, finanzas).
+   - false: Si la consulta busca clases de baile, estilos, profesores, academias, horarios, niveles, música bailable o metas de bienestar físico/emocional a través del baile.
+2. "filters": Filtros relacionales (debe ser {} si isOutOfDomain es true):
    - style: Nombre del estilo de baile reconocido.
    - district: Distrito en Lima o ciudad.
    - city: Ciudad (default "Lima" si el distrito es de Lima).
@@ -228,12 +235,15 @@ Tu objetivo es interpretar consultas de usuarios en lenguaje natural y extraer u
    - level: "Principiante", "Intermedio", "Avanzado".
    - ageGroup: "Niños" (solo si pide infantil/chibolos), "Adultos".
    - timeOfDay: "morning" (mañanas / antes del trabajo / 06:00 - 11:59), "afternoon" (tardes / 12:00 - 17:59), "evening" (noches / después del trabajo / post-trabajo / >= 18:00).
-2. "semanticQuery": Frase densa y descriptiva para búsqueda semántica vectorial (ej. "clases desestresantes soltar el cuerpo relajacion liberar estres iniciacion principiante").
-3. "aiSummary": Resumen conciso, elegante y natural en español de lo que el usuario busca (ej. "Clases desestresantes para principiantes en horario nocturno después del trabajo").
-4. "matchBadges": Hasta 3 etiquetas cortas y verificables extraídas de la taxonomía estándar.
-5. "isDirectProfileSearch": true únicamente si la búsqueda es el nombre exacto de un profesor o academia reconocida.
+3. "semanticQuery": Frase densa y descriptiva para búsqueda semántica vectorial (cadena vacía "" si isOutOfDomain es true).
+4. "aiSummary": Resumen conciso, elegante y natural en español de lo que el usuario busca. Si isOutOfDomain es true, debe indicar cortésmente que Kynea es una plataforma exclusiva de baile y danza y que no se encontraron clases para esa consulta.
+5. "matchBadges": Hasta 3 etiquetas cortas y verificables extraídas de la taxonomía estándar (array vacío [] si isOutOfDomain es true. JAMÁS inventes tags fuera de baile como "Educativo", "Tecnología", etc.).
+6. "isDirectProfileSearch": true únicamente si la búsqueda es el nombre exacto de un profesor o academia reconocida.
 
 ${catalogHint}
+
+REGLAS CRÍTICAS DE DOMINIO:
+- Si la consulta es ajena al baile (isOutOfDomain = true), NO intentes forzar relaciones ni inventar etiquetas como "Educativo" o "Aprendizaje". Asigna filters: {}, matchBadges: [], semanticQuery: "".
 
 CONTEXTO LABORAL Y HORARIOS EN PERÚ (LIMA):
 - Jornada laboral estándar: En Lima, el horario de oficina/trabajo ("chamba") es de Lunes a Viernes de 8:00 AM / 9:00 AM a 6:00 PM / 7:00 PM.
@@ -284,6 +294,23 @@ export async function parseSearchQuery(
   const cached = getFromCache(queryInterpretationCache, cacheKey);
   if (cached !== undefined) return cached;
 
+  // Guarda de Dominio de Alta Precisión: si la consulta es inequívocamente ajena al baile
+  // (ej. "que es json", "sql", recetas, etc.), respondemos de inmediato en 0ms y $0 costo
+  const domainCheck = checkQueryDomain(sanitized, options?.danceStyles);
+  if (domainCheck.isDefinitelyOutOfDomain) {
+    const outResult: AiSearchInterpretation = {
+      isOutOfDomain: true,
+      filters: {},
+      semanticQuery: '',
+      aiSummary: 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.',
+      matchBadges: [],
+      isDirectProfileSearch: false,
+      profileTarget: null,
+    };
+    setInCache(queryInterpretationCache, cacheKey, outResult);
+    return outResult;
+  }
+
   const modelsToTry = [
     'gemini-3.1-flash-lite',
     'gemini-3.5-flash-lite',
@@ -331,13 +358,17 @@ export async function parseSearchQuery(
       if (!rawText) continue;
 
       const parsed = JSON.parse(rawText) as AiSearchInterpretation;
+      const isOutOfDomain = Boolean(parsed.isOutOfDomain);
       const result: AiSearchInterpretation = {
-        filters: parsed.filters ?? {},
-        semanticQuery: sanitizeSearchQuery(parsed.semanticQuery ?? sanitized),
-        aiSummary: parsed.aiSummary ?? `Resultados para "${sanitized}"`,
-        matchBadges: Array.isArray(parsed.matchBadges) ? parsed.matchBadges.slice(0, 3) : [],
-        isDirectProfileSearch: Boolean(parsed.isDirectProfileSearch),
-        profileTarget: parsed.profileTarget ?? null,
+        isOutOfDomain,
+        filters: isOutOfDomain ? {} : (parsed.filters ?? {}),
+        semanticQuery: isOutOfDomain ? '' : sanitizeSearchQuery(parsed.semanticQuery ?? sanitized),
+        aiSummary: isOutOfDomain
+          ? 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.'
+          : (parsed.aiSummary ?? `Resultados para "${sanitized}"`),
+        matchBadges: isOutOfDomain ? [] : (Array.isArray(parsed.matchBadges) ? parsed.matchBadges.slice(0, 3) : []),
+        isDirectProfileSearch: isOutOfDomain ? false : Boolean(parsed.isDirectProfileSearch),
+        profileTarget: isOutOfDomain ? null : (parsed.profileTarget ?? null),
       };
       setInCache(queryInterpretationCache, cacheKey, result);
       return result;

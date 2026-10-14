@@ -48,32 +48,34 @@ export default async function ResultadosPage({
     searchProfilesByName(query),
   ]);
 
-  // Estado vacío guiado: qué pasaría al quitar cada filtro, y estilos reales
-  // con clases para explorar (nunca una lista fija).
+  const isOutOfDomain = Boolean(aiSearchResult.interpretation?.isOutOfDomain);
   const noClasses = aiSearchResult.classes.length === 0;
   const interpreted = aiSearchResult.interpretation;
   const [relaxations, suggestedStyles] = noClasses
     ? await Promise.all([
-        findRelaxations({
-          query,
-          city,
-          filters: interpreted?.filters ?? {},
-          tags: interpreted?.matchBadges ?? [],
-          search: async o => (await searchClassesWithAi(query, { city: o.city, refinement: { filters: o.filters, tags: o.tags } })).classes.length,
-        }),
+        !isOutOfDomain
+          ? findRelaxations({
+              query,
+              city,
+              filters: interpreted?.filters ?? {},
+              tags: interpreted?.matchBadges ?? [],
+              search: async o => (await searchClassesWithAi(query, { city: o.city, refinement: { filters: o.filters, tags: o.tags } })).classes.length,
+            })
+          : Promise.resolve([]),
         fetchPublishedClasses({ city })
           .then(cs => computeCatalogSignals(cs).styles.slice(0, 6).map(s => s.name))
           .catch(() => [] as string[]),
       ])
     : [[], [] as string[]];
 
-  const profesores = profiles.filter(p => p.type === 'profesor');
-  const academias = profiles.filter(p => p.type === 'academia');
+  const profesores = isOutOfDomain ? [] : profiles.filter(p => p.type === 'profesor');
+  const academias = isOutOfDomain ? [] : profiles.filter(p => p.type === 'academia');
 
   return (
     <ResultadosClient
       query={query}
       city={city}
+      isOutOfDomain={isOutOfDomain}
       relaxations={relaxations}
       suggestedStyles={suggestedStyles}
       interpretedFilters={aiSearchResult.interpretation?.filters ?? null}

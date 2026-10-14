@@ -291,4 +291,20 @@ describe('searchClassesWithAi', () => {
       expect(parseSpy.mock.calls[0][1]?.districts).toContain('Miraflores');
     });
   });
+
+  describe('consultas fuera de dominio', () => {
+    it('retorna 0 clases, matchBadges vacío y mensaje claro sin consultar base de datos para consultas ajenas', async () => {
+      const rpcSpy = vi.fn();
+      vi.spyOn(publicClient, 'getPublicClient').mockReturnValue({ rpc: rpcSpy } as unknown as ReturnType<typeof publicClient.getPublicClient>);
+
+      const result = await searchClassesWithAi('que es json y como esta estructurado?');
+
+      expect(rpcSpy).not.toHaveBeenCalled();
+      expect(result.classes).toHaveLength(0);
+      expect(result.matchBadges).toHaveLength(0);
+      expect(result.interpretation?.isOutOfDomain).toBe(true);
+      expect(result.interpretation?.filters).toEqual({});
+      expect(result.aiSummary).toContain('exclusiva de clases de baile');
+    });
+  });
 });
