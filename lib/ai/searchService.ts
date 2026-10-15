@@ -2,7 +2,7 @@
 import { getPublicClient } from '@/lib/supabase/public';
 import { fetchPublishedClasses, fetchClassesByIds } from '@/lib/classes/queries';
 import { fetchDanceStyles } from '@/lib/catalog/queries';
-import { generateEmbedding, parseSearchQuery, sanitizeSearchQuery } from './gemini';
+import { generateEmbedding, parseSearchQuery, sanitizeSearchQuery } from './gateway';
 import { getValidClassBadges } from './badges';
 import { checkQueryDomain } from './domainGuard';
 import { computeCatalogSignals } from '@/lib/search/catalogSignals';
