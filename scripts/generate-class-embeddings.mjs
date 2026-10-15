@@ -41,11 +41,32 @@ function loadEnvFile() {
 
 const fileEnv = loadEnvFile();
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || fileEnv.GEMINI_API_KEY;
-if (!GEMINI_API_KEY) {
-  console.error('❌ Error: GEMINI_API_KEY no está configurada en .env.local ni en las variables de entorno.');
+const AI_PROVIDER = (
+  process.env.AI_PROVIDER ||
+  fileEnv.AI_PROVIDER ||
+  'openai'
+).toLowerCase();
+
+const AI_API_KEY =
+  process.env.AI_API_KEY ||
+  fileEnv.AI_API_KEY;
+
+if (!AI_API_KEY) {
+  console.error('❌ Error: AI_API_KEY no está configurada en .env.local ni en el entorno.');
   process.exit(1);
 }
+
+const AI_EMBEDDING_MODEL =
+  process.env.AI_EMBEDDING_MODEL ||
+  fileEnv.AI_EMBEDDING_MODEL ||
+  (AI_PROVIDER === 'gemini' ? 'gemini-embedding-001' : 'text-embedding-3-small');
+
+const AI_BASE_URL =
+  process.env.AI_BASE_URL ||
+  fileEnv.AI_BASE_URL ||
+  (AI_PROVIDER === 'gemini'
+    ? 'https://generativelanguage.googleapis.com/v1beta/models'
+    : 'https://api.openai.com/v1');
 
 let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || fileEnv.NEXT_PUBLIC_SUPABASE_URL;
 let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || fileEnv.SUPABASE_SERVICE_ROLE_KEY;
@@ -116,29 +137,53 @@ function buildClassText(c) {
 }
 
 async function getEmbedding(text) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`;
+  if (AI_PROVIDER === 'gemini') {
+    const url = `${AI_BASE_URL}/${AI_EMBEDDING_MODEL}:embedContent?key=${AI_API_KEY}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: `models/${AI_EMBEDDING_MODEL}`,
+        content: { parts: [{ text }] },
+        outputDimensionality: 768,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gemini Embedding Error HTTP ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    return data?.embedding?.values;
+  }
+
+  // OpenAI / Compatible
+  const url = `${AI_BASE_URL}/embeddings`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${AI_API_KEY}`,
+    },
     body: JSON.stringify({
-      model: 'models/gemini-embedding-001',
-      content: { parts: [{ text }] },
-      outputDimensionality: 768,
+      model: AI_EMBEDDING_MODEL,
+      input: text,
+      dimensions: 768,
     }),
   });
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gemini Embedding Error HTTP ${res.status}: ${errText}`);
+    throw new Error(`OpenAI Embedding Error HTTP ${res.status}: ${errText}`);
   }
 
   const data = await res.json();
-  return data?.embedding?.values;
+  return data?.data?.[0]?.embedding;
 }
 
-
 async function run() {
-  console.log('🚀 Iniciando sincronización de embeddings con Google Gemini...');
+  console.log(`🚀 Iniciando sincronización de embeddings con ${AI_PROVIDER.toUpperCase()} (${AI_EMBEDDING_MODEL})...`);
   console.log(`📡 Conectado a: ${supabaseUrl}`);
 
   let query = supabase

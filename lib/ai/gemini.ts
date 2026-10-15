@@ -2,10 +2,10 @@
 import type { AiSearchInterpretation } from './types';
 import { checkQueryDomain } from './domainGuard';
 
-const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_BASE_URL = process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/models';
 
 function getApiKey(): string | null {
-  return process.env.GEMINI_API_KEY || null;
+  return process.env.AI_API_KEY || null;
 }
 
 const EMBEDDING_MODELS = ['gemini-embedding-001', 'gemini-embedding-2'];

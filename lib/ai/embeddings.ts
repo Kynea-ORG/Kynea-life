@@ -1,6 +1,6 @@
 // lib/ai/embeddings.ts
 import type { ClassEmbeddingInput } from './types';
-import { generateEmbedding } from './gemini';
+import { generateEmbedding } from './gateway';
 import { getPublicClient } from '@/lib/supabase/public';
 
 /**
@@ -132,5 +132,40 @@ export async function syncClassEmbedding(classId: string): Promise<boolean> {
     return !updateError;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Re-indexa los vectores embeddings de todas las clases publicadas.
+ * Útil al inicializar o cambiar de proveedor de IA (ej. Gemini -> OpenAI).
+ */
+export async function reindexAllPublishedClassesEmbeddings(): Promise<{
+  total: number;
+  succeeded: number;
+  failed: number;
+}> {
+  try {
+    const supabase = getPublicClient();
+    const { data: rows, error } = await supabase
+      .from('classes')
+      .select('id')
+      .eq('status', 'published');
+
+    if (error || !rows) {
+      return { total: 0, succeeded: 0, failed: 0 };
+    }
+
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+      const ok = await syncClassEmbedding(row.id);
+      if (ok) succeeded++;
+      else failed++;
+    }
+
+    return { total: rows.length, succeeded, failed };
+  } catch {
+    return { total: 0, succeeded: 0, failed: 0 };
   }
 }

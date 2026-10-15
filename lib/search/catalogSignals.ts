@@ -9,7 +9,7 @@
 // verifican con getValidClassBadges — la misma regla que usa la búsqueda
 // para validar resultados — así una sugerencia y su resultado nunca discrepan.
 import { getValidClassBadges } from '@/lib/ai/badges';
-import { generateDynamicDaySuggestions } from '@/lib/ai/gemini';
+import { generateDynamicDaySuggestions } from '@/lib/ai/gateway';
 import { getPublicClient } from '@/lib/supabase/public';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DanceClass } from '@/lib/types';

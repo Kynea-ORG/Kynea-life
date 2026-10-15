@@ -9,13 +9,15 @@ import {
   MAX_SEARCH_QUERY_LENGTH,
 } from './gemini';
 
-describe('Gemini AI Client', () => {
+describe('Gemini AI Client (Agnostic / AI_API_KEY)', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     vi.resetModules();
     clearAiCache();
     process.env = { ...originalEnv };
+    delete process.env.AI_API_KEY;
+    delete process.env.AI_PROVIDER;
   });
 
   afterEach(() => {
@@ -25,20 +27,22 @@ describe('Gemini AI Client', () => {
   });
 
   describe('generateEmbedding', () => {
-    it('retorna null silenciosamente si no hay GEMINI_API_KEY configurada', async () => {
-      delete process.env.GEMINI_API_KEY;
+    it('retorna null silenciosamente si no hay AI_API_KEY configurada', async () => {
+      delete process.env.AI_API_KEY;
       const result = await generateEmbedding('salsa cubana');
       expect(result).toBeNull();
     });
 
     it('retorna null si el texto está vacío', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
       const result = await generateEmbedding('   ');
       expect(result).toBeNull();
     });
 
     it('extrae el array de valores flotantes de la respuesta de text-embedding-004', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
       const mockVector = new Array(768).fill(0.05);
 
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -54,7 +58,8 @@ describe('Gemini AI Client', () => {
     });
 
     it('retorna null y no arroja error si la API responde con error HTTP', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
 
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: false,
@@ -68,20 +73,22 @@ describe('Gemini AI Client', () => {
   });
 
   describe('parseSearchQuery', () => {
-    it('retorna null si no hay GEMINI_API_KEY configurada', async () => {
-      delete process.env.GEMINI_API_KEY;
+    it('retorna null si no hay AI_API_KEY configurada', async () => {
+      delete process.env.AI_API_KEY;
       const result = await parseSearchQuery('bachata en miraflores');
       expect(result).toBeNull();
     });
 
     it('retorna null si la query está vacía', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
       const result = await parseSearchQuery('   ');
       expect(result).toBeNull();
     });
 
     it('interpreta correctamente la respuesta JSON estructurada con filtros y badges', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
 
       const mockAiPayload = {
         filters: {
@@ -122,7 +129,8 @@ describe('Gemini AI Client', () => {
     });
 
     it('maneja fallos de la API degradando a null sin romper la ejecución', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
 
       vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: false,
@@ -135,7 +143,8 @@ describe('Gemini AI Client', () => {
     });
 
     it('utiliza cache en memoria y no vuelve a llamar a la API para la misma consulta', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
 
       const mockAiPayload = {
         filters: { style: 'Salsa' },
@@ -161,7 +170,8 @@ describe('Gemini AI Client', () => {
     });
 
     it('identifica consultas fuera de dominio sin llamar a la API externa', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
       const result = await parseSearchQuery('que es json y como esta estructurado?');
@@ -176,7 +186,8 @@ describe('Gemini AI Client', () => {
     });
 
     it('procesa correctamente cuando Gemini clasifica isOutOfDomain como true', async () => {
-      process.env.GEMINI_API_KEY = 'mock-key';
+      process.env.AI_API_KEY = 'mock-key';
+      process.env.AI_PROVIDER = 'gemini';
 
       const mockAiPayload = {
         isOutOfDomain: true,
@@ -195,7 +206,6 @@ describe('Gemini AI Client', () => {
         }),
       } as Response);
 
-      // Usar una query que pase el guard pero Gemini marque como fuera de dominio
       const result = await parseSearchQuery('cuanto pesa un elefante africano');
       expect(result).not.toBeNull();
       expect(result?.isOutOfDomain).toBe(true);
