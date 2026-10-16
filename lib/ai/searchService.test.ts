@@ -62,6 +62,24 @@ describe('searchClassesWithAi', () => {
     ],
   };
 
+  const mockAfternoonClass: DanceClass = {
+    ...mockAdultClass,
+    id: 'cls-afternoon',
+    title: 'Flamenco en la Tarde',
+    timeSlots: [
+      { days: ['Sábado'], startTime: '15:00', endTime: '16:30' },
+    ],
+  };
+
+  const mockMorningClass: DanceClass = {
+    ...mockAdultClass,
+    id: 'cls-morning',
+    title: 'Flamenco en la Mañana',
+    timeSlots: [
+      { days: ['Jueves'], startTime: '07:00', endTime: '09:00' },
+    ],
+  };
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -252,6 +270,17 @@ describe('searchClassesWithAi', () => {
 
       expect(result.classes.map(c => c.id)).toEqual(['cls-weekend']);
       expect(result.matchBadges).toEqual(['Fin de semana']);
+    });
+
+    it('filtra clases por horario de tarde (12:00 - 17:59) y descarta clases de mañana o noche', async () => {
+      mockRpc(['cls-morning', 'cls-afternoon']);
+      vi.spyOn(classesQueries, 'fetchClassesByIds').mockResolvedValue([mockMorningClass, mockAfternoonClass]);
+
+      const result = await searchClassesWithAi('Flamenco por la tarde', {
+        refinement: { filters: { style: 'Flamenco', timeOfDay: 'afternoon' }, tags: [] },
+      });
+
+      expect(result.classes.map(c => c.id)).toEqual(['cls-afternoon']);
     });
   });
 

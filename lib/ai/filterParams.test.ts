@@ -90,6 +90,35 @@ describe('buildFilterChips', () => {
   it('ignora filtros null/undefined/vacíos', () => {
     expect(buildFilterChips({ style: null, district: '', daysOfWeek: [] }, [])).toEqual([]);
   });
+
+  it('no duplica chips cuando filters.ageGroup y tags contienen el mismo valor', () => {
+    const chips = buildFilterChips(
+      { style: 'Flamenco', city: 'Chiclayo', timeOfDay: 'afternoon', ageGroup: 'Adultos' },
+      ['Adultos'],
+    );
+    expect(chips.map(c => c.label)).toEqual(['Flamenco', 'Chiclayo', 'Tarde', 'Adultos']);
+    expect(chips.filter(c => c.label === 'Adultos').length).toBe(1);
+    expect(chips.find(c => c.label === 'Adultos')?.kind).toBe('age');
+  });
+
+  it('no duplica chips cuando tags contiene variantes semánticamente redundantes', () => {
+    const chipsAdults = buildFilterChips({ ageGroup: 'Adultos' }, ['Solo adultos']);
+    expect(chipsAdults.map(c => c.label)).toEqual(['Adultos']);
+
+    const chipsKids = buildFilterChips({ ageGroup: 'Niños' }, ['Para niños']);
+    expect(chipsKids.map(c => c.label)).toEqual(['Niños']);
+
+    const chipsStyle = buildFilterChips({ style: 'Flamenco' }, ['Flamenco']);
+    expect(chipsStyle.map(c => c.label)).toEqual(['Flamenco']);
+
+    const chipsCity = buildFilterChips({ city: 'Chiclayo' }, ['Chiclayo']);
+    expect(chipsCity.map(c => c.label)).toEqual(['Chiclayo']);
+  });
+
+  it('deduplica tags repetidos ignorando mayúsculas y acentos', () => {
+    const chips = buildFilterChips({}, ['Desestresante', 'desestresante', 'DESESTRESANTE']);
+    expect(chips.map(c => c.label)).toEqual(['Desestresante']);
+  });
 });
 
 describe('removeChip', () => {
@@ -120,5 +149,33 @@ describe('removeChip', () => {
     removeChip(filters, tags, chip);
     expect(filters).toEqual({ style: 'Salsa', district: 'Lince', daysOfWeek: [5, 6] });
     expect(tags).toEqual(['Fin de semana', 'Económico']);
+  });
+
+  it('al quitar un chip estructurado (ej. Adultos), también limpia tags redundantes de tags', () => {
+    const currentFilters: AiSearchFilters = {
+      style: 'Flamenco',
+      city: 'Chiclayo',
+      timeOfDay: 'afternoon',
+      ageGroup: 'Adultos',
+    };
+    const currentTags = ['Adultos', 'Desestresante'];
+    const chip = buildFilterChips(currentFilters, currentTags).find(c => c.kind === 'age')!;
+    expect(chip).toBeDefined();
+
+    const next = removeChip(currentFilters, currentTags, chip);
+    expect(next.filters.ageGroup).toBeUndefined();
+    expect(next.filters.style).toBe('Flamenco');
+    expect(next.tags).toEqual(['Desestresante']);
+  });
+
+  it('descarta age values en level para no crear chips de nivel erróneos', () => {
+    const parsed = parseFilterParams({ q: 'x', level: 'Adultos', age: 'Adultos' });
+    expect(parsed.filters.level).toBeUndefined();
+    expect(parsed.filters.ageGroup).toBe('Adultos');
+
+    const chips = buildFilterChips({ level: 'Adultos', ageGroup: 'Adultos' }, []);
+    expect(chips.length).toBe(1);
+    expect(chips[0].kind).toBe('age');
+    expect(chips[0].label).toBe('Adultos');
   });
 });

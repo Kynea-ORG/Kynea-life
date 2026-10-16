@@ -364,9 +364,23 @@ export async function parseSearchQuery(
 
       const parsed = JSON.parse(rawText) as AiSearchInterpretation;
       const isOutOfDomain = Boolean(parsed.isOutOfDomain);
+      const rawFilters = isOutOfDomain ? {} : (parsed.filters ?? {});
+      const filters = { ...rawFilters };
+
+      // Si el LLM confundió el grupo etario con el nivel (ej. level: 'Adultos'), corregir a ageGroup
+      if (filters.level) {
+        const l = filters.level.toLowerCase();
+        if (l.includes('adult') || l.includes('niñ') || l.includes('kid') || l.includes('chibolo')) {
+          if (!filters.ageGroup) {
+            filters.ageGroup = l.includes('adult') ? 'Adultos' : 'Niños';
+          }
+          delete filters.level;
+        }
+      }
+
       const result: AiSearchInterpretation = {
         isOutOfDomain,
-        filters: isOutOfDomain ? {} : (parsed.filters ?? {}),
+        filters,
         semanticQuery: isOutOfDomain ? '' : sanitizeSearchQuery(parsed.semanticQuery ?? sanitized),
         aiSummary: isOutOfDomain
           ? 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma dedicada a la danza y el baile. Te invitamos a explorar nuestros estilos disponibles.'

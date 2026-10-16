@@ -218,6 +218,27 @@ describe('getValidClassBadges', () => {
     expect(valid).not.toContain('Vibra cool');
     expect(valid).not.toContain('Super top');
   });
+
+  it('valida horario de tarde (12:00 a 17:59) y descarta clases de mañana o noche', () => {
+    const afternoonClass: DanceClass = {
+      ...mockClass,
+      timeSlots: [{ days: ['Sábado'], startTime: '15:00', endTime: '16:30' }],
+    };
+    const badges = ['Tarde', 'Por la tarde', 'Mañanas', 'Horario nocturno'];
+    const valid = getValidClassBadges(afternoonClass, badges);
+
+    expect(valid).toContain('Tarde');
+    expect(valid).toContain('Por la tarde');
+    expect(valid).not.toContain('Mañanas');
+    expect(valid).not.toContain('Horario nocturno');
+
+    const morningClass: DanceClass = {
+      ...mockClass,
+      timeSlots: [{ days: ['Jueves'], startTime: '07:00', endTime: '09:00' }],
+    };
+    const validMorning = getValidClassBadges(morningClass, ['Tarde']);
+    expect(validMorning).not.toContain('Tarde');
+  });
 });
 
 
