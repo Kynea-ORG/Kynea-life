@@ -14,7 +14,8 @@ import type { DanceClass } from '@/lib/types';
 import { isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { trackGenerateLead, trackAuthCtaClick, trackViewItem, trackSaveClass, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
+import { useSavedClass } from '@/lib/hooks/useSavedClass';
+import { trackGenerateLead, trackViewItem, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
 import ClampedText from '@/components/ClampedText';
 import ClassQuickFacts from '@/components/ClassQuickFacts';
 import ClassPrepList from '@/components/ClassPrepList';
@@ -28,9 +29,8 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const [contactType, setContactType] = useState<'whatsapp' | 'instagram'>('whatsapp');
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const { user, isLoggedIn } = useAuth();
+  const { saved, toggleSave } = useSavedClass({ cls, requireAuth: true });
+  const { isLoggedIn } = useAuth();
   const [activeImg, setActiveImg] = useState(0);
   const [justContacted, setJustContacted] = useState<'whatsapp' | 'instagram' | null>(null);
   const [copied, setCopied] = useState(false);
@@ -38,20 +38,6 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const contactMode = cls.contactMode ?? 'whatsapp';
   const showWa = contactMode === 'whatsapp' || contactMode === 'both';
   const showIg = contactMode === 'instagram' || contactMode === 'both';
-
-  useEffect(() => {
-    if (!user) return;
-    const supabase = createClient();
-    supabase
-      .from('saved_classes')
-      .select('class_id')
-      .eq('user_id', user.id)
-      .eq('class_id', cls.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setSaved(true);
-      });
-  }, [cls.id, user]);
 
   useEffect(() => {
     trackViewItem({
@@ -80,29 +66,6 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       role: cls.teacher.type === 'academia' ? 'academia' : 'profesor',
       profileId: cls.teacher.id, profileName: cls.teacher.name, listName: 'clase_detail',
     });
-
-  const toggleSave = async () => {
-    if (!user) {
-      trackAuthCtaClick({ action: 'login', location: 'save_class_gate' });
-      router.push('/login');
-      return;
-    }
-    setSaving(true);
-    const supabase = createClient();
-    if (saved) {
-      const { error } = await supabase.from('saved_classes').delete()
-        .eq('user_id', user.id).eq('class_id', cls.id);
-      if (!error) setSaved(false);
-    } else {
-      const { error } = await supabase.from('saved_classes').insert({ user_id: user.id, class_id: cls.id });
-      // 23505 = already saved (stale local state, e.g. another tab) — treat as success.
-      if (!error || error.code === '23505') {
-        setSaved(true);
-        trackSaveClass({ classId: cls.id, className: cls.title, classStyle: cls.style, teacherId: cls.teacher.id });
-      }
-    }
-    setSaving(false);
-  };
 
   // Mobile: el botón "atrás" de la foto vuelve a donde estaba la persona (lista con sus filtros, Home…).
   // Si abrió la clase desde un enlace compartido y no hay historial, va a la lista.
@@ -262,8 +225,12 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               <Share2 className="w-4 h-4" aria-hidden="true" /> Compartir
             </button>
             {!isExpired && (
-              <button type="button" onClick={toggleSave} disabled={saving} className="flex items-center gap-1.5 text-[13.5px] font-bold text-neutral-900 underline underline-offset-[3px] hover:text-primary transition-colors disabled:opacity-60">
-                <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} aria-hidden="true" /> {saved ? 'Guardado' : 'Guardar'}
+              <button
+                type="button"
+                onClick={toggleSave}
+                className="flex items-center gap-1.5 text-[13.5px] font-bold text-neutral-900 underline underline-offset-[3px] hover:text-primary transition-colors active:scale-95"
+              >
+                <Bookmark className={`w-4 h-4 ${saved ? 'fill-current animate-pop' : ''}`} aria-hidden="true" /> {saved ? 'Guardado' : 'Guardar'}
               </button>
             )}
           </div>
@@ -336,11 +303,10 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     <button
                       type="button"
                       onClick={toggleSave}
-                      disabled={saving}
                       aria-label={saved ? 'Guardado' : 'Guardar clase'}
-                      className="w-9 h-9 rounded-full bg-white/95 text-neutral-900 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
+                      className="w-9 h-9 rounded-full bg-white/95 text-neutral-900 flex items-center justify-center active:scale-95 transition-transform"
                     >
-                      <Bookmark className={`w-[17px] h-[17px] ${saved ? 'fill-current' : ''}`} />
+                      <Bookmark className={`w-[17px] h-[17px] ${saved ? 'fill-current animate-pop' : ''}`} />
                     </button>
                   )}
                 </div>
@@ -628,9 +594,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
                   {!isExpired && (
                     <button
+                      type="button"
                       onClick={toggleSave}
-                      disabled={saving}
-                      className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border border-neutral-900 transition-[background-color,color] active:scale-[0.97] disabled:opacity-60 ${
+                      className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border border-neutral-900 transition-[background-color,color] active:scale-[0.97] ${
                         saved
                           ? 'bg-neutral-900 text-white'
                           : 'text-neutral-700 hover:bg-neutral-50'

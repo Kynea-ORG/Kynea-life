@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Hanken_Grotesk, Figtree } from "next/font/google";
 import ImageProviderHealthCheck from "@/components/ImageProviderHealthCheck";
 import LoginSuccessListener from "@/components/LoginSuccessListener";
+import RouteProgressBar from "@/components/RouteProgressBar";
 import { AuthProvider } from "@/components/AuthProvider";
 import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
@@ -59,6 +60,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${hanken.variable} ${figtree.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
+        <RouteProgressBar />
         <ImageProviderHealthCheck />
         <LoginSuccessListener />
         {GTM_ENABLED && (

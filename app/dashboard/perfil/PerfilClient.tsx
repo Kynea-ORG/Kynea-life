@@ -14,6 +14,7 @@ import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
 import { DEFAULT_ACADEMIA_COVER, extractSocialHandle } from '@/lib/utils';
 import ErrorBanner from '@/components/ErrorBanner';
+import { startRouteProgress } from '@/lib/navigation/progress';
 
 // Extracts the storage object path from a public Supabase Storage URL
 // (".../object/public/class-images/<path>" -> "<path>") so a replaced or
@@ -250,6 +251,7 @@ export default function PerfilClient({
   const [loggingOut, setLoggingOut] = useState(false);
   const handleLogout = async () => {
     setLoggingOut(true);
+    startRouteProgress();
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/');
@@ -652,7 +654,7 @@ export default function PerfilClient({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="btn-primary"
+            className={`btn-primary ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
           >
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saved ? '¡Guardado!' : isPending ? 'Guardando…' : 'Guardar cambios'}
@@ -661,7 +663,7 @@ export default function PerfilClient({
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg px-4 py-3 rounded-btn border border-neutral-200 transition-[background-color,color,transform] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
+            className={`flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-red hover:bg-red-bg px-4 py-3 rounded-btn border border-neutral-200 transition-[background-color,color,transform] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none ${loggingOut ? 'cursor-wait' : ''}`}
           >
             {loggingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
             {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}

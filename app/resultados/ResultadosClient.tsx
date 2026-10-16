@@ -1,13 +1,14 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import SmartImage from '@/components/SmartImage';
 import TrackedProfileLink from '@/components/TrackedProfileLink';
-import { Search, ArrowRight, X } from 'lucide-react';
+import { Search, ArrowRight, X, Loader2 } from 'lucide-react';
+import ClassCardSkeleton from '@/components/skeletons/ClassCardSkeleton';
 import { recordRecentSearch } from '@/lib/recentSearches';
 import { trackRecentSearchAdded } from '@/lib/analytics';
 import { getValidClassBadges } from '@/lib/ai/badges';
@@ -25,8 +26,15 @@ function plural(n: number) {
 }
 
 function EmptySection({
-  query, tab, relaxations = [], suggestedStyles = [], isOutOfDomain = false,
-}: { query: string; tab: Tab; relaxations?: Relaxation[]; suggestedStyles?: string[]; isOutOfDomain?: boolean }) {
+  query, tab, relaxations = [], suggestedStyles = [], isOutOfDomain = false, onRefine,
+}: {
+  query: string;
+  tab: Tab;
+  relaxations?: Relaxation[];
+  suggestedStyles?: string[];
+  isOutOfDomain?: boolean;
+  onRefine?: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
   const tabTitles: Record<Tab, { title: string; subtitle: string }> = {
     clases: {
       title: `No encontramos clases para “${query}”`,
@@ -73,6 +81,7 @@ function EmptySection({
               <Link
                 key={`${r.kind}-${r.label}`}
                 href={r.href}
+                onClick={e => onRefine?.(e, r.href)}
                 scroll={false}
                 className="text-[14px] font-semibold bg-white hover:bg-primary-bg text-neutral-800 px-4 py-2 rounded-full border border-primary/25 hover:border-primary/50 shadow-2xs transition-colors active:scale-95"
               >
@@ -212,7 +221,35 @@ export default function ResultadosClient({
   ];
   const totalResults = classes.length + profesores.length + academias.length;
 
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const [isSearching, startSearchTransition] = useTransition();
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null);
+  const activePendingQuery = isSearching ? pendingQuery : null;
+  const [prevQuery, setPrevQuery] = useState(query);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    setIsSearchOpen(false);
+  }
+
+  const handleSearchFromBar = (newQuery: string) => {
+    setPendingQuery(newQuery);
+    const params = new URLSearchParams({ q: newQuery });
+    if (city) params.set('city', city);
+    startSearchTransition(() => {
+      router.push(`/resultados?${params.toString()}`);
+    });
+  };
+
+  const handleRefineLink = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    startSearchTransition(() => {
+      router.push(href);
+    });
+  };
+
   useEffect(() => {
     // Esta ruta se llega tanto desde el buscador del Home (búsqueda
     // ambigua) como por link directo — en ambos casos, "búsqueda reciente"
@@ -240,58 +277,112 @@ export default function ResultadosClient({
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header />
-      <main className="flex-1 max-w-[1200px] w-full mx-auto px-6 py-10 animate-fade-in-smooth">
-        <h1 className="text-[26px] sm:text-[32px] font-black text-neutral-900 mb-1 break-words">
-          Resultados para &ldquo;{query}&rdquo;
-        </h1>
-        <p className="text-neutral-600 mb-6">
-          {totalResults} resultado{totalResults !== 1 ? 's' : ''} en total
-        </p>
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-6 py-5 sm:py-7 animate-fade-in-smooth">
+        {/* Encabezado: H1 con la consulta y botón para desplegar el buscador */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h1 className="text-[22px] sm:text-[28px] font-black text-neutral-900 break-words leading-tight">
+            Resultados para &ldquo;{query}&rdquo;
+          </h1>
+          {!isSearchOpen && (
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[13px] sm:text-sm font-bold text-neutral-700 bg-white border border-neutral-200/90 hover:border-primary hover:text-primary shadow-xs transition-all active:scale-95 shrink-0 self-start sm:self-auto cursor-pointer"
+            >
+              <Search className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
+              <span>Buscar de nuevo</span>
+            </button>
+          )}
+        </div>
 
-        <ResultadosSearchBar query={query} city={city} />
+        {/* Buscador expandible: Oculto por defecto, se activa al hacer clic en 'Buscar de nuevo' */}
+        {isSearchOpen && (
+          <div className="mb-4 animate-fade-in-smooth">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-400">
+                Nueva búsqueda
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(false)}
+                className="text-[12px] font-semibold text-neutral-500 hover:text-neutral-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Cerrar</span>
+              </button>
+            </div>
+            <ResultadosSearchBar
+              query={query}
+              city={city}
+              isSearching={isSearching}
+              autoFocus
+              onSearch={handleSearchFromBar}
+            />
+          </div>
+        )}
 
-        {(aiSummary || chips.length > 0) && (
+        {/* Banner de Búsqueda Inteligente: Activo con streaming o con resumen previo */}
+        {isSearching ? (
+          <section
+            aria-label="Interpretando búsqueda"
+            className="mb-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-primary-bg via-pink-50/40 to-white border border-primary/20 p-3 sm:p-3.5 shadow-xs relative overflow-hidden animate-pulse w-full"
+          >
+            {/* Barra fluida de progreso superior */}
+            <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-primary/10 overflow-hidden">
+              <div className="h-full w-1/3 bg-gradient-to-r from-primary via-purple-500 to-pink-500 rounded-full animate-indeterminate" />
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+              <div className="min-w-0 flex-1 flex items-center gap-2">
+                <span className="text-[12px] font-bold text-primary shrink-0">
+                  Búsqueda inteligente
+                </span>
+                <span className="text-neutral-300">·</span>
+                <p className="text-[13.5px] sm:text-[14px] font-medium text-neutral-800 leading-snug truncate">
+                  {activePendingQuery
+                    ? `Buscando clases para “${activePendingQuery}”…`
+                    : 'Buscando las mejores clases en vivo…'}
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : (aiSummary || chips.length > 0) ? (
           <section
             aria-label="Cómo interpretamos tu búsqueda"
-            className="mb-8 rounded-2xl bg-gradient-to-r from-primary/[0.04] via-neutral-50 to-neutral-50 border border-primary/15 p-4 sm:p-5 shadow-2xs w-full"
+            className="mb-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-primary/[0.04] via-neutral-50 to-neutral-50 border border-primary/15 p-3 sm:p-3.5 shadow-2xs w-full flex flex-col gap-2"
           >
             {aiSummary && (
-              <div className="flex items-start gap-2.5 mb-3">
-                <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Search className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-primary block mb-0.5">
-                    Búsqueda inteligente
-                  </span>
-                  <p className="text-[14px] sm:text-[15px] text-neutral-800 font-medium leading-relaxed">
-                    {aiSummary}
-                  </p>
-                </div>
-              </div>
+              <p className="text-[13px] sm:text-[14px] text-neutral-800 leading-snug">
+                <span className="font-bold text-primary mr-1.5">
+                  Búsqueda inteligente:
+                </span>
+                {aiSummary}
+              </p>
             )}
             {chips.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t border-primary/10">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mr-1">
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[12px] sm:text-[13px] font-bold text-neutral-500 mr-1">
                   Filtros aplicados:
                 </span>
                 {chips.map(chip => (
                   <Link
                     key={`${chip.kind}-${chip.label}`}
                     href={chipHref(chip)}
+                    onClick={e => handleRefineLink(e, chipHref(chip))}
                     scroll={false}
                     aria-label={`Quitar filtro ${chip.label}`}
-                    className="group inline-flex items-center gap-1.5 text-[12.5px] font-semibold bg-white text-neutral-800 pl-3 pr-2 py-1 rounded-full border border-primary/25 shadow-2xs transition-[background-color,border-color,transform] hover:border-primary hover:text-primary active:scale-95"
+                    className="group inline-flex items-center gap-1.5 text-[12px] font-semibold bg-white text-neutral-800 pl-2.5 pr-2 py-0.5 rounded-full border border-primary/25 shadow-2xs transition-[background-color,border-color,transform] hover:border-primary hover:text-primary active:scale-95"
                   >
                     <span>{chip.label}</span>
-                    <X className="w-3.5 h-3.5 text-neutral-400 group-hover:text-primary" aria-hidden="true" />
+                    <X className="w-3 h-3 text-neutral-400 group-hover:text-primary" aria-hidden="true" />
                   </Link>
                 ))}
                 {chips.length > 1 && (
                   <Link
                     href={buildRefinementHref(query, city, {}, [])}
+                    onClick={e => handleRefineLink(e, buildRefinementHref(query, city, {}, []))}
                     scroll={false}
-                    className="text-[12.5px] font-semibold text-neutral-500 hover:text-primary underline-offset-2 hover:underline px-1.5"
+                    className="text-[12px] font-semibold text-neutral-500 hover:text-primary underline-offset-2 hover:underline px-1.5"
                   >
                     Limpiar todos
                   </Link>
@@ -299,60 +390,89 @@ export default function ResultadosClient({
               </div>
             )}
           </section>
-        )}
+        ) : null}
 
-        <div className="flex gap-1.5 mb-8 bg-neutral-100/90 p-1.5 rounded-2xl w-fit overflow-x-auto border border-neutral-200/50">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 sm:px-5 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.97] ${
-                tab === t.key
-                  ? 'bg-white text-neutral-900 shadow-xs'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-white/50'
-              }`}
-            >
-              {t.label} <span className={`ml-1 text-xs font-semibold ${tab === t.key ? 'text-primary' : 'text-neutral-400'}`}>({t.count})</span>
-            </button>
-          ))}
+        {/* Barra unificada: pestañas a la izquierda, contador discreto a la derecha */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div className="flex gap-1 bg-neutral-100/90 p-1 rounded-xl w-fit overflow-x-auto border border-neutral-200/50">
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                disabled={isSearching}
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-[13px] sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.97] ${
+                  tab === t.key
+                    ? 'bg-white text-neutral-900 shadow-xs'
+                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-white/50'
+                } disabled:opacity-60`}
+              >
+                {t.label}{' '}
+                <span className={`ml-1 text-xs font-semibold ${tab === t.key ? 'text-primary' : 'text-neutral-400'}`}>
+                  ({t.count})
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <p className="text-[13px] sm:text-[13.5px] text-neutral-500 font-medium select-none">
+            {totalResults} resultado{totalResults !== 1 ? 's' : ''} en total
+          </p>
         </div>
 
-        {tab === 'clases' && (
-          classes.length === 0 ? (
-            <EmptySection query={query} tab="clases" isOutOfDomain={isOutOfDomain} relaxations={relaxations} suggestedStyles={suggestedStyles} />
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
-              {classes.map(cls => (
-                <ClassCard
-                  key={cls.id}
-                  cls={cls}
-                  mobileLayout="row"
-                  listName="resultados"
-                  matchBadges={getValidClassBadges(cls, activeBadges)}
+        {/* Visualización de resultados: Skeletons durante streaming o contenido real */}
+        {isSearching ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5 animate-pulse">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <ClassCardSkeleton key={i} mobileLayout="row" />
+            ))}
+          </div>
+        ) : (
+          <>
+            {tab === 'clases' && (
+              classes.length === 0 ? (
+                <EmptySection
+                  query={query}
+                  tab="clases"
+                  isOutOfDomain={isOutOfDomain}
+                  relaxations={relaxations}
+                  suggestedStyles={suggestedStyles}
+                  onRefine={handleRefineLink}
                 />
-              ))}
-            </div>
-          )
-        )}
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
+                  {classes.map(cls => (
+                    <ClassCard
+                      key={cls.id}
+                      cls={cls}
+                      mobileLayout="row"
+                      listName="resultados"
+                      matchBadges={getValidClassBadges(cls, activeBadges)}
+                    />
+                  ))}
+                </div>
+              )
+            )}
 
-        {tab === 'profesores' && (
-          profesores.length === 0 ? (
-            <EmptySection query={query} tab="profesores" isOutOfDomain={isOutOfDomain} />
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-4">
-              {profesores.map(p => <ProfileResultCard key={p.id} teacher={p} listName="resultados" />)}
-            </div>
-          )
-        )}
+            {tab === 'profesores' && (
+              profesores.length === 0 ? (
+                <EmptySection query={query} tab="profesores" isOutOfDomain={isOutOfDomain} />
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {profesores.map(p => <ProfileResultCard key={p.id} teacher={p} listName="resultados" />)}
+                </div>
+              )
+            )}
 
-        {tab === 'academias' && (
-          academias.length === 0 ? (
-            <EmptySection query={query} tab="academias" isOutOfDomain={isOutOfDomain} />
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-4">
-              {academias.map(a => <ProfileResultCard key={a.id} teacher={a} listName="resultados" />)}
-            </div>
-          )
+            {tab === 'academias' && (
+              academias.length === 0 ? (
+                <EmptySection query={query} tab="academias" isOutOfDomain={isOutOfDomain} />
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {academias.map(a => <ProfileResultCard key={a.id} teacher={a} listName="resultados" />)}
+                </div>
+              )
+            )}
+          </>
         )}
 
         <div className="mt-10">

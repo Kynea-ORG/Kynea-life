@@ -125,11 +125,17 @@ export function MobileStyleSearchOverlay({
         <button type="button" onClick={() => onClose(localQuery)} aria-label="Volver">
           <ArrowLeft className="w-5 h-5 text-neutral-900" />
         </button>
-        <div className="flex-1 p-[2px] rounded-[14px] ai-border-gradient animate-ai-shimmer">
+        <div className="flex-1 p-[2px] rounded-[14px] ai-border-gradient animate-ai-shimmer relative overflow-hidden">
+          {isLoading && (
+            <div className="absolute top-0 left-3 right-3 h-[2px] bg-primary/15 rounded-full overflow-hidden z-20">
+              <div className="h-full w-1/3 bg-gradient-to-r from-primary via-purple-500 to-pink-500 rounded-full animate-indeterminate" />
+            </div>
+          )}
           <div className="w-full flex items-center gap-2.5 bg-neutral-50 rounded-[12px] px-3.5 py-2">
-              <Search className="w-[17px] h-[17px] text-primary shrink-0" />
-              <input
-                autoFocus
+            <Search className="w-[17px] h-[17px] text-primary shrink-0" />
+            <input
+              autoFocus
+              disabled={isLoading}
                 type="text"
                 placeholder={isInputFocused ? '' : (isAiMode ? AI_PLACEHOLDER_EXAMPLES[0] : (rotatingPlaceholder || '¿Qué quieres bailar?'))}
                 value={localQuery}

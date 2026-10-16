@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth/getUser';
 import { getCurrentProfile } from '@/lib/profiles/queries';
 import { fetchTeacherClasses } from '@/lib/classes/queries';
+import DashboardTableSkeleton from '@/components/skeletons/DashboardTableSkeleton';
 import MisClasesClient from './MisClasesClient';
 
 export default async function MisClasesPage() {
@@ -21,7 +22,7 @@ export default async function MisClasesPage() {
   // MisClasesClient reads ?published=1 via useSearchParams (publish success
   // toast), which requires a Suspense boundary.
   return (
-    <Suspense>
+    <Suspense fallback={<DashboardTableSkeleton />}>
       <MisClasesClient initialClasses={classes} academiaPending={isAcademiaPending} />
     </Suspense>
   );

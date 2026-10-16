@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { safeRedirectPath } from '@/lib/utils';
 import { trackAuthAttempt } from '@/lib/analytics';
+import { startRouteProgress } from '@/lib/navigation/progress';
 
 export const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: 'Mínimo 8 caracteres',       test: pw => pw.length >= 8 },
@@ -74,9 +75,11 @@ export function useSignupForm(role: 'profesor' | 'academia') {
     }
 
     if (data.session) {
+      startRouteProgress();
       router.refresh();
       router.push(nextPath);
     } else {
+      startRouteProgress();
       const confirmDest = `/confirmar-email?email=${encodeURIComponent(form.email)}&role=${role}`;
       router.push(redirectTarget ? `${confirmDest}&redirect=${encodeURIComponent(redirectTarget)}` : confirmDest);
     }

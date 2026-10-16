@@ -1,0 +1,10 @@
+export { default as ClassCardSkeleton } from './ClassCardSkeleton';
+export { default as ClasesCatalogSkeleton } from './ClasesCatalogSkeleton';
+export { default as ClaseDetailSkeleton } from './ClaseDetailSkeleton';
+export { default as ProfesorProfileSkeleton } from './ProfesorProfileSkeleton';
+export { default as DirectoryGridSkeleton } from './DirectoryGridSkeleton';
+export { default as DashboardTableSkeleton } from './DashboardTableSkeleton';
+export { default as DashboardOverviewSkeleton } from './DashboardOverviewSkeleton';
+export { default as CategoriasSkeleton } from './CategoriasSkeleton';
+export { default as BlogSkeleton } from './BlogSkeleton';
+export { default as BlogPostSkeleton } from './BlogPostSkeleton';

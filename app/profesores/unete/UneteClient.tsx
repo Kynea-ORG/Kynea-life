@@ -131,7 +131,7 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
               <button
                 type="submit"
                 disabled={loading || !passwordValid || !termsAccepted}
-                className="btn-primary w-full mt-1 flex items-center justify-center gap-2"
+                className={`btn-primary w-full mt-1 flex items-center justify-center gap-2 ${loading ? 'cursor-wait disabled:opacity-75' : ''}`}
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? 'Creando cuenta…' : 'Crear cuenta de profesor'}
@@ -142,13 +142,13 @@ export default function UneteClient({ teacherCount }: { teacherCount: number }) 
               type="button"
               onClick={handleGoogle}
               disabled={googleLoading}
-              className="w-full btn-outline flex items-center justify-center gap-2"
+              className={`w-full btn-outline flex items-center justify-center gap-2 ${googleLoading ? 'cursor-wait disabled:opacity-75' : ''}`}
             >
               {googleLoading
                 ? <Loader2 className="w-4 h-4 animate-spin" />
                 : <GoogleIcon className="w-4 h-4" />
               }
-              Continuar con Google
+              {googleLoading ? 'Conectando con Google…' : 'Continuar con Google'}
             </button>
 
             <p className="text-center text-[13px] text-neutral-400 mt-5">

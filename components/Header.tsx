@@ -13,6 +13,7 @@ import dynamic from 'next/dynamic';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { trackAuthCtaClick } from '@/lib/analytics';
 import { useAuth, type UserRole as Role } from '@/components/AuthProvider';
+import { startRouteProgress } from '@/lib/navigation/progress';
 
 const BecomeTeacherModal = dynamic(() => import('@/components/BecomeTeacherModal'), { ssr: false });
 
@@ -154,6 +155,7 @@ export default function Header({
   const overHero = transparent && !isCompact;
 
   async function logout() {
+    startRouteProgress();
     await signOut();
     setUserMenuOpen(false);
     setMobileOpen(false);
