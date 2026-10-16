@@ -26,9 +26,18 @@ interface ClassCardProps {
   /** Si se indica, en mobile (< md) se usa la tarjeta compacta de ClassCardMobile: 'carousel' para
    *  carruseles, 'row' para listas. Desde md siempre se usa esta tarjeta vertical. */
   mobileLayout?: 'carousel' | 'row';
+  /** 'card' envuelve la fila móvil en una tarjeta blanca independiente con borde y sombra (ideal para fondos oscuros como perfil de profesor). */
+  mobileVariant?: 'default' | 'card';
 }
 
-export default function ClassCard({ cls, compact = false, listName, matchBadges, mobileLayout }: ClassCardProps) {
+export default function ClassCard({
+  cls,
+  compact = false,
+  listName,
+  matchBadges,
+  mobileLayout,
+  mobileVariant,
+}: ClassCardProps) {
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const { saved, toggleSave } = useSavedClass({ cls });
@@ -90,7 +99,7 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges,
     <>
       {mobileLayout && (
         <div className="md:hidden">
-          <ClassCardMobile cls={cls} layout={mobileLayout} listName={listName} matchBadges={matchBadges} />
+          <ClassCardMobile cls={cls} layout={mobileLayout} listName={listName} matchBadges={matchBadges} variant={mobileVariant} />
         </div>
       )}
       <div className={`bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 ${mobileLayout ? 'hidden md:flex' : 'flex'} flex-col group hover:-translate-y-0.5`}>

@@ -100,17 +100,19 @@ function ProfesorEditorial({
       ];
 
   return (
-    <div
-      className="min-h-screen bg-neutral-900 overflow-x-clip"
-      style={{
-        backgroundImage: 'url(/Background-BK.webp)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center top',
-        backgroundAttachment: 'fixed',
-        backgroundRepeat: 'no-repeat',
-      }}
-    >
-      <Header />
+    <div className="min-h-screen bg-neutral-900 text-white overflow-x-clip relative">
+      {/* Fondo texturizado fijo inmune a bugs de background-attachment en navegadores móviles */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage: 'url(/Background-BK.webp)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
+      <div className="relative z-10">
+        <Header />
 
       {/* Hero — un profesor no tiene foto de portada propia, así que reusa
           su propia foto de perfil de fondo; academia siempre tiene una
@@ -302,12 +304,21 @@ function ProfesorEditorial({
             </p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
-            {classes.map(cls => <ClassCard key={cls.id} cls={cls} listName="profesor_detail" mobileLayout="row" />)}
+          <div className="flex flex-col gap-3.5 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-5">
+            {classes.map(cls => (
+              <ClassCard
+                key={cls.id}
+                cls={cls}
+                listName="profesor_detail"
+                mobileLayout="row"
+                mobileVariant="card"
+              />
+            ))}
           </div>
         )}
       </div>
       <Footer />
+      </div>
     </div>
   );
 }
