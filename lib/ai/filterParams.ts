@@ -67,7 +67,12 @@ export function parseFilterParams(params: RawParams): {
     filters.modality = modality as AiSearchFilters['modality'];
   }
   const level = text(params.level);
-  if (level) filters.level = level;
+  if (level) {
+    const l = level.toLowerCase();
+    if (!l.includes('adult') && !l.includes('niñ') && !l.includes('kid') && !l.includes('chibolo')) {
+      filters.level = level;
+    }
+  }
   const age = text(params.age);
   if (age) filters.ageGroup = age;
 
@@ -104,21 +109,240 @@ export function buildRefinementHref(
   return `/resultados?${p.toString()}`;
 }
 
+function normalizeText(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+export function isTagRedundantWithFilter(tag: string, filters: AiSearchFilters): boolean {
+  const normTag = normalizeText(tag);
+  if (!normTag) return true;
+
+  // 1. Estilo
+  if (filters.style) {
+    const normStyle = normalizeText(filters.style);
+    if (normTag === normStyle || normTag === `clases de ${normStyle}`) {
+      return true;
+    }
+  }
+
+  // 2. Distrito
+  if (filters.district) {
+    const normDist = normalizeText(filters.district);
+    if (normTag === normDist) {
+      return true;
+    }
+  }
+
+  // 3. Ciudad
+  if (filters.city) {
+    const normCity = normalizeText(filters.city);
+    if (normTag === normCity) {
+      return true;
+    }
+  }
+
+  // 4. Modalidad
+  if (filters.modality) {
+    const normMod = normalizeText(filters.modality);
+    if (normTag === normMod) {
+      return true;
+    }
+  }
+
+  // 5. Nivel
+  if (filters.level) {
+    const normLevel = normalizeText(filters.level);
+    if (normTag === normLevel) {
+      return true;
+    }
+    if (
+      normLevel.includes('principiante') ||
+      normLevel.includes('iniciacion') ||
+      normLevel.includes('cero') ||
+      normLevel.includes('basico')
+    ) {
+      if (
+        normTag.includes('principiante') ||
+        normTag.includes('desde cero') ||
+        normTag.includes('iniciacion') ||
+        normTag.includes('sin experiencia') ||
+        normTag.includes('basico')
+      ) {
+        return true;
+      }
+    } else if (normLevel.includes('intermedio') && normTag.includes('intermedio')) {
+      return true;
+    } else if (normLevel.includes('avanzado') && normTag.includes('avanzado')) {
+      return true;
+    }
+  }
+
+  // 6. Grupo etario
+  if (filters.ageGroup) {
+    const normAge = normalizeText(filters.ageGroup);
+    if (normTag === normAge) {
+      return true;
+    }
+    if (normAge.includes('adult') || normAge.includes('+18') || normAge.includes('mayor')) {
+      if (normTag.includes('adult') || normTag.includes('+18') || normTag.includes('mayor')) {
+        return true;
+      }
+    }
+    if (
+      normAge.includes('nin') ||
+      normAge.includes('kid') ||
+      normAge.includes('chibolo') ||
+      normAge.includes('peque') ||
+      normAge.includes('infantil')
+    ) {
+      if (
+        normTag.includes('nin') ||
+        normTag.includes('kid') ||
+        normTag.includes('chibolo') ||
+        normTag.includes('peque') ||
+        normTag.includes('infantil')
+      ) {
+        return true;
+      }
+    }
+  }
+
+  // 7. Horario
+  if (filters.timeOfDay) {
+    if (filters.timeOfDay === 'morning') {
+      if (normTag === 'manana' || normTag === 'mananas' || normTag.includes('horario manana')) {
+        return true;
+      }
+    } else if (filters.timeOfDay === 'afternoon') {
+      if (normTag === 'tarde' || normTag === 'tardes' || normTag.includes('horario tarde')) {
+        return true;
+      }
+    } else if (filters.timeOfDay === 'evening' || filters.timeOfDay === 'night') {
+      if (normTag === 'noche' || normTag === 'noches' || normTag.includes('horario nocturno')) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function isTagRelatedToChip(tag: string, chip: FilterChip): boolean {
+  const normTag = normalizeText(tag);
+  const normLabel = normalizeText(chip.label);
+  if (!normTag) return true;
+  if (normTag === normLabel || (chip.value && normTag === normalizeText(chip.value))) return true;
+
+  switch (chip.kind) {
+    case 'age':
+      if (normLabel.includes('adult') || normLabel.includes('+18') || normLabel.includes('mayor')) {
+        return normTag.includes('adult') || normTag.includes('+18') || normTag.includes('mayor');
+      }
+      if (
+        normLabel.includes('nin') ||
+        normLabel.includes('kid') ||
+        normLabel.includes('chibolo') ||
+        normLabel.includes('peque') ||
+        normLabel.includes('infantil')
+      ) {
+        return (
+          normTag.includes('nin') ||
+          normTag.includes('kid') ||
+          normTag.includes('chibolo') ||
+          normTag.includes('peque') ||
+          normTag.includes('infantil')
+        );
+      }
+      return false;
+
+    case 'level':
+      if (
+        normLabel.includes('principiante') ||
+        normLabel.includes('iniciacion') ||
+        normLabel.includes('cero') ||
+        normLabel.includes('basico')
+      ) {
+        return (
+          normTag.includes('principiante') ||
+          normTag.includes('desde cero') ||
+          normTag.includes('iniciacion') ||
+          normTag.includes('sin experiencia') ||
+          normTag.includes('basico')
+        );
+      }
+      if (normLabel.includes('intermedio')) return normTag.includes('intermedio');
+      if (normLabel.includes('avanzado')) return normTag.includes('avanzado');
+      return false;
+
+    case 'time':
+      if (normLabel.includes('manana')) {
+        return normTag === 'manana' || normTag === 'mananas' || normTag.includes('horario manana');
+      }
+      if (normLabel.includes('tarde')) {
+        return normTag === 'tarde' || normTag === 'tardes' || normTag.includes('horario tarde');
+      }
+      if (normLabel.includes('noche')) {
+        return normTag === 'noche' || normTag === 'noches' || normTag.includes('horario nocturno');
+      }
+      return false;
+
+    case 'days':
+      if (normLabel.includes(normTag) || normTag.includes(normLabel)) return true;
+      return false;
+
+    case 'style':
+    case 'district':
+    case 'city':
+      return normTag === normLabel || normTag === `clases de ${normLabel}`;
+
+    case 'modality':
+      return normTag === normLabel;
+
+    default:
+      return false;
+  }
+}
+
 export function buildFilterChips(filters: AiSearchFilters, tags: string[]): FilterChip[] {
   const chips: FilterChip[] = [];
-  if (filters.style) chips.push({ kind: 'style', label: filters.style });
-  if (filters.district) chips.push({ kind: 'district', label: filters.district });
-  if (filters.city) chips.push({ kind: 'city', label: filters.city });
-  if (filters.maxPrice) chips.push({ kind: 'price', label: `Hasta S/ ${filters.maxPrice}` });
+  const seenLabels = new Set<string>();
+
+  const addChip = (chip: FilterChip) => {
+    const key = normalizeText(chip.label);
+    if (!key || seenLabels.has(key)) return;
+    seenLabels.add(key);
+    chips.push(chip);
+  };
+
+  if (filters.style) addChip({ kind: 'style', label: filters.style });
+  if (filters.district) addChip({ kind: 'district', label: filters.district });
+  if (filters.city) addChip({ kind: 'city', label: filters.city });
+  if (filters.maxPrice) addChip({ kind: 'price', label: `Hasta S/ ${filters.maxPrice}` });
   if (filters.daysOfWeek?.length) {
     const label = [...filters.daysOfWeek].sort((a, b) => a - b).map(d => DAY_LABELS[d]).join(', ');
-    chips.push({ kind: 'days', label });
+    addChip({ kind: 'days', label });
   }
-  if (filters.timeOfDay) chips.push({ kind: 'time', label: TIME_LABELS[filters.timeOfDay] });
-  if (filters.modality) chips.push({ kind: 'modality', label: filters.modality });
-  if (filters.level) chips.push({ kind: 'level', label: filters.level });
-  if (filters.ageGroup) chips.push({ kind: 'age', label: filters.ageGroup });
-  for (const tag of tags) chips.push({ kind: 'tag', label: tag, value: tag });
+  if (filters.timeOfDay) addChip({ kind: 'time', label: TIME_LABELS[filters.timeOfDay] });
+  if (filters.modality) addChip({ kind: 'modality', label: filters.modality });
+  if (filters.level) {
+    const l = filters.level.toLowerCase();
+    if (!l.includes('adult') && !l.includes('niñ') && !l.includes('kid') && !l.includes('chibolo')) {
+      addChip({ kind: 'level', label: filters.level });
+    }
+  }
+  if (filters.ageGroup) addChip({ kind: 'age', label: filters.ageGroup });
+
+  for (const tag of tags) {
+    const trimmed = tag.trim();
+    if (!trimmed) continue;
+    if (isTagRedundantWithFilter(trimmed, filters)) continue;
+    addChip({ kind: 'tag', label: trimmed, value: trimmed });
+  }
+
   return chips;
 }
 
@@ -140,9 +364,21 @@ export function removeChip(
   chip: FilterChip,
 ): { filters: AiSearchFilters; tags: string[] } {
   if (chip.kind === 'tag') {
-    return { filters: { ...filters }, tags: tags.filter(t => t !== chip.value) };
+    const target = normalizeText(chip.value || chip.label);
+    return { filters: { ...filters }, tags: tags.filter(t => normalizeText(t) !== target) };
   }
   const next = { ...filters };
   for (const key of KIND_TO_FILTER_KEYS[chip.kind]) delete next[key];
-  return { filters: next, tags: [...tags] };
+
+  if (chip.kind === 'age' && next.level) {
+    const l = next.level.toLowerCase();
+    if (l.includes('adult') || l.includes('niñ') || l.includes('kid') || l.includes('chibolo')) {
+      delete next.level;
+    }
+  }
+
+  // Limpiar cualquier tag que esté directamente relacionado con el chip eliminado
+  const remainingTags = tags.filter(t => !isTagRelatedToChip(t, chip));
+
+  return { filters: next, tags: remainingTags };
 }

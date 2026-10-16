@@ -173,6 +173,7 @@ function ProfileResultCard({ teacher, listName }: { teacher: Teacher; listName: 
 
 export default function ResultadosClient({
   query,
+  displayTitle,
   city,
   isOutOfDomain = false,
   interpretedFilters,
@@ -186,6 +187,7 @@ export default function ResultadosClient({
   matchBadges,
 }: {
   query: string;
+  displayTitle?: string;
   city?: string;
   isOutOfDomain?: boolean;
   /** Filtros que la IA aplicó (o el usuario dejó tras editar los chips). null si la IA no interpretó. */
@@ -281,7 +283,7 @@ export default function ResultadosClient({
         {/* Encabezado: H1 con la consulta y botón para desplegar el buscador */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h1 className="text-[22px] sm:text-[28px] font-black text-neutral-900 break-words leading-tight">
-            Resultados para &ldquo;{query}&rdquo;
+            Resultados para &ldquo;{displayTitle || query}&rdquo;
           </h1>
           {!isSearchOpen && (
             <button

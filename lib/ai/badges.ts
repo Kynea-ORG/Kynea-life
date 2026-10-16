@@ -75,6 +75,21 @@ export function getValidClassBadges(
       if (!hasMorning) return false;
     }
 
+    // 2c. Horario de tarde / Vespertino (12:00 PM a 05:59 PM)
+    const isAfternoon =
+      b.includes('tarde') ||
+      b.includes('vespertin') ||
+      b.includes('mediodia');
+
+    if (isAfternoon) {
+      recognized = true;
+      const hasAfternoon = (cls.timeSlots ?? []).some(t => {
+        const hour = parseInt(t.startTime?.split(':')[0] ?? '', 10);
+        return !isNaN(hour) && hour >= 12 && hour < 18;
+      });
+      if (!hasAfternoon) return false;
+    }
+
     // 3. Precio (< S/ 50, Económico, Baratito)
     const isPrice = b.includes('s/') || b.includes('economico') || b.includes('barat') || b.includes('precio');
     if (isPrice) {

@@ -202,6 +202,38 @@ describe('OpenAI Client (Agnostic / GPT-6 Luna & text-embedding-3-small)', () =>
       const result = await parseSearchQuery('bachata');
       expect(result?.semanticQuery).toBe('bachata');
     });
+
+    it('sanea el campo level si el modelo confunde grupo etario con nivel', async () => {
+      process.env.AI_API_KEY = 'sk-mock-key';
+      process.env.AI_PROVIDER = 'openai';
+
+      const mockPayload = {
+        isOutOfDomain: false,
+        filters: {
+          style: 'Flamenco',
+          city: 'Chiclayo',
+          level: 'Adultos',
+          ageGroup: null,
+          timeOfDay: 'afternoon',
+        },
+        semanticQuery: 'flamenco chiclayo tarde adultos',
+        aiSummary: 'Clases de flamenco en Chiclayo por la tarde para adultos',
+        matchBadges: ['Adultos'],
+        isDirectProfileSearch: false,
+        profileTarget: null,
+      };
+
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: JSON.stringify(mockPayload) } }],
+        }),
+      } as Response);
+
+      const result = await parseSearchQuery('quiero aprender flamenco en chiclayo por la tarde para adultos');
+      expect(result?.filters.level).toBeNull();
+      expect(result?.filters.ageGroup).toBe('Adultos');
+    });
   });
 
   describe('generateDynamicDaySuggestions', () => {

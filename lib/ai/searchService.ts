@@ -266,6 +266,26 @@ export async function searchClassesWithAi(
           });
         }
 
+        // B3. Horario de tarde / vespertino (12:00 - 17:59)
+        const isAfternoonSearch = Boolean(
+          filters.timeOfDay === 'afternoon' ||
+          heuristicText.includes('tarde') ||
+          heuristicText.includes('vespertino') ||
+          interpretation.matchBadges?.some(b => {
+            const norm = b.toLowerCase();
+            return norm.includes('tarde') || norm.includes('vespertino');
+          })
+        );
+
+        if (isAfternoonSearch) {
+          hydratedClasses = hydratedClasses.filter(c => {
+            return (c.timeSlots ?? []).some(t => {
+              const hour = parseInt(t.startTime?.split(':')[0] ?? '', 10);
+              return !isNaN(hour) && hour >= 12 && hour < 18;
+            });
+          });
+        }
+
         // C. Coincidencia Mínima: Si la consulta generó tags de preferencia (ej. Para niños, Fin de semana, Económico),
         // cada tarjeta mostrada DEBE coincidir en AL MENOS una tag de la búsqueda.
         // Si una clase coincide en 0 tags, se descarta para evitar cards irrelevantes que contradicen lo solicitado.

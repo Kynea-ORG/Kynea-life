@@ -315,6 +315,15 @@ export async function parseSearchQuery(
       if (!rawText) continue;
 
       const parsed = JSON.parse(rawText) as AiSearchInterpretation;
+      if (parsed.filters?.level) {
+        const l = parsed.filters.level.toLowerCase();
+        if (l.includes('adult') || l.includes('niñ') || l.includes('kid') || l.includes('chibolo')) {
+          if (!parsed.filters.ageGroup) {
+            parsed.filters.ageGroup = l.includes('adult') ? 'Adultos' : 'Niños';
+          }
+          parsed.filters.level = null;
+        }
+      }
       setInCache(queryInterpretationCache, cacheKey, parsed);
       return parsed;
     } catch (err) {

@@ -5,6 +5,7 @@ import { parseFilterParams } from '@/lib/ai/filterParams';
 import { findRelaxations } from '@/lib/ai/relaxations';
 import { fetchPublishedClasses } from '@/lib/classes/queries';
 import { computeCatalogSignals } from '@/lib/search/catalogSignals';
+import { formatRefinedTitle } from '@/lib/ai/refinedTitle';
 import { searchProfilesByName } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
 import ResultadosClient from './ResultadosClient';
@@ -16,8 +17,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const params = await searchParams;
   const query = (params.q as string | undefined)?.trim() || '';
+  const { filters, tags, refined } = parseFilterParams(params);
+  const displayTitle = refined ? formatRefinedTitle(filters, tags) : query;
+
   return {
-    title: query ? `Resultados para "${query}" — Kynea` : 'Resultados de búsqueda — Kynea',
+    title: displayTitle ? `Resultados para "${displayTitle}" — Kynea` : 'Resultados de búsqueda — Kynea',
     alternates: { canonical: `${SITE_URL}/resultados` },
     // Página dinámica sobre texto arbitrario del visitante — mismo criterio
     // que categorías vacías/clases vencidas (ver docs/TASKS.md): no vale la
@@ -42,6 +46,7 @@ export default async function ResultadosPage({
 
   // r=1 → el usuario editó los chips: se respetan sus filtros y no se vuelve a llamar a Gemini
   const { filters, tags, refined } = parseFilterParams(params);
+  const displayTitle = refined ? formatRefinedTitle(filters, tags) : query;
 
   const [aiSearchResult, profiles] = await Promise.all([
     searchClassesWithAi(query, { city, refinement: refined ? { filters, tags } : undefined }),
@@ -74,6 +79,7 @@ export default async function ResultadosPage({
   return (
     <ResultadosClient
       query={query}
+      displayTitle={displayTitle}
       city={city}
       isOutOfDomain={isOutOfDomain}
       relaxations={relaxations}
