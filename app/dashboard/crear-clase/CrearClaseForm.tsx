@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
 import { trackCreateClassStepComplete, trackClassCreated, trackCreateClassBlocked } from '@/lib/analytics';
+import { startRouteProgress, stopRouteProgress } from '@/lib/navigation/progress';
 import { uploadClassImage } from '@/lib/classes/imageActions';
 import ImagePositionPicker from '@/components/ImagePositionPicker';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
@@ -206,6 +207,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   const isEdit = Boolean(classId);
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const [pendingAction, setPendingAction] = useState<'draft' | 'published' | null>(null);
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [contactGateError, setContactGateError] = useState<{ message: string; href: string } | null>(null);
@@ -308,6 +310,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
     setSubmitError('');
     setFieldErrors({});
     setContactGateError(null);
+    setPendingAction(status === 'published' ? 'published' : 'draft');
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -373,6 +376,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
 
         let resultAction;
         if (classId) {
+          startRouteProgress();
           resultAction = await updateClassFromForm(classId, fd);
         } else {
           // createClass() redirect()s on success (see lib/classes/actions.ts) —
@@ -383,6 +387,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           // GA4 showed 0 class_created events despite real classes being
           // published — this was the measurement bug, not a product bug.
           try {
+            startRouteProgress();
             resultAction = await createClass(fd);
           } catch (err) {
             if (isRedirectError(err)) {
@@ -393,6 +398,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         }
 
         if (resultAction && !resultAction.ok) {
+          stopRouteProgress();
           const payload = resultAction.error;
           if (payload.code === 'VALIDATION' && payload.errors) {
             const errorsByField: Record<string, string> = {};
@@ -419,6 +425,7 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         }
       } catch (err: unknown) {
         if (isRedirectError(err)) throw err;
+        stopRouteProgress();
         const payload = parsePublishError(err);
         if (payload?.code === 'VALIDATION' && payload.errors) {
           const errorsByField: Record<string, string> = {};
@@ -441,6 +448,8 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
           return;
         }
         setSubmitError(payload?.message ?? (err instanceof Error ? err.message : 'Error al guardar'));
+      } finally {
+        setPendingAction(null);
       }
     });
   };
@@ -1314,10 +1323,16 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
                 type="button"
                 onClick={() => handlePublish('draft')}
                 disabled={isPending}
-                className={`btn-dark flex items-center gap-2 ${BTN}`}
+                className={`btn-dark flex items-center gap-2 ${BTN} ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
               >
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {classId ? 'Guardar cambios' : 'Guardar borrador'}
+                {pendingAction === 'draft' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {pendingAction === 'draft'
+                  ? (classId ? 'Guardando cambios…' : 'Guardando borrador…')
+                  : (classId ? 'Guardar cambios' : 'Guardar borrador')}
               </button>
               <button
                 type="button"
@@ -1330,16 +1345,32 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             </>
           ) : (
             <>
-              <button type="button" onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')} disabled={isPending}
-                className={`btn-outline flex items-center gap-2 ${BTN}`}>
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {classId ? 'Guardar cambios' : 'Guardar borrador'}
+              <button
+                type="button"
+                onClick={() => handlePublish(classId ? (editClass?.status ?? 'draft') : 'draft')}
+                disabled={isPending}
+                className={`btn-outline flex items-center gap-2 ${BTN} ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
+              >
+                {pendingAction === 'draft' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {pendingAction === 'draft'
+                  ? (classId ? 'Guardando cambios…' : 'Guardando borrador…')
+                  : (classId ? 'Guardar cambios' : 'Guardar borrador')}
               </button>
-              <button type="button" onClick={() => handlePublish('published')} disabled={isPending}
-                className={`btn-dark flex items-center gap-2 ${BTN}`}>
-                {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                {classId ? 'Guardar y publicar' : 'Publicar clase'}
-                {!isPending && <ChevronRight className="w-4 h-4" />}
+              <button
+                type="button"
+                onClick={() => handlePublish('published')}
+                disabled={isPending}
+                className={`btn-dark flex items-center gap-2 ${BTN} ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
+              >
+                {pendingAction === 'published' && <Loader2 className="w-4 h-4 animate-spin" />}
+                {pendingAction === 'published'
+                  ? (classId ? 'Guardando y publicando…' : 'Publicando clase…')
+                  : (classId ? 'Guardar y publicar' : 'Publicar clase')}
+                {pendingAction !== 'published' && <ChevronRight className="w-4 h-4" />}
               </button>
             </>
           )}
@@ -1350,10 +1381,14 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         // keeps the wizard's forward flow visually primary while still
         // letting a mid-wizard tweak save without walking every step.
         <div className="flex items-center gap-3 sm:gap-5">
-          <button type="button" onClick={() => handlePublish(editClass?.status ?? 'draft')} disabled={isPending}
-            className="text-sm font-semibold text-neutral-600 hover:text-neutral-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
-            {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Guardar cambios
+          <button
+            type="button"
+            onClick={() => handlePublish(editClass?.status ?? 'draft')}
+            disabled={isPending}
+            className={`text-sm font-semibold text-neutral-600 hover:text-neutral-700 transition-colors disabled:opacity-50 flex items-center gap-1.5 ${isPending ? 'cursor-wait' : ''}`}
+          >
+            {pendingAction === 'draft' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {pendingAction === 'draft' ? 'Guardando cambios…' : 'Guardar cambios'}
           </button>
           <button type="button" onClick={goNext} className={`btn-dark flex items-center gap-2 ${BTN}`}>
             Continuar <ChevronRight className="w-4 h-4" />

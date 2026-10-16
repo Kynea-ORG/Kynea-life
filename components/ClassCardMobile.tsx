@@ -1,5 +1,4 @@
 'use client';
-import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { Bookmark, Calendar, MapPin, Sparkles } from 'lucide-react';
@@ -9,6 +8,7 @@ import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
 import { cardPlaceLabel, cardWhenLabel } from '@/lib/classes/cardInfo';
 import { trackSelectItem } from '@/lib/analytics';
+import { useSavedClass } from '@/lib/hooks/useSavedClass';
 
 // Tarjetas compactas para mobile (< md). Dos formatos:
 //  · carousel: foto 4:3 sin borde y cuatro líneas de texto; para carruseles del Home.
@@ -28,7 +28,7 @@ export default function ClassCardMobile({
   listName: string;
   matchBadges?: string[];
 }) {
-  const [saved, setSaved] = useState(false);
+  const { saved, toggleSave } = useSavedClass({ cls });
   const isExpired = isClassExpired(cls);
   // País de la dirección real de la clase (venues.country_code), no la nacionalidad del profesor.
   const country = findCountryByCode(cls.countryCode);
@@ -69,7 +69,7 @@ export default function ClassCardMobile({
   const bookmark = !isExpired && (
     <button
       type="button"
-      onClick={() => setSaved(s => !s)}
+      onClick={toggleSave}
       aria-label={saved ? 'Guardado' : 'Guardar clase'}
       className={`z-10 absolute w-8 h-8 rounded-full flex items-center justify-center transition-[background-color,color] active:scale-90 ${
         layout === 'carousel'
@@ -77,7 +77,7 @@ export default function ClassCardMobile({
           : `top-0 right-0 ${saved ? 'text-primary' : 'text-neutral-500'}`
       }`}
     >
-      <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
+      <Bookmark className={`w-4 h-4 ${saved ? 'fill-current animate-pop' : ''}`} />
     </button>
   );
 

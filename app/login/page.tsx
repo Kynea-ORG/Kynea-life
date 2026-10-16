@@ -13,6 +13,7 @@ import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { safeRedirectPath } from '@/lib/utils';
 import { trackAuthCtaClick, trackAuthAttempt, trackLoginSuccess } from '@/lib/analytics';
 import ErrorBanner from '@/components/ErrorBanner';
+import { startRouteProgress } from '@/lib/navigation/progress';
 
 function errorMessageFromParam(errorParam: string | null): string {
   if (errorParam === 'cuenta_incompleta') {
@@ -146,6 +147,7 @@ function LoginPageContent() {
       refresh: () => router.refresh(),
       onSuccess: (path, _notice, role) => {
         if (role) trackLoginSuccess({ role, method: 'email' });
+        startRouteProgress();
         router.push(redirectTarget ?? path);
       },
       onError: (msg) => { setError(msg); setLoading(false); },
@@ -218,9 +220,14 @@ function LoginPageContent() {
               )
             ) : (
               <div key="login-form" className="animate-fade-in">
-                <button type="button" onClick={() => { handleGoogle(); shift(); }} disabled={googleLoading} className="w-full btn-outline mb-4 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { handleGoogle(); shift(); }}
+                  disabled={googleLoading}
+                  className={`w-full btn-outline mb-4 flex items-center justify-center gap-2 ${googleLoading ? 'cursor-wait disabled:opacity-75' : ''}`}
+                >
                   {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-4 h-4" />}
-                  Continuar con Google
+                  {googleLoading ? 'Conectando con Google…' : 'Continuar con Google'}
                 </button>
 
                 <div className="flex items-center gap-3 mb-4">
@@ -293,7 +300,12 @@ function LoginPageContent() {
                     <span className="text-[13px] text-neutral-600">Recuérdame en este dispositivo</span>
                   </label>
 
-                  <button type="submit" disabled={loading} onClick={shift} className="btn-primary w-full mt-1 flex items-center justify-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    onClick={shift}
+                    className={`btn-primary w-full mt-1 flex items-center justify-center gap-2 ${loading ? 'cursor-wait disabled:opacity-75' : ''}`}
+                  >
                     {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                     {loading ? 'Ingresando…' : 'Iniciar sesión'}
                   </button>

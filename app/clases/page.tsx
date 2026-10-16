@@ -6,6 +6,7 @@ import type { ClassFilters } from '@/lib/classes/types';
 import { fetchDanceStyles, fetchClassLevels, fetchLocationOptions } from '@/lib/catalog/queries';
 import { fetchAcademiasWithLocation } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
+import ClasesCatalogSkeleton from '@/components/skeletons/ClasesCatalogSkeleton';
 import ClasesContent from './ClasesContent';
 
 export const metadata: Metadata = {
@@ -72,11 +73,7 @@ export default async function ClasesPage({
   ]);
 
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center text-neutral-400 text-[15px]">
-        Cargando…
-      </div>
-    }>
+    <Suspense fallback={<ClasesCatalogSkeleton />}>
       <ClasesContent
         initialClasses={classes}
         academias={academias}

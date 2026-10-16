@@ -9,6 +9,7 @@ import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
+import { useSavedClass } from '@/lib/hooks/useSavedClass';
 import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
 import ClassCardMobile from '@/components/ClassCardMobile';
 
@@ -30,7 +31,7 @@ interface ClassCardProps {
 export default function ClassCard({ cls, compact = false, listName, matchBadges, mobileLayout }: ClassCardProps) {
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { saved, toggleSave } = useSavedClass({ cls });
   const { isLoggedIn } = useAuth();
   const [justContacted, setJustContacted] = useState(false);
 
@@ -139,11 +140,13 @@ export default function ClassCard({ cls, compact = false, listName, matchBadges,
           </div>
           {!isExpired && (
             <button
-              onClick={() => setSaved(!saved)}
+              type="button"
+              onClick={toggleSave}
               className={`absolute bottom-3 right-3 p-2 rounded-full shadow transition-[background-color,color] active:scale-90 ${
                 saved ? 'bg-neutral-900 text-white' : 'bg-white/90 text-neutral-600 hover:text-neutral-900 backdrop-blur-sm'
               }`}
               title={saved ? 'Guardado' : 'Guardar clase'}
+              aria-label={saved ? 'Guardado' : 'Guardar clase'}
             >
               <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white animate-pop' : ''}`} />
             </button>

@@ -450,7 +450,7 @@ export default function ClassBrowser({
             <div className="flex items-center justify-between mb-6">
               <p className="text-[15px] text-neutral-600 flex items-center gap-2">
                 {isPending
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Filtrando…</>
+                  ? <><Loader2 className="w-4 h-4 animate-spin text-primary" /> Filtrando…</>
                   : renderResultsCount(results.length, isPending)
                 }
               </p>

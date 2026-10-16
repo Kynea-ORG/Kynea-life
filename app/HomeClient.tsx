@@ -24,6 +24,7 @@ import {
   AI_SEARCH_LABEL, AI_QUICK_PROMPTS,
   AI_SUBMIT_LABEL, AI_SUBMIT_LOADING_LABEL,
 } from '@/lib/search/aiSearchCopy';
+import { startRouteProgress } from '@/lib/navigation/progress';
 import type { AiSuggestions } from '@/lib/search/catalogSignals';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { useRotatingPlaceholder } from '@/lib/hooks/useRotatingPlaceholder';
@@ -210,6 +211,8 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
   const [isResolvingSearch, setIsResolvingSearch] = useState(false);
   const [isNavigating, startTransition] = useTransition();
   const isLoading = isResolvingSearch || isNavigating;
+  const [activePrompt, setActivePrompt] = useState<string | null>(null);
+  const effectivePrompt = isLoading ? activePrompt : null;
 
   // Modo de búsqueda: siempre Búsqueda con IA por defecto
   const [isAiMode, setIsAiMode] = useState(true);
@@ -426,16 +429,19 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
     if (!trimmedQuery) {
       const params = new URLSearchParams();
       if (trimmedCity) params.set('city', trimmedCity);
+      startRouteProgress();
       startTransition(() => {
         router.push(`/clases${params.size ? `?${params.toString()}` : ''}`);
       });
       return;
     }
 
-    // Si el modo IA está activo, navegar inmediatamente a /resultados (loading.tsx se muestra de inmediato)
+    // Si el modo IA está activo, navegar con transición a /resultados (activa feedback inmediato y streaming)
     if (isAiMode) {
       const params = new URLSearchParams({ q: trimmedQuery });
-      router.push(`/resultados?${params.toString()}`);
+      startTransition(() => {
+        router.push(`/resultados?${params.toString()}`);
+      });
       return;
     }
 
@@ -455,6 +461,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
         recordRecentSearch({ query: trimmedQuery, href, resultLabel: resolution.styleName });
         trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: resolution.styleName });
       }
+      startRouteProgress();
       startTransition(() => {
         router.push(href);
       });
@@ -465,6 +472,7 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
       const href = resolution.role === 'academia' ? `/academias/${resolution.slug}` : `/profesores/${resolution.slug}`;
       recordRecentSearch({ query: trimmedQuery, href, resultLabel: resolution.name });
       trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: '' });
+      startRouteProgress();
       startTransition(() => {
         router.push(href);
       });
@@ -628,36 +636,39 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
               aria-hidden="true"
               className="absolute -inset-[3.5px] rounded-[30px] ai-border-gradient animate-ai-shimmer blur-lg opacity-75 pointer-events-none"
             />
-            <div className="relative p-[2.5px] rounded-[26px] ai-border-gradient animate-ai-shimmer shadow-[0_16px_48px_rgba(0,0,0,0.4)]">
+            <div className="relative p-[2.5px] rounded-[26px] ai-border-gradient animate-ai-shimmer shadow-[0_16px_48px_rgba(0,0,0,0.4)] overflow-hidden">
+              {/* Barra de progreso fluida superior durante búsqueda inteligente */}
+              {isLoading && (
+                <div className="absolute top-0 left-6 right-6 h-[2.5px] bg-primary/10 rounded-full overflow-hidden z-30">
+                  <div className="h-full w-1/3 bg-gradient-to-r from-primary via-purple-500 to-pink-500 rounded-full animate-indeterminate" />
+                </div>
+              )}
               <form
                 onSubmit={handleSearch}
-                className="w-full bg-white rounded-[23.5px] p-2 flex items-center gap-3 transition-all"
+                className="w-full bg-white rounded-[23.5px] p-2 flex items-center gap-3 transition-all relative"
               >
                 <div className="pl-3.5 shrink-0">
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 text-primary shrink-0 animate-spin" />
-                  ) : (
-                    <Search className="w-5 h-5 text-primary shrink-0" />
-                  )}
+                  <Search className="w-5 h-5 text-primary shrink-0" />
                 </div>
 
                 <div className="text-left min-w-0 flex-1 py-1">
-                  <p className="text-[11.5px] leading-[15px] font-bold text-primary select-none">
+                  <p className="text-[11.5px] leading-[15px] font-bold text-primary select-none truncate">
                     {AI_SEARCH_LABEL}
                   </p>
                   <input
                     type="text"
+                    disabled={isLoading}
                     placeholder={isSearchFocused ? '' : rotatingPlaceholder}
                     value={query}
                     onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setIsSearchFocused(false)}
                     onKeyDown={handleQueryKeyDown}
-                    className="w-full text-[15px] md:text-[16px] placeholder:text-[13.5px] md:placeholder:text-[15px] font-normal leading-[22px] text-neutral-900 placeholder:text-neutral-400 outline-none bg-transparent truncate mt-0.5"
+                    className="w-full text-[15px] md:text-[16px] placeholder:text-[13.5px] md:placeholder:text-[15px] font-normal leading-[22px] text-neutral-900 placeholder:text-neutral-400 outline-none bg-transparent truncate mt-0.5 disabled:cursor-wait"
                   />
                 </div>
 
-                {query.length > 0 && !isSearching && (
+                {query.length > 0 && !isSearching && !isLoading && (
                   <button
                     type="button"
                     tabIndex={-1}
@@ -672,9 +683,10 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="shrink-0 font-black text-[15px] px-8 py-3.5 rounded-2xl cursor-pointer transition-all active:scale-[0.98] disabled:opacity-75 disabled:cursor-wait text-white bg-primary hover:bg-primary-dark shadow-xs"
+                  className="shrink-0 font-black text-[15px] px-8 py-3.5 rounded-2xl cursor-pointer transition-all active:scale-[0.98] disabled:opacity-85 disabled:cursor-wait text-white bg-primary hover:bg-primary-dark shadow-xs inline-flex items-center gap-2"
                 >
-                  {isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL}
+                  {isLoading && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
+                  <span>{isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL}</span>
                 </button>
               </form>
             </div>
@@ -695,14 +707,24 @@ export default function HomeClient({ recommendedClasses, featuredCategories, ini
                     type="button"
                     disabled={isLoading}
                     onClick={() => {
+                      setActivePrompt(prompt);
                       setQuery(prompt);
                       trackSearch({ searchTerm: prompt, city: '' });
                       const params = new URLSearchParams({ q: prompt });
-                      router.push(`/resultados?${params.toString()}`);
+                      startTransition(() => {
+                        router.push(`/resultados?${params.toString()}`);
+                      });
                     }}
-                    className="shrink-0 bg-white/20 hover:bg-white/30 active:bg-white/40 backdrop-blur-md border border-white/30 hover:border-white/45 text-white shadow-xs rounded-full px-3.5 py-1.5 transition-all text-[12.5px] font-medium cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-wait"
+                    className={`shrink-0 backdrop-blur-md border shadow-xs rounded-full px-3.5 py-1.5 transition-all text-[12.5px] font-medium cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 disabled:cursor-wait ${
+                      effectivePrompt === prompt
+                        ? 'bg-white/40 border-white text-white animate-pulse'
+                        : 'bg-white/20 hover:bg-white/30 active:bg-white/40 border-white/30 hover:border-white/45 text-white disabled:opacity-40'
+                    }`}
                   >
-                    {prompt}
+                    {effectivePrompt === prompt && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-white" />
+                    )}
+                    <span>{prompt}</span>
                   </button>
                 ))}
               </div>

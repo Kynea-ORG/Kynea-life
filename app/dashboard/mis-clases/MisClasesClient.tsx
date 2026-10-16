@@ -3,7 +3,7 @@ import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal, Clock, BookOpen } from 'lucide-react';
+import { PlusCircle, Edit2, Copy, Eye, EyeOff, ExternalLink, Trash2, MoreHorizontal, Clock, BookOpen, Loader2 } from 'lucide-react';
 import { getStatusColor, getStatusLabel, getTypeLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 import { updateClass, deleteClass as deleteClassAction, duplicateClass as duplicateClassAction, cancelAutoPublish } from '@/lib/classes/actions';
 import { creationToast } from '@/lib/classes/seriesLabels';
@@ -31,6 +31,8 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [mutatingId, setMutatingId] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<'publish' | 'hide' | 'duplicate' | null>(null);
   const [classes, setClasses] = useState<DanceClass[]>(initialClasses);
   const [prevInitialClasses, setPrevInitialClasses] = useState(initialClasses);
   if (initialClasses !== prevInitialClasses) {
@@ -81,6 +83,8 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
       return;
     }
     const previousStatus = classes.find(c => c.id === id)?.status ?? 'draft';
+    setMutatingId(id);
+    setMutatingAction('publish');
     startTransition(async () => {
       try {
         const res = await updateClass(id, { status: 'published' });
@@ -112,11 +116,16 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
         } else {
           showToast('Error al publicar', 'error');
         }
+      } finally {
+        setMutatingId(null);
+        setMutatingAction(null);
       }
     });
   };
 
   const hideClass = (id: string) => {
+    setMutatingId(id);
+    setMutatingAction('hide');
     startTransition(async () => {
       try {
         const res = await updateClass(id, { status: 'archived' });
@@ -128,6 +137,9 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
         showToast('Clase ocultada', 'info');
       } catch {
         showToast('Error al ocultar', 'error');
+      } finally {
+        setMutatingId(null);
+        setMutatingAction(null);
       }
     });
   };
@@ -164,6 +176,8 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
 
   const handleDuplicate = (id: string) => {
     showToast('Duplicando…', 'info');
+    setMutatingId(id);
+    setMutatingAction('duplicate');
     startTransition(async () => {
       try {
         await duplicateClassAction(id);
@@ -171,6 +185,9 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
         showToast('Clase duplicada', 'success');
       } catch {
         showToast('Error al duplicar', 'error');
+      } finally {
+        setMutatingId(null);
+        setMutatingAction(null);
       }
     });
   };
@@ -324,22 +341,40 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                             Publicar <span className="text-[10px] bg-amber-bg/80 text-amber-text font-bold px-1 py-0.2 rounded">En revisión</span>
                           </button>
                         ) : (
-                          <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                            className="btn-dark btn-xs">
-                            Publicar
+                          <button
+                            onClick={() => publishClass(cls.id)}
+                            disabled={isPending}
+                            className={`btn-dark btn-xs flex items-center gap-1.5 ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
+                          >
+                            {mutatingId === cls.id && mutatingAction === 'publish' && (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            )}
+                            {mutatingId === cls.id && mutatingAction === 'publish' ? 'Publicando…' : 'Publicar'}
                           </button>
                         )
                       )}
                       {cls.status === 'published' && (
-                        <button onClick={() => hideClass(cls.id)} disabled={isPending}
-                          className="btn-outline btn-xs">
-                          Ocultar
+                        <button
+                          onClick={() => hideClass(cls.id)}
+                          disabled={isPending}
+                          className={`btn-outline btn-xs flex items-center gap-1.5 ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
+                        >
+                          {mutatingId === cls.id && mutatingAction === 'hide' && (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          )}
+                          {mutatingId === cls.id && mutatingAction === 'hide' ? 'Ocultando…' : 'Ocultar'}
                         </button>
                       )}
                       {cls.status === 'archived' && (
-                        <button onClick={() => publishClass(cls.id)} disabled={isPending}
-                          className="btn-dark btn-xs">
-                          Activar
+                        <button
+                          onClick={() => publishClass(cls.id)}
+                          disabled={isPending}
+                          className={`btn-dark btn-xs flex items-center gap-1.5 ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
+                        >
+                          {mutatingId === cls.id && mutatingAction === 'publish' && (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          )}
+                          {mutatingId === cls.id && mutatingAction === 'publish' ? 'Activando…' : 'Activar'}
                         </button>
                       )}
                       <Link href={`/dashboard/crear-clase?edit=${cls.id}`} title="Editar"
@@ -352,9 +387,17 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                           No publicar sola
                         </button>
                       )}
-                      <button title="Duplicar" onClick={() => handleDuplicate(cls.id)} disabled={isPending}
-                        className="p-1.5 hover:bg-blue-50 rounded-lg text-neutral-400 hover:text-blue-600 transition-colors active:scale-90 disabled:opacity-50">
-                        <Copy className="w-4 h-4" />
+                      <button
+                        title="Duplicar"
+                        onClick={() => handleDuplicate(cls.id)}
+                        disabled={isPending}
+                        className={`p-1.5 hover:bg-blue-50 rounded-lg text-neutral-400 hover:text-blue-600 transition-colors active:scale-90 disabled:opacity-50 ${isPending ? 'cursor-wait' : ''}`}
+                      >
+                        {mutatingId === cls.id && mutatingAction === 'duplicate' ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </button>
                       {cls.status === 'published' && (
                         <Link href={classUrl(cls)} title="Ver publicación" target="_blank"
@@ -424,22 +467,46 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                         <Eye className="w-3 h-3" /> Publicar (En revisión)
                       </button>
                     ) : (
-                      <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                        className="btn-dark btn-xs">
-                        <Eye className="w-3 h-3" /> Publicar
+                      <button
+                        onClick={() => { publishClass(cls.id); }}
+                        disabled={isPending}
+                        className={`btn-dark btn-xs flex items-center gap-1.5 ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
+                      >
+                        {mutatingId === cls.id && mutatingAction === 'publish' ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Eye className="w-3 h-3" />
+                        )}
+                        {mutatingId === cls.id && mutatingAction === 'publish' ? 'Publicando…' : 'Publicar'}
                       </button>
                     )
                   )}
                   {cls.status === 'published' && (
-                    <button onClick={() => { hideClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="btn-outline btn-xs">
-                      <EyeOff className="w-3 h-3" /> Ocultar
+                    <button
+                      onClick={() => { hideClass(cls.id); }}
+                      disabled={isPending}
+                      className={`btn-outline btn-xs flex items-center gap-1.5 ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
+                    >
+                      {mutatingId === cls.id && mutatingAction === 'hide' ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <EyeOff className="w-3 h-3" />
+                      )}
+                      {mutatingId === cls.id && mutatingAction === 'hide' ? 'Ocultando…' : 'Ocultar'}
                     </button>
                   )}
                   {cls.status === 'archived' && (
-                    <button onClick={() => { publishClass(cls.id); setOpenMenu(null); }} disabled={isPending}
-                      className="btn-dark btn-xs">
-                      <Eye className="w-3 h-3" /> Activar
+                    <button
+                      onClick={() => { publishClass(cls.id); }}
+                      disabled={isPending}
+                      className={`btn-dark btn-xs flex items-center gap-1.5 ${isPending ? 'cursor-wait disabled:opacity-75' : ''}`}
+                    >
+                      {mutatingId === cls.id && mutatingAction === 'publish' ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Eye className="w-3 h-3" />
+                      )}
+                      {mutatingId === cls.id && mutatingAction === 'publish' ? 'Activando…' : 'Activar'}
                     </button>
                   )}
                 </div>
@@ -454,9 +521,17 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                       No publicar sola
                     </button>
                   )}
-                  <button onClick={() => { handleDuplicate(cls.id); setOpenMenu(null); }} disabled={isPending}
-                    className="text-xs font-medium text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg disabled:opacity-50">
-                    <Copy className="w-3 h-3" /> Duplicar
+                  <button
+                    onClick={() => { handleDuplicate(cls.id); }}
+                    disabled={isPending}
+                    className={`text-xs font-medium text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg disabled:opacity-50 ${isPending ? 'cursor-wait' : ''}`}
+                  >
+                    {mutatingId === cls.id && mutatingAction === 'duplicate' ? (
+                      <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+                    ) : (
+                      <Copy className="w-3 h-3" />
+                    )}
+                    {mutatingId === cls.id && mutatingAction === 'duplicate' ? 'Duplicando…' : 'Duplicar'}
                   </button>
                   {cls.status === 'published' && (
                     <Link href={classUrl(cls)} target="_blank"

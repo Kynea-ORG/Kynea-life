@@ -11,9 +11,13 @@ vi.mock('@/components/SmartImage', () => ({
   default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} />,
 }));
 const trackSelectItem = vi.fn();
-vi.mock('@/lib/analytics', () => ({ trackSelectItem: (...a: unknown[]) => trackSelectItem(...a) }));
+const trackSaveClass = vi.fn();
+vi.mock('@/lib/analytics', () => ({
+  trackSelectItem: (...a: unknown[]) => trackSelectItem(...a),
+  trackSaveClass: (...a: unknown[]) => trackSaveClass(...a),
+}));
 
-afterEach(() => { cleanup(); trackSelectItem.mockReset(); });
+afterEach(() => { cleanup(); trackSelectItem.mockReset(); trackSaveClass.mockReset(); });
 
 function makeClass(over: Partial<DanceClass> = {}): DanceClass {
   return {
