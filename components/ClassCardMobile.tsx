@@ -22,11 +22,13 @@ export default function ClassCardMobile({
   layout,
   listName,
   matchBadges,
+  variant = 'default',
 }: {
   cls: DanceClass;
   layout: 'carousel' | 'row';
   listName: string;
   matchBadges?: string[];
+  variant?: 'default' | 'card';
 }) {
   const { saved, toggleSave } = useSavedClass({ cls });
   const isExpired = isClassExpired(cls);
@@ -163,9 +165,17 @@ export default function ClassCardMobile({
     );
   }
 
+  const isCard = variant === 'card';
+
   return (
-    <article className="relative flex gap-3.5 py-4 border-b border-neutral-100 last:border-b-0">
-      <div className="relative shrink-0 w-[108px] h-[108px] rounded-2xl overflow-hidden bg-neutral-100 self-center">
+    <article
+      className={`relative flex gap-3.5 ${
+        isCard
+          ? 'p-3.5 bg-white rounded-2xl border border-neutral-200/90 shadow-2xs'
+          : 'py-4 border-b border-neutral-100 last:border-b-0'
+      }`}
+    >
+      <div className={`relative shrink-0 ${isCard ? 'w-[100px] h-[100px] rounded-xl' : 'w-[108px] h-[108px] rounded-2xl'} overflow-hidden bg-neutral-100 self-center`}>
         {image}
         {isExpired && <div className="absolute inset-0 bg-black/20 pointer-events-none" />}
         {flag}

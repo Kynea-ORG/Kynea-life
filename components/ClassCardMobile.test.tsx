@@ -102,4 +102,19 @@ describe('ClassCardMobile · row', () => {
     expect(screen.getByText('Fin de semana')).toBeInTheDocument();
     expect(screen.getByText('Económico')).toBeInTheDocument();
   });
+
+  it('aplica fondo blanco y bordes redondeados cuando variant es card', () => {
+    const { container } = render(<ClassCardMobile cls={makeClass()} layout="row" listName="profesor_detail" variant="card" />);
+    const article = container.querySelector('article');
+    expect(article).toHaveClass('bg-white');
+    expect(article).toHaveClass('rounded-2xl');
+    expect(article).not.toHaveClass('border-b');
+  });
+
+  it('usa estilo de lista con borde inferior por defecto cuando variant no se especifica', () => {
+    const { container } = render(<ClassCardMobile cls={makeClass()} layout="row" listName="clases" />);
+    const article = container.querySelector('article');
+    expect(article).not.toHaveClass('bg-white');
+    expect(article).toHaveClass('border-b');
+  });
 });
