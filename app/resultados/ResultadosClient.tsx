@@ -39,7 +39,7 @@ function EmptySection({
     clases: {
       title: `No encontramos clases para “${query}”`,
       subtitle: isOutOfDomain
-        ? 'Kynea es una plataforma exclusiva de clases de baile y danza en Perú. No encontramos resultados de baile para esta búsqueda. Te invitamos a explorar nuestros estilos disponibles:'
+        ? 'Kynea es una plataforma dedicada a la danza y el baile. No encontramos resultados para esta búsqueda. Te invitamos a explorar nuestros estilos disponibles:'
         : 'Prueba buscando con términos más generales, quitando restricciones de horario o explorando nuestros estilos más populares.',
     },
     profesores: {

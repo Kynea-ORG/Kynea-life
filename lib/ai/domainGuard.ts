@@ -1,7 +1,7 @@
 // lib/ai/domainGuard.ts
 //
 // Validador de dominio para el motor de búsqueda de Kynea.
-// Kynea es exclusivamente una plataforma para el ecosistema del baile y la danza en Perú.
+// Kynea es una plataforma integral para el ecosistema del baile y la danza en Latinoamérica.
 // Esta guarda previene falsos positivos y falsos negativos al detectar consultas
 // fuera de dominio (ej. programación, recetas, medicina, tareas escolares).
 

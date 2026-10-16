@@ -258,7 +258,7 @@ export async function parseSearchQuery(
       filters: {},
       semanticQuery: '',
       aiSummary:
-        'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.',
+        'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma dedicada a la danza y el baile. Te invitamos a explorar nuestros estilos disponibles.',
       matchBadges: [],
       isDirectProfileSearch: false,
       profileTarget: null,
@@ -350,7 +350,7 @@ export async function generateDynamicDaySuggestions(params: {
     (v, i, a) => Boolean(v) && a.indexOf(v) === i
   );
 
-  const prompt = `Eres el generador de sugerencias de búsqueda de Kynea, la plataforma líder de clases de baile en Perú.
+  const prompt = `Eres el generador de sugerencias de búsqueda de Kynea, la primera plataforma integral de danza en Latinoamérica.
 Hoy es ${params.todayWeekday}.
 Clases programadas para hoy:
 - Estilos con clases hoy: ${params.styles.slice(0, 8).join(', ')}.

@@ -43,13 +43,13 @@ export async function searchClassesWithAi(
     if (domainCheck.isDefinitelyOutOfDomain) {
       return {
         classes: [],
-        aiSummary: 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.',
+        aiSummary: 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma dedicada a la danza y el baile. Te invitamos a explorar nuestros estilos disponibles.',
         matchBadges: [],
         interpretation: {
           isOutOfDomain: true,
           filters: {},
           semanticQuery: '',
-          aiSummary: 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.',
+          aiSummary: 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma dedicada a la danza y el baile. Te invitamos a explorar nuestros estilos disponibles.',
           matchBadges: [],
           isDirectProfileSearch: false,
           profileTarget: null,
@@ -112,7 +112,7 @@ export async function searchClassesWithAi(
   if (interpretation?.isOutOfDomain) {
     return {
       classes: [],
-      aiSummary: interpretation.aiSummary || 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma exclusiva de clases de baile y danza. Te invitamos a explorar nuestros estilos disponibles.',
+      aiSummary: interpretation.aiSummary || 'No encontramos clases de baile para esta búsqueda. Kynea es una plataforma dedicada a la danza y el baile. Te invitamos a explorar nuestros estilos disponibles.',
       matchBadges: [],
       interpretation: {
         ...interpretation,
@@ -166,11 +166,12 @@ export async function searchClassesWithAi(
       if (!classMatches || classMatches.length === 0) {
         // Nivel 2: Mantener estilo y distrito, pero relajar precio y días.
         // NUNCA relajar edad si es Niños (un padre buscando para su hijo no puede recibir clases de adultos).
+        const targetCity = filters.city ?? options?.city ?? null;
         const { data: relaxedPriceAndDays } = await supabase.rpc('match_classes_hybrid', {
           query_embedding: queryEmbedding ?? null,
           filter_style: filters.style ?? null,
           filter_district: filters.district ?? null,
-          filter_city: filters.city ?? options?.city ?? null,
+          filter_city: targetCity,
           filter_max_price: null,
           filter_days: null,
           filter_modality: filters.modality ?? null,
@@ -182,13 +183,14 @@ export async function searchClassesWithAi(
         if (Array.isArray(relaxedPriceAndDays) && relaxedPriceAndDays.length > 0) {
           classMatches = relaxedPriceAndDays;
           finalSummary = `No encontramos clases exactas con todos los filtros de horario o precio, pero encontramos estas opciones de ${filters.style || 'baile'}:`;
-        } else if (filters.style || queryEmbedding) {
-          // Nivel 3: Si tampoco había en ese distrito específico, relajar distrito manteniendo el estilo
+        } else if (filters.district && (filters.style || queryEmbedding)) {
+          // Nivel 3: Si tampoco había en ese distrito específico, relajar distrito dentro de la MISMA ciudad.
+          // NUNCA relajar ciudad ni cruzar fronteras (por ejemplo, nunca sugerir clases de Lima a alguien que busca en Chile u otra ciudad/país).
           const { data: relaxedDistrict } = await supabase.rpc('match_classes_hybrid', {
             query_embedding: queryEmbedding ?? null,
             filter_style: filters.style ?? null,
             filter_district: null,
-            filter_city: null,
+            filter_city: targetCity,
             filter_max_price: null,
             filter_days: null,
             filter_modality: null,
@@ -302,9 +304,13 @@ export async function searchClassesWithAi(
         // RPC no encontró resultados en ningún nivel de relajación
         const queryBadges = interpretation.matchBadges ?? [];
         const filterDetails = queryBadges.length > 0 ? ` (${queryBadges.join(', ')})` : '';
+        const locationText = filters.city ? ` en ${filters.city}` : filters.district ? ` en ${filters.district}` : '';
+        const summary = filters.city
+          ? `No encontramos clases de ${filters.style || 'baile'}${locationText} por el momento. Puedes buscar en otras ubicaciones o retirar el filtro de ciudad.`
+          : `No encontramos clases de ${filters.style || 'baile'} que coincidan con tus criterios${filterDetails}. Te sugerimos ampliar tu búsqueda.`;
         return {
           classes: [],
-          aiSummary: `No encontramos clases de ${filters.style || 'baile'} que coincidan con tus criterios${filterDetails}. Te sugerimos ampliar tu búsqueda.`,
+          aiSummary: summary,
           matchBadges: [],
           interpretation,
         };

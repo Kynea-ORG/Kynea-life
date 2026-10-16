@@ -304,7 +304,91 @@ describe('searchClassesWithAi', () => {
       expect(result.matchBadges).toHaveLength(0);
       expect(result.interpretation?.isOutOfDomain).toBe(true);
       expect(result.interpretation?.filters).toEqual({});
-      expect(result.aiSummary).toContain('exclusiva de clases de baile');
+      expect(result.aiSummary).toContain('dedicada a la danza y el baile');
+    });
+  });
+
+  describe('alcance geográfico y relajación de ubicación', () => {
+    it('no relaja la ciudad a Lima ni sugiere clases distantes cuando se busca en otro país o ciudad sin clases', async () => {
+      vi.spyOn(geminiModule, 'parseSearchQuery').mockResolvedValue({
+        isOutOfDomain: false,
+        filters: { style: 'Flamenco', city: 'Chile' },
+        semanticQuery: 'flamenco en chile',
+        aiSummary: 'Buscas clases de Flamenco en Chile.',
+        matchBadges: ['Flamenco'],
+        isDirectProfileSearch: false,
+      });
+
+      vi.spyOn(geminiModule, 'generateEmbedding').mockResolvedValue(null);
+
+      const rpcSpy = vi.fn().mockResolvedValue({ data: [], error: null });
+      vi.spyOn(publicClient, 'getPublicClient').mockReturnValue({
+        rpc: rpcSpy,
+      } as unknown as ReturnType<typeof publicClient.getPublicClient>);
+
+      const result = await searchClassesWithAi('quiero aprender flamenco en chile');
+
+      // Debe consultar manteniendo filter_city: 'Chile'
+      expect(rpcSpy).toHaveBeenCalledWith(
+        'match_classes_hybrid',
+        expect.objectContaining({
+          filter_style: 'Flamenco',
+          filter_city: 'Chile',
+        })
+      );
+      // NUNCA debe haber llamado a match_classes_hybrid con filter_city: null para traer clases de Lima
+      expect(rpcSpy).not.toHaveBeenCalledWith(
+        'match_classes_hybrid',
+        expect.objectContaining({
+          filter_city: null,
+        })
+      );
+      // Devuelve 0 clases y resumen respetuoso informando que no hay clases en Chile
+      expect(result.classes).toHaveLength(0);
+      expect(result.aiSummary).toContain('Chile');
+      expect(result.interpretation?.filters).toEqual({ style: 'Flamenco', city: 'Chile' });
+    });
+
+    it('relaja el distrito dentro de la MISMA ciudad cuando no hay clases en el distrito solicitado', async () => {
+      vi.spyOn(geminiModule, 'parseSearchQuery').mockResolvedValue({
+        isOutOfDomain: false,
+        filters: { style: 'Salsa', district: 'Barranco', city: 'Lima' },
+        semanticQuery: 'salsa en barranco',
+        aiSummary: 'Buscando salsa en Barranco',
+        matchBadges: [],
+        isDirectProfileSearch: false,
+      });
+
+      vi.spyOn(geminiModule, 'generateEmbedding').mockResolvedValue(null);
+
+      const rpcSpy = vi.fn()
+        .mockResolvedValueOnce({ data: [], error: null }) // Nivel 1 (estricto)
+        .mockResolvedValueOnce({ data: [], error: null }) // Nivel 2 (precio/días)
+        .mockResolvedValueOnce({ data: [{ id: 'cls-miraflores' }], error: null }); // Nivel 3 (relajando distrito)
+
+      vi.spyOn(publicClient, 'getPublicClient').mockReturnValue({
+        rpc: rpcSpy,
+      } as unknown as ReturnType<typeof publicClient.getPublicClient>);
+
+      vi.spyOn(classesQueries, 'fetchClassesByIds').mockResolvedValue([{
+        ...mockAdultClass,
+        id: 'cls-miraflores',
+        district: 'Miraflores',
+        city: 'Lima',
+      }]);
+
+      const result = await searchClassesWithAi('salsa en barranco');
+
+      expect(result.classes).toHaveLength(1);
+      expect(rpcSpy).toHaveBeenLastCalledWith(
+        'match_classes_hybrid',
+        expect.objectContaining({
+          filter_style: 'Salsa',
+          filter_district: null,
+          filter_city: 'Lima',
+        })
+      );
+      expect(result.aiSummary).toContain('opciones cercanas');
     });
   });
 });
