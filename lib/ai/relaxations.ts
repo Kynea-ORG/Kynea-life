@@ -29,10 +29,13 @@ export async function findRelaxations({
   const candidates: { kind: Relaxation['kind']; label: string; city?: string; filters: AiSearchFilters; tags: string[] }[] =
     buildFilterChips(filters, tags).map(chip => {
       const next = removeChip(filters, tags, chip);
-      return { kind: 'filter' as const, label: chip.label, city, ...next };
+      const kind: Relaxation['kind'] = chip.kind === 'city' ? 'city' : 'filter';
+      return { kind, label: chip.label, city: chip.kind === 'city' ? undefined : city, ...next };
     });
 
-  if (city) candidates.push({ kind: 'city', label: city, city: undefined, filters, tags });
+  if (city && !candidates.some(c => c.kind === 'city' && c.label.toLowerCase() === city.toLowerCase())) {
+    candidates.push({ kind: 'city', label: city, city: undefined, filters, tags });
+  }
 
   const counted = await Promise.all(
     candidates.map(async c => {

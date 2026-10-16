@@ -51,6 +51,13 @@ describe('findRelaxations', () => {
     expect(new URL(outside!.href, 'http://x').searchParams.get('city')).toBeNull();
   });
 
+  it('asigna kind: city cuando se remueve el filtro de ciudad proveniente de filters.city', async () => {
+    const search = fakeSearch((f) => (f.city ? 0 : 10));
+    const r = await findRelaxations({ query: 'flamenco en chile', filters: { style: 'Flamenco', city: 'Chile' }, tags: [], search });
+    const outside = r.find(x => x.label === 'Chile');
+    expect(outside).toMatchObject({ kind: 'city', label: 'Chile', count: 10 });
+  });
+
   it('respeta el máximo', async () => {
     const many: AiSearchFilters = { style: 'A', district: 'B', level: 'C', modality: 'Online', maxPrice: 10 };
     const r = await findRelaxations({ query: 'q', filters: many, tags: [], search: fakeSearch(() => 3), max: 2 });

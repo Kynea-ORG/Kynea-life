@@ -182,7 +182,7 @@ describe('Gemini AI Client (Agnostic / AI_API_KEY)', () => {
       expect(result?.filters).toEqual({});
       expect(result?.matchBadges).toEqual([]);
       expect(result?.semanticQuery).toBe('');
-      expect(result?.aiSummary).toContain('exclusiva de clases de baile');
+      expect(result?.aiSummary).toContain('dedicada a la danza y el baile');
     });
 
     it('procesa correctamente cuando Gemini clasifica isOutOfDomain como true', async () => {
