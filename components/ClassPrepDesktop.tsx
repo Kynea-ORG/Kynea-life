@@ -11,7 +11,13 @@ const chipClass = 'inline-flex items-center rounded-full bg-neutral-100 px-3 py-
 
 // "¿Qué aprenderás?" y "Antes de ir" (solo desktop): lista con check y chips, en lugar de los bloques con
 // cajas grises. En mobile se usa ClassPrepList. Cada parte aparece solo si el profesor llenó ese campo.
-export default function ClassPrepDesktop({ cls }: { cls: Props }) {
+export default function ClassPrepDesktop({
+  cls,
+  section = 'all',
+}: {
+  cls: Props;
+  section?: 'learn' | 'before' | 'all';
+}) {
   const [showAll, setShowAll] = useState(false);
 
   const learn = cls.whatYouLearn ?? [];
@@ -22,13 +28,17 @@ export default function ClassPrepDesktop({ cls }: { cls: Props }) {
   ];
   const requirements = cls.requirements ?? [];
   const hasBefore = requirements.length > 0 || bring.length > 0 || !!cls.forWhom;
-  if (learn.length === 0 && !hasBefore) return null;
+
+  const showLearn = (section === 'all' || section === 'learn') && learn.length > 0;
+  const showBefore = (section === 'all' || section === 'before') && hasBefore;
+
+  if (!showLearn && !showBefore) return null;
 
   const visible = showAll ? learn : learn.slice(0, VISIBLE_LEARN);
 
   return (
     <div data-testid="class-prep-desktop" className="hidden lg:block">
-      {learn.length > 0 && (
+      {showLearn && (
         <section className="mb-8 pt-8 border-t border-neutral-100">
           <h2 className="font-extrabold text-neutral-900 text-[20px] mb-4">¿Qué aprenderás?</h2>
           <ul className="grid grid-cols-2 gap-x-8 gap-y-3">
@@ -54,7 +64,7 @@ export default function ClassPrepDesktop({ cls }: { cls: Props }) {
         </section>
       )}
 
-      {hasBefore && (
+      {showBefore && (
         <section className="mb-8 pt-8 border-t border-neutral-100">
           <h2 className="font-extrabold text-neutral-900 text-[20px] mb-4">Antes de ir</h2>
           <div className="grid grid-cols-2 gap-x-8 gap-y-5">

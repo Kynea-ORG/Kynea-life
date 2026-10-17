@@ -256,20 +256,23 @@ describe('ClaseDetailClient · recuadros y desktop', () => {
   it('desktop: la línea del local va bajo el título y las secciones nuevas existen', () => {
     render(<ClaseDetailClient cls={makeClass()} />);
     expect(screen.getByTestId('title-venue')).toHaveTextContent('Garage Studio · Miraflores, Lima');
-    expect(screen.getByTestId('class-essentials')).toBeInTheDocument();
     expect(screen.getByTestId('class-schedule')).toBeInTheDocument();
   });
 
-  it('desktop: la tarjeta de reserva muestra INICIA y HORARIO con su etiqueta y el precio', () => {
+  it('desktop: la tarjeta de reserva muestra INICIA, HORARIO y LUGAR con su etiqueta y el precio', () => {
     render(<ClaseDetailClient cls={makeClass()} />);
     const box = screen.getByTestId('booking-when');
     expect(within(box).getByText('INICIA')).toBeInTheDocument();
     expect(within(box).getByText('HORARIO')).toBeInTheDocument();
     expect(within(box).getByText('Domingo · 11:00 – 12:00')).toBeInTheDocument();
+    expect(within(box).getByText('LUGAR')).toBeInTheDocument();
+    expect(within(box).getByText(/Garage Studio/)).toBeInTheDocument();
   });
 
-  it('desktop: el botón "Ver perfil" de la fila de la academia', () => {
+  it('desktop: autoría en la columna principal y en el sidebar', () => {
     render(<ClaseDetailClient cls={makeClass()} />);
-    expect(within(screen.getByTestId('teacher-row')).getByText('Ver perfil')).toBeInTheDocument();
+    const byline = screen.getByTestId('title-by');
+    expect(within(byline).getByText('ATEMPO - Studio de Baile Flamenco')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-teacher')).toHaveAttribute('href', '/academias/atempo');
   });
 });
