@@ -19,7 +19,6 @@ import { trackGenerateLead, trackViewItem, trackTeacherSocialClick, trackSelectP
 import ClampedText from '@/components/ClampedText';
 import ClassQuickFacts from '@/components/ClassQuickFacts';
 import ClassPrepList from '@/components/ClassPrepList';
-import ClassEssentials from '@/components/ClassEssentials';
 import ClassSchedule from '@/components/ClassSchedule';
 import ClassPrepDesktop from '@/components/ClassPrepDesktop';
 import { detailChips, detailVenueTile, detailWhenTile } from '@/lib/classes/detailInfo';
@@ -324,22 +323,22 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 </span>
               </div>
               <h1 className="text-[24px] lg:text-[32px] font-black text-neutral-900 tracking-snug leading-[1.15] lg:leading-tight mb-1.5 lg:mb-2 break-words">{cls.title}</h1>
-              <p data-testid="title-by" className="lg:hidden text-[14px] text-neutral-500 break-words">
-                por{' '}
-                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-bold text-neutral-900 underline underline-offset-[3px]">
-                  {cls.teacher.name}
-                </Link>
-              </p>
               {venueLine && (
-                <p data-testid="title-venue" className="hidden lg:flex items-center gap-1.5 text-[15px] text-neutral-600 min-w-0">
+                <p data-testid="title-venue" className="hidden lg:flex items-center gap-1.5 text-[15px] text-neutral-600 min-w-0 mb-1">
                   <MapPin className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
                   <span className="truncate">{[venueLine.title, venueLine.sub].filter(Boolean).join(' · ')}</span>
                 </p>
               )}
+              <p data-testid="title-by" className="text-[13px] lg:text-[13.5px] text-neutral-500 break-words mb-2 lg:mb-3">
+                por{' '}
+                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-medium text-neutral-700 underline underline-offset-2 hover:text-primary transition-colors">
+                  {cls.teacher.name}
+                </Link>
+              </p>
             </div>
 
-            {/* Chips (nivel, modalidad, cupos informativos, 1.ª clase gratis) y fila de la academia */}
-            <div data-testid="detail-chips" className="flex flex-wrap gap-2 mb-3.5 lg:mb-4">
+            {/* Chips (nivel, modalidad, cupos informativos, 1.ª clase gratis) */}
+            <div data-testid="detail-chips" className="flex flex-wrap gap-2 mb-4 lg:mb-6">
               {chips.map(c => (
                 <span
                   key={c.label}
@@ -351,34 +350,33 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                 </span>
               ))}
             </div>
+
+            {/* Fila del profesor en mobile */}
             <Link
               data-testid="teacher-row"
               href={getProfileUrl(cls.teacher)}
               onClick={selectTeacherProfile}
-              className="flex items-center gap-3 p-3 lg:p-4 mb-6 lg:mb-8 rounded-2xl border border-neutral-200 active:bg-neutral-50 lg:hover:bg-neutral-50 transition-colors"
+              className="lg:hidden flex items-center gap-3 p-3 mb-6 rounded-2xl border border-neutral-200 active:bg-neutral-50 transition-colors"
             >
               {cls.teacher.photo ? (
-                <div className="relative w-11 h-11 lg:w-12 lg:h-12 rounded-xl overflow-hidden shrink-0">
+                <div className="relative w-11 h-11 rounded-xl overflow-hidden shrink-0">
                   <SmartImage src={cls.teacher.photo} alt="" fill sizes="48px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
                 </div>
               ) : (
-                <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-xl bg-primary-bg text-primary-dark flex items-center justify-center font-extrabold text-[15px] shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-primary-bg text-primary-dark flex items-center justify-center font-extrabold text-[15px] shrink-0">
                   {cls.teacher.name.charAt(0)}
                 </div>
               )}
               <div className="flex-1 min-w-0 leading-snug">
-                <p className="font-bold text-neutral-900 text-[14.5px] lg:text-[15px] truncate">{cls.teacher.name}</p>
-                <p className="text-[12.5px] lg:text-[13px] text-neutral-500 truncate">
+                <p className="font-bold text-neutral-900 text-[14.5px] truncate">{cls.teacher.name}</p>
+                <p className="text-[12.5px] text-neutral-500 truncate">
                   {isAcademia ? 'Academia' : 'Profesor'} · {formatExperience(cls.teacher.experience)} de experiencia
                   {cls.teacher.rating ? ` · ★ ${cls.teacher.rating}` : ''}
                 </p>
               </div>
-              <ChevronRight className="lg:hidden w-[18px] h-[18px] text-neutral-500 shrink-0" aria-hidden="true" />
-              <span className="hidden lg:inline text-[14px] font-bold text-neutral-900 underline underline-offset-[3px] shrink-0">Ver perfil</span>
+              <ChevronRight className="w-[18px] h-[18px] text-neutral-500 shrink-0" aria-hidden="true" />
             </Link>
             {isExpired && <div data-testid="expired-notice-mobile" className="lg:hidden">{expiredBanner}</div>}
-
-            <ClassEssentials cls={cls} isExpired={isExpired} />
 
             <section className="mb-6 lg:mb-8 min-w-0 lg:pt-8 lg:border-t lg:border-neutral-100">
               <h2 className="font-extrabold text-neutral-900 text-[18px] lg:text-[20px] mb-2 lg:mb-3">Sobre esta clase</h2>
@@ -386,8 +384,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             </section>
 
             <ClassPrepList cls={cls} />
+            <ClassPrepDesktop cls={cls} section="learn" />
             <ClassSchedule cls={cls} />
-            <ClassPrepDesktop cls={cls} />
+            <ClassPrepDesktop cls={cls} section="before" />
 
             {/* Dónde es: mapa y dirección en una sola tarjeta. El recuadro del mapa bajo la foto (mobile) baja hasta acá. */}
             {(hasCoords || cls.venueName || cls.address) && (
@@ -508,49 +507,109 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
           {/* RIGHT COLUMN: tarjeta de reserva (solo desktop; en mobile lo cubren los recuadros y la barra fija) */}
           <div className="hidden lg:block min-w-0">
             <div className="lg:sticky lg:top-24">
-              <div className="border-2 border-neutral-200 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-baseline justify-between mb-5">
-                  <div>
-                    {typeof priceDisplay === 'string' ? (
-                      <span className="text-[30px] font-black text-neutral-900 tracking-snug">{priceDisplay}</span>
-                    ) : priceDisplay}
-                  </div>
-                  {cls.isTrialFree && (
-                    <span className="badge-green text-[11px]">1ra clase gratis</span>
+              <div className="border-2 border-neutral-200 rounded-2xl p-6 shadow-sm bg-white">
+                {/* Chips de tipo, disciplina, nivel y modalidad arriba del precio (mismo orden y estilos que en el encabezado principal) */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-3.5">
+                  {cls.type && (
+                    <span className="badge-black text-[11px] px-2.5 py-0.5 rounded-md">
+                      {getTypeLabel(cls.type)}
+                    </span>
                   )}
+                  {cls.style && (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-primary-bg text-primary-dark whitespace-nowrap">
+                      {cls.style}
+                    </span>
+                  )}
+                  {cls.level && (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-neutral-200 bg-white text-neutral-800 whitespace-nowrap">
+                      Nivel {cls.level}
+                    </span>
+                  )}
+                  {cls.modality && (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-neutral-200 bg-white text-neutral-800 whitespace-nowrap">
+                      {cls.modality}
+                    </span>
+                  )}
+                  {cls.forWhom && (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-neutral-200 bg-white text-neutral-800 whitespace-nowrap">
+                      {cls.forWhom}
+                    </span>
+                  )}
+                </div>
+
+                {/* Precio en el tope con autoría integrada sutil */}
+                <div className="mb-4">
+                  <div className="flex items-baseline justify-between mb-1.5">
+                    <div>
+                      {typeof priceDisplay === 'string' ? (
+                        <span className="text-[30px] font-black text-neutral-900 tracking-snug">{priceDisplay}</span>
+                      ) : priceDisplay}
+                    </div>
+                    {cls.isTrialFree && (
+                      <span className="badge-green text-[11px]">1ra clase gratis</span>
+                    )}
+                  </div>
+                  <Link
+                    href={getProfileUrl(cls.teacher)}
+                    onClick={selectTeacherProfile}
+                    data-testid="sidebar-teacher"
+                    className="inline-flex items-center gap-1 text-[13.5px] text-neutral-500 hover:text-primary transition-colors group"
+                  >
+                    <span>por <strong className="font-semibold text-neutral-800 group-hover:text-primary group-hover:underline">{cls.teacher.name}</strong></span>
+                    <ChevronRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-primary transition-colors shrink-0" />
+                  </Link>
                 </div>
 
                 {isExpired && (
                   <span className="badge-gray mb-4 inline-block">Finalizada</span>
                 )}
 
-                {/* Inicio y horario, cada uno con su etiqueta */}
-                {(when?.date || firstSlot) && (
-                  <div data-testid="booking-when" className="mb-4 rounded-xl border border-neutral-200 divide-y divide-neutral-200">
+                {/* Bloque logístico */}
+                {(when?.date || firstSlot || venueLine || cls.modality === 'Online') && (
+                  <div data-testid="booking-when" className="mb-4 rounded-xl border border-neutral-200 divide-y divide-neutral-100 overflow-hidden bg-white">
                     {when?.date && (
-                      <div className="flex items-center gap-3 px-4 py-3">
-                        <Calendar className="w-[18px] h-[18px] text-primary shrink-0" aria-hidden="true" />
-                        <div className="leading-tight min-w-0">
-                          <p className="text-[10.5px] font-extrabold tracking-[0.07em] text-neutral-500">{when.date.label}</p>
-                          <p className="font-bold text-neutral-900 text-[14.5px]">{when.date.big}</p>
-                        </div>
+                      <div className="flex items-center gap-3 px-3.5 py-2.5">
+                        <Calendar className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                        <span className="text-[13.5px] font-semibold text-neutral-900 truncate">
+                          <span className="sr-only">INICIA</span>Inicia el {when.date.big}
+                        </span>
                       </div>
                     )}
                     {firstSlot && (
-                      <div className="flex items-center gap-3 px-4 py-3">
-                        <Clock className="w-[18px] h-[18px] text-primary shrink-0" aria-hidden="true" />
-                        <div className="leading-tight min-w-0">
-                          <p className="text-[10.5px] font-extrabold tracking-[0.07em] text-neutral-500">HORARIO</p>
-                          <p className="font-bold text-neutral-900 text-[14.5px]">
-                            {formatTimeSlots([firstSlot])}{extraSlots > 0 ? ` +${extraSlots} más` : ''}
-                          </p>
+                      <div className="flex items-center gap-3 px-3.5 py-2.5">
+                        <Clock className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                        <span className="text-[13.5px] font-semibold text-neutral-900 truncate">
+                          <span className="sr-only">HORARIO</span>{formatTimeSlots([firstSlot])}{extraSlots > 0 ? ` +${extraSlots} más` : ''}
+                        </span>
+                      </div>
+                    )}
+                    {venueLine && (
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('donde-es')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                        className="flex items-center justify-between gap-3 px-3.5 py-2.5 w-full hover:bg-neutral-50 transition-colors group cursor-pointer text-left"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <MapPin className="w-4 h-4 text-primary shrink-0 group-hover:scale-110 transition-transform" aria-hidden="true" />
+                          <span className="text-[13.5px] font-semibold text-neutral-900 truncate">
+                            <span className="sr-only">LUGAR</span>{[venueLine.title, venueLine.sub].filter(Boolean).join(' · ')}
+                          </span>
                         </div>
+                        <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-700 shrink-0" aria-hidden="true" />
+                      </button>
+                    )}
+                    {!venueLine && cls.modality === 'Online' && (
+                      <div className="flex items-center gap-3 px-3.5 py-2.5">
+                        <Globe className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                        <span className="text-[13.5px] font-semibold text-neutral-900 truncate">
+                          <span className="sr-only">MODALIDAD</span>Online en vivo
+                        </span>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Cupos: solo informativos (sin barra de progreso) y solo si el profesor eligió mostrarlos */}
+                {/* Cupos */}
                 {spotsInfo && (
                   <div className="mb-5 flex items-center gap-2.5 text-[13px] text-neutral-600">
                     <Users className="w-4 h-4 text-neutral-400 shrink-0" />
@@ -561,6 +620,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   </div>
                 )}
 
+                {/* Acciones */}
                 <div className="flex flex-col gap-2">
                   {showWa && (
                     <button
