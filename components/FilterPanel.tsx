@@ -16,6 +16,8 @@ export interface Filters {
   priceMax: number | null;
   types: string[];
   withSpots: boolean;
+  /** Solo clases dictadas por profesoras (etiquetadas por un admin). */
+  withWomenTeachers: boolean;
 }
 
 export const MAX_PRICE = 300;
@@ -34,13 +36,14 @@ interface FilterPanelProps {
   hideStyles?: boolean;
   /** ISO codes with at least one published class — see fetchClassCountries.
    * The "País" section only renders when there's more than one, since a
-   * single-country catalog has nothing to filter. */
+   * single-country catalog has nothing to filter. Sits right under "Estilo
+   * de baile" so it's visible without scrolling. */
   countries?: string[];
 }
 
 export const EMPTY_FILTERS: Filters = {
   city: '', district: '', country: '', styles: [], levels: [], days: [],
-  timesOfDay: [], modalities: [], priceMax: null, types: [], withSpots: false,
+  timesOfDay: [], modalities: [], priceMax: null, types: [], withSpots: false, withWomenTeachers: false,
 };
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -134,6 +137,33 @@ function CountryFilterSearch({ countries, value, onChange }: { countries: string
   );
 }
 
+// Hasta este número de países se muestran como chips (un toque, sin
+// escribir); con más, el buscador evita una lista que crece sin control.
+const COUNTRY_CHIPS_MAX = 5;
+
+function CountryFilter({ countries, value, onChange }: { countries: string[]; value: string; onChange: (code: string) => void }) {
+  if (countries.length > COUNTRY_CHIPS_MAX) {
+    return <CountryFilterSearch countries={countries} value={value} onChange={onChange} />;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {countries
+        .map(code => findCountryByCode(code))
+        .filter((c): c is NonNullable<typeof c> => Boolean(c))
+        .map(c => (
+          <button
+            key={c.code}
+            onClick={() => onChange(value === c.code ? '' : c.code)}
+            aria-pressed={value === c.code}
+            className={chipClass(value === c.code)}
+          >
+            {c.flag} {c.name}
+          </button>
+        ))}
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
@@ -180,7 +210,7 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
   const activeCount =
     filters.styles.length + filters.levels.length + filters.days.length +
     filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
-    filters.types.length + (filters.withSpots ? 1 : 0) +
+    filters.types.length + (filters.withSpots ? 1 : 0) + (filters.withWomenTeachers ? 1 : 0) +
     [filters.city, filters.district, filters.country].filter(Boolean).length;
 
   // Los estilos ya seleccionados siempre se muestran (aunque el grupo visible
@@ -259,6 +289,12 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
         </Section>
       )}
 
+      {countries.length > 1 && (
+        <Section title="País">
+          <CountryFilter countries={countries} value={filters.country} onChange={code => set('country', code)} />
+        </Section>
+      )}
+
       <Section title="Nivel">
         <div className="flex flex-wrap gap-2">
           {levels.map(l => (
@@ -315,12 +351,6 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
         ))}
       </Section>
 
-      {countries.length > 1 && (
-        <Section title="País">
-          <CountryFilterSearch countries={countries} value={filters.country} onChange={code => set('country', code)} />
-        </Section>
-      )}
-
       <Section title="Precio">
         <div className="px-0.5">
           <input
@@ -358,6 +388,16 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
           </label>
         ))}
       </Section>
+
+      <label className="flex items-center gap-3 cursor-pointer mb-3">
+        <input
+          type="checkbox"
+          checked={filters.withWomenTeachers}
+          onChange={e => set('withWomenTeachers', e.target.checked)}
+          className="accent-neutral-900 w-4 h-4"
+        />
+        <span className="text-[13px] font-medium text-neutral-700">Dictadas por profesoras</span>
+      </label>
 
       <label className="flex items-center gap-3 cursor-pointer">
         <input

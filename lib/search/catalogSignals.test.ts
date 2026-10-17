@@ -1,0 +1,258 @@
+// lib/search/catalogSignals.test.ts
+import { describe, it, expect, vi } from 'vitest';
+import {
+  computeCatalogSignals,
+  buildAiSuggestions,
+  getTodayLimaDateStr,
+  getTodayWeekdayName,
+  fetchDailySuggestionsFromDb,
+  saveDailySuggestionsToDb,
+  generateCatalogAiSuggestions,
+} from './catalogSignals';
+import { getValidClassBadges } from '@/lib/ai/badges';
+import type { DanceClass } from '@/lib/types';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+function cls(over: Partial<DanceClass> & { id: string }): DanceClass {
+  return {
+    title: 'Clase',
+    style: 'Salsa',
+    level: 'Intermedio',
+    shortDescription: '',
+    fullDescription: '',
+    price: 100,
+    modality: 'Presencial',
+    district: 'Miraflores',
+    city: 'Lima',
+    ageGroup: 'Mayor +18 años',
+    timeSlots: [{ days: ['Martes'], startTime: '19:30', endTime: '20:30' }],
+    ...over,
+  } as DanceClass;
+}
+
+describe('computeCatalogSignals', () => {
+  it('cuenta estilos (principal y secundarios) y distritos, ordenados por frecuencia', () => {
+    const s = computeCatalogSignals([
+      cls({ id: '1', style: 'Salsa', district: 'Miraflores' }),
+      cls({ id: '2', style: 'Salsa', district: 'Lince' }),
+      cls({ id: '3', style: 'Bachata', secondaryStyles: ['Salsa'], district: 'Miraflores' }),
+    ]);
+    expect(s.totalClasses).toBe(3);
+    expect(s.styles).toEqual([{ name: 'Salsa', count: 3 }, { name: 'Bachata', count: 1 }]);
+    expect(s.districts[0]).toEqual({ name: 'Miraflores', count: 2 });
+    expect(s.levels).toEqual(['Intermedio']);
+  });
+
+  it('ignora estilos y distritos vacíos', () => {
+    const s = computeCatalogSignals([cls({ id: '1', style: '', district: '  ' })]);
+    expect(s.styles).toEqual([]);
+    expect(s.districts).toEqual([]);
+  });
+
+  it('devuelve señales vacías sin clases', () => {
+    const s = computeCatalogSignals([]);
+    expect(s.totalClasses).toBe(0);
+    expect(s.styles).toEqual([]);
+    expect(s.beginnerPair).toBeNull();
+  });
+});
+
+describe('buildAiSuggestions', () => {
+  const beginnerSalsa = cls({
+    id: 'b', style: 'Salsa', level: 'Principiante', district: 'Miraflores',
+    timeSlots: [{ days: ['Sábado'], startTime: '10:00', endTime: '11:00' }],
+  });
+  const kidsHeels = cls({
+    id: 'k', style: 'Heels', level: 'Principiante', district: 'Lince', title: 'Heels Kids',
+    ageGroup: 'Niños', timeSlots: [{ days: ['Sábado'], startTime: '11:00', endTime: '12:00' }],
+  });
+  const adultsEvening = cls({ id: 'e', style: 'Bachata', district: 'Lince' });
+
+  it('sin clases no inventa nada: sin prompts y solo el placeholder neutro', () => {
+    const r = buildAiSuggestions(computeCatalogSignals([]));
+    expect(r.quickPrompts).toEqual([]);
+    expect(r.placeholders).toEqual(['Cuéntame qué tienes en mente…']);
+  });
+
+  it('el primer placeholder siempre es el estático del primer paint', () => {
+    const r = buildAiSuggestions(computeCatalogSignals([beginnerSalsa, kidsHeels, adultsEvening]));
+    expect(r.placeholders[0]).toBe('Cuéntame qué tienes en mente…');
+  });
+
+  it('usa estilos y distritos reales en las sugerencias', () => {
+    const r = buildAiSuggestions(computeCatalogSignals([beginnerSalsa]));
+    const all = [...r.quickPrompts, ...r.placeholders].join(' | ');
+    expect(all).toContain('Salsa');
+    expect(all).toContain('Miraflores');
+    expect(all).not.toMatch(/Bachata|Heels|Lince/);
+  });
+
+  it('no sugiere niños si no hay clases para niños', () => {
+    const r = buildAiSuggestions(computeCatalogSignals([beginnerSalsa, adultsEvening]));
+    expect([...r.quickPrompts, ...r.placeholders].join(' ').toLowerCase()).not.toContain('niño');
+    expect([...r.quickPrompts, ...r.placeholders].join(' ').toLowerCase()).not.toContain('hija');
+  });
+
+  it('sugiere niños cuando existen, y fin de semana solo si coincide con una clase infantil de fin de semana', () => {
+    const r = buildAiSuggestions(computeCatalogSignals([beginnerSalsa, kidsHeels]));
+    const kids = r.quickPrompts.find(p => p.toLowerCase().includes('niño'));
+    expect(kids).toBeDefined();
+    expect(kids).toContain('fin de semana');
+
+    const weekdayKids = cls({ ...kidsHeels, id: 'k2', timeSlots: [{ days: ['Martes'], startTime: '16:00', endTime: '17:00' }] });
+    const r2 = buildAiSuggestions(computeCatalogSignals([weekdayKids]));
+    const kids2 = r2.quickPrompts.find(p => p.toLowerCase().includes('niño'));
+    expect(kids2).toBeDefined();
+    expect(kids2).not.toContain('fin de semana');
+  });
+
+  it('no sugiere "después del trabajo" si no hay clases a partir de las 18:00', () => {
+    const r = buildAiSuggestions(computeCatalogSignals([beginnerSalsa, kidsHeels]));
+    expect([...r.quickPrompts, ...r.placeholders].join(' ').toLowerCase()).not.toContain('trabajo');
+  });
+
+  it('sugiere "después del trabajo" si existe al menos una clase nocturna', () => {
+    const r = buildAiSuggestions(computeCatalogSignals([adultsEvening]));
+    expect([...r.quickPrompts, ...r.placeholders].join(' ').toLowerCase()).toContain('trabajo');
+  });
+
+  it('"sábados en la mañana" solo aparece si hay una clase sabatina matutina', () => {
+    const withSat = buildAiSuggestions(computeCatalogSignals([beginnerSalsa]));
+    expect(withSat.placeholders.join(' ')).toContain('sábados en la mañana');
+    const without = buildAiSuggestions(computeCatalogSignals([adultsEvening]));
+    expect(without.placeholders.join(' ')).not.toContain('sábados');
+  });
+
+  it('principiantes: usa el estilo con clase de nivel inicial, no el más popular', () => {
+    const popular = [1, 2, 3].map(i => cls({ id: `p${i}`, style: 'Bachata', level: 'Avanzado' }));
+    const r = buildAiSuggestions(computeCatalogSignals([...popular, beginnerSalsa]));
+    const begin = r.quickPrompts.find(p => p.toLowerCase().includes('desde cero'));
+    expect(begin).toContain('Salsa');
+    expect(begin).not.toContain('Bachata');
+  });
+
+  it('devuelve como máximo 4 prompts rápidos', () => {
+    const r = buildAiSuggestions(computeCatalogSignals([beginnerSalsa, kidsHeels, adultsEvening]));
+    expect(r.quickPrompts.length).toBeLessThanOrEqual(4);
+    expect(r.quickPrompts.length).toBeGreaterThan(0);
+  });
+
+  it('es determinista', () => {
+    const classes = [beginnerSalsa, kidsHeels, adultsEvening];
+    expect(buildAiSuggestions(computeCatalogSignals(classes)))
+      .toEqual(buildAiSuggestions(computeCatalogSignals(classes)));
+  });
+
+  it('cada filtro implícito de un prompt está respaldado por una clase real (badges)', () => {
+    const classes = [beginnerSalsa, kidsHeels, adultsEvening];
+    const r = buildAiSuggestions(computeCatalogSignals(classes));
+    const probes: [RegExp, string][] = [
+      [/niño/i, 'Para niños'],
+      [/desde cero/i, 'Para principiantes'],
+      [/trabajo/i, 'Post-trabajo'],
+    ];
+    for (const prompt of [...r.quickPrompts, ...r.placeholders]) {
+      for (const [re, badge] of probes) {
+        if (re.test(prompt)) {
+          expect(classes.some(c => getValidClassBadges(c, [badge]).length > 0)).toBe(true);
+        }
+      }
+    }
+  });
+});
+
+describe('daily_search_suggestions db integration', () => {
+  it('getTodayLimaDateStr formatea correctamente YYYY-MM-DD en hora de Lima', () => {
+    // 2026-10-12T15:00:00Z en Lima (UTC-5) es 2026-10-12
+    const d = new Date('2026-10-12T15:00:00Z');
+    expect(getTodayLimaDateStr(d)).toBe('2026-10-12');
+  });
+
+  it('getTodayWeekdayName devuelve el día de la semana capitalizado en español', () => {
+    const d = new Date('2026-10-12T15:00:00Z');
+    expect(getTodayWeekdayName(d)).toBe('Lunes');
+  });
+
+  it('fetchDailySuggestionsFromDb devuelve null si no hay fila o hay error', async () => {
+    const mockClient = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    const res = await fetchDailySuggestionsFromDb(mockClient, '2026-10-12');
+    expect(res).toBeNull();
+  });
+
+  it('fetchDailySuggestionsFromDb devuelve prompts y placeholders cuando existen', async () => {
+    const mockClient = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                quick_prompts: ['🕺 Salsa este fin de semana', '💃 Bachata en Miraflores'],
+                placeholders: ['¿Qué quieres bailar hoy?'],
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    const res = await fetchDailySuggestionsFromDb(mockClient, '2026-10-12');
+    expect(res).not.toBeNull();
+    expect(res?.quickPrompts).toEqual(['🕺 Salsa este fin de semana', '💃 Bachata en Miraflores']);
+    expect(res?.placeholders).toEqual(['¿Qué quieres bailar hoy?']);
+  });
+
+  it('saveDailySuggestionsToDb invoca la RPC save_daily_search_suggestions', async () => {
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const mockClient = {
+      rpc: rpcMock,
+    } as unknown as SupabaseClient;
+
+    await saveDailySuggestionsToDb(
+      { quickPrompts: ['🕺 Salsa'], placeholders: ['Buscar salsa…'] },
+      mockClient,
+      '2026-10-12',
+      'Lunes'
+    );
+
+    expect(rpcMock).toHaveBeenCalledWith('save_daily_search_suggestions', {
+      p_date: '2026-10-12',
+      p_weekday: 'Lunes',
+      p_quick_prompts: ['🕺 Salsa'],
+      p_placeholders: ['Buscar salsa…'],
+    });
+  });
+
+  it('generateCatalogAiSuggestions utiliza la caché de BD si está presente', async () => {
+    const mockClient = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                quick_prompts: ['🌟 Salsa desde la BD'],
+                placeholders: ['Placeholder BD'],
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+      rpc: vi.fn(),
+    } as unknown as SupabaseClient;
+
+    const res = await generateCatalogAiSuggestions([], mockClient);
+    expect(res.quickPrompts).toEqual(['🌟 Salsa desde la BD']);
+    expect(res.placeholders).toEqual(['Placeholder BD']);
+    expect(mockClient.rpc).not.toHaveBeenCalled();
+  });
+});

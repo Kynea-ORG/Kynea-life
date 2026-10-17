@@ -6,6 +6,7 @@ import type { ClassFilters } from '@/lib/classes/types';
 import { fetchDanceStyles, fetchClassLevels, fetchLocationOptions } from '@/lib/catalog/queries';
 import { fetchAcademiasWithLocation } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
+import ClasesCatalogSkeleton from '@/components/skeletons/ClasesCatalogSkeleton';
 import ClasesContent from './ClasesContent';
 
 export const metadata: Metadata = {
@@ -37,12 +38,13 @@ export default async function ClasesPage({
     country:    (params.country as string | undefined) || undefined,
     district:   (params.district as string | undefined) || undefined,
     withSpots:  params.spots === '1' || undefined,
+    womenTeachers: params.profesoras === '1' || undefined,
   };
 
   const hasFilters = !!(
     filters.query || filters.styles?.length || filters.levels?.length ||
     filters.modalities?.length || filters.types?.length || filters.days?.length ||
-    filters.city || filters.country || filters.district || filters.withSpots
+    filters.city || filters.country || filters.district || filters.withSpots || filters.womenTeachers
   );
 
   let fallbackLocation: { lat: number; lng: number } | null = null;
@@ -71,11 +73,7 @@ export default async function ClasesPage({
   ]);
 
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center text-neutral-400 text-[15px]">
-        Cargando…
-      </div>
-    }>
+    <Suspense fallback={<ClasesCatalogSkeleton />}>
       <ClasesContent
         initialClasses={classes}
         academias={academias}

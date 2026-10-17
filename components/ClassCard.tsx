@@ -2,14 +2,18 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check } from 'lucide-react';
+import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check, Sparkles } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildInstagramUrl } from '@/lib/utils';
 import { findCountryByCode } from '@/lib/countries';
 import { classUrl, isClassExpired } from '@/lib/classes/helpers';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/AuthProvider';
+import { useSavedClass } from '@/lib/hooks/useSavedClass';
 import { trackGenerateLead, trackSelectItem } from '@/lib/analytics';
-import ContactModal from './ContactModal';
+import ClassCardMobile from '@/components/ClassCardMobile';
+
+const ContactModal = dynamic(() => import('./ContactModal'), { ssr: false });
 
 interface ClassCardProps {
   cls: DanceClass;
@@ -18,12 +22,25 @@ interface ClassCardProps {
   // Home fila de estilo destacado, /clases grid, perfil de profesor) — see
   // trackSelectItem in lib/analytics.ts and each call site below.
   listName: string;
+  matchBadges?: string[];
+  /** Si se indica, en mobile (< md) se usa la tarjeta compacta de ClassCardMobile: 'carousel' para
+   *  carruseles, 'row' para listas. Desde md siempre se usa esta tarjeta vertical. */
+  mobileLayout?: 'carousel' | 'row';
+  /** 'card' envuelve la fila móvil en una tarjeta blanca independiente con borde y sombra (ideal para fondos oscuros como perfil de profesor). */
+  mobileVariant?: 'default' | 'card';
 }
 
-export default function ClassCard({ cls, compact = false, listName }: ClassCardProps) {
+export default function ClassCard({
+  cls,
+  compact = false,
+  listName,
+  matchBadges,
+  mobileLayout,
+  mobileVariant,
+}: ClassCardProps) {
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { saved, toggleSave } = useSavedClass({ cls });
   const { isLoggedIn } = useAuth();
   const [justContacted, setJustContacted] = useState(false);
 
@@ -80,19 +97,24 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
 
   return (
     <>
-      <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 flex flex-col group hover:-translate-y-0.5">
+      {mobileLayout && (
+        <div className="md:hidden">
+          <ClassCardMobile cls={cls} layout={mobileLayout} listName={listName} matchBadges={matchBadges} variant={mobileVariant} />
+        </div>
+      )}
+      <div className={`bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-[box-shadow,border-color,transform] duration-200 ${mobileLayout ? 'hidden md:flex' : 'flex'} flex-col group hover:-translate-y-0.5`}>
         {/* Image */}
         {/* Hover zoom lives on this wrapper (not the <Image>) because the
             image already carries an inline transform for the saved crop
             zoom — an inline style would silently override any transform
             utility class placed on the same element. */}
-        <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'}`}>
-          <Link href={classUrl(cls)} aria-label={cls.title} className="absolute inset-0" onClick={handleSelectItem}>
+        <div className={`relative overflow-hidden group-hover:scale-105 transition-transform duration-300 ${compact ? 'h-36' : 'h-48'} bg-neutral-100`}>
+          <Link href={classUrl(cls)} prefetch={false} aria-label={cls.title} className="absolute inset-0" onClick={handleSelectItem}>
             <SmartImage
               src={cls.coverImage || '/logo.png'}
               alt={cls.title}
               fill
-              sizes="(max-width: 768px) 100vw, 400px"
+              sizes="(max-width: 640px) 288px, (max-width: 1024px) 320px, 400px"
               className="object-cover"
               style={{ objectPosition: cls.coverImagePosition || '50% 50%', transform: `scale(${cls.coverImageZoom || 1})` }}
             />
@@ -127,11 +149,13 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
           </div>
           {!isExpired && (
             <button
-              onClick={() => setSaved(!saved)}
+              type="button"
+              onClick={toggleSave}
               className={`absolute bottom-3 right-3 p-2 rounded-full shadow transition-[background-color,color] active:scale-90 ${
                 saved ? 'bg-neutral-900 text-white' : 'bg-white/90 text-neutral-600 hover:text-neutral-900 backdrop-blur-sm'
               }`}
               title={saved ? 'Guardado' : 'Guardar clase'}
+              aria-label={saved ? 'Guardado' : 'Guardar clase'}
             >
               <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-white animate-pop' : ''}`} />
             </button>
@@ -146,7 +170,7 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
             </span>
             {cls.offerPrice ? (
               <span className="flex items-baseline gap-1.5">
-                <span className="text-[12px] text-neutral-400 line-through font-medium">
+                <span className="text-[12px] text-neutral-500 line-through font-medium">
                   {formatPrice(cls.priceType, cls.price, cls.currency)}
                 </span>
                 <span className="text-[15px] font-bold text-primary">
@@ -163,9 +187,23 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
           <div>
             <h3 className="font-bold text-neutral-900 text-[15px] leading-snug">{cls.title}</h3>
             <p className="text-[13px] text-neutral-600 mt-0.5">
-              {cls.teacher.name} · <span className="text-neutral-400">{cls.level}</span>
+              {cls.teacher.name} · <span className="text-neutral-500 font-medium">{cls.level}</span>
             </p>
+            {matchBadges && matchBadges.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {matchBadges.map(b => (
+                  <span
+                    key={b}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary-bg text-primary px-2.5 py-0.5 rounded-full border border-primary/20"
+                  >
+                    <Sparkles className="w-2.5 h-2.5 text-primary shrink-0" />
+                    {b}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
+
 
           {!compact && (
             <p className="text-[13px] text-neutral-600 line-clamp-2 leading-relaxed">{cls.shortDescription}</p>
@@ -209,6 +247,7 @@ export default function ClassCard({ cls, compact = false, listName }: ClassCardP
           <div className="flex gap-2 mt-auto pt-1">
             <Link
               href={classUrl(cls)}
+              prefetch={false}
               onClick={handleSelectItem}
               className="flex-1 text-center text-[13px] font-semibold py-2.5 rounded-btn border border-neutral-900 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200 transition-[background-color] active:scale-[0.97]"
             >

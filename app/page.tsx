@@ -3,6 +3,11 @@ import { selectHomeRecommendedClasses } from '@/lib/classes/homeRecommendations'
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
 import { fetchDanceStyles } from '@/lib/catalog/queries';
 import { fetchHomeStats } from '@/lib/stats/queries';
+import { generateCatalogAiSuggestions } from '@/lib/search/catalogSignals';
+import { getPublicClient } from '@/lib/supabase/public';
+import { fetchPublishedPosts } from '@/lib/blog/queries';
+import { toBlogHighlight } from '@/lib/blog/highlight';
+import { fetchWomanTeacherIds, countClassesTaughtBy, shouldShowWomenSection } from '@/lib/profiles/women';
 import { createClient } from '@/lib/supabase/server';
 import { SITE_URL } from '@/lib/constants';
 import { safeJsonLd } from '@/lib/utils';
@@ -16,12 +21,14 @@ const MIN_CLASSES_FOR_FEATURED_ROW = 4;
 
 export default async function Page() {
   const supabase = await createClient();
-  const [classes, teachers, academias, danceStyles, stats, { data: { user } }] = await Promise.all([
+  const [classes, teachers, academias, danceStyles, stats, womanTeacherIds, posts, { data: { user } }] = await Promise.all([
     fetchPublishedClasses(),
     fetchFeaturedProfiles('profesor', 6),
     fetchFeaturedProfiles('academia', 4),
     fetchDanceStyles(),
     fetchHomeStats(),
+    fetchWomanTeacherIds(getPublicClient()),
+    fetchPublishedPosts().catch(() => []),
     supabase.auth.getUser(),
   ]);
 
@@ -35,26 +42,39 @@ export default async function Page() {
     userRole = profile?.role ?? null;
   }
 
+  const styleNamesWithClasses = new Set<string>();
   const classesByStyle = new Map<string, typeof classes>();
   for (const cls of classes) {
+    if (cls.style) styleNamesWithClasses.add(cls.style);
     for (const style of [cls.style, ...(cls.secondaryStyles ?? [])]) {
       if (!style) continue;
+      styleNamesWithClasses.add(style);
       const existing = classesByStyle.get(style);
       if (existing) existing.push(cls);
       else classesByStyle.set(style, [cls]);
     }
   }
 
+  const danceStylesWithClasses = danceStyles.filter(s => styleNamesWithClasses.has(s.name));
+
   const featuredCategories = [...classesByStyle.entries()]
     .filter(([, styleClasses]) => styleClasses.length > MIN_CLASSES_FOR_FEATURED_ROW)
     .sort(([, a], [, b]) => b.length - a.length)
     .map(([style, styleClasses]) => ({ style, classes: styleClasses }));
 
-  // "Clases de baile para ti" — un subset acotado y con tope por profesor,
-  // no las 70+ clases publicadas sin curar. `classes` (todas, sin recortar)
-  // sigue pasando intacto como initialClasses: HomeClient también lo usa
-  // para saber qué estilos tienen clases reales (sugerencias del buscador).
+  // "Clases de baile para ti" — un subset acotado y con tope por profesor.
+  // Ya no se serializan todas las clases al cliente, ahorrando ~81 KB de payload.
   const recommendedClasses = selectHomeRecommendedClasses(classes);
+
+  // Sugerencias del buscador con IA: dinámicas según las clases de hoy y generadas por IA.
+  const blogHighlight = toBlogHighlight(posts);
+  const aiSuggestions = await generateCatalogAiSuggestions(classes, supabase);
+
+  // Sección "Clases con profesoras mujeres": solo si hay clases de profesoras etiquetadas (o en desarrollo).
+  const womenClassCount = countClassesTaughtBy(classes, womanTeacherIds);
+  const womenTeachersClassCount = shouldShowWomenSection(womenClassCount, process.env.NEXT_PUBLIC_APP_ENV)
+    ? womenClassCount
+    : null;
 
   const homeJsonLd = {
     '@context': 'https://schema.org',
@@ -171,20 +191,42 @@ export default async function Page() {
 
   return (
     <>
+      <link rel="preconnect" href="https://ik.imagekit.io" crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href="https://ik.imagekit.io" />
+
+      <link
+        rel="preload"
+        as="image"
+        type="image/webp"
+        href="/Background-Mobile.webp"
+        media="(max-width: 767px)"
+        fetchPriority="high"
+      />
+      <link
+        rel="preload"
+        as="image"
+        type="image/webp"
+        href="/Background.webp"
+        media="(min-width: 768px)"
+        fetchPriority="high"
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(homeJsonLd) }}
       />
       <AuthErrorBanner />
       <HomeClient
-        initialClasses={classes}
         recommendedClasses={recommendedClasses}
         featuredCategories={featuredCategories}
         initialTeachers={teachers}
         initialAcademias={academias}
         danceStyles={danceStyles}
+        danceStylesWithClasses={danceStylesWithClasses}
         stats={stats}
         userRole={userRole}
+        aiSuggestions={aiSuggestions}
+        womenTeachersClassCount={womenTeachersClassCount}
+        blogHighlight={blogHighlight}
       />
     </>
   );

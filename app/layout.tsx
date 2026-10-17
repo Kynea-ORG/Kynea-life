@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Hanken_Grotesk, Figtree } from "next/font/google";
 import ImageProviderHealthCheck from "@/components/ImageProviderHealthCheck";
 import LoginSuccessListener from "@/components/LoginSuccessListener";
+import RouteProgressBar from "@/components/RouteProgressBar";
 import { AuthProvider } from "@/components/AuthProvider";
 import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
@@ -25,6 +26,7 @@ const figtree = Figtree({
   variable: "--font-figtree-loaded",
   weight: ["400", "500", "600"],
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -58,6 +60,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${hanken.variable} ${figtree.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
+        <RouteProgressBar />
         <ImageProviderHealthCheck />
         <LoginSuccessListener />
         {GTM_ENABLED && (

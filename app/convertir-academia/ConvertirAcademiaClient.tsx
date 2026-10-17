@@ -11,6 +11,7 @@ import SmartImage from '@/components/SmartImage';
 import PlacesAddressField from '@/components/PlacesAddressField';
 import { DEFAULT_ACADEMIA_COVER } from '@/lib/utils';
 import { compressImage } from '@/lib/images/compressImage';
+import { startRouteProgress } from '@/lib/navigation/progress';
 
 const STEPS = ['Sobre tu academia', 'Ubicación y marca'];
 
@@ -96,6 +97,7 @@ export default function ConvertirAcademiaClient({
         coverImagePosition: coverUrl ? coverPosition : undefined,
         coverImageZoom: coverUrl ? coverZoom : undefined,
       });
+      startRouteProgress();
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo enviar la solicitud.');
@@ -335,10 +337,10 @@ export default function ConvertirAcademiaClient({
               <button
                 onClick={step === STEPS.length - 1 ? handleSubmit : () => setStep(s => s + 1)}
                 disabled={submitting}
-                className="btn-dark flex-1"
+                className={`btn-dark flex-1 ${submitting ? 'cursor-wait disabled:opacity-75' : ''}`}
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {submitting ? 'Enviando…' : step === STEPS.length - 1 ? 'Enviar solicitud' : 'Continuar'}
+                {submitting ? 'Enviando solicitud…' : step === STEPS.length - 1 ? 'Enviar solicitud' : 'Continuar'}
                 {!submitting && <ChevronRight className="w-4 h-4" />}
               </button>
             </div>

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, Star, Globe, Check, UserCheck, ClipboardCheck, Footprints, Shirt, Package, GraduationCap, Backpack } from 'lucide-react';
+import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, ChevronRight, Share2, Navigation, Star, Globe, Check } from 'lucide-react';
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -14,37 +14,29 @@ import type { DanceClass } from '@/lib/types';
 import { isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { trackGenerateLead, trackAuthCtaClick, trackViewItem, trackSaveClass, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
-import LinkifiedText from '@/components/LinkifiedText';
+import { useSavedClass } from '@/lib/hooks/useSavedClass';
+import { trackGenerateLead, trackViewItem, trackTeacherSocialClick, trackSelectProfile } from '@/lib/analytics';
+import ClampedText from '@/components/ClampedText';
+import ClassQuickFacts from '@/components/ClassQuickFacts';
+import ClassPrepList from '@/components/ClassPrepList';
+import ClassSchedule from '@/components/ClassSchedule';
+import ClassPrepDesktop from '@/components/ClassPrepDesktop';
+import { detailChips, detailVenueTile, detailWhenTile } from '@/lib/classes/detailInfo';
 
 export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const router = useRouter();
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
   const [contactType, setContactType] = useState<'whatsapp' | 'instagram'>('whatsapp');
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const { user, isLoggedIn } = useAuth();
+  const { saved, toggleSave } = useSavedClass({ cls, requireAuth: true });
+  const { isLoggedIn } = useAuth();
   const [activeImg, setActiveImg] = useState(0);
   const [justContacted, setJustContacted] = useState<'whatsapp' | 'instagram' | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const contactMode = cls.contactMode ?? 'whatsapp';
   const showWa = contactMode === 'whatsapp' || contactMode === 'both';
   const showIg = contactMode === 'instagram' || contactMode === 'both';
-
-  useEffect(() => {
-    if (!user) return;
-    const supabase = createClient();
-    supabase
-      .from('saved_classes')
-      .select('class_id')
-      .eq('user_id', user.id)
-      .eq('class_id', cls.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setSaved(true);
-      });
-  }, [cls.id, user]);
 
   useEffect(() => {
     trackViewItem({
@@ -74,27 +66,32 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       profileId: cls.teacher.id, profileName: cls.teacher.name, listName: 'clase_detail',
     });
 
-  const toggleSave = async () => {
-    if (!user) {
-      trackAuthCtaClick({ action: 'login', location: 'save_class_gate' });
-      router.push('/login');
+  // Mobile: el botón "atrás" de la foto vuelve a donde estaba la persona (lista con sus filtros, Home…).
+  // Si abrió la clase desde un enlace compartido y no hay historial, va a la lista.
+  const handleBack = () => {
+    if (window.history.length > 1) router.back();
+    else router.push('/clases');
+  };
+
+  // Menú de compartir del celular; si el navegador no lo tiene, copia el enlace y avisa.
+  const handleShare = async () => {
+    const url = `${window.location.origin}${window.location.pathname}`;
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: cls.title, text: `${cls.title} en Kynea`, url });
+      } catch {
+        // La persona cerró el menú: no es un error.
+      }
       return;
     }
-    setSaving(true);
-    const supabase = createClient();
-    if (saved) {
-      const { error } = await supabase.from('saved_classes').delete()
-        .eq('user_id', user.id).eq('class_id', cls.id);
-      if (!error) setSaved(false);
-    } else {
-      const { error } = await supabase.from('saved_classes').insert({ user_id: user.id, class_id: cls.id });
-      // 23505 = already saved (stale local state, e.g. another tab) — treat as success.
-      if (!error || error.code === '23505') {
-        setSaved(true);
-        trackSaveClass({ classId: cls.id, className: cls.title, classStyle: cls.style, teacherId: cls.teacher.id });
-      }
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Sin permiso para copiar: no hay nada más que hacer.
     }
-    setSaving(false);
   };
 
   const triggerContactIncrement = (classId: string) => {
@@ -152,6 +149,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const spotsLeft = cls.availableSpots;
   const isFullyBooked = spotsLeft === 0;
   const mapsHref = buildGoogleMapsUrl({ placeId: cls.placeId, lat: cls.lat, lng: cls.lng, address: cls.address });
+  const hasCoords = cls.lat != null && cls.lng != null;
 
   const priceDisplay = cls.priceType === 'Gratis' ? 'Gratis' : (
     cls.offerPrice ? (
@@ -166,49 +164,83 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
     ) : formatPrice(cls.priceType, cls.price, cls.currency)
   );
 
+  const expiredBanner = (
+    <div className="mb-6 lg:mb-8 p-4 sm:p-5 rounded-2xl bg-neutral-100 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-start gap-3.5">
+        <div>
+          <p className="text-[15px] font-bold text-neutral-900 leading-snug">
+            Esta clase ya finalizó{cls.endDate ? ` el ${formatFriendlyDate(cls.endDate)}` : ''}
+          </p>
+          <p className="text-[13px] text-neutral-600 mt-0.5 leading-normal">
+            Las fechas programadas para este taller o curso ya concluyeron. Puedes consultar directamente al profesor por próximas ediciones o explorar clases similares.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+        <Link
+          href={getProfileUrl(cls.teacher)}
+          onClick={selectTeacherProfile}
+          className="px-4 py-2 text-[13px] font-bold rounded-btn bg-neutral-900 text-white hover:bg-neutral-800 transition-colors whitespace-nowrap"
+        >
+          Ver perfil del profesor
+        </Link>
+        <Link
+          href={`/clases?estilo=${encodeURIComponent(cls.style)}`}
+          className="px-4 py-2 text-[13px] font-bold rounded-btn border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 transition-colors whitespace-nowrap"
+        >
+          Más de {cls.style}
+        </Link>
+      </div>
+    </div>
+  );
+
+  const venueLine = cls.venueName || cls.district ? detailVenueTile(cls) : null;
+  const chips = detailChips(cls, { showSpots: cls.teacher.showSpots, isExpired });
+  const when = detailWhenTile(cls, isExpired);
+  const firstSlot = cls.timeSlots?.[0];
+  const extraSlots = (cls.timeSlots?.length ?? 0) - 1;
+  const spotsInfo = !isExpired && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0;
+  const isAcademia = cls.teacher.type === 'academia';
+
   return (
     <div className="min-h-screen bg-white overflow-x-clip">
-      <Header />
+      {/* En mobile la foto va a sangre con sus propios botones (atrás, compartir, guardar): sin header. */}
+      <Header className="max-lg:hidden" />
 
-      <div className="max-w-[1200px] mx-auto px-6 py-8 w-full min-w-0">
-        <Link href="/clases" className="inline-flex items-center gap-1.5 text-[13px] text-neutral-600 hover:text-neutral-900 mb-6 transition-colors">
-          <ChevronLeft className="w-4 h-4" /> Volver a clases
-        </Link>
-
-        {isExpired && (
-          <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-neutral-100 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div>
-                <p className="text-[15px] font-bold text-neutral-900 leading-snug">
-                  Esta clase ya finalizó{cls.endDate ? ` el ${formatFriendlyDate(cls.endDate)}` : ''}
-                </p>
-                <p className="text-[13px] text-neutral-600 mt-0.5 leading-normal">
-                  Las fechas programadas para este taller o curso ya concluyeron. Puedes consultar directamente al profesor por próximas ediciones o explorar clases similares.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
-              <Link
-                href={getProfileUrl(cls.teacher)}
-                onClick={selectTeacherProfile}
-                className="px-4 py-2 text-[13px] font-bold rounded-btn bg-neutral-900 text-white hover:bg-neutral-800 transition-colors whitespace-nowrap"
+      <div className="max-w-[640px] lg:max-w-[1200px] mx-auto px-4 lg:px-6 pt-0 pb-8 lg:py-8 w-full min-w-0">
+        {/* Desktop: migas de pan y compartir / guardar */}
+        <div className="hidden lg:flex items-center justify-between gap-6 mb-6">
+          <nav aria-label="Migas de pan" className="flex items-center gap-1.5 text-[13px] text-neutral-500 min-w-0">
+            <Link href="/" className="hover:text-neutral-900 transition-colors shrink-0">Inicio</Link>
+            <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <Link href="/clases" className="hover:text-neutral-900 transition-colors shrink-0">Clases</Link>
+            <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <Link href={`/clases?estilo=${encodeURIComponent(cls.style)}`} className="hover:text-neutral-900 transition-colors shrink-0">{cls.style}</Link>
+            <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <span className="text-neutral-900 font-medium truncate">{cls.title}</span>
+          </nav>
+          <div className="flex items-center gap-5 shrink-0">
+            <button type="button" onClick={handleShare} className="flex items-center gap-1.5 text-[13.5px] font-bold text-neutral-900 underline underline-offset-[3px] hover:text-primary transition-colors">
+              <Share2 className="w-4 h-4" aria-hidden="true" /> Compartir
+            </button>
+            {!isExpired && (
+              <button
+                type="button"
+                onClick={toggleSave}
+                className="flex items-center gap-1.5 text-[13.5px] font-bold text-neutral-900 underline underline-offset-[3px] hover:text-primary transition-colors active:scale-95"
               >
-                Ver perfil del profesor
-              </Link>
-              <Link
-                href={`/clases?estilo=${encodeURIComponent(cls.style)}`}
-                className="px-4 py-2 text-[13px] font-bold rounded-btn border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 transition-colors whitespace-nowrap"
-              >
-                Más de {cls.style}
-              </Link>
-            </div>
+                <Bookmark className={`w-4 h-4 ${saved ? 'fill-current animate-pop' : ''}`} aria-hidden="true" /> {saved ? 'Guardado' : 'Guardar'}
+              </button>
+            )}
           </div>
-        )}
+        </div>
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-10">
+        {isExpired && <div className="hidden lg:block">{expiredBanner}</div>}
+
+        <div className="grid lg:grid-cols-[1fr_360px] gap-0 lg:gap-10">
           {/* LEFT COLUMN */}
           <div className="min-w-0">
-            <div className="relative rounded-xl overflow-hidden mb-6 h-80 lg:h-[420px] w-full max-w-full isolate">
+            <div data-testid="detail-hero" className="relative overflow-hidden isolate -mx-4 lg:mx-0 lg:rounded-xl lg:mb-6 h-[280px] lg:h-[420px]">
               {images[activeImg] && (
                 <SmartImage
                   src={images[activeImg]}
@@ -223,19 +255,13 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
               {isExpired && (
                 <div className="absolute inset-0 bg-black/30 pointer-events-none" />
               )}
-              <div className="absolute top-4 left-4 flex gap-2 flex-wrap">
-                {isExpired && (
-                  <span className="badge-gray text-[11px] shadow-xs">
-                    Finalizada
-                  </span>
-                )}
-                <span className="badge-black text-[11px]">{getTypeLabel(cls.type)}</span>
-                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-primary text-white whitespace-nowrap">
-                  {cls.style}
-                </span>
-              </div>
+              {isExpired && (
+                <div className="hidden lg:flex absolute top-4 left-4">
+                  <span className="badge-gray text-[11px] shadow-xs">Finalizada</span>
+                </div>
+              )}
               {images.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                <div data-testid="gallery-dots" className="hidden lg:flex absolute bottom-4 left-1/2 -translate-x-1/2 gap-1.5">
                   {images.map((_, i) => (
                     <button
                       key={i}
@@ -251,162 +277,191 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   ))}
                 </div>
               )}
+
+              {/* Solo mobile: botones flotantes sobre la foto */}
+              <div className="lg:hidden">
+                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/35 to-black/0 pointer-events-none" />
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  aria-label="Volver"
+                  className="absolute left-3 top-3 w-9 h-9 rounded-full bg-white/95 text-neutral-900 flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <div className="absolute right-3 top-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    aria-label="Compartir clase"
+                    className="w-9 h-9 rounded-full bg-white/95 text-neutral-900 flex items-center justify-center active:scale-95 transition-transform"
+                  >
+                    <Share2 className="w-[17px] h-[17px]" />
+                  </button>
+                  {!isExpired && (
+                    <button
+                      type="button"
+                      onClick={toggleSave}
+                      aria-label={saved ? 'Guardado' : 'Guardar clase'}
+                      className="w-9 h-9 rounded-full bg-white/95 text-neutral-900 flex items-center justify-center active:scale-95 transition-transform"
+                    >
+                      <Bookmark className={`w-[17px] h-[17px] ${saved ? 'fill-current animate-pop' : ''}`} />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="mb-6 min-w-0">
-              <h1 className="text-[30px] font-black text-neutral-900 tracking-snug leading-tight mb-2 break-words">{cls.title}</h1>
-              <div className="flex flex-wrap items-center gap-3 text-[15px] text-neutral-600">
-                <span className="font-semibold text-primary bg-primary-bg border border-primary-bg px-2.5 py-0.5 rounded-full text-[13px]">
-                  Nivel {cls.level}
+            <ClassQuickFacts cls={cls} isExpired={isExpired} />
+
+            {/* Título: etiquetas arriba, título y, en mobile, "por <academia>"; en desktop la línea del local */}
+            <div className="mt-5 lg:mt-0 mb-4 lg:mb-5 min-w-0">
+              <div className="flex gap-1.5 mb-2">
+                <span className="badge-black text-[11px]">{getTypeLabel(cls.type)}</span>
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-primary-bg text-primary-dark whitespace-nowrap">
+                  {cls.style}
                 </span>
-                <span>·</span>
-                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="hover:text-neutral-900 font-medium transition-colors hover:underline break-words">
-                  {cls.teacher.name}
-                </Link>
-                {cls.teacher.rating && (
-                  <>
-                    <span>·</span>
-                    <span className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                      <span className="font-semibold text-neutral-900">{cls.teacher.rating}</span>
-                    </span>
-                  </>
-                )}
               </div>
-            </div>
-
-            <div className="mb-8 min-w-0">
-              <p className="text-[15px] text-neutral-600 leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere]"><LinkifiedText text={cls.fullDescription} /></p>
-            </div>
-
-            {cls.whatYouLearn && cls.whatYouLearn.length > 0 && (
-              <div className="mb-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
-                    <GraduationCap className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <h2 className="font-bold text-neutral-900 text-[17px]">¿Qué aprenderás?</h2>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {cls.whatYouLearn.map(item => (
-                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3 min-w-0">
-                      <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree break-words [overflow-wrap:anywhere]">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(cls.forWhom || (cls.requirements && cls.requirements.length > 0)) && (
-              <div className="mb-8 grid sm:grid-cols-2 gap-3">
-                {cls.forWhom && (
-                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
-                        <UserCheck className="w-3.5 h-3.5 text-primary" />
-                      </div>
-                      <h2 className="font-bold text-neutral-900 text-[15px]">¿Para quién es?</h2>
-                    </div>
-                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree break-words [overflow-wrap:anywhere]">{cls.forWhom}</p>
-                  </div>
-                )}
-
-                {cls.requirements && cls.requirements.length > 0 && (
-                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
-                        <ClipboardCheck className="w-3.5 h-3.5 text-primary" />
-                      </div>
-                      <h2 className="font-bold text-neutral-900 text-[15px]">Requisitos</h2>
-                    </div>
-                    <p className="text-[13px] text-neutral-600 leading-relaxed font-figtree break-words [overflow-wrap:anywhere]">{cls.requirements.join(', ')}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {((cls.footwear && cls.footwear.length > 0) || cls.clothing || (cls.toBring && cls.toBring.length > 0)) && (
-              <div className="mb-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
-                    <Backpack className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <h2 className="font-bold text-neutral-900 text-[17px]">¿Qué traer?</h2>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {cls.footwear && cls.footwear.length > 0 && (
-                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3 min-w-0">
-                      <Footprints className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree break-words [overflow-wrap:anywhere]"><strong className="font-sans text-neutral-900">Calzado:</strong> {cls.footwear.join(', ')}</span>
-                    </div>
-                  )}
-                  {cls.clothing && (
-                    <div className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3 min-w-0">
-                      <Shirt className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree break-words [overflow-wrap:anywhere]"><strong className="font-sans text-neutral-900">Ropa:</strong> {cls.clothing}</span>
-                    </div>
-                  )}
-                  {cls.toBring?.map(item => (
-                    <div key={item} className="flex items-start gap-2.5 bg-neutral-50 border border-neutral-200 rounded-md px-4 py-3 min-w-0">
-                      <Package className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span className="text-[13px] text-neutral-700 font-figtree break-words [overflow-wrap:anywhere]">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {cls.lat != null && cls.lng != null && (
-              <div className="hidden lg:block mb-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
-                    <MapPin className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <h2 className="font-bold text-neutral-900 text-[17px]">Ubicación</h2>
-                </div>
-                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} previewImageUrl={cls.mapImageUrl} className="h-64" />
-              </div>
-            )}
-
-            <div className="hidden lg:block border border-neutral-200 rounded-xl p-6">
-              <h2 className="font-bold text-neutral-900 text-[17px] mb-4">
-                {cls.teacher.type === 'academia' ? 'Sobre la academia' : 'Sobre el profesor'}
-              </h2>
-              <div className="flex items-center gap-3.5 mb-4">
-                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="shrink-0">
-                  {cls.teacher.photo ? (
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
-                    </div>
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
-                      {cls.teacher.name.charAt(0)}
-                    </div>
-                  )}
-                </Link>
-                <div className="flex-1 min-w-0">
-                  <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
-                    {cls.teacher.name}
-                  </Link>
-                  <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
-                  {cls.teacher.rating && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                      <span className="text-[13px] font-semibold text-neutral-900">{cls.teacher.rating}</span>
-                      {cls.teacher.totalClasses && (
-                        <span className="text-[13px] text-neutral-400">· {cls.teacher.totalClasses} clases</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {cls.teacher.bio && (
-                <p className="text-[13px] text-neutral-600 leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere] mb-4">
-                  <LinkifiedText text={cls.teacher.bio} />
+              <h1 className="text-[24px] lg:text-[32px] font-black text-neutral-900 tracking-snug leading-[1.15] lg:leading-tight mb-1.5 lg:mb-2 break-words">{cls.title}</h1>
+              {venueLine && (
+                <p data-testid="title-venue" className="hidden lg:flex items-center gap-1.5 text-[15px] text-neutral-600 min-w-0 mb-1">
+                  <MapPin className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                  <span className="truncate">{[venueLine.title, venueLine.sub].filter(Boolean).join(' · ')}</span>
                 </p>
               )}
+              <p data-testid="title-by" className="text-[13px] lg:text-[13.5px] text-neutral-500 break-words mb-2 lg:mb-3">
+                por{' '}
+                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-medium text-neutral-700 underline underline-offset-2 hover:text-primary transition-colors">
+                  {cls.teacher.name}
+                </Link>
+              </p>
+            </div>
+
+            {/* Chips (nivel, modalidad, cupos informativos, 1.ª clase gratis) */}
+            <div data-testid="detail-chips" className="flex flex-wrap gap-2 mb-4 lg:mb-6">
+              {chips.map(c => (
+                <span
+                  key={c.label}
+                  className={`h-8 px-3 rounded-full border flex items-center text-[13px] font-semibold ${c.mobileOnly ? 'lg:hidden' : ''} ${
+                    c.tone === 'green' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-white border-neutral-200 text-neutral-900'
+                  }`}
+                >
+                  {c.label}
+                </span>
+              ))}
+            </div>
+
+            {/* Fila del profesor en mobile */}
+            <Link
+              data-testid="teacher-row"
+              href={getProfileUrl(cls.teacher)}
+              onClick={selectTeacherProfile}
+              className="lg:hidden flex items-center gap-3 p-3 mb-6 rounded-2xl border border-neutral-200 active:bg-neutral-50 transition-colors"
+            >
+              {cls.teacher.photo ? (
+                <div className="relative w-11 h-11 rounded-xl overflow-hidden shrink-0">
+                  <SmartImage src={cls.teacher.photo} alt="" fill sizes="48px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+                </div>
+              ) : (
+                <div className="w-11 h-11 rounded-xl bg-primary-bg text-primary-dark flex items-center justify-center font-extrabold text-[15px] shrink-0">
+                  {cls.teacher.name.charAt(0)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0 leading-snug">
+                <p className="font-bold text-neutral-900 text-[14.5px] truncate">{cls.teacher.name}</p>
+                <p className="text-[12.5px] text-neutral-500 truncate">
+                  {isAcademia ? 'Academia' : 'Profesor'} · {formatExperience(cls.teacher.experience)} de experiencia
+                  {cls.teacher.rating ? ` · ★ ${cls.teacher.rating}` : ''}
+                </p>
+              </div>
+              <ChevronRight className="w-[18px] h-[18px] text-neutral-500 shrink-0" aria-hidden="true" />
+            </Link>
+            {isExpired && <div data-testid="expired-notice-mobile" className="lg:hidden">{expiredBanner}</div>}
+
+            <section className="mb-6 lg:mb-8 min-w-0 lg:pt-8 lg:border-t lg:border-neutral-100">
+              <h2 className="font-extrabold text-neutral-900 text-[18px] lg:text-[20px] mb-2 lg:mb-3">Sobre esta clase</h2>
+              <ClampedText text={cls.fullDescription} className="text-[14.5px] lg:text-[15px] text-neutral-600 leading-relaxed" />
+            </section>
+
+            <ClassPrepList cls={cls} />
+            <ClassPrepDesktop cls={cls} section="learn" />
+            <ClassSchedule cls={cls} />
+            <ClassPrepDesktop cls={cls} section="before" />
+
+            {/* Dónde es: mapa y dirección en una sola tarjeta. El recuadro del mapa bajo la foto (mobile) baja hasta acá. */}
+            {(hasCoords || cls.venueName || cls.address) && (
+              <section id="donde-es" className="mt-6 lg:mt-0 mb-2 lg:mb-8 lg:pt-8 lg:border-t lg:border-neutral-100 scroll-mt-4 min-w-0">
+                <h2 className="font-extrabold text-neutral-900 text-[18px] lg:text-[20px] mb-2.5 lg:mb-4">Dónde es</h2>
+                <div className="border border-neutral-200 rounded-2xl overflow-hidden">
+                  {hasCoords && (
+                    <div className="[&>*]:rounded-none! [&>*]:border-0! [&>*]:border-b! [&>*]:border-neutral-200!">
+                      <MapPreview lat={cls.lat!} lng={cls.lng!} label={`${cls.district}, ${cls.city}`} previewImageUrl={cls.mapImageUrl} className="h-[150px] lg:h-[300px]" />
+                    </div>
+                  )}
+                  <div className="p-3.5 lg:p-4 leading-snug min-w-0 lg:flex lg:items-center lg:justify-between lg:gap-4">
+                    <div className="min-w-0">
+                      {cls.venueName && <p className="font-bold text-neutral-900 text-[14.5px] lg:text-[15px] break-words">{cls.venueName}</p>}
+                      {/* Locales viejos tenían la dirección como nombre: no repetirla. */}
+                      {cls.address && cls.address !== cls.venueName && (
+                        <p className="text-[13px] text-neutral-600 break-words [overflow-wrap:anywhere]">{cls.address}</p>
+                      )}
+                      {cls.reference && <p className="text-[13px] text-neutral-500 break-words [overflow-wrap:anywhere]">{cls.reference}</p>}
+                    </div>
+                    {mapsHref && (
+                      <a
+                        href={mapsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2.5 lg:mt-0 inline-flex items-center gap-1.5 text-[13.5px] font-extrabold text-primary lg:text-neutral-900 lg:h-10 lg:px-4 lg:rounded-btn lg:border lg:border-neutral-900 lg:hover:bg-neutral-50 lg:transition-colors shrink-0"
+                      >
+                        <Navigation className="w-[15px] h-[15px]" aria-hidden="true" /> Cómo llegar
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Sobre la academia / el profesor */}
+            <section data-testid="teacher-card" className="mt-6 lg:mt-0 mb-2 lg:mb-0 lg:pt-8 lg:border-t lg:border-neutral-100 min-w-0">
+              <h2 className="font-extrabold text-neutral-900 text-[18px] lg:text-[20px] mb-3 lg:mb-4">
+                {isAcademia ? 'Sobre la academia' : 'Sobre el profesor'}
+              </h2>
+              <div className="border border-neutral-200 rounded-2xl p-4 lg:p-6 min-w-0">
+                <div className="flex items-center gap-3.5 mb-4">
+                  <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="shrink-0">
+                    {cls.teacher.photo ? (
+                      <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
+                        <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
+                        {cls.teacher.name.charAt(0)}
+                      </div>
+                    )}
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
+                      {cls.teacher.name}
+                    </Link>
+                    <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
+                    {cls.teacher.rating && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                        <span className="text-[13px] font-semibold text-neutral-900">{cls.teacher.rating}</span>
+                        {cls.teacher.totalClasses && (
+                          <span className="text-[13px] text-neutral-400">· {cls.teacher.totalClasses} clases</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {cls.teacher.bio && (
+                  <div className="mb-4">
+                    <ClampedText text={cls.teacher.bio} className="text-[13.5px] lg:text-[14px] text-neutral-600 leading-relaxed" />
+                  </div>
+                )}
 
               <div className="flex flex-wrap gap-3">
                 {cls.teacher.instagram && (
@@ -437,90 +492,135 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                   </a>
                 )}
               </div>
-            </div>
+
+                <Link
+                  href={getProfileUrl(cls.teacher)}
+                  onClick={selectTeacherProfile}
+                  className="mt-4 h-[42px] lg:self-start lg:inline-flex lg:px-6 rounded-xl border border-neutral-300 flex items-center justify-center text-[14px] font-bold text-neutral-900 active:bg-neutral-50 lg:hover:bg-neutral-50 transition-colors"
+                >
+                  {isAcademia ? 'Ver perfil de la academia' : 'Ver perfil del profesor'}
+                </Link>
+              </div>
+            </section>
           </div>
 
-          {/* RIGHT COLUMN */}
-          <div className="min-w-0">
+          {/* RIGHT COLUMN: tarjeta de reserva (solo desktop; en mobile lo cubren los recuadros y la barra fija) */}
+          <div className="hidden lg:block min-w-0">
             <div className="lg:sticky lg:top-24">
-              <div className="border-2 border-neutral-200 rounded-lg p-6 shadow-sm">
-                <div className="flex items-baseline justify-between mb-5">
-                  <div>
-                    {typeof priceDisplay === 'string' ? (
-                      <span className="text-[30px] font-black text-neutral-900 tracking-snug">{priceDisplay}</span>
-                    ) : priceDisplay}
-                  </div>
-                  {cls.isTrialFree && (
-                    <span className="badge-green text-[11px]">1ra clase gratis</span>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-3 mb-5 border-t border-neutral-100 pt-5">
-                  <div className="flex items-start gap-2.5 text-[13px] text-neutral-600">
-                    <Clock className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
-                    <span>{formatTimeSlots(cls.timeSlots)}</span>
-                  </div>
-                  <div className="flex items-start gap-2.5 text-[13px] text-neutral-600 min-w-0">
-                    <MapPin className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      {cls.venueName && <p className="font-semibold text-neutral-900 break-words">{cls.venueName}</p>}
-                      <p className="break-words">{cls.district}, {cls.city}</p>
-                      {/* Older venues had their name defaulted to their own address
-                          (no "nombre del local" field existed yet) — skip the address
-                          line when it would just repeat the name above it. */}
-                      {cls.address && cls.address !== cls.venueName && (
-                        mapsHref ? (
-                          <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="text-neutral-400 mt-0.5 hover:text-neutral-900 hover:underline block break-words [overflow-wrap:anywhere]">
-                            {cls.address}
-                          </a>
-                        ) : (
-                          <p className="text-neutral-400 mt-0.5 break-words [overflow-wrap:anywhere]">{cls.address}</p>
-                        )
-                      )}
-                      {cls.reference && <p className="text-neutral-400 break-words [overflow-wrap:anywhere]">{cls.reference}</p>}
-                    </div>
-                  </div>
-                  {isExpired ? (
-                    <div className="flex items-center gap-2.5 text-[13px] font-medium text-neutral-500">
-                      <Calendar className="w-4 h-4 text-neutral-400 shrink-0" />
-                      <span>
-                        {cls.endDate
-                          ? `Finalizó el ${formatFriendlyDate(cls.endDate)}`
-                          : cls.startDate
-                            ? `Inició el ${formatFriendlyDate(cls.startDate)}`
-                            : 'Clase finalizada'}
-                      </span>
-                    </div>
-                  ) : (
-                    cls.startDate && (
-                      <div className="flex items-center gap-2.5 text-[13px] font-semibold text-neutral-900">
-                        <Calendar className="w-4 h-4 text-primary shrink-0" />
-                        <span>Inicia {formatFriendlyDate(cls.startDate)}</span>
-                      </div>
-                    )
-                  )}
-                  {!isExpired && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
-                    <div className="flex items-center gap-2.5 text-[13px] text-neutral-600">
-                      <Users className="w-4 h-4 text-neutral-400 shrink-0" />
-                      <span>
-                        <strong className={spotsLeft <= 3 ? 'text-yellow-dark' : 'text-neutral-900'}>{spotsLeft}</strong> cupos disponibles
-                        {cls.maxSpots && <span className="text-neutral-400"> de {cls.maxSpots}</span>}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-5 flex flex-wrap items-center gap-2">
-                  {isExpired && (
-                    <span className="badge-gray">
-                      Finalizada
+              <div className="border-2 border-neutral-200 rounded-2xl p-6 shadow-sm bg-white">
+                {/* Chips de tipo, disciplina, nivel y modalidad arriba del precio (mismo orden y estilos que en el encabezado principal) */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-3.5">
+                  {cls.type && (
+                    <span className="badge-black text-[11px] px-2.5 py-0.5 rounded-md">
+                      {getTypeLabel(cls.type)}
                     </span>
                   )}
-                  <span className="badge-gray capitalize">{cls.modality}</span>
-                  {!isExpired && isFullyBooked && <span className="badge-gray">Sin cupos</span>}
-                  <span className="badge-gray capitalize">Nivel {cls.level}</span>
+                  {cls.style && (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-primary-bg text-primary-dark whitespace-nowrap">
+                      {cls.style}
+                    </span>
+                  )}
+                  {cls.level && (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-neutral-200 bg-white text-neutral-800 whitespace-nowrap">
+                      Nivel {cls.level}
+                    </span>
+                  )}
+                  {cls.modality && (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-neutral-200 bg-white text-neutral-800 whitespace-nowrap">
+                      {cls.modality}
+                    </span>
+                  )}
+                  {cls.forWhom && (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-neutral-200 bg-white text-neutral-800 whitespace-nowrap">
+                      {cls.forWhom}
+                    </span>
+                  )}
                 </div>
 
+                {/* Precio en el tope con autoría integrada sutil */}
+                <div className="mb-4">
+                  <div className="flex items-baseline justify-between mb-1.5">
+                    <div>
+                      {typeof priceDisplay === 'string' ? (
+                        <span className="text-[30px] font-black text-neutral-900 tracking-snug">{priceDisplay}</span>
+                      ) : priceDisplay}
+                    </div>
+                    {cls.isTrialFree && (
+                      <span className="badge-green text-[11px]">1ra clase gratis</span>
+                    )}
+                  </div>
+                  <Link
+                    href={getProfileUrl(cls.teacher)}
+                    onClick={selectTeacherProfile}
+                    data-testid="sidebar-teacher"
+                    className="inline-flex items-center gap-1 text-[13.5px] text-neutral-500 hover:text-primary transition-colors group"
+                  >
+                    <span>por <strong className="font-semibold text-neutral-800 group-hover:text-primary group-hover:underline">{cls.teacher.name}</strong></span>
+                    <ChevronRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-primary transition-colors shrink-0" />
+                  </Link>
+                </div>
+
+                {isExpired && (
+                  <span className="badge-gray mb-4 inline-block">Finalizada</span>
+                )}
+
+                {/* Bloque logístico */}
+                {(when?.date || firstSlot || venueLine || cls.modality === 'Online') && (
+                  <div data-testid="booking-when" className="mb-4 rounded-xl border border-neutral-200 divide-y divide-neutral-100 overflow-hidden bg-white">
+                    {when?.date && (
+                      <div className="flex items-center gap-3 px-3.5 py-2.5">
+                        <Calendar className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                        <span className="text-[13.5px] font-semibold text-neutral-900 truncate">
+                          <span className="sr-only">INICIA</span>Inicia el {when.date.big}
+                        </span>
+                      </div>
+                    )}
+                    {firstSlot && (
+                      <div className="flex items-center gap-3 px-3.5 py-2.5">
+                        <Clock className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                        <span className="text-[13.5px] font-semibold text-neutral-900 truncate">
+                          <span className="sr-only">HORARIO</span>{formatTimeSlots([firstSlot])}{extraSlots > 0 ? ` +${extraSlots} más` : ''}
+                        </span>
+                      </div>
+                    )}
+                    {venueLine && (
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('donde-es')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                        className="flex items-center justify-between gap-3 px-3.5 py-2.5 w-full hover:bg-neutral-50 transition-colors group cursor-pointer text-left"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <MapPin className="w-4 h-4 text-primary shrink-0 group-hover:scale-110 transition-transform" aria-hidden="true" />
+                          <span className="text-[13.5px] font-semibold text-neutral-900 truncate">
+                            <span className="sr-only">LUGAR</span>{[venueLine.title, venueLine.sub].filter(Boolean).join(' · ')}
+                          </span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-700 shrink-0" aria-hidden="true" />
+                      </button>
+                    )}
+                    {!venueLine && cls.modality === 'Online' && (
+                      <div className="flex items-center gap-3 px-3.5 py-2.5">
+                        <Globe className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                        <span className="text-[13.5px] font-semibold text-neutral-900 truncate">
+                          <span className="sr-only">MODALIDAD</span>Online en vivo
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Cupos */}
+                {spotsInfo && (
+                  <div className="mb-5 flex items-center gap-2.5 text-[13px] text-neutral-600">
+                    <Users className="w-4 h-4 text-neutral-400 shrink-0" />
+                    <span>
+                      <strong className={spotsLeft! <= 3 ? 'text-yellow-dark' : 'text-neutral-900'}>{spotsLeft}</strong> cupos disponibles
+                      {cls.maxSpots && <span className="text-neutral-400"> de {cls.maxSpots}</span>}
+                    </span>
+                  </div>
+                )}
+
+                {/* Acciones */}
                 <div className="flex flex-col gap-2">
                   {showWa && (
                     <button
@@ -554,9 +654,9 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
                   {!isExpired && (
                     <button
+                      type="button"
                       onClick={toggleSave}
-                      disabled={saving}
-                      className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border border-neutral-900 transition-[background-color,color] active:scale-[0.97] disabled:opacity-60 ${
+                      className={`w-full flex items-center justify-center gap-2 text-[15px] font-semibold py-3 rounded-btn border border-neutral-900 transition-[background-color,color] active:scale-[0.97] ${
                         saved
                           ? 'bg-neutral-900 text-white'
                           : 'text-neutral-700 hover:bg-neutral-50'
@@ -567,99 +667,6 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
                     </button>
                   )}
                 </div>
-
-                {mapsHref && (
-                  <a
-                    href={mapsHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 w-full flex items-center justify-center gap-2 text-[13px] text-neutral-600 hover:text-neutral-900 transition-colors"
-                  >
-                    <MapPin className="w-3.5 h-3.5" /> Ver en Google Maps
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {cls.lat != null && cls.lng != null && (
-              <div className="lg:hidden mt-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-7 h-7 rounded-full bg-primary-bg flex items-center justify-center shrink-0">
-                    <MapPin className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <h2 className="font-bold text-neutral-900 text-[17px]">Ubicación</h2>
-                </div>
-                <MapPreview lat={cls.lat} lng={cls.lng} label={`${cls.district}, ${cls.city}`} previewImageUrl={cls.mapImageUrl} className="h-56" />
-              </div>
-            )}
-
-            <div className="lg:hidden border border-neutral-200 rounded-xl p-6 mt-6 min-w-0">
-              <h2 className="font-bold text-neutral-900 text-[17px] mb-4">
-                {cls.teacher.type === 'academia' ? 'Sobre la academia' : 'Sobre el profesor'}
-              </h2>
-              <div className="flex items-center gap-3.5 mb-4">
-                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="shrink-0">
-                  {cls.teacher.photo ? (
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                      <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
-                    </div>
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
-                      {cls.teacher.name.charAt(0)}
-                    </div>
-                  )}
-                </Link>
-                <div className="flex-1 min-w-0">
-                  <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
-                    {cls.teacher.name}
-                  </Link>
-                  <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
-                  {cls.teacher.rating && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                      <span className="text-[13px] font-semibold text-neutral-900">{cls.teacher.rating}</span>
-                      {cls.teacher.totalClasses && (
-                        <span className="text-[13px] text-neutral-400">· {cls.teacher.totalClasses} clases</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {cls.teacher.bio && (
-                <p className="text-[13px] text-neutral-600 leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere] mb-4">
-                  <LinkifiedText text={cls.teacher.bio} />
-                </p>
-              )}
-
-              <div className="flex flex-wrap gap-3">
-                {cls.teacher.instagram && (
-                  <a
-                    href={buildInstagramUrl(cls.teacher.instagram)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => socialClick('instagram')}
-                    className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
-                  >
-                    <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.instagram, 'instagram')}</span>
-                  </a>
-                )}
-                {cls.teacher.tiktok && (
-                  <a
-                    href={buildTikTokUrl(cls.teacher.tiktok)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => socialClick('tiktok')}
-                    className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
-                  >
-                    <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.tiktok, 'tiktok')}</span>
-                  </a>
-                )}
-                {cls.teacher.website && (
-                  <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium max-w-full">
-                    <Globe className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Sitio web</span>
-                  </a>
-                )}
               </div>
             </div>
           </div>
@@ -669,7 +676,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
       <Footer />
 
       {/* Mobile sticky bottom CTA */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 z-40 flex items-center gap-3">
+      <div data-testid="sticky-bar" className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-4 py-3 z-40 flex items-center gap-3">
         <div className="shrink-0 max-w-[42%] min-w-0">
           {isExpired ? (
             <div>
@@ -682,21 +689,18 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
             </div>
           ) : (
             <>
-              <p className="text-[18px] font-black leading-none flex items-baseline gap-1.5 truncate">
-                {cls.priceType === 'Gratis' ? (
-                  <span className="text-neutral-900">Gratis</span>
-                ) : cls.offerPrice ? (
-                  <>
-                    <span className="text-primary">{formatPrice(cls.priceType, cls.offerPrice, cls.currency)}</span>
-                    <span className="text-[12px] text-neutral-400 line-through font-semibold">
-                      {formatPrice(cls.priceType, cls.price, cls.currency)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
-                )}
+              {/* Precio vigente arriba (morado si hay oferta) y el anterior tachado debajo: así no se corta
+                  cuando hay dos botones de contacto. El nivel ya está en los chips de arriba. */}
+              <p className={`text-[19px] font-black leading-none whitespace-nowrap ${cls.offerPrice && cls.priceType !== 'Gratis' ? 'text-primary' : 'text-neutral-900'}`}>
+                {cls.priceType === 'Gratis'
+                  ? 'Gratis'
+                  : formatPrice(cls.priceType, cls.offerPrice || cls.price, cls.currency)}
               </p>
-              {cls.level && <p className="text-[12px] text-neutral-600 mt-0.5 truncate">Nivel {cls.level}</p>}
+              {cls.offerPrice && cls.priceType !== 'Gratis' && (
+                <p className="text-[12px] text-neutral-400 line-through font-semibold mt-1 whitespace-nowrap">
+                  {formatPrice(cls.priceType, cls.price, cls.currency)}
+                </p>
+              )}
             </>
           )}
         </div>
@@ -733,6 +737,12 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
 
       {/* Extra padding so content isn't hidden behind mobile CTA */}
       <div className="lg:hidden h-20 bg-neutral-900" />
+
+      {copied && (
+        <div role="status" className="lg:hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-neutral-900 text-white text-[13px] font-semibold px-4 py-2 rounded-full shadow-lg animate-fade-in">
+          Enlace copiado
+        </div>
+      )}
 
       {showContact && (
         <ContactModal

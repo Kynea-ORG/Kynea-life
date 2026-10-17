@@ -44,6 +44,17 @@ están implementados** en el código actual:
 - **SEO para Google Sitelinks y Datos Estructurados JSON-LD** — Esquemas `WebSite` (con SearchAction), `Organization`, `SiteNavigationElement` (Sitelinks principales) y `FAQPage` (People Also Ask) en `app/page.tsx`, `metadataBase` en `app/layout.tsx`, y metadatos dedicados en `app/login/layout.tsx` y `app/registro/layout.tsx`.
 - **NoticeBar** — `app/dashboard/NoticeBar.tsx`: modal de aviso `cuenta_existente` que se activa
   cuando un usuario OAuth intenta registrarse con un rol distinto al que ya tiene.
+- **Fix y Consistencia SEO/Analytics en Blog y Creación de Clases (PR #286)** — Disparo de `class_created` en GA4 al crear clases capturando `NEXT_REDIRECT` via `isRedirectError`, metadatos OpenGraph completos (`siteName`, `locale`, `BLOG_FALLBACK_IMAGE`), schema `BlogPosting` con fallback para artículos sin portada, `publisher.logo` unificado como `ImageObject`, RSS blindado contra errores 500 por fechas inválidas y ordenamiento secundario cronológico en consultas del blog.
+- **Autosave Robusto y Corrección de Duplicados en Blog (PR #287)** — Eliminación de condiciones de carrera en el autosave de `BlogPostForm.tsx`, prevención de posts duplicados en la base de datos, sincronización silenciosa de URL (`window.history.replaceState`), estado dinámico del botón de acción (`Guardar cambios` vs `Pasar a borrador`) y temporizadores defensivos en indicadores de guardado.
+- **Optimización de UX en Detalle de Blog (PR #288)** — Eliminación del banner CTA estático e intrusivo al pie de los artículos (`BlogPostClient.tsx`) para priorizar CTAs fluidos e inline dentro del cuerpo del contenido.
+- **Release Consolidado de Blog a Producción (PR #289)** — Despliegue a `main` integrando el módulo de blog público, edición de slugs amigables, mejoras en mapas y analítica GTM.
+- **Métricas GA4 en Blog y Contador de Vistas RPC (PR #290)** — Eventos `view_post`, `select_post`, `blog_category_filter` y función RPC `increment_blog_post_views` (`supabase/migrations/20260921000000_55_blog_post_views.sql`) con deduplicación por sesión.
+- **Migración y Seeding de Artículos Iniciales a Producción (PR #296 & #297)** — Migración SQL idempotente `20260921000001_56_seed_published_blog_posts.sql` con inserciones automáticas a `kynea-prod` vía GitHub Actions (`supabase-prod-push.yml`), reflejando los 3 artículos iniciales publicados en `/blog`.
+- **Actualización Consolidada de Dependencias de Dependabot (PR #298)** — Integración en `develop` de React `19.3.0` (soporte `<ViewTransition />` y fragment refs), `@supabase/supabase-js` `^2.116.0`, `jsdom` `^30.1.0`, `lucide-react` `^1.47.0` y `@upstash/ratelimit` `^2.1.0`, resolviendo y cerrando de forma limpia los PRs individuales de Dependabot (#291–#295) con cero vulnerabilidades en auditoría.
+- **Alineación de Tipos de React en Lockfile (PR #299)** — Actualización de `@types/react` y `@types/react-dom` a `19.3.0` en `package-lock.json` vía Dependabot.
+- **Sincronización y Release de Dependencias a Producción (PR #300)** — Merge de `develop` hacia `main` desplegando a producción el stack actualizado (React 19.3, Supabase-js 2.116, jsdom, lucide, ratelimit) validado con CI en verde.
+- **Búsqueda Semántica Inteligente con IA, pgvector y Optimización UX/Mobile (PR #301)** — Integración de Google Gemini Flash (schema estructurado) y embeddings `text-embedding-004` (768d) con `pgvector` en PostgreSQL (`match_classes_hybrid` en migración `57_pgvector_ai_search.sql`). Cascada inteligente de relajación de filtros, rate limit estricto de 10 req/min por IP en `proxy.ts`, sanitización e input truncation a 120 caracteres, y cache en memoria TTL de 2 horas. Eliminación total del input lag en mobile (0ms de latencia) mediante aislamiento de estado local (`MobileStyleSearchOverlay`), capa GPU `isolate transform-gpu`, flags nativos de teclado virtual y suspensión de timers de fondo. UI de `/resultados` con loading skeleton sobrio, empty states interactivos y badges Lucide Sparkles.
+- **Actualización Consolidada de Dependencias y Documentación (PR #304)** — Bump de `vitest` a `^5.0.1` y `@types/node` a `26.6.2` con cero vulnerabilidades en auditoría, resolviendo los PRs de Dependabot (#302 y #303); actualización de documentación operativa de IA/pgvector en `GEMINI.md` y registro de tareas en `docs/TASKS.md`.
 
 ---
 
@@ -609,6 +620,9 @@ Ver 5.1. El `<select>` de ordenamiento no aplica ningún `.sort()`.
 
 ### Monitoring
 Instalar **Sentry**. Los `catch` de los server actions solo hacen `console.error`.
+
+### Series mensuales — pendientes (PR 2)
+Implementado: calendario anual en el wizard, copias en borrador por mes, publicación automática 14 días antes (`pg_cron`), etiquetas en Mis clases. **Falta:** email al profesor cuando una copia se publica sola o falla (tabla outbox + ruta `app/api/internal/send-class-emails` + Resend; el repo no envía emails propios todavía). Mejora futura: agrupar por `series_id` en resultados de búsqueda y botón "editar toda la serie".
 
 ### Deploy del schema
 Migraciones versionadas en `supabase/migrations/`, aplicadas con `supabase db push` (Supabase CLI).

@@ -60,6 +60,7 @@ export default async function CategoriaDetailPage({
     country:    (sp.country as string | undefined) || undefined,
     district:   (sp.district as string | undefined) || undefined,
     withSpots:  sp.spots === '1' || undefined,
+    womenTeachers: sp.profesoras === '1' || undefined,
   };
 
   let fallbackLocation: { lat: number; lng: number } | null = null;

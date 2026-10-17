@@ -20,6 +20,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { safeRedirectPath } from '@/lib/utils';
 import { trackAuthCtaClick, trackAuthAttempt } from '@/lib/analytics';
+import { startRouteProgress } from '@/lib/navigation/progress';
 
 function getAuthErrorMessage(msg: string): string {
   const m = msg.toLowerCase();
@@ -90,9 +91,11 @@ function RegistroPageContent() {
     // unconfirmed email via enumeration protection). Always proceed: the OTP step will
     // surface any real conflict (already-confirmed account).
     if (data.session) {
+      startRouteProgress();
       router.refresh();
       router.push(nextPath);
     } else {
+      startRouteProgress();
       const confirmDest = `/confirmar-email?email=${encodeURIComponent(form.email)}&role=alumno`;
       router.push(redirectTarget ? `${confirmDest}&redirect=${encodeURIComponent(redirectTarget)}` : confirmDest);
     }
@@ -228,7 +231,7 @@ function RegistroPageContent() {
                 type="submit"
                 disabled={loading || !passwordValid || !termsAccepted}
                 onClick={shift}
-                className="btn-primary w-full mt-1 flex items-center justify-center gap-2"
+                className={`btn-primary w-full mt-1 flex items-center justify-center gap-2 ${loading ? 'cursor-wait disabled:opacity-75' : ''}`}
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? 'Creando cuenta…' : 'Crear cuenta'}
@@ -239,13 +242,13 @@ function RegistroPageContent() {
               type="button"
               onClick={() => { handleGoogle(); shift(); }}
               disabled={googleLoading}
-              className="w-full btn-outline flex items-center justify-center gap-2"
+              className={`w-full btn-outline flex items-center justify-center gap-2 ${googleLoading ? 'cursor-wait disabled:opacity-75' : ''}`}
             >
               {googleLoading
                 ? <Loader2 className="w-4 h-4 animate-spin" />
                 : <GoogleIcon className="w-4 h-4" />
               }
-              Continuar con Google
+              {googleLoading ? 'Conectando con Google…' : 'Continuar con Google'}
             </button>
 
             <p className="text-center text-[13px] text-neutral-400 mt-5">

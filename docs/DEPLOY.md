@@ -22,8 +22,9 @@ En la pantalla de import (o en **Settings → Environment Variables**), agrega e
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (service_role key, Settings → API) |
 | `UPSTASH_REDIS_REST_URL` | `https://<tu-base-de-datos>.upstash.io` (Settings → REST API) |
 | `UPSTASH_REDIS_REST_TOKEN` | `AY...` (Settings → REST API) |
+| `CRON_SECRET` | `<secreto-aleatorio>` (Protección de crons en Vercel) |
 
-`SUPABASE_SERVICE_ROLE_KEY`, `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` son server-only: nunca las expongas con prefijo `NEXT_PUBLIC_` ni las subas al repo.
+`SUPABASE_SERVICE_ROLE_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` y `CRON_SECRET` son server-only: nunca las expongas con prefijo `NEXT_PUBLIC_` ni las subas al repo.
 
 Aplícalas a **Production**, **Preview** y **Development**.
 
@@ -66,6 +67,16 @@ Existen **dos proyectos Supabase** separados:
 |----------|-----|-----|
 | `kynea-dev` | `uibigobubqrolozvrkzd` | Pruebas de migraciones, ambiente desechable |
 | Producción | `hmvonvxgmvwfnhlmrgpg` | Proyecto compartido en vivo |
+
+### Jobs programados (`pg_cron`)
+
+La migración 62 habilita la extensión `pg_cron` y agenda `publish-series-copies` (diario, 11:00 UTC = 06:00 Lima), que publica las copias de series mensuales cuya fecha de publicación ya llegó (`publish_due_series_copies()`). Corre dentro de cada proyecto Supabase, así que existe igual en `kynea-dev` y en producción — no usa Vercel Cron ni variables de entorno. Verificar tras migrar: `select jobname, schedule, active from cron.job;` y, para probar a mano, `select public.publish_due_series_copies();`. Si `pg_cron` no se puede habilitar en el proyecto, la migración falla a propósito (sin el job las copias nunca se publicarían solas).
+
+### Jobs programados en Vercel (`vercel.json`)
+
+Kynea incluye un job programado en Vercel para ejecutar `/api/cron/daily-suggestions` diariamente a las 00:05 Lima (05:05 UTC = `5 5 * * *`).
+- **Seguridad (`CRON_SECRET`)**: Debe agregarse en **Settings → Environment Variables** en Vercel. Vercel la inyecta automáticamente en la cabecera `Authorization: Bearer <CRON_SECRET>` en cada ejecución para proteger el endpoint contra invocaciones externas no autorizadas.
+- Para generar una clave segura: `openssl rand -hex 32`.
 
 ### Flujo local / manual
 

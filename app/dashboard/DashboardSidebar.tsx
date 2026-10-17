@@ -93,6 +93,9 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Modo enfoque: mientras se crea/edita una clase, el wizard ocupa toda la pantalla en
+  // mobile (WizardShell es fixed inset-0), así que no se renderizan las barras mobile.
+  const focusMode = pathname.startsWith('/dashboard/crear-clase');
   const isEditingClass = pathname === '/dashboard/crear-clase' && Boolean(searchParams.get('edit'));
 
   const badge = BADGE[profile.role];
@@ -112,21 +115,25 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
 
   return (
     <>
-      {/* Mobile top bar — logo links back to public home */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-neutral-200 px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="flex items-center">
-          <Image src="/logo.png" alt="Kynea" width={90} height={28} priority />
-        </Link>
-        {profile.photo_url ? (
-          <div className="relative w-8 h-8 rounded-full overflow-hidden border border-neutral-200 shrink-0">
-            <SmartImage src={profile.photo_url} alt="Profile" fill sizes="32px" className="object-cover" />
-          </div>
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
-            {profile.name.charAt(0).toUpperCase()}
-          </div>
-        )}
-      </div>
+      {!focusMode && (
+        <>
+        {/* Mobile top bar — logo links back to public home */}
+        <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-neutral-200 px-4 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center">
+            <Image src="/logo.png" alt="Kynea" width={90} height={28} priority />
+          </Link>
+          {profile.photo_url ? (
+            <div className="relative w-8 h-8 rounded-full overflow-hidden border border-neutral-200 shrink-0">
+              <SmartImage src={profile.photo_url} alt="Profile" fill sizes="32px" className="object-cover" />
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
+              {profile.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+        </>
+      )}
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-neutral-100 shrink-0">
@@ -172,34 +179,38 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
         </div>
       </aside>
 
-      {/* Mobile bottom nav — always includes Perfil as last tab */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50 px-2 py-2">
-        <div className="flex justify-around">
-          {(() => {
-            const perfilItem = NAV.find(i => i.href === '/dashboard/perfil');
-            const others = NAV.filter(i => i.href !== '/dashboard/perfil').slice(0, 4);
-            const mobileItems = perfilItem ? [...others, perfilItem] : NAV.slice(0, 5);
-            return mobileItems.map(item => {
-              const Icon = item.icon;
-              const isCrearClase = item.href === '/dashboard/crear-clase';
-              const active = !(isCrearClase && isEditingClass)
-                && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) || (item.href === '/dashboard/admin/resumen' && pathname.startsWith('/dashboard/admin')));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-[background-color,color,transform] active:scale-90 ${
-                    active ? 'bg-primary-bg text-primary' : 'text-neutral-400 active:text-primary'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-[11px] font-medium">{item.label.split(' ')[0]}</span>
-                </Link>
-              );
-            });
-          })()}
+      {!focusMode && (
+        <>
+        {/* Mobile bottom nav — always includes Perfil as last tab */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50 px-2 py-2">
+          <div className="flex justify-around">
+            {(() => {
+              const perfilItem = NAV.find(i => i.href === '/dashboard/perfil');
+              const others = NAV.filter(i => i.href !== '/dashboard/perfil').slice(0, 4);
+              const mobileItems = perfilItem ? [...others, perfilItem] : NAV.slice(0, 5);
+              return mobileItems.map(item => {
+                const Icon = item.icon;
+                const isCrearClase = item.href === '/dashboard/crear-clase';
+                const active = !(isCrearClase && isEditingClass)
+                  && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) || (item.href === '/dashboard/admin/resumen' && pathname.startsWith('/dashboard/admin')));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-[background-color,color,transform] active:scale-90 ${
+                      active ? 'bg-primary-bg text-primary' : 'text-neutral-400 active:text-primary'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-[11px] font-medium">{item.label.split(' ')[0]}</span>
+                  </Link>
+                );
+              });
+            })()}
+          </div>
         </div>
-      </div>
+        </>
+      )}
     </>
   );
 }

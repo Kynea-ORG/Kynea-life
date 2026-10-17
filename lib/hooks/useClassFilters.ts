@@ -57,6 +57,7 @@ function buildSearchParams(query: string, filters: Filters, includeStyles: boole
   if (filters.country)   p.set('country', filters.country);
   if (filters.district)  p.set('district', filters.district);
   if (filters.withSpots) p.set('spots', '1');
+  if (filters.withWomenTeachers) p.set('profesoras', '1');
   if (vista)             p.set('vista', vista);
   return p;
 }
@@ -73,6 +74,7 @@ function initFiltersFromUrl(sp: ReturnType<typeof useSearchParams>, includeStyle
     country:    sp.get('country') || '',
     district:   sp.get('district') || '',
     withSpots:  sp.get('spots') === '1',
+    withWomenTeachers: sp.get('profesoras') === '1',
     // priceMax and timesOfDay are client-only: not in URL
   };
 }
@@ -196,7 +198,7 @@ export function useClassFilters({ initialClasses, baseUrl, includeStyles }: UseC
     filters.styles.length + filters.levels.length + filters.days.length +
     filters.timesOfDay.length + filters.modalities.length + (filters.priceMax !== null ? 1 : 0) +
     filters.types.length + (filters.withSpots ? 1 : 0) + (filters.city || filters.district ? 1 : 0) +
-    (filters.country ? 1 : 0) + (query ? 1 : 0);
+    (filters.withWomenTeachers ? 1 : 0) + (filters.country ? 1 : 0) + (query ? 1 : 0);
 
   return { query, filters, isPending, results, activeCount, handleQueryChange, handleFiltersChange, handleClearAll };
 }

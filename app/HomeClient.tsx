@@ -1,22 +1,31 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import SmartImage from '@/components/SmartImage';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
-  Search, MapPin, ArrowRight, ArrowLeft, Star, CalendarCheck,
+  Search, MapPin, ArrowRight, Star, CalendarCheck,
   MessageCircle, ChevronLeft, ChevronRight, Loader2, X, Clock,
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ClassCard from '@/components/ClassCard';
 import { TopAnnouncementRibbon, BottomSignupRibbon } from '@/components/HomeRibbons';
-import { getTypeLabel, formatExperience } from '@/lib/utils';
+import { formatExperience } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import HomeCompactSearch from '@/components/home/HomeCompactSearch';
+import HomeFeatureCards from '@/components/home/HomeFeatureCards';
+import type { BlogHighlight } from '@/lib/blog/highlight';
 import { trackAuthCtaClick, trackSearch, trackSelectProfile, trackRecentSearchAdded, trackRecentSearchClicked } from '@/lib/analytics';
 import { recordRecentSearch, getRecentSearches, type RecentSearch } from '@/lib/recentSearches';
 import { resolveSearch } from '@/lib/search/resolveSearch';
+import {
+  AI_SEARCH_LABEL, AI_QUICK_PROMPTS,
+  AI_SUBMIT_LABEL, AI_SUBMIT_LOADING_LABEL,
+} from '@/lib/search/aiSearchCopy';
+import { startRouteProgress } from '@/lib/navigation/progress';
+import type { AiSuggestions } from '@/lib/search/catalogSignals';
 import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import { useRotatingPlaceholder } from '@/lib/hooks/useRotatingPlaceholder';
 import { STYLE_IMAGES, FALLBACK_CATEGORY_IMAGES, CATEGORY_GRADIENTS } from '@/lib/catalog/styleImages';
@@ -31,17 +40,6 @@ export function getMainStyle(cls: SearchClass) {
   return styleRow?.dance_styles ?? null;
 }
 
-// Sorteo sin reemplazo — alimenta el subset "en frío" de estilos sugeridos
-// (ver randomStyles más abajo), re-sorteado cada vez que se abre el buscador.
-function pickRandomStyles(list: DbDanceStyle[], n: number): DbDanceStyle[] {
-  const arr = [...list];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr.slice(0, n);
-}
-
 // Estilo compartido por los dos campos-botón del buscador mobile (F1).
 const MOBILE_SEARCH_TRIGGER_CLASS = 'w-full flex items-center gap-3 border border-neutral-200 rounded-2xl px-4 py-3 text-left cursor-pointer transition-[background-color,border-color,transform] duration-150 hover:border-neutral-300 active:scale-[0.98] active:bg-primary-bg active:border-primary/30';
 
@@ -49,13 +47,16 @@ const MOBILE_SEARCH_TRIGGER_CLASS = 'w-full flex items-center gap-3 border borde
 // buscar por estilo+zona, profesor o academia, no solo por clase. El primero
 // es el texto estático de siempre, para que el primer paint (antes de que
 // el hook empiece a rotar) sea idéntico al de antes.
-const SEARCH_PLACEHOLDER_EXAMPLES = [
+
+const CLASSIC_PLACEHOLDER_EXAMPLES = [
   'Busca clases, academias, profesores…',
   'Salsa en Miraflores…',
-  'Busca a tu profesor favorito…',
   'Bachata los sábados…',
+  'Baile urbano para principiantes…',
   'Nombre de tu academia…',
 ];
+
+
 
 const AVATAR_PALETTE = [
   { bg: 'bg-primary-bg',     text: 'text-primary' },
@@ -86,38 +87,57 @@ interface FeaturedCategory {
 }
 
 interface Props {
-  initialClasses:     DanceClass[];
-  // "Clases de baile para ti" — subset ya acotado/rotado (ver
-  // lib/classes/homeRecommendations.ts). initialClasses sigue siendo la
-  // lista completa, usada acá solo para saber qué estilos tienen clases
-  // reales (sugerencias del buscador).
-  recommendedClasses: DanceClass[];
-  featuredCategories: FeaturedCategory[];
-  initialTeachers:    Teacher[];
-  initialAcademias:   Teacher[];
-  danceStyles:        DbDanceStyle[];
-  stats:              HomeStats;
-  userRole:           'alumno' | 'profesor' | 'academia' | null;
+  recommendedClasses:     DanceClass[];
+  featuredCategories:     FeaturedCategory[];
+  initialTeachers:        Teacher[];
+  initialAcademias:       Teacher[];
+  danceStyles:            DbDanceStyle[];
+  danceStylesWithClasses: DbDanceStyle[];
+  stats:                  HomeStats;
+  userRole:               'alumno' | 'profesor' | 'academia' | null;
+  /** Sugerencias del buscador con IA salidas del catálogo real; si falta, se usan los textos base. */
+  aiSuggestions?:         AiSuggestions;
+  /** Clases dictadas por profesoras (etiquetadas por un admin). null/undefined = no mostrar la sección. */
+  womenTeachersClassCount?: number | null;
+  /** Último artículo publicado del blog para la tarjeta que invita a leerlo. null = no mostrar. */
+  blogHighlight?: BlogHighlight | null;
 }
 
 // ── Featured category row (e.g. Heels, Contemporáneo) ────────────────────
 // Each row owns its own scroll ref, so this can't be inlined in a .map() —
 // hooks can't be called a variable number of times in a loop body.
 // Exported for unit testing.
+// Tarjeta final de los carruseles en mobile: reemplaza al botón "Ver todas las clases" de ancho completo.
+function SeeAllTile({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      prefetch={false}
+      className="md:hidden shrink-0 self-start w-[120px] h-[189px] rounded-2xl border border-neutral-200 bg-white flex flex-col items-center justify-center gap-2 text-center active:scale-[0.97] transition-transform"
+      style={{ scrollSnapAlign: 'start' }}
+    >
+      <span className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+        <ArrowRight className="w-[18px] h-[18px]" aria-hidden="true" />
+      </span>
+      <span className="text-[13.5px] font-extrabold leading-tight text-neutral-900 px-2">Ver todas las clases</span>
+    </Link>
+  );
+}
+
 export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
   const scrollRef = useRef<HTMLDivElement>(null);
   if (classes.length === 0) return null;
 
   return (
-    <section className="bg-white py-16 border-t border-neutral-100">
-      <div className="max-w-[1200px] mx-auto px-6">
-        <div className="flex items-end justify-between gap-6 mb-7 flex-wrap">
+    <section className="bg-white py-6 md:py-16 border-t border-neutral-100">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6">
+        <div className="flex items-end justify-between gap-6 mb-3 md:mb-7 flex-wrap">
           <div>
-            <h2 className="text-[27px] font-extrabold text-neutral-900 tracking-tight">{style}</h2>
-            <p className="text-neutral-600 text-[15px] mt-1">Las clases de {style} más populares</p>
+            <h2 className="text-[20px] md:text-[27px] font-extrabold text-neutral-900 tracking-tight">{style}</h2>
+            <p className="hidden md:block text-neutral-600 text-[15px] mt-1">Las clases de {style} más populares</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href={`/clases?style=${encodeURIComponent(style)}`} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+            <Link href={`/clases?style=${encodeURIComponent(style)}`} prefetch={false} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
               Ver todas →
             </Link>
             <div className="hidden sm:flex items-center gap-2">
@@ -141,37 +161,101 @@ export function FeaturedCategoryRow({ style, classes }: FeaturedCategory) {
 
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-3 pt-1"
+          className="flex gap-3 md:gap-4 overflow-x-auto pb-3 pt-1 -mx-4 px-4 md:mx-0 md:px-0 scroll-pl-4 md:scroll-pl-0"
           style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
         >
           {classes.map(cls => (
-            <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-              <ClassCard cls={cls} compact listName={`home_featured_${style}`} />
+            <div key={cls.id} className="shrink-0 w-[252px] md:w-80" style={{ scrollSnapAlign: 'start' }}>
+              <ClassCard cls={cls} compact mobileLayout="carousel" listName={`home_featured_${style}`} />
             </div>
           ))}
+          <SeeAllTile href={`/clases?style=${encodeURIComponent(style)}`} />
         </div>
       </div>
     </section>
   );
 }
 
+const MobileStyleSearchOverlay = dynamic(
+  () => import('@/components/home/MobileSearchOverlays').then(m => m.MobileStyleSearchOverlay),
+  { ssr: false }
+);
+
+const MobileCitySearchOverlay = dynamic(
+  () => import('@/components/home/MobileSearchOverlays').then(m => m.MobileCitySearchOverlay),
+  { ssr: false }
+);
+
+const AI_ASSISTANT_PLACEHOLDERS = [
+  'Búsqueda inteligente: escribe con tus palabras…',
+  'Pídelo como hablas: salsa en Miraflores…',
+  'Pídelo como hablas: algo para soltar el estrés…',
+  'Pídelo como hablas: clases de heels desde cero…',
+  'Pídelo como hablas: bachata los fines de semana…',
+];
+
 // ── Page ──────────────────────────────────────────────────────────────────
-export default function HomeClient({ initialClasses, recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, stats, userRole }: Props) {
+export default function HomeClient({ recommendedClasses, featuredCategories, initialTeachers, initialAcademias = [], danceStyles, danceStylesWithClasses, stats, userRole, aiSuggestions, womenTeachersClassCount, blogHighlight }: Props) {
+  const aiPlaceholders  = AI_ASSISTANT_PLACEHOLDERS;
+  const aiQuickPrompts = useMemo(() => {
+    if (aiSuggestions?.quickPrompts && aiSuggestions.quickPrompts.length > 0) {
+      return aiSuggestions.quickPrompts.slice(0, 5);
+    }
+    return AI_QUICK_PROMPTS.slice(0, 5);
+  }, [aiSuggestions]);
   const router = useRouter();
   const [query, setQuery]         = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   // Solo mientras navigateSearch() espera a resolveSearch() (un round-trip
   // corto a profiles) — evita un doble submit mientras decide a dónde ir.
   const [isResolvingSearch, setIsResolvingSearch] = useState(false);
-  const rotatingPlaceholder = useRotatingPlaceholder(SEARCH_PLACEHOLDER_EXAMPLES, isSearchFocused || query.trim().length > 0);
+  const [isNavigating, startTransition] = useTransition();
+  const isLoading = isResolvingSearch || isNavigating;
+  const [activePrompt, setActivePrompt] = useState<string | null>(null);
+  const effectivePrompt = isLoading ? activePrompt : null;
+
+  // Modo de búsqueda: siempre Búsqueda con IA por defecto
+  const [isAiMode, setIsAiMode] = useState(true);
+  useEffect(() => {
+    try {
+      localStorage.removeItem('kynea_search_ai_mode');
+    } catch {}
+  }, []);
+
+  const toggleAiMode = () => {
+    setIsAiMode(prev => !prev);
+  };
+
+  // Overlay de búsqueda a pantalla completa en mobile (patrón VRBO: tocar
+  // un campo abre pantalla completa en vez de un dropdown chico). Un
+  // useDelayedUnmount por overlay (mismo patrón que ya usa Header.tsx) en
+  // vez de una sola bandera + ref "recordando" cuál estaba abierto.
+  const [mobileSearch, setMobileSearch] = useState<null | 'style' | 'city'>(null);
+  const shouldRenderStyleSearch = useDelayedUnmount(mobileSearch === 'style', 200);
+  const shouldRenderCitySearch = useDelayedUnmount(mobileSearch === 'city', 200);
+
+  // Pausar animaciones del placeholder brevemente durante la carga inicial
+  const [isRotatingReady, setIsRotatingReady] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsRotatingReady(true), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isPlaceholderPaused = !isRotatingReady || isSearchFocused || query.trim().length > 0 || mobileSearch !== null;
+  const rotatingPlaceholder = useRotatingPlaceholder(
+    isAiMode ? aiPlaceholders : CLASSIC_PLACEHOLDER_EXAMPLES,
+    isPlaceholderPaused
+  );
 
   // Home category strip: fixed display order (HOME_CATEGORY_SLUGS), not the
   // catalog's own ord — falls back to the first 9 by ord if a slug isn't
   // found (e.g. not seeded yet in this environment).
-  const homeCategories = HOME_CATEGORY_SLUGS
-    .map(slug => danceStyles.find(s => s.slug === slug))
-    .filter((s): s is DbDanceStyle => !!s);
-  const displayedCategories = homeCategories.length > 0 ? homeCategories : danceStyles.slice(0, 9);
+  const displayedCategories = useMemo(() => {
+    const homeCategories = HOME_CATEGORY_SLUGS
+      .map(slug => danceStyles.find(s => s.slug === slug))
+      .filter((s): s is DbDanceStyle => !!s);
+    return homeCategories.length > 0 ? homeCategories : danceStyles.slice(0, 9);
+  }, [danceStyles]);
 
   // Read only on mount (client-only, localStorage) — never during SSR, to
   // avoid a hydration mismatch. Empty on first paint is correct: it just
@@ -188,52 +272,31 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const activeSuggestions = query.trim().length >= 2 ? suggestions : { classes: [] as SearchClass[], profiles: [] as SearchProfile[] };
+  // Desktop: cuando el buscador del hero sale por arriba de la pantalla, el
+  // Header pasa a barra blanca fija con una versión compacta del buscador.
+  // El margen de -64px es la altura del Header: se activa justo cuando el
+  // buscador queda detrás de él. En mobile el hero está oculto (display:none),
+  // su top es 0 y nunca se activa.
+  const heroSearchRef = useRef<HTMLDivElement>(null);
+  const [heroSearchOut, setHeroSearchOut] = useState(false);
+  useEffect(() => {
+    const el = heroSearchRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeroSearchOut(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { rootMargin: '-64px 0px 0px 0px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const activeSuggestions = !isAiMode && query.trim().length >= 2 ? suggestions : { classes: [] as SearchClass[], profiles: [] as SearchProfile[] };
 
   // ── Ciudad (segundo campo del buscador) — filtro cliente sobre
   // stats.cityNames (ya viene de fetchHomeStats), sin query nueva.
   const [city, setCity] = useState('');
-  const [cityOpen, setCityOpen] = useState(false);
-  const [activeCityIndex, setActiveCityIndex] = useState(-1);
-  const cityRef = useRef<HTMLDivElement>(null);
-  const filteredCities = stats.cityNames
-    .filter(c => c.toLowerCase().includes(city.trim().toLowerCase()))
-    .slice(0, 8);
 
-  // Estilos con al menos una clase publicada — evita sugerir estilos
-  // "fantasma" sin nada que mostrar si se eligen. Misma fuente que
-  // featuredCategories en app/page.tsx (initialClasses), sin pedir una
-  // query aparte.
-  const styleNamesWithClasses = new Set<string>();
-  for (const cls of initialClasses) {
-    styleNamesWithClasses.add(cls.style);
-    for (const s of cls.secondaryStyles ?? []) styleNamesWithClasses.add(s);
-  }
-  const danceStylesWithClasses = danceStyles.filter(s => styleNamesWithClasses.has(s.name));
 
-  // Sugerencia "en frío" (sin texto tipeado) de la sección "Estilos": un
-  // subset al azar de 4, re-sorteado cada vez que se abre el buscador — para
-  // no mostrar siempre los mismos 4 primeros por orden alfabético.
-  const [randomStyles, setRandomStyles] = useState<DbDanceStyle[]>(
-    () => danceStylesWithClasses.slice(0, 4)
-  );
-
-  // Estilos que matchean el texto tipeado — alimenta la sección "Estilos"
-  // del dropdown desktop y el overlay mobile de búsqueda (filtro cliente,
-  // sin query nueva). Sin texto tipeado, usa el subset al azar de arriba.
-  const matchingStyles = query.trim().length > 0
-    ? danceStylesWithClasses
-        .filter(s => s.name.toLowerCase().includes(query.trim().toLowerCase()))
-        .slice(0, 4)
-    : randomStyles;
-
-  // Overlay de búsqueda a pantalla completa en mobile (patrón VRBO: tocar
-  // un campo abre pantalla completa en vez de un dropdown chico). Un
-  // useDelayedUnmount por overlay (mismo patrón que ya usa Header.tsx) en
-  // vez de una sola bandera + ref "recordando" cuál estaba abierto.
-  const [mobileSearch, setMobileSearch] = useState<null | 'style' | 'city'>(null);
-  const shouldRenderStyleSearch = useDelayedUnmount(mobileSearch === 'style', 200);
-  const shouldRenderCitySearch = useDelayedUnmount(mobileSearch === 'city', 200);
 
   // Bloqueo de scroll en body mientras el overlay mobile esté abierto
   useEffect(() => {
@@ -247,6 +310,8 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   }, [mobileSearch]);
 
   useEffect(() => {
+    if (isAiMode) return;
+
     const q = query.trim();
     if (q.length < 2) return;
 
@@ -295,17 +360,13 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       active = false;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, isAiMode]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
         setActiveOptionIndex(-1);
-      }
-      if (cityRef.current && !cityRef.current.contains(e.target as Node)) {
-        setCityOpen(false);
-        setActiveCityIndex(-1);
       }
     }
     document.addEventListener('mousedown', onClickOutside);
@@ -319,18 +380,26 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   // ── Carousel auto-scroll ──
   const carouselRef = useRef<HTMLDivElement>(null);
   const carouselPausedRef = useRef(false);
+  const mobileSearchRef = useRef(mobileSearch);
+  mobileSearchRef.current = mobileSearch;
   useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
-    const interval = setInterval(() => {
-      if (carouselPausedRef.current) return;
-      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
-        el.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        el.scrollBy({ left: 320, behavior: 'smooth' });
-      }
-    }, 3000);
-    return () => clearInterval(interval);
+    let interval: NodeJS.Timeout | null = null;
+    const timeout = setTimeout(() => {
+      interval = setInterval(() => {
+        if (carouselPausedRef.current || mobileSearchRef.current !== null) return;
+        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
+          el.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          el.scrollBy({ left: 320, behavior: 'smooth' });
+        }
+      }, 3500);
+    }, 4000);
+    return () => {
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   const numClasses = activeSuggestions.classes.length;
@@ -345,9 +414,13 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   // texto era en realidad un profesor o academia — buscar "Zeus" daba
   // "0 clases" aunque el dropdown ya lo había encontrado segundos antes.
   // resolveSearch decide el destino real; ver lib/search/resolveSearch.ts.
-  const navigateSearch = async () => {
-    const trimmedQuery = query.trim();
+  const navigateSearch = async (overrideQuery?: string | React.MouseEvent | React.FormEvent) => {
+    const rawQuery = typeof overrideQuery === 'string' ? overrideQuery : query;
+    const trimmedQuery = rawQuery.trim();
     const trimmedCity = city.trim();
+    if (typeof overrideQuery === 'string') {
+      setQuery(overrideQuery);
+    }
     if (trimmedQuery || trimmedCity) trackSearch({ searchTerm: trimmedQuery, city: trimmedCity });
     setShowSuggestions(false);
     setActiveOptionIndex(-1);
@@ -356,7 +429,19 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
     if (!trimmedQuery) {
       const params = new URLSearchParams();
       if (trimmedCity) params.set('city', trimmedCity);
-      router.push(`/clases${params.size ? `?${params.toString()}` : ''}`);
+      startRouteProgress();
+      startTransition(() => {
+        router.push(`/clases${params.size ? `?${params.toString()}` : ''}`);
+      });
+      return;
+    }
+
+    // Si el modo IA está activo, navegar con transición a /resultados (activa feedback inmediato y streaming)
+    if (isAiMode) {
+      const params = new URLSearchParams({ q: trimmedQuery });
+      startTransition(() => {
+        router.push(`/resultados?${params.toString()}`);
+      });
       return;
     }
 
@@ -364,7 +449,6 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
     const resolution = await resolveSearch(trimmedQuery, danceStyles).catch(
       () => ({ type: 'ambiguous' as const })
     );
-    setIsResolvingSearch(false);
 
     if (resolution.type === 'style') {
       const params = new URLSearchParams({ style: resolution.styleName });
@@ -377,7 +461,10 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         recordRecentSearch({ query: trimmedQuery, href, resultLabel: resolution.styleName });
         trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: resolution.styleName });
       }
-      router.push(href);
+      startRouteProgress();
+      startTransition(() => {
+        router.push(href);
+      });
       return;
     }
 
@@ -385,7 +472,10 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       const href = resolution.role === 'academia' ? `/academias/${resolution.slug}` : `/profesores/${resolution.slug}`;
       recordRecentSearch({ query: trimmedQuery, href, resultLabel: resolution.name });
       trackRecentSearchAdded({ query: trimmedQuery, classId: '', classStyle: '' });
-      router.push(href);
+      startRouteProgress();
+      startTransition(() => {
+        router.push(href);
+      });
       return;
     }
 
@@ -397,7 +487,9 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
     const params = new URLSearchParams({ q: trimmedQuery });
     if (trimmedCity) params.set('city', trimmedCity);
     const href = `/resultados?${params.toString()}`;
-    router.push(href);
+    startTransition(() => {
+      router.push(href);
+    });
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -406,6 +498,14 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   };
 
   const handleQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isAiMode) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        navigateSearch();
+      }
+      return;
+    }
+
     if (!showSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
       setShowSuggestions(true);
       return;
@@ -434,33 +534,6 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         } else {
           navigateSearch();
         }
-      }
-    }
-  };
-
-  const handleCityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!cityOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-      setCityOpen(true);
-      return;
-    }
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (filteredCities.length > 0) {
-        setActiveCityIndex(prev => (prev + 1) % filteredCities.length);
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (filteredCities.length > 0) {
-        setActiveCityIndex(prev => (prev <= 0 ? filteredCities.length - 1 : prev - 1));
-      }
-    } else if (e.key === 'Escape') {
-      setCityOpen(false);
-      setActiveCityIndex(-1);
-    } else if (e.key === 'Enter') {
-      if (cityOpen && activeCityIndex >= 0 && activeCityIndex < filteredCities.length) {
-        e.preventDefault();
-        pickCity(filteredCities[activeCityIndex]);
       }
     }
   };
@@ -505,32 +578,48 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
   }
   function pickCity(name: string) {
     setCity(name);
-    setCityOpen(false);
-    setActiveCityIndex(-1);
     setMobileSearch(null);
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <main id="main-content" className="min-h-screen bg-white">
       <TopAnnouncementRibbon />
 
       {/* ── HERO — desktop (A1) ── */}
       <div className="hidden md:block relative bg-[#1A1A19] min-h-[400px] z-20">
         <div className="absolute inset-0 overflow-hidden">
-          <Image
-            src="/Background.webp"
-            alt="Bailarina en movimiento"
-            fill
-            priority
-            sizes="1440px"
-            className="object-cover"
-            style={{ objectPosition: '50% 0%' }}
-          />
+          <picture className="w-full h-full">
+            <source media="(max-width: 767px)" srcSet="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+            <source media="(min-width: 768px)" srcSet="/Background.webp" />
+            <img
+              src="/Background.webp"
+              alt="Bailarina en movimiento"
+              width={1440}
+              height={700}
+              decoding="sync"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: '50% 0%' }}
+            />
+          </picture>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.55) 0%, rgba(13,13,13,.35) 38%, rgba(13,13,13,.72) 100%)' }} />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(138,17,188,.30) 0%, rgba(13,13,13,0) 55%)' }} />
         </div>
 
-        <Header transparent homeNav />
+        <Header
+          transparent
+          homeNav
+          compact={heroSearchOut}
+          compactSearch={
+            <HomeCompactSearch
+              value={query}
+              onChange={setQuery}
+              onSubmit={navigateSearch}
+              isAiMode={isAiMode}
+              isLoading={isLoading}
+              placeholder={isAiMode ? (rotatingPlaceholder || AI_SEARCH_LABEL) : 'Busca clases, academias, profesores…'}
+            />
+          }
+        />
 
         <div className="relative z-10 max-w-[1240px] mx-auto px-6 pt-[84px] text-center">
           <h1 className="font-black text-[52px] leading-[1.08] tracking-[-0.03em] text-white mb-4">
@@ -541,297 +630,110 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
           </p>
         </div>
 
-        <div className="relative z-20 max-w-[880px] mx-auto px-6">
-          <form onSubmit={handleSearch} className="w-full bg-white rounded-3xl shadow-2xl p-2 flex items-stretch gap-1">
+        <div ref={heroSearchRef} className="relative z-20 max-w-[880px] mx-auto px-6">
+          <div className="relative group">
             <div
-              className="flex-[1.6] relative flex items-center gap-3 px-5 py-2.5 rounded-2xl min-w-0"
-              ref={searchRef}
-              onFocusCapture={() => {
-                setCityOpen(false);
-                setActiveCityIndex(-1);
-              }}
-              onBlur={e => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  setShowSuggestions(false);
-                  setActiveOptionIndex(-1);
-                }
-              }}
-            >
-              <Search className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
-              <div className="text-left min-w-0 flex-1 min-h-[34px]">
-                <p className="font-bold text-[12px] text-neutral-900 leading-none">¿Qué quieres bailar?</p>
-                <input
-                  type="text"
-                  placeholder={isSearchFocused ? '' : rotatingPlaceholder}
-                  value={query}
-                  onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
-                  onFocus={() => {
-                    setIsSearchFocused(true);
-                    setShowSuggestions(true);
-                    setCityOpen(false);
-                    setActiveCityIndex(-1);
-                    setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4));
-                  }}
-                  onBlur={() => setIsSearchFocused(false)}
-                  onKeyDown={handleQueryKeyDown}
-                  role="combobox"
-                  aria-expanded={showSuggestions && (hasSuggestions || isSearching || query.trim().length >= 2)}
-                  aria-autocomplete="list"
-                  aria-controls="query-autocomplete-list"
-                  aria-activedescendant={activeOptionIndex >= 0 ? `query-option-${activeOptionIndex}` : undefined}
-                  className="w-full mt-0.5 min-h-[20px] text-[14.5px] leading-[20px] text-neutral-500 placeholder:text-neutral-700 outline-none bg-transparent truncate"
-                />
-              </div>
-              {query.length > 0 && !isSearching && (
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => { setQuery(''); setActiveOptionIndex(-1); }}
-                  aria-label="Limpiar búsqueda"
-                  className="text-neutral-400 hover:text-neutral-600 p-1 rounded-full transition-colors shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              {isSearching && <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0" />}
-
-              {/* Autocomplete dropdown */}
-              {showSuggestions && (isSearching || hasSuggestions || query.trim().length >= 2) && (
-                <div
-                  id="query-autocomplete-list"
-                  role="listbox"
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 z-50 max-h-[420px] overflow-y-auto overflow-x-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95"
-                >
-
-                  {isSearching && (
-                    <div className="flex items-center gap-2 px-4 py-3 text-[13px] text-neutral-400">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando…
-                    </div>
-                  )}
-
-                  {!isSearching && !hasSuggestions && matchingStyles.length === 0 && (
-                    <p className="px-4 py-3 text-[13px] text-neutral-400">
-                      Sin resultados para &ldquo;{query}&rdquo;
-                    </p>
-                  )}
-
-                  {/* Styles */}
-                  {matchingStyles.length > 0 && (
-                    <div>
-                      <div className="px-4 pt-3 pb-1">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Estilos</span>
-                      </div>
-                      {matchingStyles.map(s => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onMouseDown={e => e.preventDefault()}
-                          onClick={() => pickStyle(s.name)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition-colors text-left"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0">
-                            <Search className="w-4 h-4 text-primary" />
-                          </div>
-                          <span className="text-[14px] font-semibold text-neutral-900">{s.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Classes */}
-                  {activeSuggestions.classes.length > 0 && (
-                    <div>
-                      <div className="px-4 pt-3 pb-1">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Clases</span>
-                      </div>
-                      {activeSuggestions.classes.map((cls, i) => {
-                        const mainStyle = getMainStyle(cls);
-                        const isActive = activeOptionIndex === i;
-                        return (
-                          <button
-                            key={cls.id}
-                            id={`query-option-${i}`}
-                            role="option"
-                            aria-selected={isActive}
-                            type="button"
-                            onMouseDown={e => e.preventDefault()}
-                            onClick={() => goToClass(cls)}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
-                              isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'
-                            }`}
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-primary-bg flex items-center justify-center shrink-0 text-sm">
-                              💃
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[14px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                              <p className="text-[11px] text-neutral-400">{mainStyle?.name ? `${mainStyle.name} · ` : ''}{getTypeLabel(cls.type)}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Profiles */}
-                  {activeSuggestions.profiles.length > 0 && (
-                    <div className={activeSuggestions.classes.length > 0 ? 'border-t border-neutral-100' : ''}>
-                      <div className="px-4 pt-3 pb-1">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Profesores</span>
-                      </div>
-                      {activeSuggestions.profiles.map((p, pIdx) => {
-                        const globalIdx = numClasses + pIdx;
-                        const isActive = activeOptionIndex === globalIdx;
-                        return (
-                          <button
-                            key={p.id}
-                            id={`query-option-${globalIdx}`}
-                            role="option"
-                            aria-selected={isActive}
-                            type="button"
-                            onMouseDown={e => e.preventDefault()}
-                            onClick={() => goToProfile(p)}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
-                              isActive ? 'bg-neutral-100' : 'hover:bg-neutral-50'
-                            }`}
-                          >
-                            {p.photo_url ? (
-                              <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
-                                <SmartImage src={p.photo_url} alt={p.name} fill sizes="32px" className="object-cover" />
-                              </div>
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
-                                {p.name.charAt(0)}
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[14px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                              <p className="text-[11px] text-neutral-400 capitalize">{p.role}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {hasSuggestions && (
-                    <div className={`border-t border-neutral-100 px-4 py-2.5 ${activeOptionIndex === numClasses + numProfiles ? 'bg-neutral-100' : ''}`}>
-                      <button
-                        type="button"
-                        id={`query-option-${numClasses + numProfiles}`}
-                        role="option"
-                        aria-selected={activeOptionIndex === numClasses + numProfiles}
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={navigateSearch}
-                        disabled={isResolvingSearch}
-                        className="text-[13px] text-primary font-semibold hover:underline w-full text-left disabled:opacity-60"
-                      >
-                        Ver todos los resultados de &ldquo;{query}&rdquo; →
-                      </button>
-                    </div>
-                  )}
+              aria-hidden="true"
+              className="absolute -inset-[3.5px] rounded-[30px] ai-border-gradient animate-ai-shimmer blur-lg opacity-75 pointer-events-none"
+            />
+            <div className="relative p-[2.5px] rounded-[26px] ai-border-gradient animate-ai-shimmer shadow-[0_16px_48px_rgba(0,0,0,0.4)] overflow-hidden">
+              {/* Barra de progreso fluida superior durante búsqueda inteligente */}
+              {isLoading && (
+                <div className="absolute top-0 left-6 right-6 h-[2.5px] bg-primary/10 rounded-full overflow-hidden z-30">
+                  <div className="h-full w-1/3 bg-gradient-to-r from-primary via-purple-500 to-pink-500 rounded-full animate-indeterminate" />
                 </div>
               )}
-            </div>
-
-            <div className="w-px bg-neutral-200 my-2" />
-
-            <div
-              className="flex-1 relative flex items-center gap-3 px-5 py-2.5 min-w-0"
-              ref={cityRef}
-              onFocusCapture={() => {
-                setShowSuggestions(false);
-                setActiveOptionIndex(-1);
-              }}
-              onBlur={e => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  setCityOpen(false);
-                  setActiveCityIndex(-1);
-                }
-              }}
-            >
-              <MapPin className="w-[19px] h-[19px] text-neutral-400 shrink-0" />
-              <div className="text-left min-w-0 flex-1">
-                <p className="font-bold text-[12px] text-neutral-900 leading-none">¿En qué ciudad?</p>
-                <input
-                  type="text"
-                  placeholder="¿Dónde bailas?"
-                  value={city}
-                  onChange={e => { setCity(e.target.value); setActiveCityIndex(-1); }}
-                  onFocus={() => {
-                    setCityOpen(true);
-                    setShowSuggestions(false);
-                    setActiveOptionIndex(-1);
-                  }}
-                  onKeyDown={handleCityKeyDown}
-                  role="combobox"
-                  aria-expanded={cityOpen && filteredCities.length > 0}
-                  aria-autocomplete="list"
-                  aria-controls="city-autocomplete-list"
-                  aria-activedescendant={activeCityIndex >= 0 ? `city-option-${activeCityIndex}` : undefined}
-                  className="w-full mt-0.5 text-[14.5px] text-neutral-500 placeholder:text-neutral-500 outline-none bg-transparent truncate"
-                />
-              </div>
-
-              {city.length > 0 && (
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => { setCity(''); setActiveCityIndex(-1); }}
-                  aria-label="Limpiar ciudad"
-                  className="text-neutral-400 hover:text-neutral-600 p-1 rounded-full transition-colors shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-
-              {cityOpen && filteredCities.length > 0 && (
-                <div
-                  id="city-autocomplete-list"
-                  role="listbox"
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-neutral-200 py-1.5 z-50 max-h-[280px] overflow-y-auto overflow-x-hidden origin-top transition-[opacity,transform] duration-150 ease-out starting:opacity-0 starting:scale-95"
-                >
-                  {filteredCities.map((c, idx) => {
-                    const isActive = activeCityIndex === idx;
-                    return (
-                      <button
-                        key={c}
-                        id={`city-option-${idx}`}
-                        role="option"
-                        aria-selected={isActive}
-                        type="button"
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => pickCity(c)}
-                        className={`w-full text-left px-4 py-2.5 text-[13.5px] transition-colors ${
-                          isActive ? 'bg-neutral-100 font-bold text-neutral-900' : 'text-neutral-700 hover:bg-neutral-50'
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    );
-                  })}
+              <form
+                onSubmit={handleSearch}
+                className="w-full bg-white rounded-[23.5px] p-2 flex items-center gap-3 transition-all relative"
+              >
+                <div className="pl-3.5 shrink-0">
+                  <Search className="w-5 h-5 text-primary shrink-0" />
                 </div>
-              )}
-            </div>
 
-            <button
-              type="submit"
-              disabled={isResolvingSearch}
-              onFocus={() => {
-                setCityOpen(false);
-                setShowSuggestions(false);
-                setActiveCityIndex(-1);
-                setActiveOptionIndex(-1);
-              }}
-              className="shrink-0 flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-black text-[15px] px-8 rounded-[18px] cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait"
-            >
-              {isResolvingSearch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Buscar
-            </button>
-          </form>
+                <div className="text-left min-w-0 flex-1 py-1">
+                  <p className="text-[11.5px] leading-[15px] font-bold text-primary select-none truncate">
+                    {AI_SEARCH_LABEL}
+                  </p>
+                  <input
+                    type="text"
+                    disabled={isLoading}
+                    placeholder={isSearchFocused ? '' : rotatingPlaceholder}
+                    value={query}
+                    onChange={e => { setQuery(e.target.value); setActiveOptionIndex(-1); }}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                    onKeyDown={handleQueryKeyDown}
+                    className="w-full text-[15px] md:text-[16px] placeholder:text-[13.5px] md:placeholder:text-[15px] font-normal leading-[22px] text-neutral-900 placeholder:text-neutral-400 outline-none bg-transparent truncate mt-0.5 disabled:cursor-wait"
+                  />
+                </div>
+
+                {query.length > 0 && !isSearching && !isLoading && (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => { setQuery(''); setActiveOptionIndex(-1); }}
+                    aria-label="Limpiar búsqueda"
+                    className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-full transition-colors shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="shrink-0 font-black text-[15px] px-8 py-3.5 rounded-2xl cursor-pointer transition-all active:scale-[0.98] disabled:opacity-85 disabled:cursor-wait text-white bg-primary hover:bg-primary-dark shadow-xs inline-flex items-center gap-2"
+                >
+                  {isLoading && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
+                  <span>{isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL}</span>
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Sugerencias rápidas: Línea 1 (encabezado) / Línea 2 (frases) */}
+          {aiQuickPrompts.length > 0 && (
+            <div className="mt-4 space-y-2 text-left">
+              <div className="flex items-center gap-1.5 px-1">
+                <span className="text-white/85 font-semibold text-[13px] tracking-wide">
+                  Búsqueda inteligente, prueba sugerencias como:
+                </span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 [mask-image:linear-gradient(to_right,black_calc(100%-48px),transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-48px),transparent_100%)]">
+                {aiQuickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => {
+                      setActivePrompt(prompt);
+                      setQuery(prompt);
+                      trackSearch({ searchTerm: prompt, city: '' });
+                      const params = new URLSearchParams({ q: prompt });
+                      startTransition(() => {
+                        router.push(`/resultados?${params.toString()}`);
+                      });
+                    }}
+                    className={`shrink-0 backdrop-blur-md border shadow-xs rounded-full px-3.5 py-1.5 transition-all text-[12.5px] font-medium cursor-pointer whitespace-nowrap inline-flex items-center gap-1.5 disabled:cursor-wait ${
+                      effectivePrompt === prompt
+                        ? 'bg-white/40 border-white text-white animate-pulse'
+                        : 'bg-white/20 hover:bg-white/30 active:bg-white/40 border-white/30 hover:border-white/45 text-white disabled:opacity-40'
+                    }`}
+                  >
+                    {effectivePrompt === prompt && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-white" />
+                    )}
+                    <span>{prompt}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="relative z-10 max-w-[880px] mx-auto px-6 text-center mt-[22px] pb-9">
-          <Link href="/clases" className="inline-flex items-center gap-2 font-bold text-[14.5px] text-white underline underline-offset-4 hover:text-white/80 transition-colors">
+          <Link href="/clases" prefetch={false} className="inline-flex items-center gap-2 font-bold text-[14.5px] text-white underline underline-offset-4 hover:text-white/80 transition-colors">
             Explorar todas las clases
             <ArrowRight className="w-[15px] h-[15px]" />
           </Link>
@@ -842,16 +744,20 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       <div className="md:hidden bg-white">
         <Header transparent homeNav />
 
-        <div className="relative overflow-hidden pb-7">
-          <Image
-            src="/Background-Mobile.webp"
-            alt="Bailarina en movimiento"
-            fill
-            priority
-            sizes="(max-width: 768px) 100vw, 0vw"
-            className="absolute inset-0 object-cover"
-            style={{ objectPosition: '55% 25%' }}
-          />
+        <div className="relative overflow-hidden pb-7 min-h-[380px]">
+          <picture className="absolute inset-0 w-full h-full">
+            <source media="(min-width: 768px)" srcSet="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+            <source media="(max-width: 767px)" srcSet="/Background-Mobile.webp" />
+            <img
+              src="/Background-Mobile.webp"
+              alt="Bailarina en movimiento"
+              width={360}
+              height={540}
+              decoding="sync"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ objectPosition: '55% 25%' }}
+            />
+          </picture>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(13,13,13,.5) 0%, rgba(13,13,13,.15) 45%, rgba(13,13,13,0) 100%)' }} />
 
           <div className="relative z-10 px-6 pt-10">
@@ -860,211 +766,103 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
             </h1>
           </div>
 
-          <div className="relative z-10 mx-5 mt-7 bg-white rounded-3xl shadow-xl p-5 flex flex-col gap-2.5">
-            <button type="button" onClick={() => { setMobileSearch('style'); setRandomStyles(pickRandomStyles(danceStylesWithClasses, 4)); }}
-              className={MOBILE_SEARCH_TRIGGER_CLASS}>
-              <Search className="w-[19px] h-[19px] text-primary shrink-0" />
-              <div className="min-w-0 flex-1 min-h-[38px]">
-                <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿Qué quieres bailar?</p>
-                <p className="text-[15px] leading-[20px] mt-0.5 truncate">
-                  {query
-                    ? <span className="text-neutral-900">{query}</span>
-                    : <span className="text-neutral-700">{rotatingPlaceholder}</span>
-                  }
-                </p>
+          <div className="relative z-10 mx-5 mt-7">
+            <div className="bg-white rounded-[24px] p-4 shadow-xl border border-neutral-100 flex flex-col gap-2.5">
+              <div className="p-[2.5px] rounded-[18px] ai-border-gradient animate-ai-shimmer">
+                <button
+                  type="button"
+                  onClick={() => setMobileSearch('style')}
+                  className="w-full flex items-center gap-3 bg-white rounded-[15.5px] px-3.5 py-2.5 text-left cursor-pointer transition-all active:scale-[0.99]"
+                >
+                    {isLoading ? (
+                      <Loader2 className="w-[19px] h-[19px] text-primary shrink-0 animate-spin" />
+                    ) : (
+                      <Search className="w-[19px] h-[19px] text-primary shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1 min-h-[38px]">
+                      <p className={`text-[11.5px] leading-[16px] font-bold ${isAiMode ? 'text-primary' : 'text-neutral-900'}`}>
+                        {isAiMode ? AI_SEARCH_LABEL : '¿Qué quieres bailar?'}
+                      </p>
+                      <p className="text-[13px] sm:text-[14px] leading-[19px] mt-0.5 truncate">
+                        {query
+                          ? <span className="text-neutral-900">{query}</span>
+                          : <span className="text-neutral-500">{rotatingPlaceholder}</span>
+                        }
+                      </p>
+                    </div>
+                  </button>
+                </div>
+
+                {!isAiMode && (
+                  <button type="button" onClick={() => setMobileSearch('city')}
+                    className={MOBILE_SEARCH_TRIGGER_CLASS}>
+                    <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
+                    <div className="min-w-0 flex-1 min-h-[38px]">
+                      <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿En qué ciudad?</p>
+                      <p className="text-[15px] leading-[20px] text-neutral-900 mt-0.5 truncate">
+                        {city || '¿Dónde bailas?'}
+                      </p>
+                    </div>
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  onClick={navigateSearch}
+                  disabled={isLoading}
+                  className="w-full font-black text-[15.5px] text-white rounded-full py-3.5 mt-1.5 cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-75 disabled:cursor-wait flex items-center justify-center bg-primary hover:bg-primary-dark active:bg-primary-dark shadow-[0_6px_16px_rgba(138,17,188,.35)] active:shadow-[0_2px_6px_rgba(138,17,188,.3)]"
+                >
+                  <span>{isLoading ? AI_SUBMIT_LOADING_LABEL : AI_SUBMIT_LABEL}</span>
+                </button>
+
+                <Link href="/clases" prefetch={false} className="block text-center font-bold text-[13.5px] text-primary mt-1 py-1 active:opacity-60 transition-opacity">
+                  Explorar clases
+                </Link>
               </div>
-            </button>
-
-            <button type="button" onClick={() => setMobileSearch('city')}
-              className={MOBILE_SEARCH_TRIGGER_CLASS}>
-              <MapPin className="w-[19px] h-[19px] text-primary shrink-0" />
-              <div className="min-w-0 flex-1 min-h-[38px]">
-                <p className="text-[11.5px] leading-[16px] font-bold text-neutral-900">¿En qué ciudad?</p>
-                <p className="text-[15px] leading-[20px] text-neutral-900 mt-0.5 truncate">
-                  {city || '¿Dónde bailas?'}
-                </p>
-              </div>
-            </button>
-
-            <button type="button" onClick={navigateSearch} disabled={isResolvingSearch}
-              className="w-full font-black text-[15.5px] text-white bg-primary hover:bg-primary-dark active:bg-primary-dark rounded-full py-3.5 mt-1.5 shadow-[0_6px_16px_rgba(138,17,188,.35)] cursor-pointer transition-[background-color,transform,box-shadow] duration-150 active:scale-[0.97] active:shadow-[0_2px_6px_rgba(138,17,188,.3)] disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2">
-              {isResolvingSearch && <Loader2 className="w-4 h-4 animate-spin" />}
-              Buscar
-            </button>
-
-            <Link href="/clases" className="block text-center font-bold text-[13.5px] text-primary mt-1 py-1 active:opacity-60 transition-opacity">
-              Explorar clases
-            </Link>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* ── Overlay mobile: buscador de estilo (G2) ── */}
       {shouldRenderStyleSearch && (
-        <div className={`md:hidden fixed inset-0 z-[60] bg-white flex flex-col transition-transform duration-200 ease-out starting:translate-y-full ${mobileSearch === 'style' ? 'translate-y-0' : 'translate-y-full'}`}>
-          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
-            <button type="button" onClick={() => setMobileSearch(null)} aria-label="Volver">
-              <ArrowLeft className="w-5 h-5 text-neutral-900" />
-            </button>
-            <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border-2 border-primary rounded-xl px-3.5 py-2.5">
-              <Search className="w-[17px] h-[17px] text-primary shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                placeholder={isSearchFocused ? '' : rotatingPlaceholder}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                className="flex-1 min-w-0 min-h-[22px] text-[16px] leading-[22px] text-neutral-900 placeholder:text-neutral-700 outline-none bg-transparent"
-              />
-              {query.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  aria-label="Limpiar búsqueda"
-                  className="text-neutral-400 hover:text-neutral-600 p-1 shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto pb-8">
-            {matchingStyles.length > 0 && (
-              <div className="pt-4">
-                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Estilos</p>
-                {matchingStyles.map(s => (
-                  <button key={s.id} type="button" onClick={() => pickStyle(s.name)}
-                    className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
-                    <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0">
-                      <Search className="w-[17px] h-[17px] text-primary" />
-                    </div>
-                    <span className="text-[14.5px] text-neutral-900">{s.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {isSearching && (
-              <div className="flex items-center gap-2 px-5 py-4 text-[13px] text-neutral-400">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando…
-              </div>
-            )}
-
-            {!isSearching && activeSuggestions.classes.length === 0 && activeSuggestions.profiles.length === 0 && matchingStyles.length === 0 && query.trim().length >= 2 && (
-              <p className="px-5 py-4 text-[13px] text-neutral-400">Sin resultados para &ldquo;{query}&rdquo;</p>
-            )}
-
-            {activeSuggestions.classes.length > 0 && (
-              <div className="pt-4">
-                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Clases</p>
-                {activeSuggestions.classes.map(cls => {
-                  const mainStyle = getMainStyle(cls);
-                  return (
-                    <button key={cls.id} type="button" onClick={() => goToClass(cls)}
-                      className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
-                      <div className="w-[34px] h-[34px] rounded-[10px] bg-primary-bg flex items-center justify-center shrink-0 text-sm">💃</div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{cls.title}</p>
-                        <p className="text-[11.5px] text-neutral-400">{mainStyle?.name ? `${mainStyle.name} · ` : ''}{getTypeLabel(cls.type)}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {activeSuggestions.profiles.length > 0 && (
-              <div className="pt-4">
-                <p className="px-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">Profesores</p>
-                {activeSuggestions.profiles.map(p => (
-                  <button key={p.id} type="button" onClick={() => goToProfile(p)}
-                    className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-neutral-50 transition-colors text-left">
-                    {p.photo_url ? (
-                      <div className="relative w-[34px] h-[34px] rounded-full overflow-hidden shrink-0">
-                        <SmartImage src={p.photo_url} alt={p.name} fill sizes="34px" className="object-cover" />
-                      </div>
-                    ) : (
-                      <div className="w-[34px] h-[34px] rounded-full bg-neutral-200 flex items-center justify-center text-[13px] font-bold text-neutral-600 shrink-0">
-                        {p.name.charAt(0)}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[14.5px] font-semibold text-neutral-900 truncate">{p.name}</p>
-                      <p className="text-[11.5px] text-neutral-400 capitalize">{p.role}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* A diferencia del dropdown de escritorio, este overlay de
-                mobile no tiene un botón "Buscar" aparte siempre visible —
-                sin este link, una búsqueda sin sugerencias directas (p.ej.
-                "profesor Zeus Villanueva", que solo resuelve vía
-                resolveSearch, no vía el autocompletado literal) se queda
-                sin forma de confirmarse en mobile. Por eso se muestra
-                incluso en el estado "Sin resultados", no solo cuando
-                hasSuggestions. */}
-            {!isSearching && query.trim().length >= 2 && (
-              <div className="px-5 pt-4">
-                <button type="button" onClick={navigateSearch} disabled={isResolvingSearch} className="text-[13.5px] font-bold text-primary disabled:opacity-60">
-                  Ver todos los resultados para &ldquo;{query}&rdquo; →
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <MobileStyleSearchOverlay
+          key={mobileSearch === 'style' ? 'style-open' : 'style-closed'}
+          isOpen={mobileSearch === 'style'}
+          shouldRender={shouldRenderStyleSearch}
+          initialQuery={query}
+          isAiMode={isAiMode}
+          quickPrompts={aiQuickPrompts}
+          toggleAiMode={toggleAiMode}
+          isLoading={isLoading}
+          danceStylesWithClasses={danceStylesWithClasses}
+          onClose={(finalQuery) => {
+            setQuery(finalQuery);
+            setMobileSearch(null);
+          }}
+          onSearch={(finalQuery) => {
+            navigateSearch(finalQuery);
+          }}
+          pickStyle={pickStyle}
+          goToClass={goToClass}
+          goToProfile={goToProfile}
+          rotatingPlaceholder={rotatingPlaceholder}
+        />
       )}
 
       {/* ── Overlay mobile: buscador de ciudad (G3) ── */}
       {shouldRenderCitySearch && (
-        <div className={`md:hidden fixed inset-0 z-[60] bg-white flex flex-col transition-transform duration-200 ease-out starting:translate-y-full ${mobileSearch === 'city' ? 'translate-y-0' : 'translate-y-full'}`}>
-          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-neutral-100 shrink-0">
-            <button type="button" onClick={() => setMobileSearch(null)} aria-label="Volver">
-              <ArrowLeft className="w-5 h-5 text-neutral-900" />
-            </button>
-            <div className="flex-1 flex items-center gap-2.5 bg-neutral-50 border-2 border-primary rounded-xl px-3.5 py-2.5">
-              <MapPin className="w-[17px] h-[17px] text-primary shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                placeholder="Busca tu ciudad…"
-                value={city}
-                onChange={e => setCity(e.target.value)}
-                className="flex-1 min-w-0 text-[16px] text-neutral-900 outline-none bg-transparent"
-              />
-              {city.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setCity('')}
-                  aria-label="Limpiar ciudad"
-                  className="text-neutral-400 hover:text-neutral-600 p-1 shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto pb-8">
-            <p className="px-5 pt-5 pb-1.5 text-[11px] font-extrabold tracking-widest uppercase text-neutral-400">
-              {city.trim() ? 'Ciudades' : 'Ciudades populares'}
-            </p>
-            {filteredCities.length === 0 && (
-              <p className="px-5 py-3 text-[13px] text-neutral-400">Sin resultados para &ldquo;{city}&rdquo;</p>
-            )}
-            {filteredCities.map(c => (
-              <button key={c} type="button" onClick={() => pickCity(c)}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-neutral-50 transition-colors text-left">
-                <MapPin className="w-[17px] h-[17px] text-neutral-400 shrink-0" />
-                <span className="text-[14.5px] font-semibold text-neutral-900">{c}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <MobileCitySearchOverlay
+          key={mobileSearch === 'city' ? 'city-open' : 'city-closed'}
+          isOpen={mobileSearch === 'city'}
+          shouldRender={shouldRenderCitySearch}
+          initialCity={city}
+          cityNames={stats.cityNames}
+          onClose={(finalCity) => {
+            setCity(finalCity);
+            setMobileSearch(null);
+          }}
+          onPickCity={pickCity}
+        />
       )}
 
       {/* ── CATEGORÍAS ── */}
@@ -1072,7 +870,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         <div className="max-w-[1200px] mx-auto px-6">
           <div className="flex items-end justify-between mb-4">
             <h2 className="text-[22px] font-extrabold text-neutral-900 tracking-tight">Categorías</h2>
-            <Link href="/categorias" className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors whitespace-nowrap">
+            <Link href="/categorias" prefetch={false} className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors whitespace-nowrap">
               Ver todas <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -1084,6 +882,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
               <Link
                 key={style.id}
                 href={`/clases?style=${encodeURIComponent(style.name)}`}
+                prefetch={false}
                 className="relative shrink-0 w-[168px] h-[152px] rounded-2xl border border-neutral-900 cursor-pointer group select-none block overflow-hidden"
               >
                 {/* Background: curated photo per style, falls back to a generic one if not uploaded yet */}
@@ -1092,7 +891,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                     className="absolute inset-0 -z-10"
                     style={{ background: CATEGORY_GRADIENTS[i % CATEGORY_GRADIENTS.length] }}
                   />
-                  <Image
+                  <SmartImage
                     src={STYLE_IMAGES[style.slug] ?? FALLBACK_CATEGORY_IMAGES[i % FALLBACK_CATEGORY_IMAGES.length]}
                     alt=""
                     aria-hidden="true"
@@ -1149,16 +948,19 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
         </section>
       )}
 
+      {/* ── DESTACADOS: clases con profesoras (izquierda) + blog (derecha) ── */}
+      <HomeFeatureCards womenClassCount={womenTeachersClassCount} blogHighlight={blogHighlight} />
+
       {/* ── CLASES ESTA SEMANA ── */}
-      <section className="bg-neutral-50 py-16">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="flex items-end justify-between mb-6">
+      <section className="bg-neutral-50 py-6 md:py-16">
+        <div className="max-w-[1200px] mx-auto px-4 md:px-6">
+          <div className="flex items-end justify-between mb-3 md:mb-6">
             <div>
-              <h2 className="text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases de baile para ti</h2>
-              <p className="text-neutral-600 text-[15px] mt-1">Seleccionadas para ti</p>
+              <h2 className="text-[20px] md:text-[30px] font-extrabold text-neutral-900 tracking-snug">Clases de baile para ti</h2>
+              <p className="hidden md:block text-neutral-600 text-[15px] mt-1">Seleccionadas para ti</p>
             </div>
-            <div className="hidden sm:flex items-center gap-3">
-              <Link href="/clases" className="flex items-center gap-1 text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors">
+            <div className="flex items-center gap-3">
+              <Link href="/clases" prefetch={false} className="flex items-center gap-1 text-[13.5px] md:text-[15px] text-primary font-semibold hover:text-primary-dark transition-colors whitespace-nowrap">
                 Ver todas <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -1181,16 +983,17 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
 
               <div
                 ref={carouselRef}
-                className="flex gap-4 overflow-x-auto pb-4"
+                className="flex gap-3 md:gap-4 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 scroll-pl-4 md:scroll-pl-0"
                 style={{ scrollbarWidth: 'none', scrollSnapType: 'x mandatory', msOverflowStyle: 'none' } as React.CSSProperties}
                 onMouseEnter={() => { carouselPausedRef.current = true; }}
                 onMouseLeave={() => { carouselPausedRef.current = false; }}
               >
                 {recommendedClasses.map(cls => (
-                  <div key={cls.id} className="shrink-0 w-72 sm:w-80" style={{ scrollSnapAlign: 'start' }}>
-                    <ClassCard cls={cls} compact listName="home_recommended" />
+                  <div key={cls.id} className="shrink-0 w-[252px] md:w-80" style={{ scrollSnapAlign: 'start' }}>
+                    <ClassCard cls={cls} compact mobileLayout="carousel" listName="home_recommended" />
                   </div>
                 ))}
+                <SeeAllTile href="/clases" />
               </div>
 
               <button
@@ -1203,9 +1006,6 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
             </div>
           )}
 
-          <div className="mt-6 text-center sm:hidden">
-            <Link href="/clases" className="btn-outline">Ver todas las clases</Link>
-          </div>
         </div>
       </section>
 
@@ -1231,6 +1031,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
               <div className="flex items-center gap-3">
                 <Link
                   href="/academias"
+                  prefetch={false}
                   className="text-[15px] font-semibold text-white hover:text-white/70 transition-colors whitespace-nowrap"
                 >
                   Ver todas →
@@ -1269,6 +1070,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                 <Link
                   key={t.id}
                   href={`/academias/${t.slug}`}
+                  prefetch={false}
                   onClick={() => trackSelectProfile({ role: 'academia', profileId: t.id, profileName: t.name, listName: 'home_academias' })}
                   className="group relative shrink-0 w-[250px] sm:w-[280px] aspect-[3/4] rounded-2xl overflow-hidden transition-transform duration-300 ease-out hover:-translate-y-1"
                   style={{ scrollSnapAlign: 'start' }}
@@ -1347,7 +1149,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                 <p className="text-neutral-600 text-[15px] mt-1">Los mejores instructores de Latinoamérica</p>
               </div>
               <div className="flex items-center gap-3">
-                <Link href="/profesores" className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
+                <Link href="/profesores" prefetch={false} className="text-[15px] font-semibold text-primary hover:text-primary-dark transition-colors whitespace-nowrap">
                   Ver todos →
                 </Link>
                 <div className="hidden sm:flex items-center gap-2">
@@ -1380,6 +1182,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                   <Link
                     key={t.id}
                     href={`/profesores/${t.slug}`}
+                    prefetch={false}
                     onClick={() => trackSelectProfile({ role: 'profesor', profileId: t.id, profileName: t.name, listName: 'home_profesores' })}
                     className="shrink-0 w-[210px] rounded-2xl border border-neutral-200 bg-white overflow-hidden transition-[box-shadow,border-color,transform] duration-150 ease-out hover:border-neutral-300 hover:shadow-[0_12px_28px_rgba(17,17,17,0.08)] hover:-translate-y-0.5 active:scale-[0.98]"
                     style={{ scrollSnapAlign: 'start' }}
@@ -1407,7 +1210,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
                     </div>
                     <div className="px-4 pt-3.5 pb-4">
                       <h3 className="font-bold text-neutral-900 text-[16px] leading-tight mb-0.5 truncate">{t.name}</h3>
-                      {t.nationality && <p className="text-[12.5px] text-neutral-400 mb-2.5 truncate">{t.nationality}</p>}
+                      {t.nationality && <p className="text-[12.5px] text-neutral-500 font-medium mb-2.5 truncate">{t.nationality}</p>}
                       <div className="flex flex-wrap gap-1.5 mb-3 min-h-[26px]">
                         {t.styles.slice(0, 2).map(s => (
                           <span key={s} className="badge-pink text-[11.5px] px-2.5 py-1">{s}</span>
@@ -1454,7 +1257,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
           </div>
 
           <div className="flex justify-center mt-12">
-            <Link href="/clases" className="btn-dark">Empezar a buscar →</Link>
+            <Link href="/clases" prefetch={false} className="btn-dark">Empezar a buscar →</Link>
           </div>
         </div>
       </section>
@@ -1470,7 +1273,7 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
               Publica tus clases gratis y llega a cientos de alumnos en toda Latinoamérica. Sin comisiones.
             </p>
             <div className="flex justify-center">
-              <Link href="/profesores/unete" onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
+              <Link href="/profesores/unete" prefetch={false} onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_teacher_cta' })} className="btn-hero">Publicar mi primera clase →</Link>
             </div>
           </div>
         </section>
@@ -1479,6 +1282,6 @@ export default function HomeClient({ initialClasses, recommendedClasses, feature
       <Footer />
 
       <BottomSignupRibbon />
-    </div>
+    </main>
   );
 }

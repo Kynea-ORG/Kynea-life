@@ -6,8 +6,10 @@ import { createClient } from '@/lib/supabase/server';
 import { assertRole } from '@/lib/auth/assertRole';
 import { lookupLevelId, lookupStyleId } from '@/lib/catalog/lookups';
 import {
-  findOrCreateVenue, venueNeedsUpdate, insertClassStyles, insertClassSchedules, buildClassColumns,
+  findOrCreateVenue, venueNeedsUpdate, insertClassStyles, insertClassSchedules, buildClassColumns, getTodayLima,
 } from './helpers';
+import { parseSeriesMonths } from './series';
+import { createSeriesCopies } from './seriesCopies';
 import {
   validateForPublish, formDataToValidationInput, dbRowToValidationInput, parsePublishError,
 } from './validation';
@@ -120,13 +122,40 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
     return { ok: false, error: { code: 'VALIDATION', message: 'Error al asociar horarios a la clase' } };
   }
 
+  // Copias mensuales (serie): una por mes marcado en el calendario del wizard, en borrador.
+  // Solo al crear una clase Mensual. No pasan por el rate limit: se cuenta 1 por createClass.
+  // Si la original sale publicada, las copias se programan para publicarse solas 14 días antes.
+  const seriesMonths = cols.recurrence === 'mensual'
+    ? parseSeriesMonths(formData.get('seriesMonths') as string | null, getTodayLima(), cols.start_date ?? '')
+    : [];
+  let seriesCopies = 0;
+  if (seriesMonths.length > 0) {
+    const series = await createSeriesCopies(supabase, {
+      originalId: classId,
+      teacherId: user.id,
+      months: seriesMonths,
+      autoPublish: cols.status === 'published',
+    });
+    if (!series.ok) {
+      // Todo o nada: sin las copias que el profesor pidió, no dejamos una original a medias.
+      await supabase.from('classes').delete().eq('id', classId);
+      return { ok: false, error: { code: 'VALIDATION', message: series.message } };
+    }
+    seriesCopies = series.createdIds.length;
+  }
+
   revalidatePath('/dashboard/mis-clases');
   revalidatePath('/clases');
   revalidatePath('/');
   safeRevalidateTag('classes', 'max');
   safeRevalidateTag('stats', 'max');
   safeRevalidateTag('catalog', 'max');
-  redirect(cols.status === 'published' ? '/dashboard/mis-clases?published=1' : '/dashboard/mis-clases');
+
+  const params = new URLSearchParams();
+  if (cols.status === 'published') params.set('published', '1');
+  if (seriesCopies > 0) params.set('series', String(seriesCopies));
+  const query = params.toString();
+  redirect(query ? `/dashboard/mis-clases?${query}` : '/dashboard/mis-clases');
 }
 
 export async function updateClass(classId: string, updates: ClassUpdatePayload): Promise<ClassActionResult> {
@@ -248,6 +277,23 @@ export async function duplicateClass(classId: string) {
     styleRows.length  ? supabase.from('class_styles').insert(styleRows)   : Promise.resolve(),
     schedRows.length  ? supabase.from('class_schedules').insert(schedRows) : Promise.resolve(),
   ]);
+
+  revalidatePath('/dashboard/mis-clases');
+}
+
+// Una copia de serie en borrador deja de publicarse sola (el profesor la publicará a mano o la borrará).
+export async function cancelAutoPublish(classId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+  await assertRole(supabase, user.id, ['profesor', 'academia']);
+
+  const { error } = await supabase
+    .from('classes')
+    .update({ auto_publish_at: null })
+    .eq('id', classId)
+    .eq('teacher_id', user.id);
+  if (error) throw new Error(error.message);
 
   revalidatePath('/dashboard/mis-clases');
 }

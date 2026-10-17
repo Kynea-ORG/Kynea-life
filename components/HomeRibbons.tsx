@@ -86,6 +86,7 @@ export function BottomSignupRibbon() {
         </div>
         <Link
           href="/registro"
+          prefetch={false}
           onClick={() => trackAuthCtaClick({ action: 'registro', location: 'home_bottom_ribbon' })}
           className="font-sans w-full sm:w-auto text-center text-[14px] font-bold text-white bg-neutral-900 border border-neutral-900 rounded-full px-5 py-2.5 hover:bg-neutral-800 transition-colors active:scale-[0.97] whitespace-nowrap"
         >
