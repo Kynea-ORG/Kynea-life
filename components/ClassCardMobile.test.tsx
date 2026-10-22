@@ -43,7 +43,7 @@ describe.each(['carousel', 'row'] as const)('ClassCardMobile · %s', layout => {
     expect(screen.getByText('Principiante')).toBeInTheDocument();
     expect(screen.getByText('Freesoul Studio · Miraflores')).toBeInTheDocument();
     expect(screen.getByText(`Inicia ${formatFriendlyDate('2099-09-14')} · 20:30–22:00`)).toBeInTheDocument();
-    expect(screen.getByText('S/120/mes')).toBeInTheDocument();
+    expect(screen.getByText('PEN 120/mes')).toBeInTheDocument();
   });
 
   it('muestra el tipo de publicación como etiqueta (Taller, Evento, Programa…)', () => {
@@ -72,8 +72,8 @@ describe.each(['carousel', 'row'] as const)('ClassCardMobile · %s', layout => {
 
   it('con oferta tacha el precio base y destaca el de oferta', () => {
     render(<ClassCardMobile cls={makeClass({ price: 240, offerPrice: 230 })} layout={layout} listName="test" />);
-    expect(screen.getByText('S/240/mes')).toHaveClass('line-through');
-    expect(screen.getByText('S/230/mes')).toBeInTheDocument();
+    expect(screen.getByText('PEN 240/mes')).toHaveClass('line-through');
+    expect(screen.getByText('PEN 230/mes')).toBeInTheDocument();
   });
 
   it('una clase finalizada lo indica en vez de cuándo inicia', () => {

@@ -321,7 +321,7 @@ export function buildFilterChips(filters: AiSearchFilters, tags: string[]): Filt
   if (filters.style) addChip({ kind: 'style', label: filters.style });
   if (filters.district) addChip({ kind: 'district', label: filters.district });
   if (filters.city) addChip({ kind: 'city', label: filters.city });
-  if (filters.maxPrice) addChip({ kind: 'price', label: `Hasta S/ ${filters.maxPrice}` });
+  if (filters.maxPrice) addChip({ kind: 'price', label: `Hasta PEN ${filters.maxPrice}` });
   if (filters.daysOfWeek?.length) {
     const label = [...filters.daysOfWeek].sort((a, b) => a - b).map(d => DAY_LABELS[d]).join(', ');
     addChip({ kind: 'days', label });

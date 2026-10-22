@@ -21,9 +21,11 @@ import ClassQuickFacts from '@/components/ClassQuickFacts';
 import ClassPrepList from '@/components/ClassPrepList';
 import ClassSchedule from '@/components/ClassSchedule';
 import ClassPrepDesktop from '@/components/ClassPrepDesktop';
+import ClaseDetailMobileLegacy from './ClaseDetailMobileLegacy';
 import { detailChips, detailVenueTile, detailWhenTile } from '@/lib/classes/detailInfo';
 
-export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
+/** Desktop (≥ lg): rediseño actual. En mobile se muestra ClaseDetailMobileLegacy. */
+export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
   const router = useRouter();
   const isExpired = isClassExpired(cls);
   const [showContact, setShowContact] = useState(false);
@@ -203,7 +205,7 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
   const isAcademia = cls.teacher.type === 'academia';
 
   return (
-    <div className="min-h-screen bg-white overflow-x-clip">
+    <div className="max-lg:hidden min-h-screen bg-white overflow-x-clip">
       {/* En mobile la foto va a sangre con sus propios botones (atrás, compartir, guardar): sin header. */}
       <Header className="max-lg:hidden" />
 
@@ -753,5 +755,14 @@ export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
         />
       )}
     </div>
+  );
+}
+
+export default function ClaseDetailClient({ cls }: { cls: DanceClass }) {
+  return (
+    <>
+      <ClaseDetailMobileLegacy cls={cls} />
+      <ClaseDetailDesktop cls={cls} />
+    </>
   );
 }
