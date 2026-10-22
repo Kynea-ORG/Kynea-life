@@ -29,7 +29,7 @@ export interface MapPin {
   lng: number;
   /** Rendered inside the pin's title attribute (native browser tooltip). */
   title?: string;
-  /** Text on the pin's pill (e.g. "S/150/mes"). Omit for a plain dot pin —
+  /** Text on the pin's pill (e.g. "PEN 150/mes"). Omit for a plain dot pin —
    * used by MapPreview's single-location view, where there's nothing to
    * distinguish it from. */
   pillLabel?: string;

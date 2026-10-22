@@ -79,7 +79,7 @@ describe('buildFilterChips', () => {
       ['Para niños'],
     );
     expect(chips.map(c => c.label)).toEqual([
-      'Salsa', 'Miraflores', 'Hasta S/ 50', 'Sáb, Dom', 'Noche', 'Para niños',
+      'Salsa', 'Miraflores', 'Hasta PEN 50', 'Sáb, Dom', 'Noche', 'Para niños',
     ]);
   });
 

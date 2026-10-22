@@ -366,11 +366,11 @@ export default function FilterPanel({ filters, onChange, className = '', danceSt
             className="w-full accent-primary cursor-pointer"
           />
           <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[11px] text-neutral-400">S/0</span>
+            <span className="text-[11px] text-neutral-400">PEN 0</span>
             <span className="text-[13px] font-semibold text-neutral-900">
-              {filters.priceMax === null ? 'Cualquier precio' : `Hasta S/${filters.priceMax}`}
+              {filters.priceMax === null ? 'Cualquier precio' : `Hasta PEN ${filters.priceMax}`}
             </span>
-            <span className="text-[11px] text-neutral-400">S/{MAX_PRICE}+</span>
+            <span className="text-[11px] text-neutral-400">PEN {MAX_PRICE}+</span>
           </div>
         </div>
       </Section>
