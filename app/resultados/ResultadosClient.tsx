@@ -423,7 +423,7 @@ export default function ResultadosClient({
 
         {/* Visualización de resultados: Skeletons durante streaming o contenido real */}
         {isSearching ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5 animate-pulse">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5 animate-pulse">
             {[1, 2, 3, 4, 5, 6].map(i => (
               <ClassCardSkeleton key={i} mobileLayout="row" />
             ))}
@@ -441,7 +441,7 @@ export default function ResultadosClient({
                   onRefine={handleRefineLink}
                 />
               ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
                   {classes.map(cls => (
                     <ClassCard
                       key={cls.id}
