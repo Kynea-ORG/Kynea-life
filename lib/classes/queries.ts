@@ -11,6 +11,7 @@ import type {
   DanceStyle, Level, Modality, PriceType,
 } from '@/lib/types';
 import type { ClassFilters, DbClassRow, DbClassStyle } from './types';
+import { fetchWomanTeacherIds } from '@/lib/profiles/women';
 
 export type { ClassFilters };
 
@@ -113,6 +114,10 @@ export function mapDbClassToType(
     },
     createdAt:   row.created_at ?? '',
     publishedAt: row.published_at ?? undefined,
+    seriesId:          row.series_id ?? undefined,
+    autoPublishAt:     row.auto_publish_at ?? undefined,
+    autoPublishedAt:   row.auto_published_at ?? undefined,
+    autoPublishError:  row.auto_publish_error ?? undefined,
   };
 }
 
@@ -272,6 +277,7 @@ function serializeFilters(filters?: ClassFilters): string {
   if (filters.country?.trim())     norm.country = filters.country.trim().toUpperCase();
   if (filters.district?.trim())    norm.district = filters.district.trim().toLowerCase();
   if (filters.withSpots)           norm.withSpots = true;
+  if (filters.womenTeachers)       norm.womenTeachers = true;
   return Object.keys(norm).length ? JSON.stringify(norm) : '';
 }
 
@@ -280,18 +286,20 @@ async function queryPublishedClasses(filters?: ClassFilters): Promise<DanceClass
   const keywords = filters?.query ? searchKeywords(filters.query) : [];
 
   // Resolve join-based filters in parallel — null means inactive, [] means no matches
-  const [styleClassIds, levelIds, dayClassIds, locationVenueIds, countryVenueIds, keywordConditions] = await Promise.all([
+  const [styleClassIds, levelIds, dayClassIds, locationVenueIds, countryVenueIds, keywordConditions, womanTeacherIds] = await Promise.all([
     resolveStyleClassIds(supabase, filters?.styles),
     resolveLevelIds(supabase, filters?.levels),
     resolveDayClassIds(supabase, filters?.days),
     resolveLocationVenueIds(supabase, filters?.city, filters?.district),
     resolveCountryVenueIds(supabase, filters?.country),
     resolveKeywordConditions(supabase, keywords),
+    filters?.womenTeachers ? fetchWomanTeacherIds(supabase) : Promise.resolve<string[] | null>(null),
   ]);
 
   // Early exit: any active filter resolved to zero matches → no results possible
   if (styleClassIds?.length === 0 || levelIds?.length === 0 ||
-      dayClassIds?.length === 0 || locationVenueIds?.length === 0 || countryVenueIds?.length === 0) {
+      dayClassIds?.length === 0 || locationVenueIds?.length === 0 || countryVenueIds?.length === 0 ||
+      womanTeacherIds?.length === 0) {
     return [];
   }
 
@@ -321,6 +329,7 @@ async function queryPublishedClasses(filters?: ClassFilters): Promise<DanceClass
   if (dayClassIds?.length)      q = q.in('id', dayClassIds);
   if (locationVenueIds?.length) q = q.in('venue_id', locationVenueIds);
   if (countryVenueIds?.length)  q = q.in('venue_id', countryVenueIds);
+  if (womanTeacherIds?.length)  q = q.in('teacher_id', womanTeacherIds);
 
   const { data, error } = await q;
   if (error) {
@@ -393,6 +402,26 @@ export const fetchClassBySlug = safeCache(
   { revalidate: 300, tags: ['classes'] }
 );
 
+export async function fetchClassesByIds(ids: string[]): Promise<DanceClass[]> {
+  if (!ids.length) return [];
+  const supabase = getPublicClient();
+  const { data, error } = await supabase
+    .from('classes')
+    .select(CLASS_SELECT)
+    .in('id', ids)
+    .eq('status', 'published');
+
+  if (error || !data) {
+    if (error) console.error('fetchClassesByIds error:', error.message);
+    return [];
+  }
+
+  const order = new Map(ids.map((id: string, i: number) => [id, i]));
+  return (data ?? [])
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .map(row => mapDbClassToType(row as unknown as DbClassRow));
+}
+
 export async function fetchSavedClasses(userId: string): Promise<DanceClass[]> {
   const supabase = await createClient();
 
@@ -405,23 +434,9 @@ export async function fetchSavedClasses(userId: string): Promise<DanceClass[]> {
   if (savedErr || !saved?.length) return [];
 
   const ids = saved.map(r => r.class_id);
-
-  const { data, error } = await supabase
-    .from('classes')
-    .select(CLASS_SELECT)
-    .in('id', ids)
-    .eq('status', 'published');
-
-  if (error) {
-    console.error('fetchSavedClasses error:', error.message);
-    return [];
-  }
-
-  const order = new Map(ids.map((id: string, i: number) => [id, i]));
-  return (data ?? [])
-    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
-    .map(row => mapDbClassToType(row as unknown as DbClassRow));
+  return fetchClassesByIds(ids);
 }
+
 
 export async function fetchTeacherClasses(teacherId: string): Promise<DanceClass[]> {
   const supabase = await createClient();

@@ -20,6 +20,8 @@ export interface ClassFilters {
   country?:    string;
   district?:   string;
   withSpots?:  boolean;
+  /** Solo clases dictadas por profesoras (profiles.is_woman, etiquetadas por un admin). */
+  womenTeachers?: boolean;
 }
 
 export interface ClassUpdatePayload {
@@ -146,6 +148,11 @@ export interface DbClassRow {
   created_at: string | null;
   updated_at: string | null;
   published_at: string | null;
+  // Series mensuales y publicación automática (migración 62). Opcionales: filas/fixtures anteriores no las traen.
+  series_id?: string | null;
+  auto_publish_at?: string | null;
+  auto_published_at?: string | null;
+  auto_publish_error?: string | null;
   // Relations
   level: { id: number; name: string } | null;
   class_styles: DbClassStyle[];

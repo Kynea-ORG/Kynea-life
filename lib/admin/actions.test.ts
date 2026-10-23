@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockGetUser, mockFetchIsAdmin, mockCreateUser, mockCreateAdminClient } = vi.hoisted(() => ({
+const { mockGetUser, mockFetchIsAdmin, mockCreateUser, mockCreateAdminClient, mockRpc } = vi.hoisted(() => ({
+  mockRpc: vi.fn(),
   mockGetUser: vi.fn(),
   mockFetchIsAdmin: vi.fn(),
   mockCreateUser: vi.fn(),
@@ -10,8 +11,12 @@ const { mockGetUser, mockFetchIsAdmin, mockCreateUser, mockCreateAdminClient } =
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: { getUser: mockGetUser },
+    rpc: mockRpc,
   })),
 }));
+
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
+vi.mock('@/lib/cache', () => ({ safeRevalidateTag: vi.fn() }));
 
 vi.mock('@/lib/admin/queries', () => ({
   fetchIsAdmin: mockFetchIsAdmin,
@@ -21,7 +26,7 @@ vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: mockCreateAdminClient,
 }));
 
-import { createUserAsAdmin } from './actions';
+import { createUserAsAdmin, setProfileIsWoman } from './actions';
 import { getCreateUserErrorMessage } from './errorMessages';
 
 const ADMIN_USER = { id: 'admin-1' };
@@ -182,5 +187,58 @@ describe('createUserAsAdmin', () => {
     });
 
     expect(result).toEqual({ ok: false, error: 'Ya existe una cuenta con este correo.' });
+  });
+});
+
+describe('setProfileIsWoman', () => {
+  beforeEach(() => {
+    mockGetUser.mockReset();
+    mockFetchIsAdmin.mockReset();
+    mockRpc.mockReset();
+  });
+
+  it('rechaza si no hay sesión y no consulta si es admin', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+    await expect(setProfileIsWoman('p1', true)).rejects.toThrow('No autenticado');
+    expect(mockFetchIsAdmin).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('rechaza a quien no es admin y no llama a la base', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: ADMIN_USER } });
+    mockFetchIsAdmin.mockResolvedValue(false);
+    await expect(setProfileIsWoman('p1', true)).rejects.toThrow('No autorizado');
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('un admin etiqueta a la profesora vía el RPC', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: ADMIN_USER } });
+    mockFetchIsAdmin.mockResolvedValue(true);
+    mockRpc.mockResolvedValue({ error: null });
+
+    await expect(setProfileIsWoman('p1', true)).resolves.toEqual({ ok: true });
+    expect(mockRpc).toHaveBeenCalledWith('admin_set_profile_woman', { p_profile_id: 'p1', p_is_woman: true });
+  });
+
+  it('también puede quitar la etiqueta', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: ADMIN_USER } });
+    mockFetchIsAdmin.mockResolvedValue(true);
+    mockRpc.mockResolvedValue({ error: null });
+    await setProfileIsWoman('p1', false);
+    expect(mockRpc).toHaveBeenCalledWith('admin_set_profile_woman', { p_profile_id: 'p1', p_is_woman: false });
+  });
+
+  it('devuelve el error de la base sin lanzar', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: ADMIN_USER } });
+    mockFetchIsAdmin.mockResolvedValue(true);
+    mockRpc.mockResolvedValue({ error: { message: 'Profesor no encontrado' } });
+    await expect(setProfileIsWoman('p1', true)).resolves.toEqual({ ok: false, error: 'Profesor no encontrado' });
+  });
+
+  it('valida que el id no esté vacío', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: ADMIN_USER } });
+    mockFetchIsAdmin.mockResolvedValue(true);
+    await expect(setProfileIsWoman('', true)).resolves.toEqual({ ok: false, error: 'Falta el profesor' });
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });

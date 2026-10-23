@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { authRateLimiter, checkRateLimit } from '@/lib/ratelimit';
+import { authRateLimiter, searchAiRateLimiter, checkRateLimit } from '@/lib/ratelimit';
 
 function getClientIp(request: NextRequest): string {
   const realIp = request.headers.get('x-real-ip');
@@ -50,10 +50,36 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Rate limiting estricto para búsquedas con IA (/resultados)
+  const isSearchRoute = path === '/resultados';
+  if (isSearchRoute && !isPrefetch) {
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      request.headers.get('x-real-ip') ||
+      '127.0.0.1';
+    const { success, reset } = await checkRateLimit(searchAiRateLimiter, ip);
+    if (!success) {
+      const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+      return new NextResponse(
+        'Has realizado demasiadas búsquedas en poco tiempo. Por favor espera unos momentos antes de intentar nuevamente.',
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(retryAfter),
+            'Content-Type': 'text/plain; charset=utf-8',
+          },
+        }
+      );
+    }
+  }
+
   // Landing "próximamente" gate: only set COMING_SOON_MODE=true in Vercel's
   // Production env scope (kynea.dance). Leaving it unset in dev/preview keeps
   // those environments fully open. Toggle off in Vercel to launch for real.
   if (process.env.COMING_SOON_MODE === 'true') {
+    if (path.startsWith('/api/')) {
+      return NextResponse.next({ request });
+    }
     if (path !== '/coming-soon') {
       return NextResponse.rewrite(new URL('/coming-soon', request.url));
     }

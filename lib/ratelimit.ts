@@ -57,6 +57,21 @@ export const classCreationRateLimiter = redis
     })
   : null;
 
+/**
+ * Rate limiter estricto para búsqueda inteligente con IA (/resultados).
+ * 10 peticiones por minuto por IP con ventana deslizante.
+ * Protege la cuota RPM de Gemini y mitiga ataques de denegación de servicio.
+ */
+export const searchAiRateLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, '60 s'),
+      prefix: `${envPrefix}:rl:search_ai`,
+      analytics: false,
+      ephemeralCache: new Map(),
+    })
+  : null;
+
 export interface RateLimitResult {
   success: boolean;
   limit: number;

@@ -345,12 +345,14 @@ export function findCurrencyByCode(code: string | null | undefined): Currency | 
 }
 
 /**
- * Retorna el símbolo de la moneda correspondiente o un fallback adecuado.
+ * Retorna cómo se antepone la moneda a un precio en toda la UI: el código ISO
+ * (p. ej. "PEN 50", "USD 20") en vez del símbolo ("S/ 50", "$20"), que es ambiguo
+ * entre países. Fallback a "$" si la moneda no está en el catálogo.
  */
 export function getCurrencySymbol(code: string | null | undefined): string {
   if (!code) return '$';
   const curr = findCurrencyByCode(code);
-  return curr?.symbol || '$';
+  return curr?.code || '$';
 }
 
 /**
