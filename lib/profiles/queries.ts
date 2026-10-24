@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getUser } from '@/lib/auth/getUser';
 import { getPublicClient } from '@/lib/supabase/public';
 import { safeCache } from '@/lib/cache';
+import { normalizeText, extractKeywords } from '@/lib/search/normalize';
 import type { Teacher, DanceStyle } from '@/lib/types';
 
 // The caller's own dashboard profile — columns shared by DashboardLayout,
@@ -242,20 +243,63 @@ export const fetchAcademiasWithLocation = safeCache(
 );
 
 // Búsqueda por nombre de profesor/academia — usada tanto por el resolver del
-// buscador (Home, botón "Buscar"/Enter) como por /resultados. Dos queries en
-// paralelo en vez de un solo .in('role', [...]) porque solo la academia
-// necesita el filtro de aprobación; un profesor no tiene ese concepto. Sin
-// safeCache a propósito: el texto de búsqueda es arbitrario por visitante,
-// cachear por query terminaría acumulando entradas de un solo uso sin
-// beneficio — la tabla profiles es chica y esto ya es rápido sin caché.
+// buscador (Home, botón "Buscar"/Enter) como por /resultados.
+// Limpia palabras de rol y stopwords, buscando por coincidencia de tokens
+// individuales y frase completa para tolerar nombres parciales (ej. "Mi Herencia").
 export async function searchProfilesByName(query: string): Promise<Teacher[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
   const supabase = getPublicClient();
+
+  // 1. Extraer palabras clave de búsqueda sin stopwords de rol ("academia", "profesor", etc.)
+  const keywords = extractKeywords(trimmed);
+
+  // Construir condiciones ilike para la consulta
+  // Ej: or(name.ilike.%mi herencia academia%,and(name.ilike.%mi%,name.ilike.%herencia%))
+  const buildConditions = () => {
+    const conds: string[] = [`name.ilike.%${trimmed}%`];
+    if (keywords.length > 0) {
+      // Cada keyword debe estar presente
+      const allKeywordsCondition = keywords.map(kw => `name.ilike.%${kw}%`).join(',');
+      conds.push(`and(${allKeywordsCondition})`);
+      // O al menos alguna de las palabras clave principales (>3 letras)
+      const significant = keywords.filter(kw => kw.length > 3);
+      for (const kw of significant) {
+        conds.push(`name.ilike.%${kw}%`);
+      }
+    }
+    return conds.join(',');
+  };
+
+  const orFilter = buildConditions();
+
   const [{ data: profesores }, { data: academias }] = await Promise.all([
-    supabase.from('profiles').select(PROFILE_SELECT).eq('role', 'profesor').ilike('name', `%${trimmed}%`),
-    supabase.from('profiles').select(PROFILE_SELECT).eq('role', 'academia')
-      .not('academia_approved_at', 'is', null).ilike('name', `%${trimmed}%`),
+    supabase
+      .from('profiles')
+      .select(PROFILE_SELECT)
+      .eq('role', 'profesor')
+      .or(orFilter)
+      .limit(6),
+    supabase
+      .from('profiles')
+      .select(PROFILE_SELECT)
+      .eq('role', 'academia')
+      .not('academia_approved_at', 'is', null)
+      .or(orFilter)
+      .limit(6),
   ]);
-  return [...(profesores ?? []), ...(academias ?? [])].map(mapTeacher);
+
+  const rawMatches = [...(profesores ?? []), ...(academias ?? [])].map(mapTeacher);
+
+  // Ordenar por relevancia: coincidencias exactas primero, luego coincidencias que incluyan más keywords
+  const normalizedQuery = normalizeText(trimmed);
+  return rawMatches.sort((a, b) => {
+    const aNorm = normalizeText(a.name);
+    const bNorm = normalizeText(b.name);
+    if (aNorm === normalizedQuery) return -1;
+    if (bNorm === normalizedQuery) return 1;
+    const aExactKeywords = keywords.filter(kw => aNorm.includes(kw)).length;
+    const bExactKeywords = keywords.filter(kw => bNorm.includes(kw)).length;
+    return bExactKeywords - aExactKeywords;
+  });
 }

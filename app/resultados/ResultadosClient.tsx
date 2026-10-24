@@ -181,6 +181,9 @@ export default function ResultadosClient({
   relaxations = [],
   suggestedStyles = [],
   classes,
+  teacherClasses = [],
+  otherClasses = [],
+  targetProfileName,
   profesores,
   academias,
   aiSummary,
@@ -198,21 +201,28 @@ export default function ResultadosClient({
   /** Solo con 0 clases: estilos que hoy tienen clases publicadas. */
   suggestedStyles?: string[];
   classes: DanceClass[];
+  teacherClasses?: DanceClass[];
+  otherClasses?: DanceClass[];
+  targetProfileName?: string | null;
   profesores: Teacher[];
   academias: Teacher[];
   aiSummary?: string | null;
   matchBadges?: string[];
 }) {
-  // La primera pestaña con resultados, no siempre "Clases" — buscar "Zeus"
-  // (0 clases, 1 profesor) no debería aterrizar en una pestaña vacía.
-  // Si no hay resultados en ninguna pestaña, se mantiene en "clases".
-  const defaultTab: Tab = classes.length > 0
-    ? 'clases'
-    : profesores.length > 0
+  // Selección inteligente de pestaña inicial:
+  // Si encontramos una academia o profesor relevante, priorizamos esa pestaña
+  // para que el usuario vea de inmediato la entidad que buscó por nombre.
+  const defaultTab: Tab = (academias.length > 0 && query.toLowerCase().includes('academia'))
+    ? 'academias'
+    : (profesores.length > 0 && (query.toLowerCase().includes('profe') || query.toLowerCase().includes('profesor')))
       ? 'profesores'
-      : academias.length > 0
-        ? 'academias'
-        : 'clases';
+      : classes.length > 0
+        ? 'clases'
+        : profesores.length > 0
+          ? 'profesores'
+          : academias.length > 0
+            ? 'academias'
+            : 'clases';
   const [tab, setTab] = useState<Tab>(defaultTab);
 
 
@@ -440,6 +450,46 @@ export default function ResultadosClient({
                   suggestedStyles={suggestedStyles}
                   onRefine={handleRefineLink}
                 />
+              ) : teacherClasses.length > 0 && targetProfileName ? (
+                <div className="space-y-10">
+                  {/* Sección 1: Clases dictadas por la academia o profesor encontrado */}
+                  <div>
+                    <h2 className="text-[17px] md:text-[20px] font-extrabold text-neutral-900 tracking-tight mb-4">
+                      Clases dictadas por {targetProfileName}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
+                      {teacherClasses.map(cls => (
+                        <ClassCard
+                          key={cls.id}
+                          cls={cls}
+                          mobileLayout="row"
+                          listName="resultados_teacher"
+                          matchBadges={getValidClassBadges(cls, activeBadges)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sección 2: Otras clases recomendadas por la búsqueda */}
+                  {otherClasses.length > 0 && (
+                    <div className="pt-4 border-t border-neutral-100">
+                      <h2 className="text-[17px] md:text-[20px] font-extrabold text-neutral-900 tracking-tight mb-4">
+                        Otras clases recomendadas
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
+                        {otherClasses.map(cls => (
+                          <ClassCard
+                            key={cls.id}
+                            cls={cls}
+                            mobileLayout="row"
+                            listName="resultados_other"
+                            matchBadges={getValidClassBadges(cls, activeBadges)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5">
                   {classes.map(cls => (

@@ -19,8 +19,9 @@ const STOPWORDS = new Set([
   'quiero', 'quisiera', 'busco', 'buscar', 'necesito', 'deseo', 'encontrar',
   'aprender', 'bailar', 'baile', 'danza', 'clase', 'clases', 'curso', 'cursos',
   'taller', 'talleres',
-  'profesor', 'profesora', 'profesores', 'profesoras', 'instructor', 'instructora',
-  'academia', 'academias',
+  'profesor', 'profesora', 'profesores', 'profesoras', 'profe', 'profes',
+  'instructor', 'instructora', 'instructores', 'instructoras',
+  'academia', 'academias', 'estudio', 'estudios', 'escuela', 'escuelas',
   'cerca', 'cercano', 'cercanos', 'cercana', 'cercanas',
 ]);
 
