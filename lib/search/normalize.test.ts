@@ -21,6 +21,9 @@ describe('extractKeywords', () => {
   it('strips role words so a bare name survives', () => {
     expect(extractKeywords('profesor Zeus Villanueva')).toEqual(['zeus', 'villanueva']);
     expect(extractKeywords('academia Sunshine Move')).toEqual(['sunshine', 'move']);
+    expect(extractKeywords('academia mi herencia')).toEqual(['herencia']);
+    expect(extractKeywords('profe Alisson')).toEqual(['alisson']);
+    expect(extractKeywords('estudio Fever')).toEqual(['fever']);
   });
 
   it('returns an empty array when the whole phrase is filler', () => {

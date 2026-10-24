@@ -53,8 +53,34 @@ export default async function ResultadosPage({
     searchProfilesByName(query),
   ]);
 
-  const isOutOfDomain = Boolean(aiSearchResult.interpretation?.isOutOfDomain);
-  const noClasses = aiSearchResult.classes.length === 0;
+  // Si encontramos profesores o academias reales en la base de datos, la búsqueda
+  // SIEMPRE es válida (invalida un posible falso positivo de isOutOfDomain de la IA)
+  const matchedAnyProfile = profiles.length > 0;
+  const isOutOfDomain = matchedAnyProfile ? false : Boolean(aiSearchResult.interpretation?.isOutOfDomain);
+
+  // Separar perfiles
+  const profesores = isOutOfDomain ? [] : profiles.filter(p => p.type === 'profesor');
+  const academias = isOutOfDomain ? [] : profiles.filter(p => p.type === 'academia');
+
+  // Si encontramos un perfil destacado (ej. "Mi Herencia Afro y Peruana"), buscar sus clases publicadas
+  const targetProfile = academias[0] || profesores[0];
+  let teacherClasses: typeof aiSearchResult.classes = [];
+  if (targetProfile) {
+    try {
+      const allTeacherClasses = await fetchPublishedClasses({ city });
+      teacherClasses = allTeacherClasses.filter(c => c.teacher?.id === targetProfile.id);
+    } catch {
+      teacherClasses = [];
+    }
+  }
+
+  // Clases restantes que no sean del profesor o academia principal para la sección "Otras clases recomendadas"
+  const teacherClassIds = new Set(teacherClasses.map(c => c.id));
+  const otherClasses = aiSearchResult.classes.filter(c => !teacherClassIds.has(c.id));
+  // Lista unificada para la cantidad global de resultados: primero las de la academia/profesor, luego las demás
+  const allClasses = [...teacherClasses, ...otherClasses];
+
+  const noClasses = allClasses.length === 0;
   const interpreted = aiSearchResult.interpretation;
   const [relaxations, suggestedStyles] = noClasses
     ? await Promise.all([
@@ -73,8 +99,12 @@ export default async function ResultadosPage({
       ])
     : [[], [] as string[]];
 
-  const profesores = isOutOfDomain ? [] : profiles.filter(p => p.type === 'profesor');
-  const academias = isOutOfDomain ? [] : profiles.filter(p => p.type === 'academia');
+  // Si la IA dijo fuera de dominio pero teníamos un perfil real, generamos un resumen natural
+  const aiSummary = isOutOfDomain
+    ? aiSearchResult.aiSummary
+    : matchedAnyProfile && aiSearchResult.interpretation?.isOutOfDomain
+      ? `Resultados para ${targetProfile.type === 'academia' ? 'la academia' : 'el profesor'} ${targetProfile.name}.`
+      : aiSearchResult.aiSummary;
 
   return (
     <ResultadosClient
@@ -86,10 +116,13 @@ export default async function ResultadosPage({
       suggestedStyles={suggestedStyles}
       interpretedFilters={aiSearchResult.interpretation?.filters ?? null}
       interpretedTags={aiSearchResult.interpretation?.matchBadges ?? []}
-      classes={aiSearchResult.classes}
+      classes={allClasses}
+      teacherClasses={teacherClasses}
+      otherClasses={otherClasses}
+      targetProfileName={targetProfile?.name ?? null}
       profesores={profesores}
       academias={academias}
-      aiSummary={aiSearchResult.aiSummary}
+      aiSummary={aiSummary}
       matchBadges={aiSearchResult.matchBadges}
     />
   );
