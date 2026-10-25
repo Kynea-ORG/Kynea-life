@@ -5,6 +5,7 @@ import {
   buildAiSuggestions,
   getTodayLimaDateStr,
   getTodayWeekdayName,
+  getTomorrowWeekdayName,
   getTodayLimaHour,
   fetchDailySuggestionsFromDb,
   saveDailySuggestionsToDb,
@@ -172,6 +173,12 @@ describe('daily_search_suggestions db integration', () => {
   it('getTodayWeekdayName devuelve el día de la semana capitalizado en español', () => {
     const d = new Date('2026-10-12T15:00:00Z');
     expect(getTodayWeekdayName(d)).toBe('Lunes');
+  });
+
+  it('getTomorrowWeekdayName devuelve el día siguiente capitalizado en español', () => {
+    // 2026-10-12T15:00:00Z es Lunes en Lima, mañana es Martes
+    const d = new Date('2026-10-12T15:00:00Z');
+    expect(getTomorrowWeekdayName(d)).toBe('Martes');
   });
 
   it('getTodayLimaHour devuelve la hora actual en zona de Lima (UTC-5)', () => {
