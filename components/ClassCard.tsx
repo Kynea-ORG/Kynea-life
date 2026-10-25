@@ -214,34 +214,38 @@ export default function ClassCard({
 
           <div className="flex flex-col gap-1.5">
             {isExpired ? (
-              <span className="flex items-center gap-1.5 text-[13px] text-neutral-500 font-medium">
-                <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-                {cls.endDate
-                  ? `Finalizó el ${formatFriendlyDate(cls.endDate)}`
-                  : cls.startDate
-                    ? `Inició el ${formatFriendlyDate(cls.startDate)}`
-                    : 'Clase finalizada'}
+              <span className="flex items-start gap-1.5 text-[13px] text-neutral-500 font-medium">
+                <Calendar className="w-3.5 h-3.5 shrink-0 text-neutral-400 mt-0.5" />
+                <span>
+                  {cls.endDate
+                    ? `Finalizó el ${formatFriendlyDate(cls.endDate)}`
+                    : cls.startDate
+                      ? `Inició el ${formatFriendlyDate(cls.startDate)}`
+                      : 'Clase finalizada'}
+                </span>
               </span>
             ) : (
               cls.startDate && (
-                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-neutral-900">
-                  <Calendar className="w-3.5 h-3.5 text-primary" />
-                  Inicia {formatFriendlyDate(cls.startDate)}
+                <span className="flex items-start gap-1.5 text-[13px] font-semibold text-neutral-900">
+                  <Calendar className="w-3.5 h-3.5 shrink-0 text-primary mt-0.5" />
+                  <span>Inicia {formatFriendlyDate(cls.startDate)}</span>
                 </span>
               )
             )}
-            <span className="flex items-center gap-1.5 text-[13px] text-neutral-600">
-              <MapPin className="w-3.5 h-3.5 text-neutral-400" />
-              {cls.venueName ? `${cls.venueName} · ` : ''}{cls.district}, {cls.city}
+            <span className="flex items-start gap-1.5 text-[13px] text-neutral-600">
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-neutral-400 mt-0.5" />
+              <span>
+                {cls.venueName ? `${cls.venueName} · ` : ''}{cls.district}, {cls.city}
+              </span>
             </span>
-            <span className="flex items-center gap-1.5 text-[13px] text-neutral-600">
-              <Clock className="w-3.5 h-3.5 text-neutral-400" />
-              {formatTimeSlots(cls.timeSlots).split(' | ')[0]}
+            <span className="flex items-start gap-1.5 text-[13px] text-neutral-600">
+              <Clock className="w-3.5 h-3.5 shrink-0 text-neutral-400 mt-0.5" />
+              <span>{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</span>
             </span>
             {!compact && !isExpired && cls.teacher.showSpots && spotsLeft !== undefined && spotsLeft > 0 && (
-              <span className="flex items-center gap-1.5 text-[13px] text-neutral-600">
-                <Users className="w-3.5 h-3.5 text-neutral-400" />
-                {spotsLeft} cupos disponibles
+              <span className="flex items-start gap-1.5 text-[13px] text-neutral-600">
+                <Users className="w-3.5 h-3.5 shrink-0 text-neutral-400 mt-0.5" />
+                <span>{spotsLeft} cupos disponibles</span>
               </span>
             )}
           </div>
