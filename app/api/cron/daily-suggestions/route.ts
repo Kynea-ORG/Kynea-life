@@ -23,18 +23,20 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getPublicClient();
 
-    // Verificamos si se solicita forzar regeneración vía query param ?force=true
+    // Verificamos si se solicita forzar regeneración vía query param ?force=true y la ciudad (?city=Lima o Online)
     const { searchParams } = new URL(request.url);
     const force = searchParams.get('force') === 'true';
+    const city = searchParams.get('city') || 'Lima';
 
     if (!force) {
-      const existing = await fetchDailySuggestionsFromDb(supabase, todayDateStr);
+      const existing = await fetchDailySuggestionsFromDb(supabase, todayDateStr, city);
       if (existing) {
         return NextResponse.json({
           ok: true,
           status: 'already_cached',
           date: todayDateStr,
           weekday: todayWeekday,
+          city,
           suggestions: existing,
         });
       }
@@ -44,13 +46,14 @@ export async function GET(request: NextRequest) {
     const classes = await fetchPublishedClasses();
 
     // Generamos con Gemini y persistimos en PostgreSQL
-    const suggestions = await generateCatalogAiSuggestions(classes, supabase, { force });
+    const suggestions = await generateCatalogAiSuggestions(classes, supabase, { force, city });
 
     return NextResponse.json({
       ok: true,
       status: 'generated_and_saved',
       date: todayDateStr,
       weekday: todayWeekday,
+      city,
       suggestions,
     });
   } catch (error) {

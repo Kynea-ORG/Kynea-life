@@ -82,6 +82,6 @@ describe('GET /api/cron/daily-suggestions', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.status).toBe('generated_and_saved');
-    expect(generateSpy).toHaveBeenCalledWith([], expect.anything(), { force: true });
+    expect(generateSpy).toHaveBeenCalledWith([], expect.anything(), { force: true, city: 'Lima' });
   });
 });
