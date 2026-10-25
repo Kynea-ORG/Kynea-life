@@ -104,15 +104,15 @@ export default function ClassCardMobile({
   );
 
   const whenLine = when && (
-    <div className={`flex items-center gap-1.5 text-[12.5px] ${isExpired ? 'text-neutral-500' : 'text-neutral-800 font-medium'}`}>
-      <Calendar className="w-3.5 h-3.5 shrink-0 text-primary" aria-hidden="true" />
+    <div className={`flex items-start gap-1.5 text-[12.5px] ${isExpired ? 'text-neutral-500' : 'text-neutral-800 font-medium'}`}>
+      <Calendar className="w-3.5 h-3.5 shrink-0 text-primary mt-0.5" aria-hidden="true" />
       <span className="truncate">{when}</span>
     </div>
   );
 
   const placeLine = place && (
-    <div className="flex items-center gap-1.5 text-[12.5px] text-neutral-600">
-      <MapPin className="w-3.5 h-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
+    <div className="flex items-start gap-1.5 text-[12.5px] text-neutral-600">
+      <MapPin className="w-3.5 h-3.5 shrink-0 text-neutral-400 mt-0.5" aria-hidden="true" />
       <span className="truncate">{place}</span>
     </div>
   );

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, X, Loader2, ArrowUp, ArrowLeft, List, Map as MapIcon, MapPin } from 'lucide-react';
 import Header from '@/components/Header';
@@ -13,6 +13,9 @@ import { useDelayedUnmount } from '@/lib/hooks/useDelayedUnmount';
 import ClasesMapView from '@/components/ClasesMapView';
 import LocationAutocomplete from '@/components/LocationAutocomplete';
 import { trackMapViewToggle } from '@/lib/analytics';
+
+const INITIAL_PAGE_SIZE = 12;
+const PAGE_SIZE_INCREMENT = 12;
 
 interface ClassBrowserProps {
   /** Route to sync filters into via router.replace, e.g. '/clases' or '/categorias/heels'. */
@@ -67,6 +70,8 @@ export default function ClassBrowser({
   const [showFilters, setShowFilters] = useState(false);
   const shouldRenderFilters = useDelayedUnmount(showFilters, 200);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // URL is the single source of truth for view mode ('lista' | 'mapa').
   const view: 'lista' | 'mapa' = enableMapView && searchParams.get('vista') === 'mapa' ? 'mapa' : 'lista';
@@ -105,6 +110,32 @@ export default function ClassBrowser({
   });
 
   const [recenterTrigger, setRecenterTrigger] = useState(0);
+
+  // Reset pagination to first batch whenever search query or filters change without cascading effect renders
+  const [prevFilterState, setPrevFilterState] = useState({ query, filters });
+  if (prevFilterState.query !== query || prevFilterState.filters !== filters) {
+    setPrevFilterState({ query, filters });
+    setVisibleCount(INITIAL_PAGE_SIZE);
+  }
+
+  // Infinite scroll: observe sentinel when more items are available
+  useEffect(() => {
+    if (visibleCount >= results.length) return;
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount(prev => Math.min(prev + PAGE_SIZE_INCREMENT, results.length));
+        }
+      },
+      { rootMargin: '400px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visibleCount, results.length]);
 
   const filteredAcademias = useMemo(() => {
     return academias.filter(a => {
@@ -490,9 +521,21 @@ export default function ClassBrowser({
             // `pb-20` en mobile deja espacio para el botón flotante "Mapa"
             // de abajo — si no, tapa la última fila (mismo problema que ya
             // resolvimos en ClasesMapView para su propio toggle flotante).
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5 ${enableMapView ? 'pb-20 lg:pb-0' : ''}`}>
-              {results.map(cls => <ClassCard key={cls.id} cls={cls} listName={listName} mobileLayout="row" />)}
-            </div>
+            <>
+              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-5 ${enableMapView ? 'pb-20 lg:pb-0' : ''}`}>
+                {results.slice(0, visibleCount).map(cls => (
+                  <ClassCard key={cls.id} cls={cls} listName={listName} mobileLayout="row" />
+                ))}
+              </div>
+              {visibleCount < results.length && (
+                <div ref={sentinelRef} className="w-full py-8 flex items-center justify-center">
+                  <div className="flex items-center gap-2 text-sm text-neutral-500">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span>Cargando más clases…</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
