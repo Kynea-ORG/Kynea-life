@@ -23,6 +23,7 @@ export async function searchClassesWithAi(
   query: string,
   options?: {
     city?: string;
+    userTimezone?: string;
     /**
      * Filtros ya definidos por el usuario (chips editados en /resultados).
      * Reemplaza la interpretación de Gemini y desactiva las heurísticas sobre
@@ -102,6 +103,7 @@ export async function searchClassesWithAi(
         danceStyles,
         districts,
         levels,
+        userTimezone: options?.userTimezone,
       });
     } catch (err) {
       console.warn('[searchClassesWithAi] Error parsing with Gemini:', err);
@@ -163,6 +165,7 @@ export async function searchClassesWithAi(
       const ageFilter = isKidsSearch ? 'Niños' : null;
 
       // Cascada Inteligente: Si los filtros estrictos dieron 0 resultados, relajamos restricciones secundarias
+      let isRelaxedResult = false;
       if (!classMatches || classMatches.length === 0) {
         // Nivel 2: Mantener estilo y distrito, pero relajar precio y días.
         // NUNCA relajar edad si es Niños (un padre buscando para su hijo no puede recibir clases de adultos).
@@ -182,6 +185,7 @@ export async function searchClassesWithAi(
 
         if (Array.isArray(relaxedPriceAndDays) && relaxedPriceAndDays.length > 0) {
           classMatches = relaxedPriceAndDays;
+          isRelaxedResult = true;
           finalSummary = `No encontramos clases exactas con todos los filtros de horario o precio, pero encontramos estas opciones de ${filters.style || 'baile'}:`;
         } else if (filters.district && (filters.style || queryEmbedding)) {
           // Nivel 3: Si tampoco había en ese distrito específico, relajar distrito dentro de la MISMA ciudad.
@@ -201,7 +205,8 @@ export async function searchClassesWithAi(
 
           if (Array.isArray(relaxedDistrict) && relaxedDistrict.length > 0) {
             classMatches = relaxedDistrict;
-            finalSummary = `No encontramos clases de ${filters.style || 'ese estilo'} en esa zona exacta, pero te sugerimos estas opciones cercanas:`;
+            isRelaxedResult = true;
+            finalSummary = `No encontramos clases de ${filters.style || 'ese estilo'} en ${filters.district}, pero te sugerimos estas opciones cercanas:`;
           }
         }
       }
@@ -220,82 +225,83 @@ export async function searchClassesWithAi(
         }
 
         // B. Horario post-trabajo / noche (Jornada laboral en Perú termina ~18:00 - 19:00)
-        // Clases de la mañana (ej. 07:00 AM) NUNCA deben mostrarse para búsquedas "después del trabajo"
-        const isEveningSearch = Boolean(
-          filters.timeOfDay === 'evening' ||
-          filters.timeOfDay === 'night' ||
-          heuristicText.includes('despues del trabajo') ||
-          heuristicText.includes('post-trabajo') ||
-          heuristicText.includes('post trabajo') ||
-          heuristicText.includes('despues de la chamba') ||
-          heuristicText.includes('nocturno') ||
-          heuristicText.includes('noche') ||
-          heuristicText.includes('after office') ||
-          interpretation.matchBadges?.some(b => {
-            const norm = b.toLowerCase();
-            return norm.includes('post-trabajo') || norm.includes('nocturno') || norm.includes('noche');
-          })
-        );
+        // Solo aplicar filtro estricto de horario si los resultados NO provienen ya de una relajación de horario
+        if (!isRelaxedResult) {
+          const isEveningSearch = Boolean(
+            filters.timeOfDay === 'evening' ||
+            filters.timeOfDay === 'night' ||
+            heuristicText.includes('despues del trabajo') ||
+            heuristicText.includes('post-trabajo') ||
+            heuristicText.includes('post trabajo') ||
+            heuristicText.includes('despues de la chamba') ||
+            heuristicText.includes('nocturno') ||
+            heuristicText.includes('noche') ||
+            heuristicText.includes('after office') ||
+            interpretation.matchBadges?.some(b => {
+              const norm = b.toLowerCase();
+              return norm.includes('post-trabajo') || norm.includes('nocturno') || norm.includes('noche');
+            })
+          );
 
-        if (isEveningSearch) {
-          hydratedClasses = hydratedClasses.filter(c => {
-            return (c.timeSlots ?? []).some(t => {
-              const hour = parseInt(t.startTime?.split(':')[0] ?? '', 10);
-              return !isNaN(hour) && hour >= 18;
+          if (isEveningSearch) {
+            hydratedClasses = hydratedClasses.filter(c => {
+              return (c.timeSlots ?? []).some(t => {
+                const hour = parseInt(t.startTime?.split(':')[0] ?? '', 10);
+                return !isNaN(hour) && hour >= 18;
+              });
             });
-          });
+          }
+
+          // B2. Horario mañanero / pre-trabajo (antes de entrar a la oficina)
+          const isMorningSearch = Boolean(
+            filters.timeOfDay === 'morning' ||
+            heuristicText.includes('manana') ||
+            heuristicText.includes('temprano') ||
+            heuristicText.includes('antes del trabajo') ||
+            heuristicText.includes('antes de la chamba') ||
+            heuristicText.includes('pre-trabajo') ||
+            interpretation.matchBadges?.some(b => b.toLowerCase().includes('manana') || b.toLowerCase().includes('temprano'))
+          );
+
+          if (isMorningSearch) {
+            hydratedClasses = hydratedClasses.filter(c => {
+              return (c.timeSlots ?? []).some(t => {
+                const hour = parseInt(t.startTime?.split(':')[0] ?? '', 10);
+                return !isNaN(hour) && hour >= 6 && hour < 12;
+              });
+            });
+          }
+
+          // B3. Horario de tarde / vespertino (12:00 - 17:59)
+          const isAfternoonSearch = Boolean(
+            filters.timeOfDay === 'afternoon' ||
+            heuristicText.includes('tarde') ||
+            heuristicText.includes('vespertino') ||
+            interpretation.matchBadges?.some(b => {
+              const norm = b.toLowerCase();
+              return norm.includes('tarde') || norm.includes('vespertino');
+            })
+          );
+
+          if (isAfternoonSearch) {
+            hydratedClasses = hydratedClasses.filter(c => {
+              return (c.timeSlots ?? []).some(t => {
+                const hour = parseInt(t.startTime?.split(':')[0] ?? '', 10);
+                return !isNaN(hour) && hour >= 12 && hour < 18;
+              });
+            });
+          }
         }
 
-        // B2. Horario mañanero / pre-trabajo (antes de entrar a la oficina)
-        const isMorningSearch = Boolean(
-          filters.timeOfDay === 'morning' ||
-          heuristicText.includes('manana') ||
-          heuristicText.includes('temprano') ||
-          heuristicText.includes('antes del trabajo') ||
-          heuristicText.includes('antes de la chamba') ||
-          heuristicText.includes('pre-trabajo') ||
-          interpretation.matchBadges?.some(b => b.toLowerCase().includes('manana') || b.toLowerCase().includes('temprano'))
-        );
-
-        if (isMorningSearch) {
-          hydratedClasses = hydratedClasses.filter(c => {
-            return (c.timeSlots ?? []).some(t => {
-              const hour = parseInt(t.startTime?.split(':')[0] ?? '', 10);
-              return !isNaN(hour) && hour >= 6 && hour < 12;
-            });
-          });
-        }
-
-        // B3. Horario de tarde / vespertino (12:00 - 17:59)
-        const isAfternoonSearch = Boolean(
-          filters.timeOfDay === 'afternoon' ||
-          heuristicText.includes('tarde') ||
-          heuristicText.includes('vespertino') ||
-          interpretation.matchBadges?.some(b => {
-            const norm = b.toLowerCase();
-            return norm.includes('tarde') || norm.includes('vespertino');
-          })
-        );
-
-        if (isAfternoonSearch) {
-          hydratedClasses = hydratedClasses.filter(c => {
-            return (c.timeSlots ?? []).some(t => {
-              const hour = parseInt(t.startTime?.split(':')[0] ?? '', 10);
-              return !isNaN(hour) && hour >= 12 && hour < 18;
-            });
-          });
-        }
-
-        // C. Coincidencia Mínima: Si la consulta generó tags de preferencia (ej. Para niños, Fin de semana, Económico),
-        // cada tarjeta mostrada DEBE coincidir en AL MENOS una tag de la búsqueda.
-        // Si una clase coincide en 0 tags, se descarta para evitar cards irrelevantes que contradicen lo solicitado.
-
+        // C. Coincidencia Mínima de tags: Solo si no es relajado
         const queryBadges = interpretation.matchBadges ?? [];
-        if (queryBadges.length > 0) {
-          hydratedClasses = hydratedClasses.filter(c => {
-            const valid = getValidClassBadges(c, queryBadges);
-            return valid.length > 0;
-          });
+        if (!isRelaxedResult) {
+          if (queryBadges.length > 0) {
+            hydratedClasses = hydratedClasses.filter(c => {
+              const valid = getValidClassBadges(c, queryBadges);
+              return valid.length > 0;
+            });
+          }
         }
 
         // C. Banner Coherente: Solo conservar los badges que al menos una clase mostrada realmente posee

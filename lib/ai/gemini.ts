@@ -206,7 +206,8 @@ const SEARCH_RESPONSE_SCHEMA = {
 export function buildSystemPrompt(
   knownStyles?: string[],
   knownDistricts?: string[],
-  knownLevels?: string[]
+  knownLevels?: string[],
+  currentDateContext?: { dateStr: string; weekdayName: string; kyneaDayIndex: number; timeZone?: string }
 ): string {
   const hints: string[] = [];
   if (knownStyles?.length) hints.push(`Estilos con clases publicadas ahora en Kynea: ${knownStyles.join(', ')}.`);
@@ -219,9 +220,17 @@ export function buildSystemPrompt(
       'déjalo fuera y descríbelo en semanticQuery para que la búsqueda semántica encuentre lo más parecido.\n'
     : '';
 
+  const tzLabel = currentDateContext?.timeZone ? `Zona horaria: ${currentDateContext.timeZone}` : 'Zona horaria: America/Lima';
+  const dateContextHint = currentDateContext
+    ? `\nFECHA Y HORA ACTUAL (${tzLabel}):
+Hoy es ${currentDateContext.weekdayName} (${currentDateContext.dateStr}).
+Índice de día para hoy en daysOfWeek: [${currentDateContext.kyneaDayIndex}] (donde 0=Lunes, 1=Martes, 2=Miércoles, 3=Jueves, 4=Viernes, 5=Sábado, 6=Domingo).
+Si el usuario dice "hoy", "esta noche", "hoy día", "más tarde", DEBES asignar daysOfWeek = [${currentDateContext.kyneaDayIndex}].\n`
+    : '';
+
   return `Eres el motor de búsqueda inteligente de Kynea, la primera plataforma integral de danza en Latinoamérica.
 Tu objetivo es interpretar consultas de usuarios en lenguaje natural y extraer una estructura JSON precisa:
-
+${dateContextHint}
 1. "isOutOfDomain": Booleano de pertenencia al dominio de Kynea:
    - true: Únicamente si la consulta NO guarda ninguna relación con el baile, danza, movimiento corporal, música bailable, academias o profesores de baile (ej. preguntas de programación informática como "¿qué es json?", recetas de cocina, tareas de matemáticas, medicina, mecánica, finanzas, política).
    - false: Si la consulta busca clases de baile, estilos, profesores, academias, horarios, niveles, música bailable o metas de bienestar físico/emocional a través del baile, sin importar la ciudad, país o región que mencione.
@@ -289,13 +298,39 @@ Responde estrictamente con el JSON solicitado.`;
  */
 export async function parseSearchQuery(
   query: string,
-  options?: { danceStyles?: string[]; districts?: string[]; levels?: string[] }
+  options?: {
+    danceStyles?: string[];
+    districts?: string[];
+    levels?: string[];
+    userTimezone?: string;
+  }
 ): Promise<AiSearchInterpretation | null> {
   const sanitized = sanitizeSearchQuery(query);
   const apiKey = getApiKey();
   if (!apiKey || !sanitized) return null;
 
-  const cacheKey = sanitized.toLowerCase();
+  // Calcular la fecha y día actual según la zona horaria del usuario (o America/Lima por defecto)
+  const now = new Date();
+  const timeZone = options?.userTimezone?.trim() || 'America/Lima';
+  let dateStr: string;
+  let weekdayName: string;
+  let kyneaDayIndex: number;
+  try {
+    dateStr = new Intl.DateTimeFormat('en-CA', { timeZone }).format(now);
+    weekdayName = new Intl.DateTimeFormat('es-PE', { weekday: 'long', timeZone }).format(now);
+    const jsDay = new Date(now.toLocaleString('en-US', { timeZone })).getDay();
+    kyneaDayIndex = (jsDay + 6) % 7; // 0=Lunes, 1=Martes, ..., 5=Sábado, 6=Domingo
+  } catch {
+    const fallbackTz = 'America/Lima';
+    dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: fallbackTz }).format(now);
+    weekdayName = new Intl.DateTimeFormat('es-PE', { weekday: 'long', timeZone: fallbackTz }).format(now);
+    const jsDay = new Date(now.toLocaleString('en-US', { timeZone: fallbackTz })).getDay();
+    kyneaDayIndex = (jsDay + 6) % 7;
+  }
+
+  // Clave de caché particionada por texto, fecha y zona horaria para evitar
+  // colisiones de días relativos (ej. "hoy", "esta noche") entre fechas o husos horarios
+  const cacheKey = `${sanitized.toLowerCase()}::${dateStr}::${timeZone}`;
   const cached = getFromCache(queryInterpretationCache, cacheKey);
   if (cached !== undefined) return cached;
 
@@ -323,7 +358,12 @@ export async function parseSearchQuery(
     'gemini-2.5-flash',
   ];
 
-  const systemPrompt = buildSystemPrompt(options?.danceStyles, options?.districts, options?.levels);
+  const systemPrompt = buildSystemPrompt(
+    options?.danceStyles,
+    options?.districts,
+    options?.levels,
+    { dateStr, weekdayName, kyneaDayIndex, timeZone }
+  );
 
   for (const model of modelsToTry) {
     try {
@@ -405,9 +445,12 @@ export async function parseSearchQuery(
  */
 export async function generateDynamicDaySuggestions(params: {
   todayWeekday: string;
+  city?: string;
+  hour?: number;
   styles: string[];
   districts: string[];
   levels: string[];
+  realCombinations?: string[];
   hasEvening?: boolean;
   hasMorning?: boolean;
   hasKids?: boolean;
@@ -416,8 +459,10 @@ export async function generateDynamicDaySuggestions(params: {
   const apiKey = getApiKey();
   if (!apiKey || params.styles.length === 0) return null;
 
+  const targetCity = params.city || 'Lima';
+  const targetHour = params.hour ?? new Date().getHours();
   const dateStr = new Date().toISOString().slice(0, 10);
-  const cacheKey = `${params.todayWeekday.toLowerCase()}-${dateStr}-${params.styles.slice(0, 5).join(',')}`;
+  const cacheKey = `${targetCity.toLowerCase()}::${dateStr}::${targetHour}::${params.todayWeekday.toLowerCase()}::${params.styles.slice(0, 5).join(',')}`;
   const cached = getFromCache(dynamicSuggestionsCache, cacheKey);
   if (cached !== undefined) return cached;
 
@@ -427,12 +472,24 @@ export async function generateDynamicDaySuggestions(params: {
     'gemini-3.1-flash-lite',
   ];
 
+  const isOnline = targetCity === 'Online';
+  const combosHint = (!isOnline && params.realCombinations?.length)
+    ? `\nCOMBINACIONES REALES VERIFICADAS PARA HOY (SOLO combina estilos y distritos de esta lista):\n${params.realCombinations.map(c => `- ${c}`).join('\n')}\n`
+    : '';
+
+  const onlineGuidance = isOnline
+    ? '\nIMPORTANTE: El usuario está buscando clases para tomar desde cualquier lugar. Genera sugerencias orientadas a clases virtuales/online, soltar el cuerpo desde casa o aprender estilos populares (ej. "💃 Clases online de Heels para principiantes", "✨ Soltar el cuerpo y bailar desde casa", "🕺 Bachata virtual este fin de semana"). NO menciones distritos presenciales.\n'
+    : '';
+
+  const rule3 = isOnline
+    ? '3. NO menciones distritos ni sedes físicas (enfócate en modalidad online, virtual, o bailar desde casa).'
+    : '3. Si mencionas estilo y distrito juntos en la misma frase, DEBE ser una de las COMBINACIONES REALES VERIFICADAS de la lista. JAMÁS inventes que un estilo se dicta en un distrito si no está en la lista de combinaciones reales.';
+
   const prompt = `Eres el generador de sugerencias de búsqueda de Kynea, la primera plataforma integral de danza en Latinoamérica.
 Hoy es ${params.todayWeekday}.
 Clases programadas para hoy:
 - Estilos con clases hoy: ${params.styles.slice(0, 8).join(', ')}.
-- Distritos con clases hoy: ${params.districts.slice(0, 6).join(', ')}.
-- Niveles disponibles: ${params.levels.slice(0, 4).join(', ') || 'Principiante, Intermedio'}.
+${!isOnline ? `- Distritos con clases hoy: ${params.districts.slice(0, 6).join(', ')}.\n` : ''}${combosHint}${onlineGuidance}- Niveles disponibles: ${params.levels.slice(0, 4).join(', ') || 'Principiante, Intermedio'}.
 ${params.hasEvening ? '- Hay clases disponibles en la noche después del trabajo (>= 18:00).' : ''}
 ${params.hasMorning ? '- Hay clases disponibles en la mañana.' : ''}
 ${params.hasKids ? '- Hay clases infantiles / para niños.' : ''}
@@ -442,7 +499,7 @@ Genera exactamente 5 sugerencias de búsqueda rápida atractivas, variadas y nat
 Reglas estrictas:
 1. Cada una debe comenzar con UN solo emoji representativo (ej. 💃, 🕺, ✨, 🔥, 🧘).
 2. Deben ser frases reales que un alumno escribiría para buscar (ej. '💃 Salsa cubana hoy en Miraflores', '🧘 Desestresarme hoy después del trabajo', '🔥 Bachata principiante hoy en Surco').
-3. Solo menciona estilos y distritos que están en la lista proporcionada.
+${rule3}
 4. Longitud entre 25 y 55 caracteres.
 
 Responde únicamente un JSON con formato: {"suggestions": ["...", "..."]}`;

@@ -222,7 +222,14 @@ export function isTagRedundantWithFilter(tag: string, filters: AiSearchFilters):
         return true;
       }
     } else if (filters.timeOfDay === 'evening' || filters.timeOfDay === 'night') {
-      if (normTag === 'noche' || normTag === 'noches' || normTag.includes('horario nocturno')) {
+      if (
+        normTag === 'noche' ||
+        normTag === 'noches' ||
+        normTag.includes('horario nocturno') ||
+        normTag.includes('post-trabajo') ||
+        normTag.includes('post trabajo') ||
+        normTag.includes('after office')
+      ) {
         return true;
       }
     }
