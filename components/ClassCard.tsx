@@ -164,21 +164,24 @@ export default function ClassCard({
 
         {/* Content */}
         <div className="p-5 flex flex-col flex-1 gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold bg-pink-50 text-pink-600 border border-pink-100 px-2.5 py-1 rounded-full">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span
+              className="text-[11px] font-semibold bg-pink-50 text-pink-600 border border-pink-100 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 max-w-[130px] sm:max-w-[160px] truncate"
+              title={cls.style}
+            >
               {cls.style}
             </span>
             {cls.offerPrice ? (
-              <span className="flex items-baseline gap-1.5">
-                <span className="text-[12px] text-neutral-500 line-through font-medium">
+              <span className="flex items-baseline gap-1.5 shrink-0 whitespace-nowrap ml-auto">
+                <span className="text-[12px] text-neutral-500 line-through font-medium whitespace-nowrap">
                   {formatPrice(cls.priceType, cls.price, cls.currency)}
                 </span>
-                <span className="text-[15px] font-bold text-primary">
+                <span className="text-[15px] font-bold text-primary whitespace-nowrap">
                   {formatPrice(cls.priceType, cls.offerPrice, cls.currency)}
                 </span>
               </span>
             ) : (
-              <span className="text-[15px] font-bold text-neutral-900">
+              <span className="text-[15px] font-bold text-neutral-900 shrink-0 whitespace-nowrap ml-auto">
                 {formatPrice(cls.priceType, cls.price, cls.currency)}
               </span>
             )}
