@@ -34,6 +34,10 @@ Este archivo proporciona contexto, directrices de arquitectura y reglas de desar
 > **NUNCA hacer `git commit`, `git push` ni crear Pull Requests de forma autónoma.**
 > Siempre se debe implementar, probar y validar los cambios localmente, y luego presentarlos al usuario. **Esperar siempre la confirmación o instrucción explícita del usuario antes de realizar cualquier commit, push o PR.**
 
+> [!CAUTION]
+> **Verificación obligatoria de estado de PRs y ramas (Prohibido asumir por memoria):**
+> NUNCA afirmar o asumir el estado de un Pull Request o rama (`abierto`, `mergeado`, `al día`, `cerrado`) basándose en el historial de la conversación o memoria previa. **Antes de emitir cualquier afirmación, nota o recomendación sobre un PR o rama, es ESTRICTAMENTE OBLIGATORIO consultar el estado real en ese mismo turno** usando los comandos correspondientes (`gh pr view <numero> --json state`, `gh pr list --state open`, `git branch -vv` o `git fetch`).
+
 > [!IMPORTANT]
 > **Todo PR en este repo que modifique `lib/`, `supabase/` o `proxy.ts` DEBE ser creado con la cuenta bot `joseniquen08-pr`** (nunca con `joseniquen08`).
 > Push directo a `main` o `develop` está bloqueado en remoto (Branch Protection) y en local mediante `.githooks/pre-push`.
