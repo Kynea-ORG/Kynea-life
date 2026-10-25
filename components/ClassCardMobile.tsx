@@ -84,12 +84,12 @@ export default function ClassCardMobile({
   );
 
   const price = cls.offerPrice ? (
-    <span className="flex items-baseline gap-1.5">
-      <span className="text-[15px] font-extrabold text-primary">{formatPrice(cls.priceType, cls.offerPrice, cls.currency)}</span>
-      <span className="text-[12px] text-neutral-400 line-through">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
+    <span className="flex items-baseline gap-1.5 shrink-0 whitespace-nowrap">
+      <span className="text-[15px] font-extrabold text-primary whitespace-nowrap">{formatPrice(cls.priceType, cls.offerPrice, cls.currency)}</span>
+      <span className="text-[12px] text-neutral-400 line-through whitespace-nowrap">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
     </span>
   ) : (
-    <span className="text-[15px] font-extrabold text-neutral-900">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
+    <span className="text-[15px] font-extrabold text-neutral-900 shrink-0 whitespace-nowrap">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
   );
 
   const titleLink = (

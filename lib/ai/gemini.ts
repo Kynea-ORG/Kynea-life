@@ -447,6 +447,8 @@ export async function generateDynamicDaySuggestions(params: {
   todayWeekday: string;
   city?: string;
   hour?: number;
+  isTomorrow?: boolean;
+  targetWeekday?: string;
   styles: string[];
   districts: string[];
   levels: string[];
@@ -462,7 +464,8 @@ export async function generateDynamicDaySuggestions(params: {
   const targetCity = params.city || 'Lima';
   const targetHour = params.hour ?? new Date().getHours();
   const dateStr = new Date().toISOString().slice(0, 10);
-  const cacheKey = `${targetCity.toLowerCase()}::${dateStr}::${targetHour}::${params.todayWeekday.toLowerCase()}::${params.styles.slice(0, 5).join(',')}`;
+  const targetDayLabel = params.isTomorrow ? `tomorrow-${params.targetWeekday || 'next'}` : params.todayWeekday.toLowerCase();
+  const cacheKey = `${targetCity.toLowerCase()}::${dateStr}::${targetHour}::${targetDayLabel}::${params.styles.slice(0, 5).join(',')}`;
   const cached = getFromCache(dynamicSuggestionsCache, cacheKey);
   if (cached !== undefined) return cached;
 
@@ -474,33 +477,59 @@ export async function generateDynamicDaySuggestions(params: {
 
   const isOnline = targetCity === 'Online';
   const combosHint = (!isOnline && params.realCombinations?.length)
-    ? `\nCOMBINACIONES REALES VERIFICADAS PARA HOY (SOLO combina estilos y distritos de esta lista):\n${params.realCombinations.map(c => `- ${c}`).join('\n')}\n`
+    ? `\nCOMBINACIONES REALES VERIFICADAS PARA EL DÍA OBJETIVO (SOLO combina estilos y distritos de esta lista):\n${params.realCombinations.map(c => `- ${c}`).join('\n')}\n`
     : '';
 
   const onlineGuidance = isOnline
-    ? '\nIMPORTANTE: El usuario está buscando clases para tomar desde cualquier lugar. Genera sugerencias orientadas a clases virtuales/online, soltar el cuerpo desde casa o aprender estilos populares (ej. "💃 Clases online de Heels para principiantes", "✨ Soltar el cuerpo y bailar desde casa", "🕺 Bachata virtual este fin de semana"). NO menciones distritos presenciales.\n'
+    ? '\nIMPORTANTE: El usuario busca clases desde cualquier lugar. Genera sugerencias orientadas a clases virtuales/online, soltar el cuerpo desde casa o aprender estilos populares (ej. "💃 Clases online de Heels para principiantes", "✨ Soltar el cuerpo y bailar desde casa", "🕺 Bachata virtual"). NO menciones distritos presenciales.\n'
     : '';
 
-  const rule3 = isOnline
-    ? '3. NO menciones distritos ni sedes físicas (enfócate en modalidad online, virtual, o bailar desde casa).'
-    : '3. Si mencionas estilo y distrito juntos en la misma frase, DEBE ser una de las COMBINACIONES REALES VERIFICADAS de la lista. JAMÁS inventes que un estilo se dicta en un distrito si no está en la lista de combinaciones reales.';
+  const ruleLocation = isOnline
+    ? 'NO menciones distritos ni sedes físicas (enfócate en modalidad online, virtual, o bailar desde casa).'
+    : 'Si mencionas estilo y distrito juntos en la misma frase, DEBE ser una de las COMBINACIONES REALES VERIFICADAS de la lista. JAMÁS inventes que un estilo se dicta en un distrito si no está en la lista de combinaciones reales.';
 
-  const prompt = `Eres el generador de sugerencias de búsqueda de Kynea, la primera plataforma integral de danza en Latinoamérica.
-Hoy es ${params.todayWeekday}.
+  const isLateNight = Boolean(params.isTomorrow || targetHour >= 23);
+  const targetDayName = params.targetWeekday || (isLateNight ? 'mañana' : params.todayWeekday);
+
+  const prompt = isLateNight
+    ? `Eres el generador de sugerencias de búsqueda de Kynea, la primera plataforma integral de danza en Latinoamérica.
+Son las ${targetHour}:00 (11:00 pm o noche avanzada). Las academias ya cerraron por hoy.
+Por lo tanto, tus sugerencias deben enfocarse en MAÑANA ${targetDayName}, en el fin de semana o en aprender estilos desde cero.
+Clases programadas para mañana ${targetDayName}:
+- Estilos con clases: ${params.styles.slice(0, 8).join(', ')}.
+${!isOnline ? `- Distritos con clases: ${params.districts.slice(0, 6).join(', ')}.\n` : ''}${combosHint}${onlineGuidance}- Niveles disponibles: ${params.levels.slice(0, 4).join(', ') || 'Principiante, Intermedio'}.
+${params.hasEvening ? '- Hay clases disponibles en la tarde/noche.' : ''}
+${params.hasMorning ? '- Hay clases disponibles en la mañana.' : ''}
+${params.hasKids ? '- Hay clases infantiles / para niños.' : ''}
+${params.hasBeginners ? '- Hay opciones para principiantes / desde cero.' : ''}
+
+Genera exactamente 5 sugerencias de búsqueda rápida atractivas, variadas y naturales para los usuarios que exploran clases a esta hora de la noche.
+Reglas estrictas de tiempo y formato:
+1. Cada una debe comenzar con UN solo emoji representativo (ej. 💃, 🕺, ✨, 🔥, 🧘).
+2. Son las ${targetHour}:00. Está ESTRICTAMENTE PROHIBIDO decir "hoy", "esta noche" o mencionar horas del día de hoy (como "a las 6pm").
+3. Las sugerencias con día deben decir "mañana" o "mañana ${targetDayName.toLowerCase()}" o "este fin de semana", o ser búsquedas atemporales (ej. '💃 Salsa en Miraflores mañana', '🔥 Bachata principiante este fin de semana', '🧘 Soltar el estrés bailando').
+4. ${ruleLocation}
+5. JAMÁS menciones horas numéricas fijas (como 'a las 6pm').
+6. Longitud entre 25 y 55 caracteres.
+
+Responde únicamente un JSON con formato: {"suggestions": ["...", "..."]}`
+    : `Eres el generador de sugerencias de búsqueda de Kynea, la primera plataforma integral de danza en Latinoamérica.
+Hoy es ${params.todayWeekday}. Hora actual: exactamente las ${targetHour}:00.
 Clases programadas para hoy:
 - Estilos con clases hoy: ${params.styles.slice(0, 8).join(', ')}.
 ${!isOnline ? `- Distritos con clases hoy: ${params.districts.slice(0, 6).join(', ')}.\n` : ''}${combosHint}${onlineGuidance}- Niveles disponibles: ${params.levels.slice(0, 4).join(', ') || 'Principiante, Intermedio'}.
-${params.hasEvening ? '- Hay clases disponibles en la noche después del trabajo (>= 18:00).' : ''}
+${params.hasEvening ? '- Hay clases disponibles más tarde en la noche.' : ''}
 ${params.hasMorning ? '- Hay clases disponibles en la mañana.' : ''}
 ${params.hasKids ? '- Hay clases infantiles / para niños.' : ''}
 ${params.hasBeginners ? '- Hay opciones para principiantes / desde cero.' : ''}
 
 Genera exactamente 5 sugerencias de búsqueda rápida atractivas, variadas y naturales para los usuarios que buscan bailar hoy ${params.todayWeekday}.
-Reglas estrictas:
+Reglas estrictas de tiempo y formato:
 1. Cada una debe comenzar con UN solo emoji representativo (ej. 💃, 🕺, ✨, 🔥, 🧘).
-2. Deben ser frases reales que un alumno escribiría para buscar (ej. '💃 Salsa cubana hoy en Miraflores', '🧘 Desestresarme hoy después del trabajo', '🔥 Bachata principiante hoy en Surco').
-${rule3}
-4. Longitud entre 25 y 55 caracteres.
+2. Son las ${targetHour}:00. JAMÁS menciones horas o momentos del día que ya hayan pasado respecto a las ${targetHour}:00 (por ejemplo, si son las ${targetHour}:00, está ESTRICTAMENTE PROHIBIDO decir horas pasadas como 'a las 6pm' o 'en la mañana').
+3. JAMÁS inventes horas numéricas fijas (como 'a las 6pm'). Si te refieres a un momento, usa 'esta tarde', 'esta noche' o 'más tarde' únicamente si aún no ha ocurrido hoy.
+4. ${ruleLocation}
+5. Longitud entre 25 y 55 caracteres.
 
 Responde únicamente un JSON con formato: {"suggestions": ["...", "..."]}`;
 

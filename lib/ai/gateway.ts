@@ -74,6 +74,8 @@ export async function generateDynamicDaySuggestions(params: {
   todayWeekday: string;
   city?: string;
   hour?: number;
+  isTomorrow?: boolean;
+  targetWeekday?: string;
   styles: string[];
   districts: string[];
   levels: string[];

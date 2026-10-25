@@ -124,6 +124,14 @@ export function getTodayWeekdayName(date: Date = new Date()): string {
   return day.charAt(0).toUpperCase() + day.slice(1);
 }
 
+export function getTomorrowWeekdayName(date: Date = new Date()): string {
+  const tomorrow = new Date(date);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const formatter = new Intl.DateTimeFormat('es-PE', { weekday: 'long', timeZone: 'America/Lima' });
+  const day = formatter.format(tomorrow);
+  return day.charAt(0).toUpperCase() + day.slice(1);
+}
+
 export function getTodayLimaHour(date: Date = new Date()): number {
   try {
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -151,14 +159,14 @@ export function getClassesForToday(classes: DanceClass[], dayName?: string): Dan
 
 // Un prompt por tipo de intención, en orden de prioridad; se toman los
 // primeros MAX_QUICK_PROMPTS que el catálogo respalde.
-export function buildAiSuggestions(s: CatalogSignals): AiSuggestions {
+export function buildAiSuggestions(s: CatalogSignals, isTomorrow: boolean = false, targetDayName?: string): AiSuggestions {
   const quick: string[] = [];
   const place: string[] = [NEUTRAL_PLACEHOLDER];
 
   if (s.hasWellness) {
     quick.push('🧘 Desestresarme bailando');
     place.push('Quiero soltar el estrés bailando…');
-  } else if (s.hasEvening) {
+  } else if (s.hasEvening && !isTomorrow) {
     quick.push('🧘 Algo para después del trabajo');
   }
 
@@ -176,17 +184,21 @@ export function buildAiSuggestions(s: CatalogSignals): AiSuggestions {
   }
 
   if (s.topPair) {
-    quick.push(`📍 Bailar ${s.topPair.style} en ${s.topPair.district}`);
+    if (isTomorrow && targetDayName) {
+      quick.push(`📍 Bailar ${s.topPair.style} en ${s.topPair.district} mañana`);
+    } else {
+      quick.push(`📍 Bailar ${s.topPair.style} en ${s.topPair.district}`);
+    }
   }
 
   if (s.hasEnergy) quick.push('⚡ Subir la energía bailando');
 
-  if (s.hasEvening) place.push('Algo para después del trabajo…');
+  if (s.hasEvening && !isTomorrow) place.push('Algo para después del trabajo…');
   if (s.hasSaturdayMorning) place.push('Algo los sábados en la mañana…');
   if (s.hasEconomic) place.push('Algo baratito para empezar…');
 
   if (s.totalClasses > 0 && !quick.some(p => p.toLowerCase().includes('salsa') || p.toLowerCase().includes('bachata'))) {
-    quick.push('🕺 Salsa o bachata este fin de semana');
+    quick.push(isTomorrow && targetDayName ? `🕺 Salsa o bachata mañana ${targetDayName.toLowerCase()}` : '🕺 Salsa o bachata este fin de semana');
   }
 
   return {
@@ -285,17 +297,33 @@ export async function generateCatalogAiSuggestions(
     }
   }
 
-  // 2. Filtrar clases según la ciudad o modalidad
+  // 2. Sensibilidad Horaria: a partir de las 23:00 (11pm), los estudios cierran y el foco pasa a MAÑANA
+  const isTomorrow = targetHour >= 23;
+  const targetWeekday = isTomorrow ? getTomorrowWeekdayName() : todayWeekday;
+
+  // Filtrar clases según el día objetivo (hoy o mañana) y ciudad/modalidad
   const isOnlineBucket = targetCity === 'Online';
-  const todayClasses = getClassesForToday(classes, todayWeekday);
+  const dayClasses = getClassesForToday(classes, targetWeekday);
+
+  // Si aún es hoy durante el día, priorizamos las clases que aún no hayan comenzado
+  const upcomingClasses = !isTomorrow
+    ? dayClasses.filter(c =>
+        (c.timeSlots ?? []).some(slot => {
+          const startH = parseInt(slot.startTime?.split(':')[0] ?? '0', 10);
+          return startH >= targetHour;
+        })
+      )
+    : dayClasses;
+
+  const candidateClasses = upcomingClasses.length >= 2 ? upcomingClasses : dayClasses;
 
   const cityClasses = isOnlineBucket
     ? classes.filter(c => c.modality === 'Online')
-    : todayClasses.filter(c => !targetCity || c.city?.toLowerCase() === targetCity.toLowerCase());
+    : candidateClasses.filter(c => !targetCity || c.city?.toLowerCase() === targetCity.toLowerCase());
 
   const targetClasses = cityClasses.length >= 2
     ? cityClasses
-    : (isOnlineBucket ? classes : (todayClasses.length >= 2 ? todayClasses : classes));
+    : (isOnlineBucket ? classes : (candidateClasses.length >= 2 ? candidateClasses : classes));
 
   const signals = computeCatalogSignals(targetClasses);
 
@@ -303,7 +331,7 @@ export async function generateCatalogAiSuggestions(
   const districts = isOnlineBucket ? [] : signals.districts.map(d => d.name);
   const levels = signals.levels;
 
-  // Extraer combinaciones 100% reales existentes en el catálogo para hoy: (estilo, distrito)
+  // Extraer combinaciones 100% reales existentes en el catálogo para el día objetivo: (estilo, distrito)
   const realCombosSet = new Set<string>();
   if (!isOnlineBucket) {
     for (const c of targetClasses) {
@@ -316,24 +344,37 @@ export async function generateCatalogAiSuggestions(
   }
   const realCombinations = Array.from(realCombosSet).slice(0, 15);
 
+  const hasMorning = isTomorrow
+    ? signals.hasSaturdayMorning || targetClasses.some(c => (c.timeSlots ?? []).some(t => {
+        const h = parseInt(t.startTime?.split(':')[0] ?? '12', 10);
+        return h >= 6 && h < 12;
+      }))
+    : targetHour < 12 && (signals.hasSaturdayMorning || targetClasses.some(c => (c.timeSlots ?? []).some(t => {
+        const h = parseInt(t.startTime?.split(':')[0] ?? '12', 10);
+        return h >= 6 && h < 12;
+      })));
+
+  const hasEvening = isTomorrow
+    ? signals.hasEvening
+    : targetHour < 21 && signals.hasEvening;
+
   const aiGenerated = await generateDynamicDaySuggestions({
     todayWeekday,
     city: targetCity,
     hour: targetHour,
+    isTomorrow,
+    targetWeekday,
     styles,
     districts,
     levels,
     realCombinations,
-    hasEvening: signals.hasEvening,
-    hasMorning: signals.hasSaturdayMorning || targetClasses.some(c => (c.timeSlots ?? []).some(t => {
-      const h = parseInt(t.startTime?.split(':')[0] ?? '12', 10);
-      return h >= 6 && h < 12;
-    })),
+    hasEvening,
+    hasMorning,
     hasKids: signals.hasKids,
     hasBeginners: Boolean(signals.beginnerStyle || signals.beginnerPair),
   }).catch(() => null);
 
-  const baseSuggestions = buildAiSuggestions(signals);
+  const baseSuggestions = buildAiSuggestions(signals, isTomorrow, targetWeekday);
 
   const finalSuggestions: AiSuggestions = (aiGenerated && aiGenerated.length >= 3)
     ? {
