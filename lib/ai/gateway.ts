@@ -55,6 +55,7 @@ export async function parseSearchQuery(
     danceStyles?: string[];
     districts?: string[];
     levels?: string[];
+    userTimezone?: string;
   }
 ): Promise<AiSearchInterpretation | null> {
   const config = getAiConfig();
@@ -71,9 +72,12 @@ export async function parseSearchQuery(
  */
 export async function generateDynamicDaySuggestions(params: {
   todayWeekday: string;
+  city?: string;
+  hour?: number;
   styles: string[];
   districts: string[];
   levels: string[];
+  realCombinations?: string[];
   hasEvening?: boolean;
   hasMorning?: boolean;
   hasKids?: boolean;

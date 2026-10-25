@@ -5,6 +5,7 @@ import {
   buildAiSuggestions,
   getTodayLimaDateStr,
   getTodayWeekdayName,
+  getTodayLimaHour,
   fetchDailySuggestionsFromDb,
   saveDailySuggestionsToDb,
   generateCatalogAiSuggestions,
@@ -173,45 +174,55 @@ describe('daily_search_suggestions db integration', () => {
     expect(getTodayWeekdayName(d)).toBe('Lunes');
   });
 
+  it('getTodayLimaHour devuelve la hora actual en zona de Lima (UTC-5)', () => {
+    // 2026-10-12T15:00:00Z es 10:00 AM en Lima
+    const d = new Date('2026-10-12T15:00:00Z');
+    expect(getTodayLimaHour(d)).toBe(10);
+  });
+
   it('fetchDailySuggestionsFromDb devuelve null si no hay fila o hay error', async () => {
+    const queryObj = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    queryObj.eq.mockReturnValue(queryObj);
+
     const mockClient = {
       from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
+        select: vi.fn().mockReturnValue(queryObj),
       }),
     } as unknown as SupabaseClient;
 
-    const res = await fetchDailySuggestionsFromDb(mockClient, '2026-10-12');
+    const res = await fetchDailySuggestionsFromDb(mockClient, '2026-10-12', 'Lima', 10);
     expect(res).toBeNull();
   });
 
   it('fetchDailySuggestionsFromDb devuelve prompts y placeholders cuando existen', async () => {
+    const queryObj = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          quick_prompts: ['🕺 Salsa este fin de semana', '💃 Bachata en Miraflores'],
+          placeholders: ['¿Qué quieres bailar hoy?'],
+        },
+        error: null,
+      }),
+    };
+    queryObj.eq.mockReturnValue(queryObj);
+
     const mockClient = {
       from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: {
-                quick_prompts: ['🕺 Salsa este fin de semana', '💃 Bachata en Miraflores'],
-                placeholders: ['¿Qué quieres bailar hoy?'],
-              },
-              error: null,
-            }),
-          }),
-        }),
+        select: vi.fn().mockReturnValue(queryObj),
       }),
     } as unknown as SupabaseClient;
 
-    const res = await fetchDailySuggestionsFromDb(mockClient, '2026-10-12');
+    const res = await fetchDailySuggestionsFromDb(mockClient, '2026-10-12', 'Lima', 10);
     expect(res).not.toBeNull();
     expect(res?.quickPrompts).toEqual(['🕺 Salsa este fin de semana', '💃 Bachata en Miraflores']);
     expect(res?.placeholders).toEqual(['¿Qué quieres bailar hoy?']);
   });
 
-  it('saveDailySuggestionsToDb invoca la RPC save_daily_search_suggestions', async () => {
+  it('saveDailySuggestionsToDb invoca la RPC save_daily_search_suggestions con ciudad y hora', async () => {
     const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
     const mockClient = {
       rpc: rpcMock,
@@ -221,7 +232,9 @@ describe('daily_search_suggestions db integration', () => {
       { quickPrompts: ['🕺 Salsa'], placeholders: ['Buscar salsa…'] },
       mockClient,
       '2026-10-12',
-      'Lunes'
+      'Lunes',
+      'Lima',
+      14
     );
 
     expect(rpcMock).toHaveBeenCalledWith('save_daily_search_suggestions', {
@@ -229,23 +242,27 @@ describe('daily_search_suggestions db integration', () => {
       p_weekday: 'Lunes',
       p_quick_prompts: ['🕺 Salsa'],
       p_placeholders: ['Buscar salsa…'],
+      p_city: 'Lima',
+      p_hour: 14,
     });
   });
 
   it('generateCatalogAiSuggestions utiliza la caché de BD si está presente', async () => {
+    const queryObj = {
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          quick_prompts: ['🌟 Salsa desde la BD'],
+          placeholders: ['Placeholder BD'],
+        },
+        error: null,
+      }),
+    };
+    queryObj.eq.mockReturnValue(queryObj);
+
     const mockClient = {
       from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: {
-                quick_prompts: ['🌟 Salsa desde la BD'],
-                placeholders: ['Placeholder BD'],
-              },
-              error: null,
-            }),
-          }),
-        }),
+        select: vi.fn().mockReturnValue(queryObj),
       }),
       rpc: vi.fn(),
     } as unknown as SupabaseClient;

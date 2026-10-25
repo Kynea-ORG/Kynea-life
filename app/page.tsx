@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { fetchPublishedClasses } from '@/lib/classes/queries';
 import { selectHomeRecommendedClasses } from '@/lib/classes/homeRecommendations';
 import { fetchFeaturedProfiles } from '@/lib/profiles/queries';
@@ -66,9 +67,27 @@ export default async function Page() {
   // Ya no se serializan todas las clases al cliente, ahorrando ~81 KB de payload.
   const recommendedClasses = selectHomeRecommendedClasses(classes);
 
-  // Sugerencias del buscador con IA: dinámicas según las clases de hoy y generadas por IA.
+  // Detección de ciudad por IP del visitante para sugerencias hiperlocales u online
+  const headerList = await headers();
+  const rawCity = headerList.get('x-vercel-ip-city') || 'Lima';
+  let userCity = 'Lima';
+  try {
+    userCity = decodeURIComponent(rawCity).trim() || 'Lima';
+  } catch {
+    userCity = 'Lima';
+  }
+
+  const isCallao = userCity.toLowerCase() === 'callao';
+  const hasClassesInCity = classes.some(c =>
+    c.city?.toLowerCase() === userCity.toLowerCase() ||
+    (isCallao && c.city?.toLowerCase() === 'lima')
+  );
+
+  const effectiveCity = hasClassesInCity ? (isCallao ? 'Lima' : userCity) : 'Online';
+
+  // Sugerencias del buscador con IA: dinámicas según las clases de hoy, la ubicación y la hora actual
   const blogHighlight = toBlogHighlight(posts);
-  const aiSuggestions = await generateCatalogAiSuggestions(classes, supabase);
+  const aiSuggestions = await generateCatalogAiSuggestions(classes, supabase, { city: effectiveCity });
 
   // Sección "Clases con profesoras mujeres": solo si hay clases de profesoras etiquetadas (o en desarrollo).
   const womenClassCount = countClassesTaughtBy(classes, womanTeacherIds);

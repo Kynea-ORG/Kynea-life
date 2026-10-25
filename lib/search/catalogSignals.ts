@@ -124,6 +124,20 @@ export function getTodayWeekdayName(date: Date = new Date()): string {
   return day.charAt(0).toUpperCase() + day.slice(1);
 }
 
+export function getTodayLimaHour(date: Date = new Date()): number {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: 'America/Lima',
+    });
+    const hour = parseInt(formatter.format(date), 10);
+    return isNaN(hour) ? date.getHours() : (hour === 24 ? 0 : hour);
+  } catch {
+    return date.getHours();
+  }
+}
+
 export function getClassesForToday(classes: DanceClass[], dayName?: string): DanceClass[] {
   const targetDay = (dayName ?? getTodayWeekdayName()).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return classes.filter(c =>
@@ -182,11 +196,13 @@ export function buildAiSuggestions(s: CatalogSignals): AiSuggestions {
 }
 
 /**
- * Consulta la base de datos para obtener las sugerencias cacheadas del día.
+ * Consulta la base de datos para obtener las sugerencias cacheadas del día para una ciudad y hora.
  */
 export async function fetchDailySuggestionsFromDb(
   client?: SupabaseClient | null,
-  dateStr: string = getTodayLimaDateStr()
+  dateStr: string = getTodayLimaDateStr(),
+  city: string = 'Lima',
+  hour: number = getTodayLimaHour()
 ): Promise<AiSuggestions | null> {
   try {
     const sb = client ?? getPublicClient();
@@ -194,6 +210,8 @@ export async function fetchDailySuggestionsFromDb(
       .from('daily_search_suggestions')
       .select('quick_prompts, placeholders')
       .eq('suggestion_date', dateStr)
+      .eq('city', city)
+      .eq('suggestion_hour', hour)
       .maybeSingle();
 
     if (error || !data) return null;
@@ -219,7 +237,9 @@ export async function saveDailySuggestionsToDb(
   suggestions: AiSuggestions,
   client?: SupabaseClient | null,
   dateStr: string = getTodayLimaDateStr(),
-  weekday: string = getTodayWeekdayName()
+  weekday: string = getTodayWeekdayName(),
+  city: string = 'Lima',
+  hour: number = getTodayLimaHour()
 ): Promise<void> {
   try {
     const sb = client ?? getPublicClient();
@@ -228,6 +248,8 @@ export async function saveDailySuggestionsToDb(
       p_weekday: weekday,
       p_quick_prompts: suggestions.quickPrompts,
       p_placeholders: suggestions.placeholders,
+      p_city: city,
+      p_hour: hour,
     });
   } catch (err) {
     console.error('[catalogSignals] Error saving daily suggestions:', err);
@@ -235,41 +257,73 @@ export async function saveDailySuggestionsToDb(
 }
 
 /**
- * Genera sugerencias de búsqueda con IA dinámicas según las clases que hay en el día de hoy.
- * 1. Lee primero desde la base de datos (0ms y $0 para visitas subsecuentes del día).
- * 2. Si es la primera visita del día, genera con Gemini y guarda el resultado en PostgreSQL.
+ * Genera sugerencias de búsqueda con IA dinámicas según las clases que hay en el día de hoy,
+ * la ciudad del visitante (o bucket 'Online') y la hora actual.
+ * 1. Lee primero desde la base de datos (0ms y $0 para visitas subsecuentes de la misma hora y ciudad).
+ * 2. Si es la primera visita de esa hora y ubicación, genera con Gemini y guarda el resultado en PostgreSQL.
  * 3. En caso de fallo de IA o de BD, degrada silenciosamente a las sugerencias deterministas del catálogo.
  */
 export async function generateCatalogAiSuggestions(
   classes: DanceClass[],
   supabase?: SupabaseClient | null,
-  options?: { force?: boolean }
+  options?: {
+    force?: boolean;
+    city?: string;
+    hour?: number;
+  }
 ): Promise<AiSuggestions> {
   const todayDateStr = getTodayLimaDateStr();
   const todayWeekday = getTodayWeekdayName();
+  const targetCity = options?.city?.trim() || 'Lima';
+  const targetHour = options?.hour ?? getTodayLimaHour();
 
-  // 1. Verificamos si ya existen sugerencias guardadas en la base de datos para hoy
+  // 1. Verificamos si ya existen sugerencias guardadas en la base de datos para esta ciudad, fecha y hora
   if (!options?.force) {
-    const cachedFromDb = await fetchDailySuggestionsFromDb(supabase, todayDateStr);
+    const cachedFromDb = await fetchDailySuggestionsFromDb(supabase, todayDateStr, targetCity, targetHour);
     if (cachedFromDb) {
       return cachedFromDb;
     }
   }
 
-  // 2. Si no existen aún para hoy, generamos según las clases programadas para hoy
+  // 2. Filtrar clases según la ciudad o modalidad
+  const isOnlineBucket = targetCity === 'Online';
   const todayClasses = getClassesForToday(classes, todayWeekday);
-  const targetClasses = todayClasses.length >= 2 ? todayClasses : classes;
+
+  const cityClasses = isOnlineBucket
+    ? classes.filter(c => c.modality === 'Online')
+    : todayClasses.filter(c => !targetCity || c.city?.toLowerCase() === targetCity.toLowerCase());
+
+  const targetClasses = cityClasses.length >= 2
+    ? cityClasses
+    : (isOnlineBucket ? classes : (todayClasses.length >= 2 ? todayClasses : classes));
+
   const signals = computeCatalogSignals(targetClasses);
 
   const styles = signals.styles.map(s => s.name);
-  const districts = signals.districts.map(d => d.name);
+  const districts = isOnlineBucket ? [] : signals.districts.map(d => d.name);
   const levels = signals.levels;
+
+  // Extraer combinaciones 100% reales existentes en el catálogo para hoy: (estilo, distrito)
+  const realCombosSet = new Set<string>();
+  if (!isOnlineBucket) {
+    for (const c of targetClasses) {
+      const district = c.district || c.venueName;
+      const mainStyle = c.style;
+      if (mainStyle && district) {
+        realCombosSet.add(`${mainStyle} en ${district}`);
+      }
+    }
+  }
+  const realCombinations = Array.from(realCombosSet).slice(0, 15);
 
   const aiGenerated = await generateDynamicDaySuggestions({
     todayWeekday,
+    city: targetCity,
+    hour: targetHour,
     styles,
     districts,
     levels,
+    realCombinations,
     hasEvening: signals.hasEvening,
     hasMorning: signals.hasSaturdayMorning || targetClasses.some(c => (c.timeSlots ?? []).some(t => {
       const h = parseInt(t.startTime?.split(':')[0] ?? '12', 10);
@@ -288,9 +342,9 @@ export async function generateCatalogAiSuggestions(
       }
     : baseSuggestions;
 
-  // 3. Persistimos de forma atómica en PostgreSQL para que las próximas visitas del día tarden 0ms
+  // 3. Persistimos de forma atómica en PostgreSQL para que las próximas visitas de esta hora y ciudad tarden 0ms
   if (finalSuggestions.quickPrompts.length > 0) {
-    await saveDailySuggestionsToDb(finalSuggestions, supabase, todayDateStr, todayWeekday);
+    await saveDailySuggestionsToDb(finalSuggestions, supabase, todayDateStr, todayWeekday, targetCity, targetHour);
   }
 
   return finalSuggestions;

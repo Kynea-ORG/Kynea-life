@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { searchClassesWithAi } from '@/lib/ai/searchService';
 import { parseFilterParams } from '@/lib/ai/filterParams';
@@ -44,12 +45,19 @@ export default async function ResultadosPage({
 
   if (!query) redirect('/clases');
 
+  const headerList = await headers();
+  const userTimezone = headerList.get('x-vercel-ip-timezone') || 'America/Lima';
+
   // r=1 → el usuario editó los chips: se respetan sus filtros y no se vuelve a llamar a Gemini
   const { filters, tags, refined } = parseFilterParams(params);
   const displayTitle = refined ? formatRefinedTitle(filters, tags) : query;
 
   const [aiSearchResult, profiles] = await Promise.all([
-    searchClassesWithAi(query, { city, refinement: refined ? { filters, tags } : undefined }),
+    searchClassesWithAi(query, {
+      city,
+      userTimezone,
+      refinement: refined ? { filters, tags } : undefined,
+    }),
     searchProfilesByName(query),
   ]);
 
@@ -90,7 +98,7 @@ export default async function ResultadosPage({
               city,
               filters: interpreted?.filters ?? {},
               tags: interpreted?.matchBadges ?? [],
-              search: async o => (await searchClassesWithAi(query, { city: o.city, refinement: { filters: o.filters, tags: o.tags } })).classes.length,
+              search: async o => (await searchClassesWithAi(query, { city: o.city, userTimezone, refinement: { filters: o.filters, tags: o.tags } })).classes.length,
             })
           : Promise.resolve([]),
         fetchPublishedClasses({ city })
