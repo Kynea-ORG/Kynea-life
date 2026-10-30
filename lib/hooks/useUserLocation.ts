@@ -41,12 +41,18 @@ function getStoredLocation(): UserLocation | null {
  * - Restores cached position from sessionStorage when available.
  * - Tracks permission status: 'idle' | 'prompting' | 'granted' | 'denied' | 'unavailable'.
  * - Provides requestLocation(force) to trigger/re-request geolocation.
+ * - Tracks the browser-level permission via the Permissions API (`permission`):
+ *   when it is 'denied' the browser will not prompt again, so retrying is
+ *   pointless and the UI should explain how to unblock it instead. Once the
+ *   user unblocks it in the browser, the hook picks the location up on its own.
  */
 export function useUserLocation({ autoRequest = true }: { autoRequest?: boolean } = {}) {
   // Initialize to null/'idle' so initial client render matches SSR HTML (avoids hydration mismatch)
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [status, setStatus] = useState<UserLocationStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  // null = unknown (Permissions API unavailable or not queried yet)
+  const [permission, setPermission] = useState<PermissionState | null>(null);
   const requestingRef = useRef(false);
 
   const requestLocation = useCallback((force = false) => {
@@ -128,10 +134,42 @@ export function useUserLocation({ autoRequest = true }: { autoRequest?: boolean 
     return () => clearTimeout(timer);
   }, [autoRequest, requestLocation]);
 
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+
+    let cancelled = false;
+    let permissionStatus: PermissionStatus | null = null;
+
+    const handleChange = () => {
+      if (!permissionStatus) return;
+      setPermission(permissionStatus.state);
+      // Unblocked from the browser's site settings: recover without a manual retry.
+      if (permissionStatus.state === 'granted') requestLocation(true);
+    };
+
+    navigator.permissions
+      .query({ name: 'geolocation' })
+      .then((result) => {
+        if (cancelled) return;
+        permissionStatus = result;
+        setPermission(result.state);
+        result.addEventListener('change', handleChange);
+      })
+      .catch(() => {
+        // Some browsers reject the 'geolocation' descriptor — stay at null (unknown).
+      });
+
+    return () => {
+      cancelled = true;
+      permissionStatus?.removeEventListener('change', handleChange);
+    };
+  }, [requestLocation]);
+
   return {
     location,
     status,
     error,
+    permission,
     requestLocation,
     clearLocation,
   };
