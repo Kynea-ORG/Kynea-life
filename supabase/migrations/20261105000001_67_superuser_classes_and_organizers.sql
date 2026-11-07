@@ -101,10 +101,21 @@ CREATE POLICY "classes_delete" ON public.classes
 
 -- Class styles
 DROP POLICY IF EXISTS "class_styles_insert" ON public.class_styles;
+DROP POLICY IF EXISTS "class_styles_update" ON public.class_styles;
 DROP POLICY IF EXISTS "class_styles_delete" ON public.class_styles;
 
 CREATE POLICY "class_styles_insert" ON public.class_styles
   FOR INSERT WITH CHECK (
+    public.is_admin()
+    OR EXISTS (SELECT 1 FROM public.classes WHERE id = class_id AND teacher_id = auth.uid())
+  );
+
+CREATE POLICY "class_styles_update" ON public.class_styles
+  FOR UPDATE USING (
+    public.is_admin()
+    OR EXISTS (SELECT 1 FROM public.classes WHERE id = class_id AND teacher_id = auth.uid())
+  )
+  WITH CHECK (
     public.is_admin()
     OR EXISTS (SELECT 1 FROM public.classes WHERE id = class_id AND teacher_id = auth.uid())
   );
