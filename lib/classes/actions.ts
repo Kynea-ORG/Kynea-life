@@ -529,10 +529,22 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
   ]);
 
   const slots: FormSlot[] = timeSlots ? JSON.parse(timeSlots) : [];
-  const [, newScheduleKeys] = await Promise.all([
-    insertClassStyles(supabase, classId, styleId),
-    insertClassSchedules(supabase, classId, slots, cols.start_date),
-  ]);
+  let newScheduleKeys: { day_of_week: number; start_time: string; end_time: string }[] = [];
+  try {
+    [, newScheduleKeys] = await Promise.all([
+      insertClassStyles(supabase, classId, styleId),
+      insertClassSchedules(supabase, classId, slots, cols.start_date),
+    ]);
+  } catch (err) {
+    console.error('[updateClassFromForm:styles_schedules]', err);
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION',
+        message: err instanceof Error ? err.message : 'Error al actualizar estilos u horarios de la clase',
+      },
+    };
+  }
 
   // insertClassStyles/insertClassSchedules upsert on their unique columns, so
   // a row matching a still-current style/slot was updated in place, not

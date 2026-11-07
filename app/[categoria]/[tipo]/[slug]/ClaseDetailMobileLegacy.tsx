@@ -457,41 +457,17 @@ export default function ClaseDetailMobileLegacy({ cls }: { cls: DanceClass }) {
                   <p className="text-[13.5px] text-neutral-600 leading-relaxed mb-4">
                     Esta actividad es compartida de manera informativa por Kynea. Para inscripciones, consultas o detalles actualizados, visita el canal oficial del organizador.
                   </p>
-                  <div className="flex flex-col gap-2">
-                    {cls.externalOrganizer.infoUrl && (
-                      <a
-                        href={cls.externalOrganizer.infoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => triggerContactIncrement(cls.id)}
-                        className="h-[42px] rounded-xl border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800 flex items-center justify-center gap-2 text-[14px] font-bold transition-colors"
-                      >
-                        <ExternalLink className="w-4 h-4" /> Más información en canal oficial
-                      </a>
-                    )}
-                    {cls.externalOrganizer.whatsapp && (
-                      <a
-                        href={resolveExternalWhatsAppUrl(cls.externalOrganizer.whatsapp, cls.style, cls.startDate)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => triggerContactIncrement(cls.id)}
-                        className="h-[42px] rounded-xl border border-whatsapp bg-whatsapp text-white hover:bg-whatsapp-dark flex items-center justify-center gap-2 text-[14px] font-bold transition-colors"
-                      >
-                        <MessageCircle className="w-4 h-4" /> WhatsApp
-                      </a>
-                    )}
-                    {cls.externalOrganizer.instagram && (
-                      <a
-                        href={resolveExternalInstagramUrl(cls.externalOrganizer.instagram)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => triggerContactIncrement(cls.id)}
-                        className="h-[42px] rounded-xl border border-instagram bg-instagram text-white hover:bg-instagram-dark flex items-center justify-center gap-2 text-[14px] font-bold transition-colors"
-                      >
-                        <InstagramIcon className="w-4 h-4" /> Instagram
-                      </a>
-                    )}
-                  </div>
+                  {cls.externalOrganizer.infoUrl && (
+                    <a
+                      href={cls.externalOrganizer.infoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => triggerContactIncrement(cls.id)}
+                      className="h-[42px] rounded-xl border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800 flex items-center justify-center gap-2 text-[14px] font-bold transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4" /> Más información en canal oficial
+                    </a>
+                  )}
                 </div>
               ) : (
                 <div className="border border-neutral-200 rounded-2xl p-4 min-w-0">
