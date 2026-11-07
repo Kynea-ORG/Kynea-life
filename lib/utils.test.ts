@@ -8,6 +8,8 @@ import {
   extractSocialHandle,
   buildInstagramUrl,
   buildTikTokUrl,
+  buildYouTubeUrl,
+  buildWebsiteUrl,
   formatSocialHandle,
   resolveExternalWhatsAppUrl,
   resolveExternalInstagramUrl,
@@ -149,6 +151,16 @@ describe('extractSocialHandle', () => {
     expect(extractSocialHandle('tiktok.com/@dario_boada')).toBe('dario_boada');
     expect(extractSocialHandle('https://vm.tiktok.com/@dario_boada')).toBe('dario_boada');
   });
+
+  it('extracts handle from various YouTube URLs and handles', () => {
+    expect(extractSocialHandle('https://www.youtube.com/@kynea-dance?si=123', 'youtube')).toBe('kynea-dance');
+    expect(extractSocialHandle('https://youtube.com/@kynea-dance/videos', 'youtube')).toBe('kynea-dance');
+    expect(extractSocialHandle('https://m.youtube.com/@kynea-dance', 'youtube')).toBe('kynea-dance');
+    expect(extractSocialHandle('youtube.com/@kynea-dance')).toBe('kynea-dance');
+    expect(extractSocialHandle('https://www.youtube.com/c/kynea-dance', 'youtube')).toBe('kynea-dance');
+    expect(extractSocialHandle('@kynea-dance', 'youtube')).toBe('kynea-dance');
+    expect(extractSocialHandle('kynea-dance', 'youtube')).toBe('kynea-dance');
+  });
 });
 
 describe('buildInstagramUrl', () => {
@@ -203,6 +215,45 @@ describe('buildTikTokUrl', () => {
   });
 });
 
+describe('buildYouTubeUrl', () => {
+  it('returns empty string for invalid or empty inputs', () => {
+    expect(buildYouTubeUrl('')).toBe('');
+    expect(buildYouTubeUrl(null)).toBe('');
+    expect(buildYouTubeUrl(undefined)).toBe('');
+  });
+
+  it('builds clean URL with @ prefix from plain handle', () => {
+    expect(buildYouTubeUrl('kynea-dance')).toBe('https://youtube.com/@kynea-dance');
+  });
+
+  it('builds clean URL from handle already having @', () => {
+    expect(buildYouTubeUrl('@kynea-dance')).toBe('https://youtube.com/@kynea-dance');
+  });
+
+  it('normalizes full YouTube URL with parameters into clean channel URL', () => {
+    const raw = 'https://www.youtube.com/@kynea-dance?si=abc123';
+    expect(buildYouTubeUrl(raw)).toBe('https://youtube.com/@kynea-dance');
+  });
+});
+
+describe('buildWebsiteUrl', () => {
+  it('returns empty string for empty inputs', () => {
+    expect(buildWebsiteUrl('')).toBe('');
+    expect(buildWebsiteUrl(null)).toBe('');
+    expect(buildWebsiteUrl('   ')).toBe('');
+  });
+
+  it('prepends https:// when protocol is missing', () => {
+    expect(buildWebsiteUrl('kynea.dance')).toBe('https://kynea.dance');
+    expect(buildWebsiteUrl('www.kynea.dance')).toBe('https://www.kynea.dance');
+  });
+
+  it('preserves existing http:// or https:// protocol', () => {
+    expect(buildWebsiteUrl('https://kynea.dance')).toBe('https://kynea.dance');
+    expect(buildWebsiteUrl('http://kynea.dance')).toBe('http://kynea.dance');
+  });
+});
+
 describe('formatSocialHandle', () => {
   it('returns empty string for falsy input', () => {
     expect(formatSocialHandle('')).toBe('');
@@ -217,6 +268,7 @@ describe('formatSocialHandle', () => {
   it('formats full URLs into clean @handle', () => {
     expect(formatSocialHandle('https://www.instagram.com/dario_boada?stkn=MWdqN2RvMDcwc2RzZA==', 'instagram')).toBe('@dario_boada');
     expect(formatSocialHandle('https://www.tiktok.com/@dario_boada?_r=1', 'tiktok')).toBe('@dario_boada');
+    expect(formatSocialHandle('https://www.youtube.com/@kynea-dance?si=123', 'youtube')).toBe('@kynea-dance');
   });
 });
 

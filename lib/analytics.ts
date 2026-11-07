@@ -223,13 +223,13 @@ export function trackSelectProfile(params: { role: 'profesor' | 'academia'; prof
 }
 
 // Fired when a visitor clicks a teacher's own social/web link (Instagram,
-// TikTok, website) shown on a class detail or profile page. Deliberately NOT
+// TikTok, YouTube, website) shown on a class detail or profile page. Deliberately NOT
 // generate_lead: those links leave Kynea toward the teacher's own channels
 // and are exploratory, so folding them into the conversion event would
 // inflate it. Tracking them at all is what makes this contact visible —
 // otherwise the visitor leaves the site with no trace.
 export function trackTeacherSocialClick(params: {
-  channel: 'instagram' | 'tiktok' | 'website';
+  channel: 'instagram' | 'tiktok' | 'youtube' | 'website';
   teacherId: string;
   teacherName: string;
   surface: string;

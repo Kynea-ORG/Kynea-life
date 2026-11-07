@@ -15,9 +15,10 @@ import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
 import { useFunFocusBackground } from '@/lib/hooks/useFunFocusBackground';
 import { trackSignUp, trackOnboardingStepComplete, trackOnboardingComplete } from '@/lib/analytics';
-import { safeRedirectPath, DEFAULT_ACADEMIA_COVER, extractSocialHandle } from '@/lib/utils';
+import { safeRedirectPath, DEFAULT_ACADEMIA_COVER, extractSocialHandle, formatSocialHandle, buildWebsiteUrl } from '@/lib/utils';
 import SmartImage from '@/components/SmartImage';
 import PlacesAddressField from '@/components/PlacesAddressField';
+import SocialHandleInput from '@/components/SocialHandleInput';
 import AlumnoWelcome from './AlumnoWelcome';
 import ProfesorUpgradeModal, { TOTAL_PREPARING_MIN_TIME_MS } from './ProfesorUpgradeModal';
 
@@ -119,7 +120,7 @@ function OnboardingContent() {
       if (!user) { setInitializing(false); return; }
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, name, bio, whatsapp, years_experience, nationality, photo_url, photo_position, photo_zoom')
+        .select('role, name, bio, whatsapp, instagram, tiktok, youtube, website, years_experience, nationality, photo_url, photo_position, photo_zoom')
         .eq('id', user.id)
         .single();
       if (profile?.role) {
@@ -171,6 +172,10 @@ function OnboardingContent() {
           ...(profile.name && { publicName: profile.name }),
           ...(profile.nationality && { nationality: profile.nationality }),
           ...(profile.bio && { bio: profile.bio }),
+          ...(profile.instagram && { instagram: profile.instagram }),
+          ...(profile.tiktok && { tiktok: profile.tiktok }),
+          ...(profile.youtube && { youtube: profile.youtube }),
+          ...(profile.website && { website: profile.website }),
         }));
         if (profile.whatsapp) {
           const { code, number } = parsePhonePrefix(profile.whatsapp);
@@ -307,8 +312,8 @@ function OnboardingContent() {
           whatsapp:         waNumber ? `${waCode}${waNumber}` : undefined,
           instagram:        form.instagram ? extractSocialHandle(form.instagram, 'instagram') : undefined,
           tiktok:           form.tiktok ? extractSocialHandle(form.tiktok, 'tiktok') : undefined,
-          youtube:          form.youtube || undefined,
-          website:          form.website || undefined,
+          youtube:          form.youtube ? extractSocialHandle(form.youtube, 'youtube') : undefined,
+          website:          form.website ? buildWebsiteUrl(form.website) : undefined,
           style_names:      form.styles.length ? form.styles : undefined,
           years_experience: expKey ? yearsMap[expKey] : undefined,
           photo_url:        photoUrl || undefined,
@@ -551,28 +556,19 @@ function OnboardingContent() {
                   <p className="text-xs text-neutral-400 mt-1">Solo números locales, sin prefijo ni ceros iniciales. {getPhoneExample(waCode)}</p>
                 </div>
                 {[
-                  { key: 'instagram', label: 'Instagram', placeholder: '@tuperfil o enlace', required: true, platform: 'instagram' as const },
-                  { key: 'tiktok', label: 'TikTok', placeholder: '@tuperfil o enlace', platform: 'tiktok' as const },
-                  { key: 'youtube', label: 'YouTube', placeholder: '@tucanal' },
-                  { key: 'website', label: 'Sitio web', placeholder: 'https://tuweb.com' },
+                  { key: 'instagram' as const, label: 'Instagram', required: true, platform: 'instagram' as const },
+                  { key: 'tiktok' as const, label: 'TikTok', platform: 'tiktok' as const },
+                  { key: 'youtube' as const, label: 'YouTube', platform: 'youtube' as const },
+                  { key: 'website' as const, label: 'Sitio web', platform: 'website' as const },
                 ].map(f => (
-                  <div key={f.key}>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                      {f.label}
-                      {f.required && <span className="text-red ml-0.5">*</span>}
-                    </label>
-                    <input
-                      type="text"
-                      placeholder={f.placeholder}
-                      value={(form as Record<string, unknown>)[f.key] as string}
-                      onChange={e => { set(f.key as keyof typeof form, e.target.value); setError(''); }}
-                      onBlur={f.platform ? e => {
-                        const cleaned = extractSocialHandle(e.target.value, f.platform);
-                        if (cleaned) set(f.key as keyof typeof form, cleaned);
-                      } : undefined}
-                      className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-neutral-900"
-                    />
-                  </div>
+                  <SocialHandleInput
+                    key={f.key}
+                    platform={f.platform}
+                    label={f.label}
+                    required={f.required}
+                    value={form[f.key]}
+                    onChange={val => { set(f.key, val); setError(''); }}
+                  />
                 ))}
               </div>
               <p className="text-xs text-neutral-400 mt-4"><span className="text-red">*</span> Al menos uno es obligatorio</p>
@@ -799,7 +795,11 @@ function OnboardingContent() {
                   <div className="flex justify-between p-3 bg-neutral-50 rounded-xl text-sm">
                     <span className="text-neutral-600">Redes</span>
                     <span className="font-semibold text-neutral-900">
-                      {[form.instagram, form.tiktok, form.youtube].filter(Boolean).join(' · ')}
+                      {[
+                        form.instagram && formatSocialHandle(form.instagram, 'instagram'),
+                        form.tiktok && formatSocialHandle(form.tiktok, 'tiktok'),
+                        form.youtube && formatSocialHandle(form.youtube, 'youtube'),
+                      ].filter(Boolean).join(' · ')}
                     </span>
                   </div>
                 )}
