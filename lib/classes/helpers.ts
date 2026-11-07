@@ -30,7 +30,7 @@ export function venueNeedsUpdate(
 
 export async function findOrCreateVenue(
   supabase: SupabaseClient,
-  ownerId: string,
+  ownerId: string | null,
   opts: {
     name: string; address: string; reference: string; city: string; district: string;
     // ISO 3166-1 alpha-2, from Google Places — empty when the address field
@@ -39,13 +39,20 @@ export async function findOrCreateVenue(
     // column's 'PE' default on first insert.
     country?: string;
     placeId: string | null; lat: number | null; lng: number | null;
+    // Storage folder owner when an admin in Superusuario mode creates a venue
+    // for another profile or for an external organizer (ownerId === null).
+    uploaderId?: string;
   }
 ): Promise<string | null> {
+  const storageOwnerId = opts.uploaderId ?? ownerId;
   if (opts.placeId) {
-    const { data: existing, error: lookupError } = await supabase
+    let lookupQuery = supabase
       .from('venues')
-      .select('id, lat, lng, map_image_url')
-      .eq('owner_id', ownerId)
+      .select('id, lat, lng, map_image_url');
+    lookupQuery = ownerId !== null
+      ? lookupQuery.eq('owner_id', ownerId)
+      : lookupQuery.is('owner_id', null);
+    const { data: existing, error: lookupError } = await lookupQuery
       .eq('place_id', opts.placeId)
       .maybeSingle();
     if (lookupError) console.error('[findOrCreateVenue] lookup', lookupError.message);
@@ -66,8 +73,8 @@ export async function findOrCreateVenue(
       // reusa el mismo local en muchas clases — no vale la pena una llamada
       // a Google en cada guardado) o si nunca se generó uno.
       const coordsChanged = existing.lat !== opts.lat || existing.lng !== opts.lng;
-      if (opts.lat != null && opts.lng != null && (coordsChanged || !existing.map_image_url)) {
-        await generateAndCacheVenueMapImage(supabase, { venueId: existing.id, ownerId, lat: opts.lat, lng: opts.lng });
+      if (storageOwnerId && opts.lat != null && opts.lng != null && (coordsChanged || !existing.map_image_url)) {
+        await generateAndCacheVenueMapImage(supabase, { venueId: existing.id, ownerId: storageOwnerId, lat: opts.lat, lng: opts.lng });
       }
       return existing.id;
     }
@@ -93,8 +100,8 @@ export async function findOrCreateVenue(
   if (error) { console.error('[findOrCreateVenue] insert', error.message); return null; }
   if (!data?.id) return null;
 
-  if (opts.lat != null && opts.lng != null) {
-    await generateAndCacheVenueMapImage(supabase, { venueId: data.id, ownerId, lat: opts.lat, lng: opts.lng });
+  if (storageOwnerId && opts.lat != null && opts.lng != null) {
+    await generateAndCacheVenueMapImage(supabase, { venueId: data.id, ownerId: storageOwnerId, lat: opts.lat, lng: opts.lng });
   }
   return data.id;
 }

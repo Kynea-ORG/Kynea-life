@@ -12,8 +12,9 @@ import PhoneCountrySelect from '@/components/PhoneCountrySelect';
 import { parsePhonePrefix, getPhonePlaceholder, getPhoneExample } from '@/lib/countries';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
-import { DEFAULT_ACADEMIA_COVER, extractSocialHandle } from '@/lib/utils';
+import { DEFAULT_ACADEMIA_COVER, extractSocialHandle, buildWebsiteUrl } from '@/lib/utils';
 import ErrorBanner from '@/components/ErrorBanner';
+import SocialHandleInput from '@/components/SocialHandleInput';
 import { startRouteProgress } from '@/lib/navigation/progress';
 
 // Extracts the storage object path from a public Supabase Storage URL
@@ -264,6 +265,8 @@ export default function PerfilClient({
     const whatsappFull = waNumber ? `${waCode}${waNumber}` : '';
     const cleanIg = extractSocialHandle(instagram, 'instagram');
     const cleanTt = extractSocialHandle(tiktok, 'tiktok');
+    const cleanYt = extractSocialHandle(youtube, 'youtube');
+    const cleanWeb = buildWebsiteUrl(website);
     if (isTeacher && !whatsappFull && !cleanIg) {
       setError('Ingresa al menos tu WhatsApp o Instagram para que los alumnos puedan contactarte.');
       return;
@@ -281,8 +284,8 @@ export default function PerfilClient({
           whatsapp: waNumber ? `${waCode}${waNumber}` : '',
           instagram: cleanIg,
           tiktok: cleanTt,
-          youtube,
-          website,
+          youtube: cleanYt,
+          website: cleanWeb,
           style_names: styles,
           primary_venue: isAcademia ? {
             address: address.trim(),
@@ -604,47 +607,37 @@ export default function PerfilClient({
               <p className="text-xs text-neutral-400 mt-1">Solo números locales, sin código de país, espacios ni guiones. {getPhoneExample(waCode)}</p>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                Instagram<span className="text-red ml-0.5">*</span>
-              </label>
-              <input
-                ref={instagramInputRef}
-                id="field-instagram"
-                type="text"
-                value={instagram}
-                onChange={e => setInstagram(e.target.value)}
-                onBlur={e => {
-                  const cleaned = extractSocialHandle(e.target.value, 'instagram');
-                  if (cleaned) setInstagram(cleaned);
-                }}
-                placeholder="Tu instagram o link de perfil"
-                className={`input ${
-                  highlightField === 'instagram' ? '!border-amber ring-2 ring-amber/40' : ''
-                }`}
-              />
-            </div>
+            <SocialHandleInput
+              platform="instagram"
+              label="Instagram"
+              required
+              id="field-instagram"
+              inputRef={instagramInputRef}
+              value={instagram}
+              onChange={setInstagram}
+              highlighted={highlightField === 'instagram'}
+            />
 
-            {[
-              { label: 'TikTok', value: tiktok, set: setTiktok, platform: 'tiktok' as const },
-              { label: 'YouTube', value: youtube, set: setYoutube },
-              { label: 'Sitio web', value: website, set: setWebsite },
-            ].map(f => (
-              <div key={f.label}>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">{f.label}</label>
-                <input
-                  type="text"
-                  value={f.value}
-                  onChange={e => f.set(e.target.value)}
-                  onBlur={f.platform ? e => {
-                    const cleaned = extractSocialHandle(e.target.value, f.platform);
-                    if (cleaned) f.set(cleaned);
-                  } : undefined}
-                  placeholder={`Tu ${f.label.toLowerCase()}`}
-                  className="input"
-                />
-              </div>
-            ))}
+            <SocialHandleInput
+              platform="tiktok"
+              label="TikTok"
+              value={tiktok}
+              onChange={setTiktok}
+            />
+
+            <SocialHandleInput
+              platform="youtube"
+              label="YouTube"
+              value={youtube}
+              onChange={setYoutube}
+            />
+
+            <SocialHandleInput
+              platform="website"
+              label="Sitio web"
+              value={website}
+              onChange={setWebsite}
+            />
           </div>
         )}
 

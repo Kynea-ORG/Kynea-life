@@ -805,7 +805,7 @@ export default function GoogleMap({
             type="button"
             onClick={() => zoomBy(1)}
             aria-label="Acercar"
-            className="w-9 h-9 rounded-btn border border-neutral-900 bg-white flex items-center justify-center hover:bg-neutral-100 active:scale-95 transition-[background-color,transform]"
+            className="w-9 h-9 rounded-btn border border-neutral-900 bg-white flex items-center justify-center cursor-pointer hover:bg-neutral-100 active:scale-95 transition-[background-color,transform]"
           >
             <Plus className="w-4 h-4 text-neutral-900" />
           </button>
@@ -813,7 +813,7 @@ export default function GoogleMap({
             type="button"
             onClick={() => zoomBy(-1)}
             aria-label="Alejar"
-            className="w-9 h-9 rounded-btn border border-neutral-900 bg-white flex items-center justify-center hover:bg-neutral-100 active:scale-95 transition-[background-color,transform]"
+            className="w-9 h-9 rounded-btn border border-neutral-900 bg-white flex items-center justify-center cursor-pointer hover:bg-neutral-100 active:scale-95 transition-[background-color,transform]"
           >
             <Minus className="w-4 h-4 text-neutral-900" />
           </button>
@@ -823,7 +823,7 @@ export default function GoogleMap({
             aria-label="Mi ubicación"
             title={userLocation ? 'Ir a mi ubicación' : 'Activar mi ubicación'}
             disabled={userLocationStatus === 'prompting'}
-            className={`w-9 h-9 mt-1 rounded-btn border flex items-center justify-center active:scale-95 transition-[background-color,transform,border-color,color] ${
+            className={`w-9 h-9 mt-1 rounded-btn border flex items-center justify-center cursor-pointer disabled:cursor-wait active:scale-95 transition-[background-color,transform,border-color,color] ${
               userLocation
                 ? 'border-blue-600 bg-white text-blue-600 hover:bg-blue-50 shadow-sm'
                 : 'border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-100'
@@ -840,7 +840,7 @@ export default function GoogleMap({
             onClick={() => recenterRef.current?.()}
             aria-label="Centrar mapa"
             title="Centrar mapa"
-            className="w-9 h-9 rounded-btn border border-neutral-900 bg-white flex items-center justify-center hover:bg-neutral-100 active:scale-95 transition-[background-color,transform]"
+            className="w-9 h-9 rounded-btn border border-neutral-900 bg-white flex items-center justify-center cursor-pointer hover:bg-neutral-100 active:scale-95 transition-[background-color,transform]"
           >
             <LocateFixed className="w-4 h-4 text-neutral-900" />
           </button>

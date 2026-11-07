@@ -4,9 +4,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Save,
-  Upload, MapPin, Monitor, Loader2, X,
+  Upload, MapPin, Monitor, Loader2, X, Shield, Building2, UserCheck, ExternalLink,
 } from 'lucide-react';
 import { createClass, updateClassFromForm } from '@/lib/classes/actions';
+import type { AssignableProfile } from '@/lib/classes/queries';
 import { trackCreateClassStepComplete, trackClassCreated, trackCreateClassBlocked } from '@/lib/analytics';
 import { startRouteProgress, stopRouteProgress } from '@/lib/navigation/progress';
 import { uploadClassImage } from '@/lib/classes/imageActions';
@@ -22,6 +23,7 @@ import { getCurrencySymbol } from '@/lib/currencies';
 import type { DanceClass } from '@/lib/types';
 import WizardShell from './WizardShell';
 import YearMonthPicker from './YearMonthPicker';
+import AssignableProfileSelect from './AssignableProfileSelect';
 import { limaToday, monthLabel, parseSeriesMonths } from '@/lib/classes/series';
 import { slugifyTitle, sanitizeSlugInput } from '@/lib/classes/slug';
 
@@ -29,6 +31,7 @@ import { slugifyTitle, sanitizeSlugInput } from '@/lib/classes/slug';
 // blocked publish attempt can jump the user straight to the offending step.
 const FIELD_STEP: Record<string, number> = {
   title: 0, style: 0, level: 0, fullDesc: 0, coverImage: 0,
+  assignedTeacherId: 0, externalOrganizerName: 0, externalInfoUrl: 0,
   schedule: 1, startDate: 1, endDate: 1, modality: 1, address: 1, city: 1, district: 1, accessLink: 1,
   price: 2,
 };
@@ -95,6 +98,12 @@ function buildInitialForm(editClass: DanceClass | null) {
       toBring: [] as string[],
       status: 'draft',
       seriesMonths: [] as string[],
+      superuserMode: 'assigned' as 'assigned' | 'external',
+      assignedTeacherId: '',
+      externalOrganizerName: '',
+      externalInfoUrl: '',
+      externalWhatsapp: '',
+      externalInstagram: '',
     };
   }
   return {
@@ -135,6 +144,12 @@ function buildInitialForm(editClass: DanceClass | null) {
     toBring: editClass.toBring ?? [],
     status: editClass.status ?? 'draft',
     seriesMonths: [] as string[],
+    superuserMode: (editClass.externalOrganizer ? 'external' : 'assigned') as 'assigned' | 'external',
+    assignedTeacherId: editClass.externalOrganizer ? '' : (editClass.teacher?.id ?? ''),
+    externalOrganizerName: editClass.externalOrganizer?.name ?? '',
+    externalInfoUrl: editClass.externalOrganizer?.infoUrl ?? '',
+    externalWhatsapp: editClass.externalOrganizer?.whatsapp ?? '',
+    externalInstagram: editClass.externalOrganizer?.instagram ?? '',
   };
 }
 
@@ -200,9 +215,19 @@ interface Props {
   danceStyles: string[];
   levels: string[];
   academiaPending?: boolean;
+  isSuperuser?: boolean;
+  assignableProfiles?: AssignableProfile[];
 }
 
-export default function CrearClaseForm({ classId, editClass, danceStyles, levels, academiaPending = false }: Props) {
+export default function CrearClaseForm({
+  classId,
+  editClass,
+  danceStyles,
+  levels,
+  academiaPending = false,
+  isSuperuser = false,
+  assignableProfiles = [],
+}: Props) {
   useRouter();
   const isEdit = Boolean(classId);
   const [step, setStep] = useState(0);
@@ -359,6 +384,27 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         if (coverImageUrl) fd.set('coverImage', coverImageUrl);
         if (coverImageUrl) fd.set('coverImagePosition', coverImagePosition);
         if (coverImageUrl) fd.set('coverImageZoom', String(coverImageZoom));
+        if (isSuperuser) {
+          fd.set('superuserMode', form.superuserMode);
+          fd.set('assignedTeacherId', form.assignedTeacherId);
+          fd.set('externalOrganizerName', form.externalOrganizerName);
+          fd.set('externalInfoUrl', form.externalInfoUrl);
+          fd.set('externalWhatsapp', form.externalWhatsapp);
+          fd.set('externalInstagram', form.externalInstagram);
+
+          if (form.superuserMode === 'assigned' && !form.assignedTeacherId.trim()) {
+            setFieldErrors({ assignedTeacherId: 'Selecciona un profesor o academia registrado' });
+            setSubmitError('Selecciona a qué profesor o academia pertenece esta clase.');
+            setStep(0);
+            return;
+          }
+          if (form.superuserMode === 'external' && !form.externalOrganizerName.trim()) {
+            setFieldErrors({ externalOrganizerName: 'El nombre del organizador externo es obligatorio' });
+            setSubmitError('Ingresa el nombre del organizador externo.');
+            setStep(0);
+            return;
+          }
+        }
 
         // Draft saves stay permissive — only publish attempts are gated.
         if (status === 'published') {
@@ -455,8 +501,133 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
   };
 
   // ── Step 1: Información básica ────────────────────────────────────────────
+  const selectedAssignableProfile = assignableProfiles.find(p => p.id === form.assignedTeacherId);
+
   const renderStep0 = () => (
     <div className="space-y-4">
+      {isSuperuser && (
+        <div className="border border-neutral-200 rounded-xl p-3.5 sm:p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-primary shrink-0" />
+            <p className="text-xs font-extrabold uppercase tracking-wider text-neutral-900">
+              Asignación de la clase (Modo Superusuario)
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => set('superuserMode', 'assigned')}
+              className={`text-left px-3 py-2.5 rounded-xl border-2 transition-colors flex items-start gap-2.5 ${
+                form.superuserMode === 'assigned'
+                  ? 'border-primary bg-primary-bg'
+                  : 'border-neutral-200 hover:bg-neutral-50'
+              }`}
+            >
+              <UserCheck className={`w-4 h-4 mt-0.5 shrink-0 ${form.superuserMode === 'assigned' ? 'text-primary' : 'text-neutral-400'}`} />
+              <div>
+                <p className="text-[13px] font-bold text-neutral-900 leading-tight">Asignar a cuenta registrada</p>
+                <p className="text-[11px] text-neutral-600 leading-snug mt-0.5">
+                  Profesor o academia con cuenta en Kynea
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => set('superuserMode', 'external')}
+              className={`text-left px-3 py-2.5 rounded-xl border-2 transition-colors flex items-start gap-2.5 ${
+                form.superuserMode === 'external'
+                  ? 'border-primary bg-primary-bg'
+                  : 'border-neutral-200 hover:bg-neutral-50'
+              }`}
+            >
+              <Building2 className={`w-4 h-4 mt-0.5 shrink-0 ${form.superuserMode === 'external' ? 'text-primary' : 'text-neutral-400'}`} />
+              <div>
+                <p className="text-[13px] font-bold text-neutral-900 leading-tight">Organizador externo (informativo)</p>
+                <p className="text-[11px] text-neutral-600 leading-snug mt-0.5">
+                  Entidad sin cuenta (ej. Ministerio de Cultura)
+                </p>
+              </div>
+            </button>
+          </div>
+
+          {form.superuserMode === 'assigned' ? (
+            <div className="space-y-2 pt-1">
+              <FieldLabel>Profesor o academia asignado *</FieldLabel>
+              <AssignableProfileSelect
+                value={form.assignedTeacherId}
+                onChange={profileId => set('assignedTeacherId', profileId)}
+                profiles={assignableProfiles}
+                error={fieldErrors.assignedTeacherId}
+              />
+              {selectedAssignableProfile && (
+                <p className="text-[11px] text-neutral-600">
+                  Asignada a <span className="font-bold text-neutral-900">{selectedAssignableProfile.name}</span> ({selectedAssignableProfile.role === 'academia' ? 'Academia' : 'Profesor'}).
+                  {!selectedAssignableProfile.hasWhatsapp && !selectedAssignableProfile.hasInstagram && (
+                    <span className="text-red font-semibold ml-1">
+                      Atención: esta cuenta aún no tiene WhatsApp ni Instagram configurado en su perfil (solo podrás guardar como borrador).
+                    </span>
+                  )}
+                </p>
+              )}
+              {fieldErrors.assignedTeacherId && (
+                <p className="text-xs text-red mt-1">{fieldErrors.assignedTeacherId}</p>
+              )}
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <FieldLabel>Nombre del organizador externo *</FieldLabel>
+                <input
+                  className="input bg-white"
+                  value={form.externalOrganizerName}
+                  onChange={e => set('externalOrganizerName', e.target.value)}
+                  placeholder="Ej: Ministerio de Cultura"
+                  maxLength={100}
+                />
+                {fieldErrors.externalOrganizerName && (
+                  <p className="text-xs text-red mt-1">{fieldErrors.externalOrganizerName}</p>
+                )}
+              </div>
+              <div>
+                <FieldLabel>Enlace oficial para más información *</FieldLabel>
+                <input
+                  className="input bg-white"
+                  value={form.externalInfoUrl}
+                  onChange={e => set('externalInfoUrl', e.target.value)}
+                  placeholder="https://www.gob.pe/cultura/..."
+                />
+                {fieldErrors.externalInfoUrl && (
+                  <p className="text-xs text-red mt-1">{fieldErrors.externalInfoUrl}</p>
+                )}
+              </div>
+              <div>
+                <FieldLabel>Enlace de WhatsApp <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+                <input
+                  className="input bg-white"
+                  value={form.externalWhatsapp}
+                  onChange={e => set('externalWhatsapp', e.target.value)}
+                  placeholder="https://wa.me/..."
+                />
+              </div>
+              <div>
+                <FieldLabel>Enlace de Instagram <span className="font-normal text-neutral-400">(opcional)</span></FieldLabel>
+                <input
+                  className="input bg-white"
+                  value={form.externalInstagram}
+                  onChange={e => set('externalInstagram', e.target.value)}
+                  placeholder="https://www.instagram.com/p/..."
+                />
+              </div>
+              <p className="sm:col-span-2 text-[11px] text-neutral-500">
+                Esta publicación se mostrará de forma informativa con el botón hacia el canal oficial, y opcionalmente botones adicionales de WhatsApp e Instagram si los completas.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <FieldLabel>Tipo de publicación</FieldLabel>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -1066,27 +1237,54 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             )}
           </div>
 
-          <div>
-            <FieldLabel>Modalidad de contacto</FieldLabel>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'whatsapp', label: 'WhatsApp', desc: 'Los alumnos te contactan por WhatsApp' },
-                { value: 'instagram', label: 'Instagram', desc: 'Los alumnos te escriben por Instagram' },
-                { value: 'both', label: 'Ambos', desc: 'Los alumnos pueden contactarte por WhatsApp e Instagram' },
-              ].map(opt => (
-                <label key={opt.value} title={opt.desc}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
-                    form.contactMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
-                  }`}>
-                  <input type="radio" name="contactMode" value={opt.value}
-                    checked={form.contactMode === opt.value} onChange={() => set('contactMode', opt.value)}
-                    className="accent-primary shrink-0" />
-                  <span className="text-[13px] font-semibold text-neutral-900 leading-tight">{opt.label}</span>
-                </label>
-              ))}
+          {isSuperuser && form.superuserMode === 'external' ? (
+            <div className="border border-neutral-200 rounded-xl p-3 space-y-1">
+              <p className="text-xs font-bold text-neutral-900 flex items-center gap-1.5">
+                <ExternalLink className="w-3.5 h-3.5 text-primary" />
+                Publicación informativa (Organizador externo)
+              </p>
+              <p className="text-xs text-neutral-600 leading-relaxed">
+                Canal oficial:{' '}
+                <span className="font-semibold text-neutral-900 break-all">{form.externalInfoUrl || '(define el enlace en el Paso 1)'}</span>
+                {form.externalWhatsapp && (
+                  <>
+                    {' · '}WhatsApp: <span className="font-semibold text-neutral-900">{form.externalWhatsapp}</span>
+                  </>
+                )}
+                {form.externalInstagram && (
+                  <>
+                    {' · '}Instagram: <span className="font-semibold text-neutral-900">{form.externalInstagram}</span>
+                  </>
+                )}
+              </p>
             </div>
-            <Hint>Debes tener configurado tu WhatsApp o Instagram en el perfil.</Hint>
-          </div>
+          ) : (
+            <div>
+              <FieldLabel>Modalidad de contacto</FieldLabel>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'whatsapp', label: 'WhatsApp', desc: 'Los alumnos te contactan por WhatsApp' },
+                  { value: 'instagram', label: 'Instagram', desc: 'Los alumnos te escriben por Instagram' },
+                  { value: 'both', label: 'Ambos', desc: 'Los alumnos pueden contactarte por WhatsApp e Instagram' },
+                ].map(opt => (
+                  <label key={opt.value} title={opt.desc}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
+                      form.contactMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
+                    }`}>
+                    <input type="radio" name="contactMode" value={opt.value}
+                      checked={form.contactMode === opt.value} onChange={() => set('contactMode', opt.value)}
+                      className="accent-primary shrink-0" />
+                    <span className="text-[13px] font-semibold text-neutral-900 leading-tight">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+              <Hint>
+                {isSuperuser
+                  ? 'El profesor o academia asignado debe tener configurado su WhatsApp o Instagram en el perfil.'
+                  : 'Debes tener configurado tu WhatsApp o Instagram en el perfil.'}
+              </Hint>
+            </div>
+          )}
         </div>
 
         {/* Columna derecha: detalles de la clase */}
@@ -1203,6 +1401,19 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
         <div className="self-start space-y-2">
         <div className="border border-neutral-200 rounded-xl overflow-hidden grid sm:grid-cols-2">
           {[
+            ...(isSuperuser
+              ? [
+                  {
+                    label: 'Asignación',
+                    value:
+                      form.superuserMode === 'external'
+                        ? `${form.externalOrganizerName || '—'} (Organizador externo)`
+                        : selectedAssignableProfile
+                          ? `${selectedAssignableProfile.name} (${selectedAssignableProfile.role === 'academia' ? 'Academia' : 'Profesor'})`
+                          : '—',
+                  },
+                ]
+              : []),
             { label: 'Tipo', value: form.type },
             { label: 'Título', value: form.title || '—' },
             { label: 'Estilo', value: form.style || '—' },
@@ -1215,7 +1426,21 @@ export default function CrearClaseForm({ classId, editClass, danceStyles, levels
             { label: 'Ubicación', value: locationLabel },
             { label: 'Horarios', value: slotsLabel },
             { label: 'Precio', value: priceLabel },
-            { label: 'Contacto', value: form.contactMode === 'both' ? 'WhatsApp e Instagram' : form.contactMode === 'instagram' ? 'Instagram' : 'WhatsApp' },
+            {
+              label: isSuperuser && form.superuserMode === 'external' ? 'Más info' : 'Contacto',
+              value:
+                isSuperuser && form.superuserMode === 'external'
+                  ? [
+                      form.externalInfoUrl,
+                      form.externalWhatsapp ? `WA: ${form.externalWhatsapp}` : '',
+                      form.externalInstagram ? `IG: ${form.externalInstagram}` : '',
+                    ].filter(Boolean).join(' · ') || '—'
+                  : form.contactMode === 'both'
+                    ? 'WhatsApp e Instagram'
+                    : form.contactMode === 'instagram'
+                      ? 'Instagram'
+                      : 'WhatsApp',
+            },
             { label: 'Cupos', value: form.maxSpots ? `${form.maxSpots} cupos` : '—' },
           ].map(row => (
             <div key={row.label} className="flex gap-3 px-3 py-2 border-b border-neutral-100 last:border-b-0 sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0">

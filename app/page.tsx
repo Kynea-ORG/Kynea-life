@@ -121,7 +121,9 @@ export default async function Page() {
         url: SITE_URL,
         logo: `${SITE_URL}/logo.png`,
         sameAs: [
-          'https://www.instagram.com/kynea.danza',
+          'https://www.instagram.com/kynea.dance/',
+          'https://www.youtube.com/@kynea-dance',
+          'https://www.facebook.com/p/Kynea-61581939147024/',
           'https://www.tiktok.com/@kynea.danza',
         ],
       },

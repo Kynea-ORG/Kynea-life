@@ -80,6 +80,7 @@ export default function ClasesMapView({
   const {
     location: userLocation,
     status: userLocationStatus,
+    permission: userLocationPermission,
     requestLocation,
   } = useUserLocation();
 
@@ -290,7 +291,22 @@ export default function ClasesMapView({
           doc comment above), so this whole panel is dropped there instead
           of being a second, redundant "list" behind a mobile sub-toggle. */}
       <div className="hidden lg:flex overflow-y-auto flex-col gap-3 pt-1.5 pr-1">
-        {userLocationStatus === 'denied' && (
+        {userLocationStatus === 'denied' && userLocationPermission === 'denied' && (
+          // Bloqueado a nivel navegador: ya no vuelve a preguntar, así que un
+          // "Reintentar" no haría nada. Se explica cómo desbloquearlo; el hook
+          // detecta el cambio y recupera la ubicación solo.
+          <div className="flex items-start gap-1.5 p-2.5 rounded-xl bg-neutral-50 text-neutral-700 text-[12px] border border-neutral-200">
+            <MapPinOff className="w-3.5 h-3.5 shrink-0 mt-0.5 text-neutral-500" />
+            <div>
+              <p className="font-semibold">Ubicación bloqueada en tu navegador</p>
+              <p className="text-neutral-500 mt-0.5">
+                Actívala desde el candado junto a la dirección del sitio y se activará sola.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {userLocationStatus === 'denied' && userLocationPermission !== 'denied' && (
           <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-neutral-50 text-neutral-700 text-[12px] border border-neutral-200">
             <div className="flex items-center gap-1.5 min-w-0">
               <MapPinOff className="w-3.5 h-3.5 shrink-0 text-neutral-500" />
@@ -299,7 +315,7 @@ export default function ClasesMapView({
             <button
               type="button"
               onClick={() => requestLocation(true)}
-              className="text-primary font-bold hover:underline shrink-0 text-[12px]"
+              className="text-primary font-bold hover:underline shrink-0 text-[12px] cursor-pointer"
             >
               Reintentar
             </button>

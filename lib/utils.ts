@@ -106,10 +106,11 @@ export function buildWhatsAppMessage(style: string, startDate: string, teacherPh
  * - A handle with @: "@dario_boada"
  * - A full profile URL: "https://www.instagram.com/dario_boada?stkn=MWdqN2RvMDcwc2RzZA=="
  * - A full TikTok URL: "https://www.tiktok.com/@dario_boada?_r=1&_t=ZS-9A9k9twWGFm"
+ * - A full YouTube URL: "https://www.youtube.com/@kynea-dance?si=abc123"
  * - Domain without protocol: "instagram.com/dario_boada"
  * - Unclean input with spaces, slashes, query params or hashes.
  */
-export function extractSocialHandle(input: string | null | undefined, platform?: 'instagram' | 'tiktok'): string {
+export function extractSocialHandle(input: string | null | undefined, platform?: 'instagram' | 'tiktok' | 'youtube'): string {
   if (!input) return '';
   let cleaned = input.trim();
   if (!cleaned) return '';
@@ -131,10 +132,19 @@ export function extractSocialHandle(input: string | null | undefined, platform?:
     } else {
       cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:www\.)?(?:(?:vm|vt)\.)?tiktok\.com\/?/i, '');
     }
+  } else if (lower.includes('youtube.com')) {
+    const idx = lower.lastIndexOf('youtube.com/');
+    if (idx !== -1) {
+      cleaned = cleaned.slice(idx + 'youtube.com/'.length);
+    } else {
+      cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:(?:www|m)\.)?youtube\.com\/?/i, '');
+    }
   } else if (platform === 'instagram') {
     cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\/?/i, '');
   } else if (platform === 'tiktok') {
     cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:www\.)?(?:(?:vm|vt)\.)?tiktok\.com\/?/i, '');
+  } else if (platform === 'youtube') {
+    cleaned = cleaned.replace(/^(?:https?:\/\/)?(?:(?:www|m)\.)?youtube\.com\/?/i, '');
   }
 
   // Remove query parameters and hash fragments (?stkn=... / #...)
@@ -142,6 +152,11 @@ export function extractSocialHandle(input: string | null | undefined, platform?:
 
   // Strip leading and trailing slashes
   cleaned = cleaned.replace(/^\/+|\/+$/g, '');
+
+  // Strip YouTube legacy path prefixes (/c/ or /user/) if present
+  if (lower.includes('youtube.com') || platform === 'youtube') {
+    cleaned = cleaned.replace(/^(?:c|user)\/+/i, '');
+  }
 
   // If path segments remain, take the first path segment
   if (cleaned.includes('/')) {
@@ -160,12 +175,61 @@ export function buildInstagramUrl(handleOrUrl: string | null | undefined): strin
   return handle ? `https://instagram.com/${handle}` : '';
 }
 
+/**
+ * Resolves a WhatsApp field for an external organizer publication.
+ * Accepts full URLs (e.g. https://wa.link/..., https://wa.me/..., chat.whatsapp.com/...)
+ * as well as raw phone numbers as fallback.
+ */
+export function resolveExternalWhatsAppUrl(
+  rawValue: string | null | undefined,
+  style: string,
+  startDate: string,
+): string {
+  if (!rawValue) return '';
+  const trimmed = rawValue.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(?:www\.)?(?:wa\.link|wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)\//i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return buildWhatsAppMessage(style, startDate, trimmed);
+}
+
+/**
+ * Resolves an Instagram field for an external organizer publication.
+ * Preserves full post/reel/profile URLs (e.g. https://www.instagram.com/p/..., instagram.com/reel/...)
+ * instead of stripping path segments to a profile handle. Falls back to handle resolution if not a URL.
+ */
+export function resolveExternalInstagramUrl(rawValue: string | null | undefined): string {
+  if (!rawValue) return '';
+  const trimmed = rawValue.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(?:www\.)?(?:instagram\.com|instagr\.am)\//i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return buildInstagramUrl(trimmed);
+}
+
 export function buildTikTokUrl(handleOrUrl: string | null | undefined): string {
   const handle = extractSocialHandle(handleOrUrl, 'tiktok');
   return handle ? `https://tiktok.com/@${handle}` : '';
 }
 
-export function formatSocialHandle(handleOrUrl: string | null | undefined, platform?: 'instagram' | 'tiktok'): string {
+export function buildYouTubeUrl(handleOrUrl: string | null | undefined): string {
+  const handle = extractSocialHandle(handleOrUrl, 'youtube');
+  return handle ? `https://youtube.com/@${handle}` : '';
+}
+
+export function buildWebsiteUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed.replace(/^\/+/, '')}`;
+}
+
+export function formatSocialHandle(handleOrUrl: string | null | undefined, platform?: 'instagram' | 'tiktok' | 'youtube'): string {
   const handle = extractSocialHandle(handleOrUrl, platform);
   return handle ? `@${handle}` : '';
 }

@@ -117,3 +117,95 @@ describe('useUserLocation hook', () => {
     expect(sessionStorage.getItem('kynea_user_location')).toBeNull();
   });
 });
+
+describe('useUserLocation hook — permiso del navegador (Permissions API)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    act(() => {
+      vi.runOnlyPendingTimers();
+      vi.useRealTimers();
+    });
+    sessionStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  function stubBrowser(initial: PermissionState) {
+    const permissionStatus = Object.assign(new EventTarget(), { state: initial as PermissionState });
+    const getCurrentPosition = vi.fn().mockImplementation((success) => {
+      success({ coords: { latitude: -12.09, longitude: -77.04 } });
+    });
+    vi.stubGlobal('navigator', {
+      geolocation: { getCurrentPosition },
+      permissions: { query: vi.fn().mockResolvedValue(permissionStatus) },
+    });
+    return { permissionStatus, getCurrentPosition };
+  }
+
+  const flush = () => act(async () => { vi.advanceTimersByTime(10); });
+
+  it('permission es null cuando el navegador no expone la Permissions API', async () => {
+    vi.stubGlobal('navigator', { geolocation: { getCurrentPosition: vi.fn() } });
+
+    const { result } = renderHook(() => useUserLocation({ autoRequest: false }));
+    await flush();
+
+    expect(result.current.permission).toBeNull();
+  });
+
+  it('expone el estado "denied" que reporta el navegador', async () => {
+    stubBrowser('denied');
+
+    const { result } = renderHook(() => useUserLocation({ autoRequest: false }));
+    await flush();
+
+    expect(result.current.permission).toBe('denied');
+  });
+
+  it('se recupera solo cuando el usuario concede el permiso desde el navegador', async () => {
+    const { permissionStatus, getCurrentPosition } = stubBrowser('denied');
+
+    const { result } = renderHook(() => useUserLocation({ autoRequest: false }));
+    await flush();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+
+    await act(async () => {
+      permissionStatus.state = 'granted';
+      permissionStatus.dispatchEvent(new Event('change'));
+    });
+
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+    expect(result.current.permission).toBe('granted');
+    expect(result.current.status).toBe('granted');
+    expect(result.current.location).toEqual({ lat: -12.09, lng: -77.04 });
+  });
+
+  it('no pide la ubicación cuando el permiso cambia a un estado distinto de "granted"', async () => {
+    const { permissionStatus, getCurrentPosition } = stubBrowser('denied');
+
+    const { result } = renderHook(() => useUserLocation({ autoRequest: false }));
+    await flush();
+
+    await act(async () => {
+      permissionStatus.state = 'prompt';
+      permissionStatus.dispatchEvent(new Event('change'));
+    });
+
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(result.current.permission).toBe('prompt');
+  });
+
+  it('deja de escuchar cambios del permiso al desmontar', async () => {
+    const { permissionStatus } = stubBrowser('denied');
+    const removeSpy = vi.spyOn(permissionStatus, 'removeEventListener');
+
+    const { unmount } = renderHook(() => useUserLocation({ autoRequest: false }));
+    await flush();
+    unmount();
+
+    expect(removeSpy).toHaveBeenCalledWith('change', expect.any(Function));
+  });
+});

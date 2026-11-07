@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { InstagramIcon, YouTubeIcon, FacebookIcon } from '@/components/icons/SocialIcons';
 
 // Columna de estilos populares — mismo curado que HOME_CATEGORY_SLUGS en
 // HomeClient.tsx (independiente del ord real del catálogo), repetido acá
@@ -35,6 +36,14 @@ const LEGAL_LINKS = [
   { label: 'Privacidad', href: '/privacidad' },
 ];
 
+// Redes oficiales de Kynea. Las que tengan href vacío no se renderizan
+// (ver SOCIAL_LINKS.filter abajo) para no publicar enlaces muertos.
+const SOCIAL_LINKS = [
+  { label: 'Instagram', href: 'https://www.instagram.com/kynea.dance/', Icon: InstagramIcon },
+  { label: 'YouTube', href: 'https://www.youtube.com/@kynea-dance', Icon: YouTubeIcon },
+  { label: 'Facebook', href: 'https://www.facebook.com/p/Kynea-61581939147024/', Icon: FacebookIcon },
+];
+
 function FooterColumn({ title, links }: { title: string; links: { label: string; href: string }[] }) {
   return (
     <div>
@@ -62,6 +71,23 @@ export default function Footer() {
             <p className="font-figtree text-[13.5px] text-neutral-400 leading-relaxed mt-4 max-w-[220px]">
               La primera plataforma integral de danza en Latinoamérica.
             </p>
+            {SOCIAL_LINKS.some(s => s.href) && (
+              <ul className="flex items-center gap-2.5 mt-5">
+                {SOCIAL_LINKS.filter(s => s.href).map(({ label, href, Icon }) => (
+                  <li key={label}>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Kynea en ${label}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-neutral-400 hover:text-white hover:border-white/30 transition-colors"
+                    >
+                      <Icon className="h-4 w-4" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <FooterColumn title="Explorar" links={EXPLORAR_LINKS} />

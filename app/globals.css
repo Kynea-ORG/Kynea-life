@@ -67,8 +67,8 @@
   --color-instagram-dark: #C9225A;
 
   /* TIPOGRAFÍA ── */
-  --font-sans:    'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-figtree: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans:    var(--font-hanken, 'Hanken Grotesk'), -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-figtree: var(--font-figtree-loaded, 'Figtree'), -apple-system, BlinkMacSystemFont, sans-serif;
 
   --text-xs:   11px;
   --text-sm:   13px;
