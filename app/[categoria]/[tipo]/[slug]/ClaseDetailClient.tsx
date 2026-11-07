@@ -4,12 +4,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
 import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, ChevronRight, Share2, Navigation, Star, Globe, Check, ExternalLink, Building2 } from 'lucide-react';
-import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
+import { InstagramIcon, TikTokIcon, YouTubeIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ContactModal from '@/components/ContactModal';
 import MapPreview from '@/components/MapPreview';
-import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, formatSocialHandle, getProfileUrl, resolveExternalWhatsAppUrl, resolveExternalInstagramUrl } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, buildYouTubeUrl, formatSocialHandle, getProfileUrl, resolveExternalWhatsAppUrl, resolveExternalInstagramUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
@@ -56,7 +56,7 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cls.id]);
 
-  const socialClick = (channel: 'instagram' | 'tiktok' | 'website') =>
+  const socialClick = (channel: 'instagram' | 'tiktok' | 'youtube' | 'website') =>
     trackTeacherSocialClick({ channel, teacherId: cls.teacher.id, teacherName: cls.teacher.name, surface: 'clase_detail' });
 
   // Los 5 links al perfil del profesor de esta página (nombre en la cabecera,
@@ -549,6 +549,17 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
                         className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
                       >
                         <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.tiktok, 'tiktok')}</span>
+                      </a>
+                    )}
+                    {cls.teacher.youtube && (
+                      <a
+                        href={buildYouTubeUrl(cls.teacher.youtube)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => socialClick('youtube')}
+                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
+                      >
+                        <YouTubeIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.youtube, 'youtube')}</span>
                       </a>
                     )}
                     {cls.teacher.website && (

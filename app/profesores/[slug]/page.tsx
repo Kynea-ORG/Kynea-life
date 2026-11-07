@@ -4,7 +4,7 @@ import { fetchTeacherClasses } from '@/lib/classes/queries';
 import { isClassActive } from '@/lib/classes/helpers';
 import { fetchTeacherBySlug } from '@/lib/profiles/queries';
 import { SITE_URL } from '@/lib/constants';
-import { truncateForMeta, buildInstagramUrl, buildTikTokUrl, safeJsonLd } from '@/lib/utils';
+import { truncateForMeta, buildInstagramUrl, buildTikTokUrl, buildYouTubeUrl, safeJsonLd } from '@/lib/utils';
 import ProfesorDetailClient from './ProfesorDetailClient';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -57,6 +57,7 @@ export default async function ProfesorPage({ params }: { params: Promise<{ slug:
   const sameAs = [
     teacher.instagram && buildInstagramUrl(teacher.instagram),
     teacher.tiktok && buildTikTokUrl(teacher.tiktok),
+    teacher.youtube && buildYouTubeUrl(teacher.youtube),
     teacher.website,
   ].filter((url): url is string => Boolean(url));
 
