@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Hanken_Grotesk, Figtree } from "next/font/google";
+import localFont from "next/font/local";
 import ImageProviderHealthCheck from "@/components/ImageProviderHealthCheck";
 import LoginSuccessListener from "@/components/LoginSuccessListener";
 import RouteProgressBar from "@/components/RouteProgressBar";
@@ -14,17 +14,17 @@ import "./globals.css";
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
 const GTM_ENABLED = process.env.NEXT_PUBLIC_APP_ENV === "production" && !!GTM_ID;
 
-const hanken = Hanken_Grotesk({
-  subsets: ["latin"],
+const hanken = localFont({
+  src: "./fonts/hanken-grotesk-latin.woff2",
   variable: "--font-hanken",
-  weight: ["400", "500", "600", "700", "800", "900"],
+  weight: "400 900",
   display: "swap",
 });
 
-const figtree = Figtree({
-  subsets: ["latin"],
+const figtree = localFont({
+  src: "./fonts/figtree-latin.woff2",
   variable: "--font-figtree-loaded",
-  weight: ["400", "500", "600"],
+  weight: "400 600",
   display: "swap",
   preload: false,
 });
