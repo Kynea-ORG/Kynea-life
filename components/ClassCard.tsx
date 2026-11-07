@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check, Sparkles } from 'lucide-react';
+import { MapPin, Clock, Calendar, MessageCircle, Bookmark, Users, Check, Sparkles, ExternalLink } from 'lucide-react';
 import { DanceClass } from '@/lib/types';
 import { getTypeLabel, formatPrice, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildInstagramUrl } from '@/lib/utils';
 import { findCountryByCode } from '@/lib/countries';
@@ -260,18 +260,30 @@ export default function ClassCard({
             >
               Ver clase
             </Link>
-            <button
-              onClick={handleContact}
-              disabled={!isExpired && isFullyBooked}
-              className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border ${
-                !isExpired && isFullyBooked
-                  ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                  : 'bg-primary border-neutral-900 hover:bg-primary-dark active:bg-neutral-900 text-white active:scale-[0.97]'
-              }`}
-            >
-              {justContacted ? <Check className="w-3.5 h-3.5 animate-fade-in" /> : <MessageCircle className="w-3.5 h-3.5" />}
-              {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted ? 'Abriendo…' : 'Contactar'}
-            </button>
+            {cls.externalOrganizer?.infoUrl ? (
+              <a
+                href={cls.externalOrganizer.infoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border bg-primary border-neutral-900 hover:bg-primary-dark active:bg-neutral-900 text-white active:scale-[0.97]"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Más info
+              </a>
+            ) : (
+              <button
+                onClick={handleContact}
+                disabled={!isExpired && isFullyBooked}
+                className={`flex-1 text-[13px] font-semibold py-2.5 rounded-btn transition-[background-color,border-color] flex items-center justify-center gap-1.5 border ${
+                  !isExpired && isFullyBooked
+                    ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
+                    : 'bg-primary border-neutral-900 hover:bg-primary-dark active:bg-neutral-900 text-white active:scale-[0.97]'
+                }`}
+              >
+                {justContacted ? <Check className="w-3.5 h-3.5 animate-fade-in" /> : <MessageCircle className="w-3.5 h-3.5" />}
+                {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted ? 'Abriendo…' : 'Contactar'}
+              </button>
+            )}
           </div>
         </div>
       </div>

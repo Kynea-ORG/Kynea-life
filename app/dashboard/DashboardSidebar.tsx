@@ -6,9 +6,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
-  Settings, LogOut, Shield, Loader2,
+  Settings, LogOut, Shield, Loader2, ArrowLeftRight,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { switchSuperuserMode } from '@/lib/auth/superuserActions';
 
 type Role = 'alumno' | 'profesor' | 'academia';
 
@@ -89,7 +90,13 @@ function NavLinks({
   );
 }
 
-export default function DashboardSidebar({ profile }: { profile: Profile }) {
+const SUPERUSER_NAV = [
+  { href: '/dashboard',             label: 'Inicio',      icon: LayoutDashboard },
+  { href: '/dashboard/mis-clases',  label: 'Mis clases',  icon: BookOpen },
+  { href: '/dashboard/crear-clase', label: 'Crear clase', icon: PlusCircle },
+];
+
+export default function DashboardSidebar({ profile, isSuperuser = false }: { profile: Profile; isSuperuser?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -98,12 +105,28 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
   const focusMode = pathname.startsWith('/dashboard/crear-clase');
   const isEditingClass = pathname === '/dashboard/crear-clase' && Boolean(searchParams.get('edit'));
 
-  const badge = BADGE[profile.role];
-  const NAV   = profile.is_admin
-    ? [...NAV_BY_ROLE[profile.role], { href: '/dashboard/admin/resumen', label: 'Admin', icon: Shield }]
-    : NAV_BY_ROLE[profile.role];
+  const badge = isSuperuser
+    ? { label: 'Superusuario', bg: 'bg-primary-bg', text: 'text-primary', border: 'border-primary/30' }
+    : BADGE[profile.role];
+  const NAV = isSuperuser
+    ? SUPERUSER_NAV
+    : profile.is_admin
+      ? [...NAV_BY_ROLE[profile.role], { href: '/dashboard/admin/resumen', label: 'Admin', icon: Shield }]
+      : NAV_BY_ROLE[profile.role];
 
   const [loggingOut, setLoggingOut] = useState(false);
+  const [switchingMode, setSwitchingMode] = useState(false);
+
+  async function handleSwitchSuperuser(enable: boolean) {
+    setSwitchingMode(true);
+    try {
+      await switchSuperuserMode(enable);
+      router.push('/dashboard');
+      router.refresh();
+    } finally {
+      setSwitchingMode(false);
+    }
+  }
 
   async function logout() {
     setLoggingOut(true);
@@ -122,15 +145,40 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
           <Link href="/" className="flex items-center">
             <Image src="/logo.png" alt="Kynea" width={90} height={28} priority />
           </Link>
-          {profile.photo_url ? (
-            <div className="relative w-8 h-8 rounded-full overflow-hidden border border-neutral-200 shrink-0">
-              <SmartImage src={profile.photo_url} alt="Profile" fill sizes="32px" className="object-cover" />
-            </div>
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
-              {profile.name.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {profile.is_admin && (
+              <button
+                type="button"
+                onClick={() => handleSwitchSuperuser(!isSuperuser)}
+                disabled={switchingMode}
+                className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors flex items-center gap-1 ${
+                  isSuperuser
+                    ? 'bg-neutral-900 text-white border-neutral-900'
+                    : 'bg-primary-bg text-primary border-primary/30'
+                }`}
+              >
+                {switchingMode ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <ArrowLeftRight className="w-3 h-3" />
+                )}
+                {isSuperuser ? 'Volver a mi cuenta' : 'Superusuario'}
+              </button>
+            )}
+            {isSuperuser ? (
+              <div className="w-8 h-8 rounded-full bg-white border border-primary/25 flex items-center justify-center shrink-0 px-1">
+                <Image src="/logo.png" alt="Kynea" width={24} height={8} className="w-6 h-auto object-contain" />
+              </div>
+            ) : profile.photo_url ? (
+              <div className="relative w-8 h-8 rounded-full overflow-hidden border border-neutral-200 shrink-0">
+                <SmartImage src={profile.photo_url} alt="Profile" fill sizes="32px" className="object-cover" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                {profile.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
         </div>
         </>
       )}
@@ -143,31 +191,74 @@ export default function DashboardSidebar({ profile }: { profile: Profile }) {
           </Link>
         </div>
 
-        <Link href="/dashboard/perfil" className="px-4 py-4 border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
-          <div className="flex items-center gap-3">
-            {profile.photo_url ? (
-              <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0">
-                <SmartImage src={profile.photo_url} alt="Profile" fill sizes="40px" className="object-cover" />
+        {isSuperuser ? (
+          <div className="px-4 py-4 border-b border-neutral-100 bg-primary-bg/40">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-primary/25 flex items-center justify-center shrink-0 px-1">
+                <Image src="/logo.png" alt="Kynea" width={32} height={11} className="w-8 h-auto object-contain" />
               </div>
-            ) : (
-              <div className="w-10 h-10 rounded-xl bg-neutral-900 text-white flex items-center justify-center text-sm font-bold shrink-0">
-                {profile.name.charAt(0).toUpperCase()}
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-neutral-900 truncate">Kynea</p>
+                <span className={`text-[10px] font-bold ${badge.bg} ${badge.text} border ${badge.border} px-2 py-0.5 rounded-full`}>
+                  {badge.label}
+                </span>
               </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-neutral-900 truncate">{profile.name}</p>
-              <span className={`text-[10px] font-bold ${badge.bg} ${badge.text} border ${badge.border} px-2 py-0.5 rounded-full`}>
-                {badge.label}
-              </span>
+            </div>
+            <div className="mt-2.5 leading-snug">
+              <p className="text-[11px] text-neutral-500">Operando desde:</p>
+              <p className="text-xs font-semibold text-neutral-700 truncate">{profile.name}</p>
             </div>
           </div>
-        </Link>
+        ) : (
+          <Link href="/dashboard/perfil" className="px-4 py-4 border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+            <div className="flex items-center gap-3">
+              {profile.photo_url ? (
+                <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0">
+                  <SmartImage src={profile.photo_url} alt="Profile" fill sizes="40px" className="object-cover" />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-neutral-900 text-white flex items-center justify-center text-sm font-bold shrink-0">
+                  {profile.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-neutral-900 truncate">{profile.name}</p>
+                <span className={`text-[10px] font-bold ${badge.bg} ${badge.text} border ${badge.border} px-2 py-0.5 rounded-full`}>
+                  {badge.label}
+                </span>
+              </div>
+            </div>
+          </Link>
+        )}
 
         <nav className="flex-1 py-4 px-3">
           <NavLinks items={NAV} pathname={pathname} isEditingClass={isEditingClass} />
         </nav>
 
-        <div className="p-4 border-t border-neutral-100">
+        <div className="p-4 border-t border-neutral-100 space-y-2">
+          {profile.is_admin && (
+            <button
+              type="button"
+              onClick={() => handleSwitchSuperuser(!isSuperuser)}
+              disabled={switchingMode}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-[background-color,color,transform] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none border ${
+                isSuperuser
+                  ? 'bg-neutral-900 text-white border-neutral-900 hover:bg-neutral-800'
+                  : 'bg-primary-bg text-primary border-primary/25 hover:bg-primary/15'
+              }`}
+            >
+              {switchingMode ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowLeftRight className="w-4 h-4" />
+              )}
+              {switchingMode
+                ? 'Cambiando…'
+                : isSuperuser
+                  ? 'Volver a mi cuenta'
+                  : 'Cambiar a Superusuario'}
+            </button>
+          )}
           <button
             onClick={logout}
             disabled={loggingOut}

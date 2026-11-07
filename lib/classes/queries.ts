@@ -55,6 +55,35 @@ export function mapDbClassToType(
     .filter(Boolean);
 
   const venue = row.venue;
+  const externalOrganizer = row.external_organizer_name
+    ? {
+        name: row.external_organizer_name,
+        infoUrl: row.external_info_url ?? '',
+        ...(row.external_whatsapp?.trim() ? { whatsapp: row.external_whatsapp.trim() } : {}),
+        ...(row.external_instagram?.trim() ? { instagram: row.external_instagram.trim() } : {}),
+      }
+    : undefined;
+  const teacher: Teacher = row.teacher
+    ? mapTeacher(row.teacher)
+    : externalOrganizer
+      ? {
+          id: 'external-organizer',
+          slug: '',
+          name: externalOrganizer.name,
+          type: 'academia',
+          photo: '',
+          photoPosition: '50% 50%',
+          photoZoom: 1,
+          bio: '',
+          experience: 0,
+          styles: [],
+          whatsapp: externalOrganizer.whatsapp ?? '',
+          instagram: externalOrganizer.instagram,
+          showSpots: true,
+          email: '',
+          website: externalOrganizer.infoUrl || undefined,
+        }
+      : ({} as Teacher);
 
   return {
     id:               row.id,
@@ -106,7 +135,7 @@ export function mapDbClassToType(
     ageGroup:         row.age_group ?? undefined,
     contactMode:      (row.contact_mode ?? 'whatsapp') as 'whatsapp' | 'instagram' | 'both',
     status:           row.status as ClassStatus,
-    teacher:          row.teacher ? mapTeacher(row.teacher) : ({} as Teacher),
+    teacher,
     metrics: {
       views:    row.views_count    ?? 0,
       contacts: row.contacts_count ?? 0,
@@ -118,6 +147,8 @@ export function mapDbClassToType(
     autoPublishAt:     row.auto_publish_at ?? undefined,
     autoPublishedAt:   row.auto_published_at ?? undefined,
     autoPublishError:  row.auto_publish_error ?? undefined,
+    ...(row.created_by_superuser ? { createdBySuperuser: true } : {}),
+    ...(externalOrganizer ? { externalOrganizer } : {}),
   };
 }
 
@@ -377,7 +408,8 @@ export async function fetchClassById(
   let includePrivateAccess = options?.includePrivateAccess ?? false;
   if (!includePrivateAccess) {
     const user = await getUser();
-    if (user && user.id === (data as unknown as DbClassRow).teacher_id) {
+    const typedRow = data as unknown as DbClassRow;
+    if (user && (user.id === typedRow.teacher_id || typedRow.created_by_superuser)) {
       includePrivateAccess = true;
     }
   }
@@ -450,4 +482,64 @@ export async function fetchTeacherClasses(teacherId: string): Promise<DanceClass
     return [];
   }
   return (data ?? []).map(row => mapDbClassToType(row as unknown as DbClassRow));
+}
+
+export async function fetchSuperuserClasses(): Promise<DanceClass[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('classes')
+    .select(CLASS_SELECT)
+    .eq('created_by_superuser', true)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('fetchSuperuserClasses error:', error.message);
+    return [];
+  }
+  return (data ?? []).map(row => mapDbClassToType(row as unknown as DbClassRow));
+}
+
+export interface AssignableProfile {
+  id: string;
+  name: string;
+  role: 'profesor' | 'academia';
+  slug: string | null;
+  hasWhatsapp: boolean;
+  hasInstagram: boolean;
+}
+
+export async function fetchAssignableProfiles(query?: string): Promise<AssignableProfile[]> {
+  const supabase = await createClient();
+  let req = supabase
+    .from('profiles')
+    .select('id, name, role, slug, whatsapp, instagram')
+    .in('role', ['profesor', 'academia'])
+    .not('name', 'is', null)
+    .order('name', { ascending: true });
+
+  if (query && query.trim()) {
+    req = req.ilike('name', `%${query.trim()}%`);
+  }
+
+  const { data, error } = await req;
+  if (error) {
+    console.error('fetchAssignableProfiles error:', error.message);
+    return [];
+  }
+  return ((data ?? []) as Array<{
+    id: string;
+    name: string | null;
+    role: string;
+    slug: string | null;
+    whatsapp: string | null;
+    instagram: string | null;
+  }>)
+    .filter(p => Boolean(p.name?.trim()))
+    .map(p => ({
+      id: p.id,
+      name: p.name!.trim(),
+      role: p.role as 'profesor' | 'academia',
+      slug: p.slug,
+      hasWhatsapp: Boolean(p.whatsapp?.trim()),
+      hasInstagram: Boolean(p.instagram?.trim()),
+    }));
 }

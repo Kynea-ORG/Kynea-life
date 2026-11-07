@@ -294,6 +294,49 @@ describe('validateForPublish — modality-conditional fields', () => {
   });
 });
 
+describe('validateForPublish — superuser modes', () => {
+  it('requires assignedTeacherId when superuserMode is "assigned"', () => {
+    const result = validateForPublish(validInput({ superuserMode: 'assigned', assignedTeacherId: '' }));
+    expect(result.ok).toBe(false);
+    expect(result.errors.some(e => e.field === 'assignedTeacherId')).toBe(true);
+  });
+
+  it('passes when superuserMode is "assigned" and assignedTeacherId is provided', () => {
+    const result = validateForPublish(validInput({ superuserMode: 'assigned', assignedTeacherId: 'profile-123' }));
+    expect(result.ok).toBe(true);
+  });
+
+  it('requires externalOrganizerName and valid http(s) externalInfoUrl when superuserMode is "external"', () => {
+    const missingBoth = validateForPublish(
+      validInput({ superuserMode: 'external', externalOrganizerName: '', externalInfoUrl: '' })
+    );
+    expect(missingBoth.ok).toBe(false);
+    expect(missingBoth.errors.some(e => e.field === 'externalOrganizerName')).toBe(true);
+    expect(missingBoth.errors.some(e => e.field === 'externalInfoUrl')).toBe(true);
+
+    const invalidScheme = validateForPublish(
+      validInput({
+        superuserMode: 'external',
+        externalOrganizerName: 'Ministerio de Cultura',
+        externalInfoUrl: 'www.gob.pe/cultura',
+      })
+    );
+    expect(invalidScheme.ok).toBe(false);
+    expect(invalidScheme.errors.some(e => e.field === 'externalInfoUrl')).toBe(true);
+  });
+
+  it('passes when superuserMode is "external" with valid name and https URL', () => {
+    const result = validateForPublish(
+      validInput({
+        superuserMode: 'external',
+        externalOrganizerName: 'Ministerio de Cultura',
+        externalInfoUrl: 'https://www.gob.pe/cultura',
+      })
+    );
+    expect(result.ok).toBe(true);
+  });
+});
+
 // ─── validateForDraft ───────────────────────────────────────────────────────
 
 describe('validateForDraft', () => {

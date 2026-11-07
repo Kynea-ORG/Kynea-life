@@ -68,11 +68,17 @@ export default async function ClaseDetailPage({
     '@type': 'Course',
     name: cls.title,
     description: cls.shortDescription || cls.fullDescription || undefined,
-    provider: {
-      '@type': cls.teacher.type === 'academia' ? 'Organization' : 'Person',
-      name: cls.teacher.name,
-      url: `${SITE_URL}${getProfileUrl(cls.teacher)}`,
-    },
+    provider: cls.externalOrganizer
+      ? {
+          '@type': 'Organization',
+          name: cls.externalOrganizer.name,
+          ...(cls.externalOrganizer.infoUrl ? { url: cls.externalOrganizer.infoUrl } : {}),
+        }
+      : {
+          '@type': cls.teacher.type === 'academia' ? 'Organization' : 'Person',
+          name: cls.teacher.name,
+          url: `${SITE_URL}${getProfileUrl(cls.teacher)}`,
+        },
     offers: {
       '@type': 'Offer',
       price: cls.price,

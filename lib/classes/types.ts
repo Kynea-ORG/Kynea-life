@@ -55,6 +55,12 @@ export interface ClassUpdatePayload {
   cover_image?:      string | null;
   cover_image_position?: string;
   cover_image_zoom?: number;
+  teacher_id?:       string | null;
+  created_by_superuser?: boolean;
+  external_organizer_name?: string | null;
+  external_info_url?: string | null;
+  external_whatsapp?: string | null;
+  external_instagram?: string | null;
 }
 
 // Shape returned by CLASS_SELECT (DB columns + joined relations)
@@ -111,7 +117,7 @@ export interface DbClassRow {
   title: string;
   slug: string | null;
   status: string;
-  teacher_id: string;
+  teacher_id: string | null;
   level_id: number | null;
   venue_id: string | null;
   short_description: string | null;
@@ -153,6 +159,12 @@ export interface DbClassRow {
   auto_publish_at?: string | null;
   auto_published_at?: string | null;
   auto_publish_error?: string | null;
+  // Superusuario y organizador externo (migración 67).
+  created_by_superuser?: boolean | null;
+  external_organizer_name?: string | null;
+  external_info_url?: string | null;
+  external_whatsapp?: string | null;
+  external_instagram?: string | null;
   // Relations
   level: { id: number; name: string } | null;
   class_styles: DbClassStyle[];
