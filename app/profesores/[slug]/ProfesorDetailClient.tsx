@@ -218,9 +218,9 @@ function ProfesorEditorial({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => socialClick('tiktok')}
-                    className="flex items-center gap-1.5 text-white font-bold text-[14.5px] hover:text-white/80 transition-colors"
+                    className="flex items-center gap-2 bg-white/10 border border-white/30 text-white font-bold text-[14.5px] px-4.5 py-3 rounded-full hover:bg-white/15 transition-colors active:scale-[0.97]"
                   >
-                    <TikTokIcon className="w-3.5 h-3.5" /> {formatSocialHandle(teacher.tiktok, 'tiktok')}
+                    <TikTokIcon className="w-4 h-4" /> {formatSocialHandle(teacher.tiktok, 'tiktok')}
                   </a>
                 )}
                 {teacher.youtube && (
@@ -229,9 +229,9 @@ function ProfesorEditorial({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => socialClick('youtube')}
-                    className="flex items-center gap-1.5 text-white font-bold text-[14.5px] hover:text-white/80 transition-colors"
+                    className="flex items-center gap-2 bg-white/10 border border-white/30 text-white font-bold text-[14.5px] px-4.5 py-3 rounded-full hover:bg-white/15 transition-colors active:scale-[0.97]"
                   >
-                    <YouTubeIcon className="w-3.5 h-3.5" /> {formatSocialHandle(teacher.youtube, 'youtube')}
+                    <YouTubeIcon className="w-4 h-4" /> {formatSocialHandle(teacher.youtube, 'youtube')}
                   </a>
                 )}
                 {teacher.website && (
