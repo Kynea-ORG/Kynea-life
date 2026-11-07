@@ -25,9 +25,10 @@ const STATUS_TABS: { key: ClassStatus | 'all'; label: string }[] = [
 interface MisClasesClientProps {
   initialClasses: DanceClass[];
   academiaPending?: boolean;
+  isSuperuser?: boolean;
 }
 
-export default function MisClasesClient({ initialClasses, academiaPending = false }: MisClasesClientProps) {
+export default function MisClasesClient({ initialClasses, academiaPending = false, isSuperuser = false }: MisClasesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -297,6 +298,15 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                   <div className="min-w-0">
                     <p className="font-semibold text-neutral-900 text-sm truncate">{cls.title}</p>
                     <p className="text-xs text-neutral-600 truncate">{cls.style} · {cls.level}</p>
+                    {isSuperuser && (
+                      <p className="text-[11px] font-semibold mt-0.5 truncate">
+                        {cls.externalOrganizer ? (
+                          <span className="text-primary">Organizador externo: {cls.externalOrganizer.name}</span>
+                        ) : (
+                          <span className="text-neutral-700">Asignada a: {cls.teacher.name}</span>
+                        )}
+                      </p>
+                    )}
                     <SeriesBadges cls={cls} today={today} />
                   </div>
                 </div>
@@ -435,6 +445,15 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                   <div>
                     <p className="font-bold text-neutral-900 text-sm">{cls.title}</p>
                     <p className="text-xs text-neutral-600">{cls.style} · {cls.level}</p>
+                    {isSuperuser && (
+                      <p className="text-[11px] font-semibold mt-0.5">
+                        {cls.externalOrganizer ? (
+                          <span className="text-primary">Organizador externo: {cls.externalOrganizer.name}</span>
+                        ) : (
+                          <span className="text-neutral-700">Asignada a: {cls.teacher.name}</span>
+                        )}
+                      </p>
+                    )}
                     <SeriesBadges cls={cls} today={today} />
                   </div>
                   <button onClick={() => setOpenMenu(openMenu === cls.id ? null : cls.id)} className="p-1 text-neutral-400">

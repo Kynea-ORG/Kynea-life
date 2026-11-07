@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SmartImage from '@/components/SmartImage';
-import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, ChevronRight, Share2, Navigation, Star, Globe, Check } from 'lucide-react';
+import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, ChevronRight, Share2, Navigation, Star, Globe, Check, ExternalLink, Building2 } from 'lucide-react';
 import { InstagramIcon, TikTokIcon } from '@/components/icons/SocialIcons';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ContactModal from '@/components/ContactModal';
 import MapPreview from '@/components/MapPreview';
-import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, formatSocialHandle, getProfileUrl } from '@/lib/utils';
+import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, formatSocialHandle, getProfileUrl, resolveExternalWhatsAppUrl, resolveExternalInstagramUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
 import { isClassExpired } from '@/lib/classes/helpers';
 import { createClient } from '@/lib/supabase/client';
@@ -179,13 +179,26 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
         </div>
       </div>
       <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
-        <Link
-          href={getProfileUrl(cls.teacher)}
-          onClick={selectTeacherProfile}
-          className="px-4 py-2 text-[13px] font-bold rounded-btn bg-neutral-900 text-white hover:bg-neutral-800 transition-colors whitespace-nowrap"
-        >
-          Ver perfil del profesor
-        </Link>
+        {cls.externalOrganizer ? (
+          cls.externalOrganizer.infoUrl && (
+            <a
+              href={cls.externalOrganizer.infoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 text-[13px] font-bold rounded-btn bg-neutral-900 text-white hover:bg-neutral-800 transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> Ver canal oficial
+            </a>
+          )
+        ) : (
+          <Link
+            href={getProfileUrl(cls.teacher)}
+            onClick={selectTeacherProfile}
+            className="px-4 py-2 text-[13px] font-bold rounded-btn bg-neutral-900 text-white hover:bg-neutral-800 transition-colors whitespace-nowrap"
+          >
+            Ver perfil del profesor
+          </Link>
+        )}
         <Link
           href={`/clases?estilo=${encodeURIComponent(cls.style)}`}
           className="px-4 py-2 text-[13px] font-bold rounded-btn border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 transition-colors whitespace-nowrap"
@@ -333,9 +346,13 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
               )}
               <p data-testid="title-by" className="text-[13px] lg:text-[13.5px] text-neutral-500 break-words mb-2 lg:mb-3">
                 por{' '}
-                <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-medium text-neutral-700 underline underline-offset-2 hover:text-primary transition-colors">
-                  {cls.teacher.name}
-                </Link>
+                {cls.externalOrganizer ? (
+                  <span className="font-semibold text-neutral-800">{cls.externalOrganizer.name}</span>
+                ) : (
+                  <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-medium text-neutral-700 underline underline-offset-2 hover:text-primary transition-colors">
+                    {cls.teacher.name}
+                  </Link>
+                )}
               </p>
             </div>
 
@@ -353,31 +370,46 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
               ))}
             </div>
 
-            {/* Fila del profesor en mobile */}
-            <Link
-              data-testid="teacher-row"
-              href={getProfileUrl(cls.teacher)}
-              onClick={selectTeacherProfile}
-              className="lg:hidden flex items-center gap-3 p-3 mb-6 rounded-2xl border border-neutral-200 active:bg-neutral-50 transition-colors"
-            >
-              {cls.teacher.photo ? (
-                <div className="relative w-11 h-11 rounded-xl overflow-hidden shrink-0">
-                  <SmartImage src={cls.teacher.photo} alt="" fill sizes="48px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+            {/* Fila del profesor u organizador en mobile */}
+            {cls.externalOrganizer ? (
+              <div
+                data-testid="teacher-row"
+                className="lg:hidden flex items-center gap-3 p-3 mb-6 rounded-2xl border border-neutral-200 bg-neutral-50/60"
+              >
+                <div className="w-11 h-11 rounded-xl bg-primary-bg text-primary-dark flex items-center justify-center shrink-0">
+                  <Building2 className="w-5 h-5" />
                 </div>
-              ) : (
-                <div className="w-11 h-11 rounded-xl bg-primary-bg text-primary-dark flex items-center justify-center font-extrabold text-[15px] shrink-0">
-                  {cls.teacher.name.charAt(0)}
+                <div className="flex-1 min-w-0 leading-snug">
+                  <p className="font-bold text-neutral-900 text-[14.5px] truncate">{cls.externalOrganizer.name}</p>
+                  <p className="text-[12.5px] text-neutral-500 truncate">Organizador · Publicación informativa</p>
                 </div>
-              )}
-              <div className="flex-1 min-w-0 leading-snug">
-                <p className="font-bold text-neutral-900 text-[14.5px] truncate">{cls.teacher.name}</p>
-                <p className="text-[12.5px] text-neutral-500 truncate">
-                  {isAcademia ? 'Academia' : 'Profesor'} · {formatExperience(cls.teacher.experience)} de experiencia
-                  {cls.teacher.rating ? ` · ★ ${cls.teacher.rating}` : ''}
-                </p>
               </div>
-              <ChevronRight className="w-[18px] h-[18px] text-neutral-500 shrink-0" aria-hidden="true" />
-            </Link>
+            ) : (
+              <Link
+                data-testid="teacher-row"
+                href={getProfileUrl(cls.teacher)}
+                onClick={selectTeacherProfile}
+                className="lg:hidden flex items-center gap-3 p-3 mb-6 rounded-2xl border border-neutral-200 active:bg-neutral-50 transition-colors"
+              >
+                {cls.teacher.photo ? (
+                  <div className="relative w-11 h-11 rounded-xl overflow-hidden shrink-0">
+                    <SmartImage src={cls.teacher.photo} alt="" fill sizes="48px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+                  </div>
+                ) : (
+                  <div className="w-11 h-11 rounded-xl bg-primary-bg text-primary-dark flex items-center justify-center font-extrabold text-[15px] shrink-0">
+                    {cls.teacher.name.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 leading-snug">
+                  <p className="font-bold text-neutral-900 text-[14.5px] truncate">{cls.teacher.name}</p>
+                  <p className="text-[12.5px] text-neutral-500 truncate">
+                    {isAcademia ? 'Academia' : 'Profesor'} · {formatExperience(cls.teacher.experience)} de experiencia
+                    {cls.teacher.rating ? ` · ★ ${cls.teacher.rating}` : ''}
+                  </p>
+                </div>
+                <ChevronRight className="w-[18px] h-[18px] text-neutral-500 shrink-0" aria-hidden="true" />
+              </Link>
+            )}
             {isExpired && <div data-testid="expired-notice-mobile" className="lg:hidden">{expiredBanner}</div>}
 
             <section className="mb-6 lg:mb-8 min-w-0 lg:pt-8 lg:border-t lg:border-neutral-100">
@@ -424,85 +456,141 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
               </section>
             )}
 
-            {/* Sobre la academia / el profesor */}
+            {/* Sobre la academia / el profesor / organizador */}
             <section data-testid="teacher-card" className="mt-6 lg:mt-0 mb-2 lg:mb-0 lg:pt-8 lg:border-t lg:border-neutral-100 min-w-0">
               <h2 className="font-extrabold text-neutral-900 text-[18px] lg:text-[20px] mb-3 lg:mb-4">
-                {isAcademia ? 'Sobre la academia' : 'Sobre el profesor'}
+                {cls.externalOrganizer ? 'Organizado por' : isAcademia ? 'Sobre la academia' : 'Sobre el profesor'}
               </h2>
-              <div className="border border-neutral-200 rounded-2xl p-4 lg:p-6 min-w-0">
-                <div className="flex items-center gap-3.5 mb-4">
-                  <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="shrink-0">
-                    {cls.teacher.photo ? (
-                      <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
-                        <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
-                      </div>
-                    ) : (
-                      <div className="w-14 h-14 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
-                        {cls.teacher.name.charAt(0)}
-                      </div>
+              {cls.externalOrganizer ? (
+                <div className="border border-neutral-200 rounded-2xl p-4 lg:p-6 min-w-0">
+                  <div className="flex items-center gap-3.5 mb-3">
+                    <div className="w-14 h-14 rounded-xl bg-primary-bg text-primary-dark flex items-center justify-center shrink-0">
+                      <Building2 className="w-7 h-7" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-neutral-900 text-[15px] break-words leading-snug">
+                        {cls.externalOrganizer.name}
+                      </p>
+                      <p className="text-[13px] text-neutral-600 mt-0.5">
+                        Organizador externo · Publicación informativa
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-[13.5px] lg:text-[14px] text-neutral-600 leading-relaxed mb-4">
+                    Esta actividad es compartida de manera informativa por Kynea. Para inscripciones, consultas o detalles actualizados, visita el canal oficial del organizador.
+                  </p>
+                  <div className="flex flex-wrap gap-2.5">
+                    {cls.externalOrganizer.infoUrl && (
+                      <a
+                        href={cls.externalOrganizer.infoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => triggerContactIncrement(cls.id)}
+                        className="h-[42px] px-5 rounded-xl border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800 inline-flex items-center justify-center gap-2 text-[14px] font-bold transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Más información en canal oficial
+                      </a>
                     )}
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
-                      {cls.teacher.name}
-                    </Link>
-                    <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
-                    {cls.teacher.rating && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                        <span className="text-[13px] font-semibold text-neutral-900">{cls.teacher.rating}</span>
-                        {cls.teacher.totalClasses && (
-                          <span className="text-[13px] text-neutral-400">· {cls.teacher.totalClasses} clases</span>
-                        )}
-                      </div>
+                    {cls.externalOrganizer.whatsapp && (
+                      <a
+                        href={resolveExternalWhatsAppUrl(cls.externalOrganizer.whatsapp, cls.style, cls.startDate)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => triggerContactIncrement(cls.id)}
+                        className="h-[42px] px-5 rounded-xl border border-whatsapp bg-whatsapp text-white hover:bg-whatsapp-dark inline-flex items-center justify-center gap-2 text-[14px] font-bold transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" /> WhatsApp
+                      </a>
+                    )}
+                    {cls.externalOrganizer.instagram && (
+                      <a
+                        href={resolveExternalInstagramUrl(cls.externalOrganizer.instagram)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => triggerContactIncrement(cls.id)}
+                        className="h-[42px] px-5 rounded-xl border border-instagram bg-instagram text-white hover:bg-instagram-dark inline-flex items-center justify-center gap-2 text-[14px] font-bold transition-colors"
+                      >
+                        <InstagramIcon className="w-4 h-4" /> Instagram
+                      </a>
                     )}
                   </div>
                 </div>
-
-                {cls.teacher.bio && (
-                  <div className="mb-4">
-                    <ClampedText text={cls.teacher.bio} className="text-[13.5px] lg:text-[14px] text-neutral-600 leading-relaxed" />
+              ) : (
+                <div className="border border-neutral-200 rounded-2xl p-4 lg:p-6 min-w-0">
+                  <div className="flex items-center gap-3.5 mb-4">
+                    <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="shrink-0">
+                      {cls.teacher.photo ? (
+                        <div className="relative w-14 h-14 rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
+                          <SmartImage src={cls.teacher.photo} alt={cls.teacher.name} fill sizes="56px" className="object-cover" style={{ objectPosition: cls.teacher.photoPosition || '50% 50%', transform: `scale(${cls.teacher.photoZoom || 1})` }} />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-neutral-200 flex items-center justify-center text-xl font-bold text-neutral-600">
+                          {cls.teacher.name.charAt(0)}
+                        </div>
+                      )}
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <Link href={getProfileUrl(cls.teacher)} onClick={selectTeacherProfile} className="font-bold text-neutral-900 hover:underline transition-colors text-[15px] break-words block leading-snug">
+                        {cls.teacher.name}
+                      </Link>
+                      <p className="text-[13px] text-neutral-600 mt-0.5 capitalize">{cls.teacher.type} · {formatExperience(cls.teacher.experience)} de experiencia</p>
+                      {cls.teacher.rating && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                          <span className="text-[13px] font-semibold text-neutral-900">{cls.teacher.rating}</span>
+                          {cls.teacher.totalClasses && (
+                            <span className="text-[13px] text-neutral-400">· {cls.teacher.totalClasses} clases</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
 
-              <div className="flex flex-wrap gap-3">
-                {cls.teacher.instagram && (
-                  <a
-                    href={buildInstagramUrl(cls.teacher.instagram)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => socialClick('instagram')}
-                    className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
-                  >
-                    <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.instagram, 'instagram')}</span>
-                  </a>
-                )}
-                {cls.teacher.tiktok && (
-                  <a
-                    href={buildTikTokUrl(cls.teacher.tiktok)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => socialClick('tiktok')}
-                    className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
-                  >
-                    <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.tiktok, 'tiktok')}</span>
-                  </a>
-                )}
-                {cls.teacher.website && (
-                  <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium max-w-full">
-                    <Globe className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Sitio web</span>
-                  </a>
-                )}
-              </div>
+                  {cls.teacher.bio && (
+                    <div className="mb-4">
+                      <ClampedText text={cls.teacher.bio} className="text-[13.5px] lg:text-[14px] text-neutral-600 leading-relaxed" />
+                    </div>
+                  )}
 
-                <Link
-                  href={getProfileUrl(cls.teacher)}
-                  onClick={selectTeacherProfile}
-                  className="mt-4 h-[42px] lg:self-start lg:inline-flex lg:px-6 rounded-xl border border-neutral-300 flex items-center justify-center text-[14px] font-bold text-neutral-900 active:bg-neutral-50 lg:hover:bg-neutral-50 transition-colors"
-                >
-                  {isAcademia ? 'Ver perfil de la academia' : 'Ver perfil del profesor'}
-                </Link>
-              </div>
+                  <div className="flex flex-wrap gap-3">
+                    {cls.teacher.instagram && (
+                      <a
+                        href={buildInstagramUrl(cls.teacher.instagram)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => socialClick('instagram')}
+                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
+                      >
+                        <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.instagram, 'instagram')}</span>
+                      </a>
+                    )}
+                    {cls.teacher.tiktok && (
+                      <a
+                        href={buildTikTokUrl(cls.teacher.tiktok)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => socialClick('tiktok')}
+                        className="text-[13px] text-neutral-600 flex items-center gap-1 hover:text-neutral-900 transition-colors max-w-full"
+                      >
+                        <TikTokIcon className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{formatSocialHandle(cls.teacher.tiktok, 'tiktok')}</span>
+                      </a>
+                    )}
+                    {cls.teacher.website && (
+                      <a href={cls.teacher.website} target="_blank" rel="noopener noreferrer" onClick={() => socialClick('website')} className="text-[13px] text-neutral-900 flex items-center gap-1 hover:underline font-medium max-w-full">
+                        <Globe className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Sitio web</span>
+                      </a>
+                    )}
+                  </div>
+
+                  <Link
+                    href={getProfileUrl(cls.teacher)}
+                    onClick={selectTeacherProfile}
+                    className="mt-4 h-[42px] lg:self-start lg:inline-flex lg:px-6 rounded-xl border border-neutral-300 flex items-center justify-center text-[14px] font-bold text-neutral-900 active:bg-neutral-50 lg:hover:bg-neutral-50 transition-colors"
+                  >
+                    {isAcademia ? 'Ver perfil de la academia' : 'Ver perfil del profesor'}
+                  </Link>
+                </div>
+              )}
             </section>
           </div>
 
@@ -551,15 +639,21 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
                       <span className="badge-green text-[11px]">1ra clase gratis</span>
                     )}
                   </div>
-                  <Link
-                    href={getProfileUrl(cls.teacher)}
-                    onClick={selectTeacherProfile}
-                    data-testid="sidebar-teacher"
-                    className="inline-flex items-center gap-1 text-[13.5px] text-neutral-500 hover:text-primary transition-colors group"
-                  >
-                    <span>por <strong className="font-semibold text-neutral-800 group-hover:text-primary group-hover:underline">{cls.teacher.name}</strong></span>
-                    <ChevronRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-primary transition-colors shrink-0" />
-                  </Link>
+                  {cls.externalOrganizer ? (
+                    <p data-testid="sidebar-teacher" className="text-[13.5px] text-neutral-500">
+                      por <strong className="font-semibold text-neutral-800">{cls.externalOrganizer.name}</strong>
+                    </p>
+                  ) : (
+                    <Link
+                      href={getProfileUrl(cls.teacher)}
+                      onClick={selectTeacherProfile}
+                      data-testid="sidebar-teacher"
+                      className="inline-flex items-center gap-1 text-[13.5px] text-neutral-500 hover:text-primary transition-colors group"
+                    >
+                      <span>por <strong className="font-semibold text-neutral-800 group-hover:text-primary group-hover:underline">{cls.teacher.name}</strong></span>
+                      <ChevronRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-primary transition-colors shrink-0" />
+                    </Link>
+                  )}
                 </div>
 
                 {isExpired && (
@@ -624,34 +718,77 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
 
                 {/* Acciones */}
                 <div className="flex flex-col gap-2">
-                  {showWa && (
-                    <button
-                      onClick={handleWhatsAppClick}
-                      disabled={!isExpired && isFullyBooked}
-                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
-                        !isExpired && isFullyBooked
-                          ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                          : 'bg-whatsapp border-whatsapp hover:bg-whatsapp-dark hover:border-whatsapp-dark text-white'
-                      }`}
-                    >
-                      {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
-                      {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}
-                    </button>
-                  )}
+                  {cls.externalOrganizer ? (
+                    <>
+                      {cls.externalOrganizer.infoUrl && (
+                        <a
+                          href={cls.externalOrganizer.infoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => triggerContactIncrement(cls.id)}
+                          className="w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 bg-primary border-primary hover:bg-primary-dark hover:border-primary-dark text-white"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Más información
+                        </a>
+                      )}
+                      {cls.externalOrganizer.whatsapp && (
+                        <a
+                          href={resolveExternalWhatsAppUrl(cls.externalOrganizer.whatsapp, cls.style, cls.startDate)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => triggerContactIncrement(cls.id)}
+                          className="w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 bg-whatsapp border-whatsapp hover:bg-whatsapp-dark hover:border-whatsapp-dark text-white"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          WhatsApp
+                        </a>
+                      )}
+                      {cls.externalOrganizer.instagram && (
+                        <a
+                          href={resolveExternalInstagramUrl(cls.externalOrganizer.instagram)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => triggerContactIncrement(cls.id)}
+                          className="w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 bg-instagram border-instagram hover:bg-instagram-dark hover:border-instagram-dark text-white"
+                        >
+                          <InstagramIcon className="w-4 h-4" />
+                          Instagram
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {showWa && (
+                        <button
+                          onClick={handleWhatsAppClick}
+                          disabled={!isExpired && isFullyBooked}
+                          className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
+                            !isExpired && isFullyBooked
+                              ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
+                              : 'bg-whatsapp border-whatsapp hover:bg-whatsapp-dark hover:border-whatsapp-dark text-white'
+                          }`}
+                        >
+                          {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
+                          {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}
+                        </button>
+                      )}
 
-                  {showIg && (
-                    <button
-                      onClick={handleInstagramClick}
-                      disabled={!isExpired && isFullyBooked}
-                      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
-                        !isExpired && isFullyBooked
-                          ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
-                          : 'bg-instagram border-instagram hover:bg-instagram-dark hover:border-instagram-dark text-white'
-                      }`}
-                    >
-                      {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
-                      {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
-                    </button>
+                      {showIg && (
+                        <button
+                          onClick={handleInstagramClick}
+                          disabled={!isExpired && isFullyBooked}
+                          className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
+                            !isExpired && isFullyBooked
+                              ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
+                              : 'bg-instagram border-instagram hover:bg-instagram-dark hover:border-instagram-dark text-white'
+                          }`}
+                        >
+                          {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
+                          {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
+                        </button>
+                      )}
+                    </>
                   )}
 
                   {!isExpired && (
@@ -710,29 +847,72 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
             ancho sobrante en vez de encogerse a solo ícono (ver el bloque de
             arriba, que ahora es shrink-0 con un tope de ancho). */}
         <div className="flex-1 flex items-center gap-2 min-w-0">
-          {showWa && (
-            <button
-              onClick={handleWhatsAppClick}
-              disabled={!isExpired && isFullyBooked}
-              className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
-                !isExpired && isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
-              }`}
-            >
-              {justContacted === 'whatsapp' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <MessageCircle className="w-4 h-4 shrink-0" />}
-              <span className="truncate">{!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}</span>
-            </button>
-          )}
-          {showIg && (
-            <button
-              onClick={handleInstagramClick}
-              disabled={!isExpired && isFullyBooked}
-              className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
-                !isExpired && isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
-              }`}
-            >
-              {justContacted === 'instagram' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <InstagramIcon className="w-4 h-4 shrink-0" />}
-              <span className="truncate">{!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}</span>
-            </button>
+          {cls.externalOrganizer ? (
+            <>
+              {cls.externalOrganizer.infoUrl && (
+                <a
+                  href={cls.externalOrganizer.infoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => triggerContactIncrement(cls.id)}
+                  className="flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] bg-primary hover:bg-primary-dark text-white"
+                >
+                  <ExternalLink className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Más info</span>
+                </a>
+              )}
+              {cls.externalOrganizer.whatsapp && (
+                <a
+                  href={resolveExternalWhatsAppUrl(cls.externalOrganizer.whatsapp, cls.style, cls.startDate)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => triggerContactIncrement(cls.id)}
+                  className="flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] bg-whatsapp hover:bg-whatsapp-dark text-white"
+                >
+                  <MessageCircle className="w-4 h-4 shrink-0" />
+                  <span className="truncate">WhatsApp</span>
+                </a>
+              )}
+              {cls.externalOrganizer.instagram && (
+                <a
+                  href={resolveExternalInstagramUrl(cls.externalOrganizer.instagram)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => triggerContactIncrement(cls.id)}
+                  className="flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] bg-instagram hover:bg-instagram-dark text-white"
+                >
+                  <InstagramIcon className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Instagram</span>
+                </a>
+              )}
+            </>
+          ) : (
+            <>
+              {showWa && (
+                <button
+                  onClick={handleWhatsAppClick}
+                  disabled={!isExpired && isFullyBooked}
+                  className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
+                    !isExpired && isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
+                  }`}
+                >
+                  {justContacted === 'whatsapp' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <MessageCircle className="w-4 h-4 shrink-0" />}
+                  <span className="truncate">{!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}</span>
+                </button>
+              )}
+              {showIg && (
+                <button
+                  onClick={handleInstagramClick}
+                  disabled={!isExpired && isFullyBooked}
+                  className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
+                    !isExpired && isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
+                  }`}
+                >
+                  {justContacted === 'instagram' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <InstagramIcon className="w-4 h-4 shrink-0" />}
+                  <span className="truncate">{!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}</span>
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

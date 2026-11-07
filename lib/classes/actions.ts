@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { safeRevalidateTag } from '@/lib/cache';
 import { createClient } from '@/lib/supabase/server';
 import { assertRole } from '@/lib/auth/assertRole';
+import { isSuperuserModeActive } from '@/lib/auth/superuser';
 import { lookupLevelId, lookupStyleId } from '@/lib/catalog/lookups';
 import {
   findOrCreateVenue, venueNeedsUpdate, insertClassStyles, insertClassSchedules, buildClassColumns, getTodayLima,
@@ -49,6 +50,51 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
     }
   }
 
+  const isSuperuser = await isSuperuserModeActive();
+  let targetTeacherId: string | null = user.id;
+  let externalOrganizerName: string | null = null;
+  let externalInfoUrl: string | null = null;
+  let externalWhatsapp: string | null = null;
+  let externalInstagram: string | null = null;
+
+  if (isSuperuser) {
+    const superuserMode = ((formData.get('superuserMode') as string) || 'assigned').trim();
+    if (superuserMode === 'external') {
+      const orgName = ((formData.get('externalOrganizerName') as string) || '').trim();
+      const infoUrl = ((formData.get('externalInfoUrl') as string) || '').trim();
+      const extWa   = ((formData.get('externalWhatsapp') as string) || '').trim();
+      const extIg   = ((formData.get('externalInstagram') as string) || '').trim();
+      if (!orgName) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION',
+            message: 'Ingresa el nombre del organizador externo.',
+            errors: [{ field: 'externalOrganizerName', message: 'Ingresa el nombre del organizador externo.' }],
+          },
+        };
+      }
+      targetTeacherId = null;
+      externalOrganizerName = orgName;
+      externalInfoUrl = infoUrl || null;
+      externalWhatsapp = extWa || null;
+      externalInstagram = extIg || null;
+    } else {
+      const assignedId = ((formData.get('assignedTeacherId') as string) || '').trim();
+      if (!assignedId) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION',
+            message: 'Selecciona el profesor o academia al que se le asignará la clase.',
+            errors: [{ field: 'assignedTeacherId', message: 'Selecciona el profesor o academia al que se le asignará la clase.' }],
+          },
+        };
+      }
+      targetTeacherId = assignedId;
+    }
+  }
+
   const styleName = formData.get('style')    as string;
   const levelName = formData.get('level')    as string;
   const modality  = formData.get('modality') as string;
@@ -75,14 +121,16 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
     // address as separate lines, so defaulting an unnamed venue's name to
     // its own address made that block print the address twice.
     const venueName = (formData.get('venueName') as string) || '';
-    venueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, city, district, country, placeId, lat, lng });
+    venueId = await findOrCreateVenue(supabase, targetTeacherId, {
+      name: venueName, address, reference, city, district, country, placeId, lat, lng, uploaderId: user.id,
+    });
   }
 
   const cols = buildClassColumns(formData, { levelId, venueId });
 
-  if (cols.status === 'published') {
+  if (cols.status === 'published' && targetTeacherId !== null) {
     try {
-      await assertPublishAllowed(supabase, user.id, cols.contact_mode ?? 'whatsapp');
+      await assertPublishAllowed(supabase, targetTeacherId, cols.contact_mode ?? 'whatsapp');
     } catch (err) {
       const parsed = parsePublishError(err);
       if (parsed) return { ok: false, error: parsed };
@@ -94,7 +142,14 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
     .from('classes')
     .insert({
       ...cols,
-      teacher_id:    user.id,
+      teacher_id:    targetTeacherId,
+      ...(isSuperuser && {
+        created_by_superuser: true,
+        external_organizer_name: externalOrganizerName,
+        external_info_url: externalInfoUrl,
+        external_whatsapp: externalWhatsapp,
+        external_instagram: externalInstagram,
+      }),
       cover_image:   formData.get('coverImage') || null,
       cover_image_position: (formData.get('coverImagePosition') as string) || '50% 50%',
       cover_image_zoom: formData.get('coverImageZoom') ? parseFloat(formData.get('coverImageZoom') as string) : 1,
@@ -132,7 +187,7 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
   if (seriesMonths.length > 0) {
     const series = await createSeriesCopies(supabase, {
       originalId: classId,
-      teacherId: user.id,
+      teacherId: targetTeacherId,
       months: seriesMonths,
       autoPublish: cols.status === 'published',
     });
@@ -163,6 +218,7 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
   await assertRole(supabase, user.id, ['profesor', 'academia']);
+  const isSuperuser = await isSuperuserModeActive();
 
   const payload: ClassUpdatePayload = { ...updates };
 
@@ -171,12 +227,12 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
   // the stored row + schedules and run the SAME validate+guard pipeline the
   // wizard runs. Non-published transitions (draft/archived) stay permissive.
   if (payload.status === 'published') {
-    const { data: row } = await supabase
+    let rowQuery = supabase
       .from('classes')
       .select(CLASS_SELECT)
-      .eq('id', classId)
-      .eq('teacher_id', user.id)
-      .single();
+      .eq('id', classId);
+    if (!isSuperuser) rowQuery = rowQuery.eq('teacher_id', user.id);
+    const { data: row } = await rowQuery.single();
 
     if (!row) return { ok: false, error: { code: 'VALIDATION', message: 'Clase no encontrada' } };
 
@@ -193,22 +249,25 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
       };
     }
 
-    try {
-      await assertPublishAllowed(supabase, user.id, typedRow.contact_mode ?? 'whatsapp');
-    } catch (err) {
-      const parsed = parsePublishError(err);
-      if (parsed) return { ok: false, error: parsed };
-      return { ok: false, error: { code: 'VALIDATION', message: err instanceof Error ? err.message : 'Error al verificar publicación' } };
+    if (typedRow.teacher_id) {
+      try {
+        await assertPublishAllowed(supabase, typedRow.teacher_id, typedRow.contact_mode ?? 'whatsapp');
+      } catch (err) {
+        const parsed = parsePublishError(err);
+        if (parsed) return { ok: false, error: parsed };
+        return { ok: false, error: { code: 'VALIDATION', message: err instanceof Error ? err.message : 'Error al verificar publicación' } };
+      }
     }
 
     if (!payload.published_at) payload.published_at = new Date().toISOString();
   }
 
-  const { error } = await supabase
+  let updateQuery = supabase
     .from('classes')
     .update(payload)
-    .eq('id', classId)
-    .eq('teacher_id', user.id);
+    .eq('id', classId);
+  if (!isSuperuser) updateQuery = updateQuery.eq('teacher_id', user.id);
+  const { error } = await updateQuery;
 
   if (error) return { ok: false, error: { code: 'VALIDATION', message: error.message } };
 
@@ -227,12 +286,14 @@ export async function deleteClass(classId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
   await assertRole(supabase, user.id, ['profesor', 'academia']);
+  const isSuperuser = await isSuperuserModeActive();
 
-  const { error } = await supabase
+  let deleteQuery = supabase
     .from('classes')
     .delete()
-    .eq('id', classId)
-    .eq('teacher_id', user.id);
+    .eq('id', classId);
+  if (!isSuperuser) deleteQuery = deleteQuery.eq('teacher_id', user.id);
+  const { error } = await deleteQuery;
 
   if (error) throw new Error(error.message);
 
@@ -249,9 +310,13 @@ export async function duplicateClass(classId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
   await assertRole(supabase, user.id, ['profesor', 'academia']);
+  const isSuperuser = await isSuperuserModeActive();
+
+  let origQuery = supabase.from('classes').select('*').eq('id', classId);
+  if (!isSuperuser) origQuery = origQuery.eq('teacher_id', user.id);
 
   const [originalResult, stylesResult, schedulesResult] = await Promise.all([
-    supabase.from('classes').select('*').eq('id', classId).eq('teacher_id', user.id).single(),
+    origQuery.single(),
     supabase.from('class_styles').select('style_id, is_main').eq('class_id', classId),
     supabase.from('class_schedules').select('day_of_week, start_time, end_time').eq('class_id', classId),
   ]);
@@ -287,12 +352,14 @@ export async function cancelAutoPublish(classId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
   await assertRole(supabase, user.id, ['profesor', 'academia']);
+  const isSuperuser = await isSuperuserModeActive();
 
-  const { error } = await supabase
+  let cancelQuery = supabase
     .from('classes')
     .update({ auto_publish_at: null })
-    .eq('id', classId)
-    .eq('teacher_id', user.id);
+    .eq('id', classId);
+  if (!isSuperuser) cancelQuery = cancelQuery.eq('teacher_id', user.id);
+  const { error } = await cancelQuery;
   if (error) throw new Error(error.message);
 
   revalidatePath('/dashboard/mis-clases');
@@ -303,6 +370,7 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
   await assertRole(supabase, user.id, ['profesor', 'academia']);
+  const isSuperuser = await isSuperuserModeActive();
 
   if (formData.get('status') === 'published') {
     const result = validateForPublish(formDataToValidationInput(formData), { isEdit: true });
@@ -332,14 +400,62 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
   const lat        = parseFloat(formData.get('lat') as string) || null;
   const lng        = parseFloat(formData.get('lng') as string) || null;
 
-  const { data: existing } = await supabase
+  let existingQuery = supabase
     .from('classes')
-    .select('venue_id, venues(place_id, address, name, city, district, country_code)')
-    .eq('id', classId)
-    .eq('teacher_id', user.id)
-    .single();
+    .select('teacher_id, venue_id, venues(place_id, address, name, city, district, country_code)')
+    .eq('id', classId);
+  if (!isSuperuser) existingQuery = existingQuery.eq('teacher_id', user.id);
+  const { data: existing } = await existingQuery.single();
 
   if (!existing) return { ok: false, error: { code: 'VALIDATION', message: 'Clase no encontrada' } };
+
+  let targetTeacherId: string | null = existing.teacher_id ?? user.id;
+  let externalOrganizerName: string | null = null;
+  let externalInfoUrl: string | null = null;
+  let externalWhatsapp: string | null = null;
+  let externalInstagram: string | null = null;
+
+  if (isSuperuser && formData.get('superuserMode')) {
+    const superuserMode = ((formData.get('superuserMode') as string) || 'assigned').trim();
+    if (superuserMode === 'external') {
+      const orgName = ((formData.get('externalOrganizerName') as string) || '').trim();
+      const infoUrl = ((formData.get('externalInfoUrl') as string) || '').trim();
+      const extWa   = ((formData.get('externalWhatsapp') as string) || '').trim();
+      const extIg   = ((formData.get('externalInstagram') as string) || '').trim();
+      if (!orgName) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION',
+            message: 'Ingresa el nombre del organizador externo.',
+            errors: [{ field: 'externalOrganizerName', message: 'Ingresa el nombre del organizador externo.' }],
+          },
+        };
+      }
+      targetTeacherId = null;
+      externalOrganizerName = orgName;
+      externalInfoUrl = infoUrl || null;
+      externalWhatsapp = extWa || null;
+      externalInstagram = extIg || null;
+    } else {
+      const assignedId = ((formData.get('assignedTeacherId') as string) || '').trim();
+      if (!assignedId) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION',
+            message: 'Selecciona el profesor o academia al que se le asignará la clase.',
+            errors: [{ field: 'assignedTeacherId', message: 'Selecciona el profesor o academia al que se le asignará la clase.' }],
+          },
+        };
+      }
+      targetTeacherId = assignedId;
+      externalOrganizerName = null;
+      externalInfoUrl = null;
+      externalWhatsapp = null;
+      externalInstagram = null;
+    }
+  }
 
   const isPresencial = modality !== 'Online';
 
@@ -359,7 +475,9 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
     // stay unnamed, not silently mirror the address into the name field.
     const venueName = (formData.get('venueName') as string) || '';
     if (venueNeedsUpdate(currentVenue, { placeId, address, name: venueName, city, district, country })) {
-      const newVenueId = await findOrCreateVenue(supabase, user.id, { name: venueName, address, reference, city, district, country, placeId, lat, lng });
+      const newVenueId = await findOrCreateVenue(supabase, targetTeacherId, {
+        name: venueName, address, reference, city, district, country, placeId, lat, lng, uploaderId: user.id,
+      });
       if (newVenueId) venueId = newVenueId;
     }
   } else if (!isPresencial) {
@@ -367,11 +485,20 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
   }
 
   const cols = buildClassColumns(formData, { levelId, venueId });
-  const updates: ClassUpdatePayload = { ...cols };
+  const updates: ClassUpdatePayload = {
+    ...cols,
+    ...(isSuperuser && formData.get('superuserMode') && {
+      teacher_id: targetTeacherId,
+      external_organizer_name: externalOrganizerName,
+      external_info_url: externalInfoUrl,
+      external_whatsapp: externalWhatsapp,
+      external_instagram: externalInstagram,
+    }),
+  };
 
-  if (cols.status === 'published') {
+  if (cols.status === 'published' && targetTeacherId !== null) {
     try {
-      await assertPublishAllowed(supabase, user.id, cols.contact_mode ?? 'whatsapp');
+      await assertPublishAllowed(supabase, targetTeacherId, cols.contact_mode ?? 'whatsapp');
     } catch (err) {
       const parsed = parsePublishError(err);
       if (parsed) return { ok: false, error: parsed };
@@ -427,11 +554,12 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
     oldScheduleIds.length ? supabase.from('class_schedules').delete().in('id', oldScheduleIds) : Promise.resolve(),
   ]);
 
-  const { error } = await supabase
+  let updateQuery = supabase
     .from('classes')
     .update(updates)
-    .eq('id', classId)
-    .eq('teacher_id', user.id);
+    .eq('id', classId);
+  if (!isSuperuser) updateQuery = updateQuery.eq('teacher_id', user.id);
+  const { error } = await updateQuery;
 
   if (error) {
     console.error('[updateClassFromForm]', error.message);

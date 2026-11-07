@@ -45,6 +45,10 @@ export interface ClassValidationInput {
   accessLink: string;
   coverImage: string;
   slots: ValidationSlot[];
+  superuserMode?: 'assigned' | 'external' | '';
+  assignedTeacherId?: string;
+  externalOrganizerName?: string;
+  externalInfoUrl?: string;
 }
 
 // ─── Error envelope (shared by validation + publish gating + image upload) ────
@@ -186,6 +190,19 @@ export function validateForPublish(input: ClassValidationInput, options: Validat
     if (!input.accessLink || !input.accessLink.trim()) errors.push({ field: 'accessLink', message: 'El enlace de acceso es obligatorio.' });
   }
 
+  if (input.superuserMode === 'assigned') {
+    if (!input.assignedTeacherId || !input.assignedTeacherId.trim()) {
+      errors.push({ field: 'assignedTeacherId', message: 'Selecciona el profesor o academia al que se le asignará la clase.' });
+    }
+  } else if (input.superuserMode === 'external') {
+    if (!input.externalOrganizerName || !input.externalOrganizerName.trim()) {
+      errors.push({ field: 'externalOrganizerName', message: 'Ingresa el nombre del organizador externo.' });
+    }
+    if (!input.externalInfoUrl || !/^https?:\/\//i.test(input.externalInfoUrl.trim())) {
+      errors.push({ field: 'externalInfoUrl', message: 'Ingresa un enlace oficial válido (https://...) para obtener más información.' });
+    }
+  }
+
   return { ok: errors.length === 0, errors };
 }
 
@@ -194,6 +211,8 @@ export function validateForPublish(input: ClassValidationInput, options: Validat
 export function formDataToValidationInput(fd: FormData): ClassValidationInput {
   const timeSlots = fd.get('timeSlots') as string | null;
   const slots: ValidationSlot[] = timeSlots ? JSON.parse(timeSlots) : [];
+  const superuserModeRaw = (fd.get('superuserMode') as string) ?? '';
+  const superuserMode = superuserModeRaw === 'assigned' || superuserModeRaw === 'external' ? superuserModeRaw : '';
 
   return {
     status: (fd.get('status') as string) ?? 'draft',
@@ -215,6 +234,12 @@ export function formDataToValidationInput(fd: FormData): ClassValidationInput {
     accessLink: (fd.get('accessLink') as string) ?? '',
     coverImage: (fd.get('coverImage') as string) ?? '',
     slots,
+    ...(superuserMode && {
+      superuserMode,
+      assignedTeacherId: (fd.get('assignedTeacherId') as string) ?? '',
+      externalOrganizerName: (fd.get('externalOrganizerName') as string) ?? '',
+      externalInfoUrl: (fd.get('externalInfoUrl') as string) ?? '',
+    }),
   };
 }
 
@@ -228,6 +253,11 @@ export function dbRowToValidationInput(row: DbClassRow, schedules: DbClassSchedu
   const slots: ValidationSlot[] = schedules.length ? [{ days, startTime, endTime }] : [];
 
   const mainStyle = row.class_styles?.find(s => s.is_main) ?? row.class_styles?.[0];
+  const superuserMode: 'assigned' | 'external' | '' = row.external_organizer_name
+    ? 'external'
+    : row.created_by_superuser
+      ? 'assigned'
+      : '';
 
   return {
     status: row.status,
@@ -249,5 +279,11 @@ export function dbRowToValidationInput(row: DbClassRow, schedules: DbClassSchedu
     accessLink: row.access_link ?? '',
     coverImage: row.cover_image ?? '',
     slots,
+    ...(superuserMode && {
+      superuserMode,
+      assignedTeacherId: row.teacher_id ?? '',
+      externalOrganizerName: row.external_organizer_name ?? '',
+      externalInfoUrl: row.external_info_url ?? '',
+    }),
   };
 }

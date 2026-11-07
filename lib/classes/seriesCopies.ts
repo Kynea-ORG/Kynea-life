@@ -22,13 +22,16 @@ function monthSlug(month: string): string {
 
 export async function createSeriesCopies(
   supabase: SupabaseClient,
-  params: { originalId: string; teacherId: string; months: string[]; autoPublish: boolean },
+  params: { originalId: string; teacherId: string | null; months: string[]; autoPublish: boolean },
 ): Promise<SeriesCopiesResult> {
   const { originalId, teacherId, months, autoPublish } = params;
   if (months.length === 0) return { ok: true, createdIds: [] };
 
+  let origQuery = supabase.from('classes').select('*').eq('id', originalId);
+  if (teacherId !== null) origQuery = origQuery.eq('teacher_id', teacherId);
+
   const [originalRes, stylesRes, schedulesRes] = await Promise.all([
-    supabase.from('classes').select('*').eq('id', originalId).eq('teacher_id', teacherId).single(),
+    origQuery.single(),
     supabase.from('class_styles').select('style_id, is_main').eq('class_id', originalId),
     supabase.from('class_schedules').select('day_of_week, start_time, end_time').eq('class_id', originalId),
   ]);

@@ -5,7 +5,8 @@ import { PlusCircle, Upload, BookOpen, Clock, Eye, Users, MessageCircle, Chevron
 import { createClient } from '@/lib/supabase/server';
 import { getUser } from '@/lib/auth/getUser';
 import { getCurrentProfile } from '@/lib/profiles/queries';
-import { fetchTeacherClasses } from '@/lib/classes/queries';
+import { isSuperuserModeActive } from '@/lib/auth/superuser';
+import { fetchTeacherClasses, fetchSuperuserClasses } from '@/lib/classes/queries';
 import { classUrl } from '@/lib/classes/helpers';
 import { getStatusColor, getStatusLabel, formatPrice, formatTimeSlots } from '@/lib/utils';
 import AcademiaConversionCard from './AcademiaConversionCard';
@@ -14,9 +15,12 @@ export default async function DashboardPage() {
   const user = await getUser();
   if (!user) redirect('/login');
 
-  const profile = await getCurrentProfile();
+  const [profile, isSuperuser] = await Promise.all([
+    getCurrentProfile(),
+    isSuperuserModeActive(),
+  ]);
 
-  if (profile?.role === 'alumno') redirect('/dashboard/alumno');
+  if (!isSuperuser && profile?.role === 'alumno') redirect('/dashboard/alumno');
 
   // Only a profesor can request this — an academia is already one, and an
   // alumno never reaches this page (redirected above). Fetched unconditionally
@@ -24,7 +28,7 @@ export default async function DashboardPage() {
   // an `if (profesor)` check, so the two independent queries run in parallel.
   const supabase = await createClient();
   const [conversionRequestResult, classes] = await Promise.all([
-    profile?.role === 'profesor'
+    !isSuperuser && profile?.role === 'profesor'
       ? supabase
           .from('academia_requests')
           .select('status')
@@ -34,7 +38,7 @@ export default async function DashboardPage() {
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    fetchTeacherClasses(user.id),
+    isSuperuser ? fetchSuperuserClasses() : fetchTeacherClasses(user.id),
   ]);
   const conversionStatus: 'pending' | 'approved' | 'rejected' | null = conversionRequestResult.data?.status ?? null;
   const publishedClasses = classes.filter(c => c.status === 'published');
@@ -52,32 +56,44 @@ export default async function DashboardPage() {
   // tratamiento visual (azul) para que se lean como la misma categoría de
   // "atención recibida", a diferencia de "Publicadas" que es un conteo de
   // contenido, no de interés de terceros.
-  const METRICS = [
-    { label: 'Visitas a tu perfil', value: profile?.views_count ?? 0, icon: Users,    bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
-    { label: 'Vistas de tus clases', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
-    { label: 'Publicadas',           value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
-  ];
+  const METRICS = isSuperuser
+    ? [
+        { label: 'Total gestionadas',    value: classes.length,          icon: Users,    bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
+        { label: 'Vistas de las clases', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
+        { label: 'Publicadas',           value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
+      ]
+    : [
+        { label: 'Visitas a tu perfil', value: profile?.views_count ?? 0, icon: Users,    bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
+        { label: 'Vistas de tus clases', value: totalViews,              icon: Eye,      bg: 'bg-blue-pastel-bg', text: 'text-blue-pastel-text', iconBg: 'bg-blue-pastel/30' },
+        { label: 'Publicadas',           value: publishedClasses.length, icon: BookOpen, bg: 'bg-neutral-50',     text: 'text-neutral-700', iconBg: 'bg-neutral-200' },
+      ];
 
-  const firstName = profile?.name?.split(' ')[0] ?? 'profe';
+  const firstName = isSuperuser ? 'Superusuario' : (profile?.name?.split(' ')[0] ?? 'profe');
 
   return (
     <div className="p-6 lg:p-8 w-full max-w-6xl">
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-[28px] sm:text-[32px] font-black text-neutral-900 tracking-snug">Hola, {firstName} 👋</h1>
-          <p className="text-neutral-600 text-[15px] mt-1">Aquí tienes el resumen de tu actividad</p>
+          <p className="text-neutral-600 text-[15px] mt-1">
+            {isSuperuser
+              ? 'Gestiona las clases asignadas a cuentas registradas y organizadores externos'
+              : 'Aquí tienes el resumen de tu actividad'}
+          </p>
         </div>
         <div className="hidden sm:flex gap-3">
-          <Link href="/dashboard/importar-csv" className="btn-outline btn-sm flex items-center gap-2">
-            <Upload className="w-4 h-4" /> Subir clases masivas
-          </Link>
+          {!isSuperuser && (
+            <Link href="/dashboard/importar-csv" className="btn-outline btn-sm flex items-center gap-2">
+              <Upload className="w-4 h-4" /> Subir clases masivas
+            </Link>
+          )}
           <Link href="/dashboard/crear-clase" className="btn-primary btn-sm flex items-center gap-2">
             <PlusCircle className="w-4 h-4" /> Crear clase
           </Link>
         </div>
       </div>
 
-      {profile?.role === 'profesor' && <AcademiaConversionCard initialStatus={conversionStatus} />}
+      {!isSuperuser && profile?.role === 'profesor' && <AcademiaConversionCard initialStatus={conversionStatus} />}
 
       {/* Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">

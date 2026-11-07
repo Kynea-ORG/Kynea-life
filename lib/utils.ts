@@ -160,6 +160,42 @@ export function buildInstagramUrl(handleOrUrl: string | null | undefined): strin
   return handle ? `https://instagram.com/${handle}` : '';
 }
 
+/**
+ * Resolves a WhatsApp field for an external organizer publication.
+ * Accepts full URLs (e.g. https://wa.link/..., https://wa.me/..., chat.whatsapp.com/...)
+ * as well as raw phone numbers as fallback.
+ */
+export function resolveExternalWhatsAppUrl(
+  rawValue: string | null | undefined,
+  style: string,
+  startDate: string,
+): string {
+  if (!rawValue) return '';
+  const trimmed = rawValue.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(?:www\.)?(?:wa\.link|wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)\//i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return buildWhatsAppMessage(style, startDate, trimmed);
+}
+
+/**
+ * Resolves an Instagram field for an external organizer publication.
+ * Preserves full post/reel/profile URLs (e.g. https://www.instagram.com/p/..., instagram.com/reel/...)
+ * instead of stripping path segments to a profile handle. Falls back to handle resolution if not a URL.
+ */
+export function resolveExternalInstagramUrl(rawValue: string | null | undefined): string {
+  if (!rawValue) return '';
+  const trimmed = rawValue.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(?:www\.)?(?:instagram\.com|instagr\.am)\//i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return buildInstagramUrl(trimmed);
+}
+
 export function buildTikTokUrl(handleOrUrl: string | null | undefined): string {
   const handle = extractSocialHandle(handleOrUrl, 'tiktok');
   return handle ? `https://tiktok.com/@${handle}` : '';

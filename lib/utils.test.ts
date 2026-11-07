@@ -9,6 +9,8 @@ import {
   buildInstagramUrl,
   buildTikTokUrl,
   formatSocialHandle,
+  resolveExternalWhatsAppUrl,
+  resolveExternalInstagramUrl,
 } from './utils';
 
 describe('getProfileUrl', () => {
@@ -215,5 +217,30 @@ describe('formatSocialHandle', () => {
   it('formats full URLs into clean @handle', () => {
     expect(formatSocialHandle('https://www.instagram.com/dario_boada?stkn=MWdqN2RvMDcwc2RzZA==', 'instagram')).toBe('@dario_boada');
     expect(formatSocialHandle('https://www.tiktok.com/@dario_boada?_r=1', 'tiktok')).toBe('@dario_boada');
+  });
+});
+
+describe('resolveExternalWhatsAppUrl', () => {
+  it('preserves full wa.link or wa.me URLs intact', () => {
+    expect(resolveExternalWhatsAppUrl('https://wa.link/abc123', 'Salsa', '2026-11-10')).toBe('https://wa.link/abc123');
+    expect(resolveExternalWhatsAppUrl('wa.link/xyz789', 'Salsa', '2026-11-10')).toBe('https://wa.link/xyz789');
+    expect(resolveExternalWhatsAppUrl('https://wa.me/51999888777?text=Hola', 'Salsa', '2026-11-10')).toBe('https://wa.me/51999888777?text=Hola');
+  });
+
+  it('falls back to buildWhatsAppMessage when given a phone number', () => {
+    const url = resolveExternalWhatsAppUrl('+51 999 888 777', 'Salsa', '2026-11-10');
+    expect(url).toContain('https://wa.me/+51999888777?text=');
+  });
+});
+
+describe('resolveExternalInstagramUrl', () => {
+  it('preserves full Instagram post and reel URLs intact', () => {
+    expect(resolveExternalInstagramUrl('https://www.instagram.com/p/C12345abcde/')).toBe('https://www.instagram.com/p/C12345abcde/');
+    expect(resolveExternalInstagramUrl('https://www.instagram.com/reel/D98765xyz/?igsh=abc')).toBe('https://www.instagram.com/reel/D98765xyz/?igsh=abc');
+    expect(resolveExternalInstagramUrl('instagram.com/p/C12345abcde')).toBe('https://instagram.com/p/C12345abcde');
+  });
+
+  it('falls back to profile URL when given a handle', () => {
+    expect(resolveExternalInstagramUrl('@minculturape')).toBe('https://instagram.com/minculturape');
   });
 });

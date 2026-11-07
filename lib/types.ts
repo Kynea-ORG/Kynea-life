@@ -125,4 +125,12 @@ export interface DanceClass {
   autoPublishAt?: string;
   autoPublishedAt?: string;
   autoPublishError?: string;
+  // Superusuario y organizador externo (migración 67):
+  createdBySuperuser?: boolean;
+  externalOrganizer?: {
+    name: string;
+    infoUrl: string;
+    whatsapp?: string;
+    instagram?: string;
+  };
 }
