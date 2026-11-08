@@ -46,6 +46,7 @@ describe('checkQueryDomain', () => {
     expect(checkQueryDomain('k-pop coreografias').isDefinitelyOutOfDomain).toBe(false);
     expect(checkQueryDomain('clases de reggaeton').isDefinitelyOutOfDomain).toBe(false);
     expect(checkQueryDomain('ballet para niños').isDefinitelyOutOfDomain).toBe(false);
+    expect(checkQueryDomain('clases de vogue').isDefinitelyOutOfDomain).toBe(false);
 
     // Pregunta sobre un estilo de baile
     expect(checkQueryDomain('que es heels dance y como se baila?').isDefinitelyOutOfDomain).toBe(false);
