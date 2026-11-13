@@ -2,10 +2,10 @@ import { createClient } from '@/lib/supabase/server';
 import { getPublicClient } from '@/lib/supabase/public';
 import { safeCache } from '@/lib/cache';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getUser } from '@/lib/auth/getUser';
 import { mapTeacher } from '@/lib/profiles/queries';
 import { searchKeywords } from '@/lib/search/normalize';
 import { DAY_MAP } from './helpers';
+import { fetchClassAccessLink } from './classAccess';
 import type {
   DanceClass, Teacher, TimeSlot, ClassStatus, ClassType,
   DanceStyle, Level, Modality, PriceType,
@@ -43,7 +43,7 @@ function schedulesToTimeSlots(schedules: DbClassRow['class_schedules']): TimeSlo
 
 export function mapDbClassToType(
   row: DbClassRow,
-  options?: { includePrivateAccess?: boolean }
+  options?: { accessLink?: string | null }
 ): DanceClass {
   const stylesRows: DbClassStyle[] = row.class_styles ?? [];
   const mainStyleRow = stylesRows.find((s) => s.is_main);
@@ -123,7 +123,9 @@ export function mapDbClassToType(
     lng:              venue?.lng ?? undefined,
     mapImageUrl:      venue?.map_image_url ?? undefined,
     platform:         row.platform ?? undefined,
-    accessLink:       options?.includePrivateAccess ? (row.access_link ?? undefined) : undefined,
+    accessLink:       options?.accessLink ?? undefined,
+    bookingMode:      (row.booking_mode as DanceClass['bookingMode']) ?? 'none',
+    cancellationPolicy: (row.cancellation_policy as DanceClass['cancellationPolicy']) ?? 'moderada',
     coverImage:       row.cover_image ?? '',
     coverImagePosition: row.cover_image_position || '50% 50%',
     coverImageZoom:   row.cover_image_zoom ?? 1,
@@ -405,16 +407,11 @@ export async function fetchClassById(
     .single();
   if (error || !data) return null;
 
-  let includePrivateAccess = options?.includePrivateAccess ?? false;
-  if (!includePrivateAccess) {
-    const user = await getUser();
-    const typedRow = data as unknown as DbClassRow;
-    if (user && (user.id === typedRow.teacher_id || typedRow.created_by_superuser)) {
-      includePrivateAccess = true;
-    }
-  }
+  // El enlace de acceso online vive en `class_access`, cuya RLS solo deja leerlo al dueño de la
+  // clase y a los admins: aunque se pida, quien no tenga permiso recibe null.
+  const accessLink = options?.includePrivateAccess ? await fetchClassAccessLink(supabase, id) : null;
 
-  return mapDbClassToType(data as unknown as DbClassRow, { includePrivateAccess });
+  return mapDbClassToType(data as unknown as DbClassRow, { accessLink });
 }
 
 async function getClassBySlug(slug: string): Promise<DanceClass | null> {

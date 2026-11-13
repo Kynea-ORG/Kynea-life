@@ -8,6 +8,7 @@
 // inicio (la función SQL publish_due_series_copies, migración 62).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { autoPublishDate, monthLabel, shiftToMonth } from './series';
+import { fetchClassAccessLink, syncClassAccess } from './classAccess';
 
 export type SeriesCopiesResult =
   | { ok: true; createdIds: string[] }
@@ -60,6 +61,8 @@ export async function createSeriesCopies(
   const styles = (stylesRes.data ?? []) as { style_id: number; is_main: boolean }[];
   const schedules = (schedulesRes.data ?? []) as { day_of_week: number; start_time: string; end_time: string }[];
   const baseSlug = (original.slug as string | null) ?? '';
+  // El enlace de acceso online vive en class_access, no en la fila de classes: se copia aparte.
+  const accessLink = await fetchClassAccessLink(supabase, originalId);
 
   const createdIds: string[] = [];
   const rollback = async (message: string): Promise<SeriesCopiesResult> => {
@@ -99,6 +102,15 @@ export async function createSeriesCopies(
       schedules.length ? supabase.from('class_schedules').insert(schedules.map(s => ({ ...s, class_id: copyId }))) : Promise.resolve({ error: null }),
     ]);
     if (stylesInsert.error || schedulesInsert.error) return rollback('No se pudieron copiar los horarios de la clase');
+
+    if (accessLink) {
+      try {
+        await syncClassAccess(supabase, copyId, accessLink);
+      } catch (err) {
+        console.error('[createSeriesCopies] copiar enlace de acceso:', err);
+        return rollback('No se pudo copiar el enlace de acceso de la clase');
+      }
+    }
   }
 
   return { ok: true, createdIds };

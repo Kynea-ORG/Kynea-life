@@ -25,8 +25,9 @@ let authState: { user: { id: string } | null; isLoggedIn: boolean } = { user: nu
 vi.mock('@/components/AuthProvider', () => ({ useAuth: () => authState }));
 vi.mock('@/lib/analytics', () => ({
   trackGenerateLead: vi.fn(), trackAuthCtaClick: vi.fn(), trackViewItem: vi.fn(),
-  trackSaveClass: vi.fn(), trackTeacherSocialClick: vi.fn(), trackSelectProfile: vi.fn(),
+  trackSaveClass: vi.fn(), trackTeacherSocialClick: vi.fn(), trackSelectProfile: vi.fn(), trackBookingCreated: vi.fn(),
 }));
+vi.mock('@/lib/bookings/actions', () => ({ reserveBooking: vi.fn(), listClassSessions: vi.fn(async () => []) }));
 
 function makeClass(over: Partial<DanceClass> = {}): DanceClass {
   return {

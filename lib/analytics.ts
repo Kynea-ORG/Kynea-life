@@ -23,6 +23,29 @@ export function trackSignUp(params: { role: string; method: string }) {
   pushEvent('sign_up', { role: params.role, method: params.method });
 }
 
+// Reserva creada en Kynea (migración 70). Es la conversión de reservas; `generate_lead` sigue siendo
+// el contacto por WhatsApp/Instagram. Cada evento nuevo necesita su cableado en GTM (variables,
+// disparador y etiqueta GA4) y publicar el contenedor, o no llega a GA4.
+export function trackBookingCreated(params: {
+  classId: string;
+  className?: string;
+  teacherId?: string;
+  bookingMode: 'class' | 'session';
+  seats: number;
+  value: number;
+  currency: string;
+}) {
+  pushEvent('booking_created', {
+    class_id: params.classId,
+    class_name: params.className,
+    teacher_id: params.teacherId,
+    booking_mode: params.bookingMode,
+    seats: params.seats,
+    value: params.value,
+    currency: params.currency,
+  });
+}
+
 // Fired whenever a student reaches out to a teacher via WhatsApp or
 // Instagram — the core conversion event for the whole marketplace.
 export function trackGenerateLead(params: {

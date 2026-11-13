@@ -7,6 +7,7 @@ import { MapPin, Clock, Users, Calendar, MessageCircle, Bookmark, ChevronLeft, C
 import { InstagramIcon, TikTokIcon, YouTubeIcon } from '@/components/icons/SocialIcons';
 import Footer from '@/components/Footer';
 import ContactModal from '@/components/ContactModal';
+import BookingCta from '@/components/booking/BookingCta';
 import MapPreview from '@/components/MapPreview';
 import { getTypeLabel, formatPrice, formatExperience, formatFriendlyDate, formatTimeSlots, buildWhatsAppMessage, buildGoogleMapsUrl, buildInstagramUrl, buildTikTokUrl, buildYouTubeUrl, formatSocialHandle, getProfileUrl, resolveExternalWhatsAppUrl, resolveExternalInstagramUrl } from '@/lib/utils';
 import type { DanceClass } from '@/lib/types';
@@ -725,6 +726,7 @@ export default function ClaseDetailMobileLegacy({ cls }: { cls: DanceClass }) {
                     </>
                   ) : (
                     <>
+                      <BookingCta cls={cls} isLoggedIn={isLoggedIn} variant="sidebar" />
                       {showWa && (
                         <button
                           onClick={handleWhatsAppClick}
@@ -858,6 +860,7 @@ export default function ClaseDetailMobileLegacy({ cls }: { cls: DanceClass }) {
             </>
           ) : (
             <>
+              <BookingCta cls={cls} isLoggedIn={isLoggedIn} variant="bar" />
               {showWa && (
                 <button
                   onClick={handleWhatsAppClick}

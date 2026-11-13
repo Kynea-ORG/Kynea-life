@@ -151,7 +151,12 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
     setRemovingId(id);
     startTransition(async () => {
       try {
-        await deleteClassAction(id);
+        const result = await deleteClassAction(id);
+        if (!result.ok) {
+          setRemovingId(null);
+          showToast(result.message, 'error');
+          return;
+        }
         setClasses(prev => prev.filter(c => c.id !== id));
         setRemovingId(null);
         showToast('Clase eliminada', 'info');

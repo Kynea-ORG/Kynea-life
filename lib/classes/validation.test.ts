@@ -48,6 +48,46 @@ function validInput(overrides: Partial<ClassValidationInput> = {}): ClassValidat
   };
 }
 
+// ─── validateForPublish — reservas ────────────────────────────────────────
+
+describe('validateForPublish — reservas (bookingMode)', () => {
+  it('exige cupo máximo cuando la clase acepta reservas', () => {
+    for (const bookingMode of ['class', 'session']) {
+      const r = validateForPublish(validInput({ bookingMode, maxSpots: '' }));
+      expect(r.errors.some(e => e.field === 'maxSpots'), bookingMode).toBe(true);
+    }
+  });
+
+  it('rechaza cupo 0 o inválido con reservas activas', () => {
+    expect(validateForPublish(validInput({ bookingMode: 'class', maxSpots: '0' })).errors.some(e => e.field === 'maxSpots')).toBe(true);
+    expect(validateForPublish(validInput({ bookingMode: 'class', maxSpots: 'abc' })).errors.some(e => e.field === 'maxSpots')).toBe(true);
+  });
+
+  it('acepta reservas con cupo válido', () => {
+    expect(validateForPublish(validInput({ bookingMode: 'class', maxSpots: '12' })).ok).toBe(true);
+  });
+
+  it('no exige cupo si no hay reservas (none o ausente)', () => {
+    expect(validateForPublish(validInput({ bookingMode: 'none', maxSpots: '' })).ok).toBe(true);
+    expect(validateForPublish(validInput()).ok).toBe(true);
+  });
+
+  it('formDataToValidationInput lee bookingMode y maxSpots del formulario', () => {
+    const fd = new FormData();
+    fd.set('bookingMode', 'session');
+    fd.set('maxSpots', '8');
+    const input = formDataToValidationInput(fd);
+    expect(input.bookingMode).toBe('session');
+    expect(input.maxSpots).toBe('8');
+  });
+
+  it('dbRowToValidationInput lee booking_mode y max_spots de la fila', () => {
+    const input = dbRowToValidationInput(makeDbRow({ booking_mode: 'class', max_spots: 10 }), []);
+    expect(input.bookingMode).toBe('class');
+    expect(input.maxSpots).toBe('10');
+  });
+});
+
 // ─── validateForPublish ───────────────────────────────────────────────────
 
 describe('validateForPublish — happy path', () => {
@@ -494,6 +534,18 @@ function makeDbRow(overrides: Partial<DbClassRow> = {}): DbClassRow {
     ...overrides,
   };
 }
+
+describe('dbRowToValidationInput — accessLink', () => {
+  it('toma el enlace del tercer argumento (vive en class_access, no en la fila)', () => {
+    const input = dbRowToValidationInput(makeDbRow({ modality: 'Online' }), [], 'https://zoom.us/j/777');
+    expect(input.accessLink).toBe('https://zoom.us/j/777');
+  });
+
+  it('queda vacío si no se pasa enlace', () => {
+    const input = dbRowToValidationInput(makeDbRow({ modality: 'Online' }), []);
+    expect(input.accessLink).toBe('');
+  });
+});
 
 describe('dbRowToValidationInput', () => {
   it('maps a stored row + single schedule into a ClassValidationInput with recurrence "unica"', () => {

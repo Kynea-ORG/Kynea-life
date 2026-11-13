@@ -31,7 +31,7 @@ export default async function CrearClasePage({ searchParams }: PageProps) {
   const [danceStyles, levels, editClass, assignableProfiles] = await Promise.all([
     fetchDanceStyles(),
     fetchClassLevels(),
-    params.edit ? fetchClassById(params.edit) : Promise.resolve(null),
+    params.edit ? fetchClassById(params.edit, { includePrivateAccess: true }) : Promise.resolve(null),
     isSuperuser ? fetchAssignableProfiles() : Promise.resolve([]),
   ]);
 
