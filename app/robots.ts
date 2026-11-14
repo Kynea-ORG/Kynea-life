@@ -1,7 +1,17 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/constants';
+import { isProductionDeployment } from '@/lib/env';
 
 export default function robots(): MetadataRoute.Robots {
+  if (!isProductionDeployment()) {
+    return {
+      rules: {
+        userAgent: '*',
+        disallow: '/',
+      },
+    };
+  }
+
   return {
     rules: {
       userAgent: '*',

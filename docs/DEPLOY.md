@@ -10,13 +10,25 @@ Kynea se despliega en dos capas independientes: la app (Vercel) y la base de dat
 2. **Import Git Repository** → selecciona `Kynea-ORG/Kynea-life`
 3. Vercel detecta Next.js automáticamente — no cambies el Framework Preset ni los comandos de build.
 
-### 2. Variables de entorno
+### 2. Variables de entorno y Custom Environments (Vercel Pro)
 
-En la pantalla de import (o en **Settings → Environment Variables**), agrega estas variables
-(las mismas de tu `.env.local`):
+En **Settings → Environments** de Vercel Pro se configuran los espacios de despliegue separados:
+
+| Environment Vercel | Rama vinculada | Dominio | `NEXT_PUBLIC_APP_ENV` | Proyecto Supabase |
+| :--- | :--- | :--- | :--- | :--- |
+| **Production** | `main` | `www.kynea.dance` | `production` | Producción (`hmvonvxgmvwfnhlmrgpg`) |
+| **Staging** *(Custom)* | `develop` | `staging.kynea.dance` | `staging` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
+| **Sandbox** *(Custom)* | `sandbox` | `lab.kynea.dance` | `sandbox` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
+| **Preview** | PRs / `epic/*` / `feature/*` | `*.vercel.app` | `preview` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
+
+> [!IMPORTANT]
+> **Protección SEO y analítica automática:** El helper `isProductionDeployment()` ([`lib/env.ts`](../lib/env.ts)) verifica `VERCEL_ENV`, `VERCEL_TARGET_ENV` y `NEXT_PUBLIC_APP_ENV`. Fuera de `Production`, [`next.config.ts`](../next.config.ts) envía automáticamente `X-Robots-Tag: noindex, nofollow`, [`app/robots.ts`](../app/robots.ts) bloquea todo rastreo (`Disallow: /`) y [`app/layout.tsx`](../app/layout.tsx) desactiva GTM. Además, en Vercel Pro conviene activar **Deployment Protection (Vercel Authentication)** en `Staging`, `Sandbox` y `Preview`.
+
+En cada entorno (o compartido según corresponda), configura las variables de `.env.example`:
 
 | Name | Value |
 |------|-------|
+| `NEXT_PUBLIC_APP_ENV` | `production` \| `staging` \| `sandbox` \| `preview` (según entorno) |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<tu-proyecto>.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` (anon key) |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (service_role key, Settings → API) |
@@ -26,17 +38,22 @@ En la pantalla de import (o en **Settings → Environment Variables**), agrega e
 
 `SUPABASE_SERVICE_ROLE_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` y `CRON_SECRET` son server-only: nunca las expongas con prefijo `NEXT_PUBLIC_` ni las subas al repo.
 
-Aplícalas a **Production**, **Preview** y **Development**.
-
 ### 3. Deploy
 
-Click **Deploy**. Obtendrás una URL tipo `https://kynea-life.vercel.app`.
+Click **Deploy**. Obtendrás la URL de producción (`www.kynea.dance`) y los dominios configurados para `Staging` y `Sandbox`.
 
-### 4. Configurar Supabase con la URL de producción
+### 4. Configurar Supabase con las URLs de cada entorno
 
-**Authentication → URL Configuration:**
-- **Site URL:** `https://kynea-life.vercel.app` (tu dominio de Vercel)
-- **Redirect URLs:** agrega `https://kynea-life.vercel.app/**`
+En **Producción (`hmvonvxgmvwfnhlmrgpg`) → Authentication → URL Configuration:**
+- **Site URL:** `https://www.kynea.dance`
+- **Redirect URLs:** `https://www.kynea.dance/**`
+
+En **`kynea-dev` (`uibigobubqrolozvrkzd`) → Authentication → URL Configuration:**
+- **Site URL:** `https://staging.kynea.dance`
+- **Redirect URLs:** agrega:
+  - `https://staging.kynea.dance/**`
+  - `https://lab.kynea.dance/**`
+  - `https://*-kynea*.vercel.app/**` (para OAuth y magic links en Preview Deployments)
 
 > El código usa `window.location.origin`, así que los redirects de OAuth y reset
 > de contraseña se adaptan solos al dominio. Solo falta autorizarlos aquí.
