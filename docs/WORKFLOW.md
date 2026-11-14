@@ -9,8 +9,8 @@ El flujo separa **experimentación/pruebas** de **código listo para producción
 | Rama | Entorno Vercel Pro | Base de datos | Regla de uso |
 | :--- | :--- | :--- | :--- |
 | `main` | **Production** (`www.kynea.dance`) | Supabase Producción | Solo recibe PRs desde `develop` cuando todo lo que contiene va a producción. |
-| `develop` | **Staging** (`staging.kynea.dance`) | `kynea-dev` | **Release Candidate siempre limpio.** Solo entra código (y migraciones) ya aprobado para el próximo release. |
-| `sandbox` | **Sandbox** (`lab.kynea.dance`) | `kynea-dev` | Rama desechable/reseteable para probar **múltiples features WIP juntas** o hacer demos. **Nunca** se mergea hacia `develop` ni `main`. |
+| `develop` | **Staging** (`dev.kynea.dance`) | `kynea-dev` | **Release Candidate siempre limpio.** Solo entra código (y migraciones) ya aprobado para el próximo release. |
+| `sandbox` | **Sandbox** (`sandbox.kynea.dance`) | `kynea-dev` | Rama desechable/reseteable para probar **múltiples features WIP juntas** o hacer demos. **Nunca** se mergea hacia `develop` ni `main`. |
 | `epic/*` | **Preview** (URL estable de rama) | `kynea-dev` | Rama de integración para features grandes o multi-PR (ej. `epic/bookings`). Recibe sub-PRs con CI automático hasta estar lista para entrar a `develop`. |
 | `feature/*`, `fix/*`, `chore/*` | **Preview** (por PR) | `kynea-dev` | Ramas cortas para cambios puntuales. Salen de `develop` (o de `epic/*`) y se borran al mergear. |
 | `user/*` | **Preview** (por rama/PR) | `kynea-dev` | Rama personal continua por integrante (ej. `user/DavidVilcaO`). Nunca se elimina tras mergear su PR. |
@@ -21,7 +21,7 @@ El flujo separa **experimentación/pruebas** de **código listo para producción
 
 1. **Si la feature aún no puede pasar a producción (o trae migraciones complejas):**
    - Trabájala en `epic/<nombre>` (ej. `epic/bookings`) o en tu rama `user/*`. El CI (`lint-and-typecheck`) corre también en PRs hacia `epic/**`.
-   - Si necesitas probar varias features WIP juntas en un dominio fijo (por OAuth o callbacks), fusiónalas temporalmente en `sandbox` (`lab.kynea.dance`). Cuando termines, resetea `sandbox` al estado de `develop` (`git push --force-with-lease origin develop:sandbox`).
+   - Si necesitas probar varias features WIP juntas en un dominio fijo (por OAuth o callbacks), fusiónalas temporalmente en `sandbox` (`sandbox.kynea.dance`). Cuando termines, resetea `sandbox` al estado de `develop` (`git push --force-with-lease origin develop:sandbox`).
    - **Migraciones en `epic/*`:** asigna o renumera el prefijo secuencial definitivo en `supabase/migrations/` recién cuando la épica vaya a abrir su PR final hacia `develop`, para no colisionar con fixes que entraron antes.
 2. **Si la feature se integra de forma incremental (Trunk-Based):**
    - Protégela con una variable de entorno por ambiente en Vercel Pro (ej. `NEXT_PUBLIC_FEATURE_<X>=true` en `Preview`, `Sandbox` y `Staging`, y `false` en `Production`), asegurando que cualquier migración asociada sea aditiva y compatible hacia atrás.
@@ -30,7 +30,7 @@ El flujo separa **experimentación/pruebas** de **código listo para producción
 
 Como `develop` (`Staging`) solo contiene cambios listos para salir:
 1. Crea `fix/<nombre>` desde `develop`.
-2. Abre PR a `develop`, valida CI y prueba en `staging.kynea.dance`.
+2. Abre PR a `develop`, valida CI y prueba en `dev.kynea.dance`.
 3. Abre PR `develop` → `main` el mismo día. No arrastrarás features a medias ni necesitarás desactivar `enforce_admins`.
 4. Si un despliegue recién salido en `main` falla mientras preparas el fix, usa **Instant Rollback** en Vercel Pro para revertir el deployment en 1 clic sin tocar Git.
 

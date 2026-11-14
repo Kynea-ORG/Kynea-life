@@ -4,7 +4,7 @@
  * En Vercel Pro los Custom Environments (como `staging` o `sandbox`) y los
  * Previews tienen `VERCEL_ENV === 'preview'` y un `VERCEL_TARGET_ENV` distinto
  * de `'production'`. Esta verificación evita exponer SEO o comportamiento de
- * producción en dominios como `staging.kynea.dance` o `lab.kynea.dance`.
+ * producción en dominios como `dev.kynea.dance` o `sandbox.kynea.dance`.
  */
 export function isProductionDeployment(
   env: Record<string, string | undefined> = process.env

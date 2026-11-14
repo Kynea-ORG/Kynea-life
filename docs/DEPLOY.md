@@ -17,8 +17,8 @@ En **Settings → Environments** de Vercel Pro se configuran los espacios de des
 | Environment Vercel | Rama vinculada | Dominio | `NEXT_PUBLIC_APP_ENV` | Proyecto Supabase |
 | :--- | :--- | :--- | :--- | :--- |
 | **Production** | `main` | `www.kynea.dance` | `production` | Producción (`hmvonvxgmvwfnhlmrgpg`) |
-| **Staging** *(Custom)* | `develop` | `staging.kynea.dance` | `staging` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
-| **Sandbox** *(Custom)* | `sandbox` | `lab.kynea.dance` | `sandbox` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
+| **Staging** *(Custom)* | `develop` | `dev.kynea.dance` | `staging` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
+| **Sandbox** *(Custom)* | `sandbox` | `sandbox.kynea.dance` | `sandbox` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
 | **Preview** | PRs / `epic/*` / `feature/*` | `*.vercel.app` | `preview` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
 
 > [!IMPORTANT]
@@ -49,11 +49,12 @@ En **Producción (`hmvonvxgmvwfnhlmrgpg`) → Authentication → URL Configurati
 - **Redirect URLs:** `https://www.kynea.dance/**`
 
 En **`kynea-dev` (`uibigobubqrolozvrkzd`) → Authentication → URL Configuration:**
-- **Site URL:** `https://staging.kynea.dance`
+- **Site URL:** `http://localhost:3000`
 - **Redirect URLs:** agrega:
-  - `https://staging.kynea.dance/**`
-  - `https://lab.kynea.dance/**`
-  - `https://*-kynea*.vercel.app/**` (para OAuth y magic links en Preview Deployments)
+  - `http://localhost:3000/**`
+  - `https://dev.kynea.dance/**`
+  - `https://sandbox.kynea.dance/**`
+  - `https://kynea-*.vercel.app/**` (para OAuth y magic links en Preview Deployments)
 
 > El código usa `window.location.origin`, así que los redirects de OAuth y reset
 > de contraseña se adaptan solos al dominio. Solo falta autorizarlos aquí.
