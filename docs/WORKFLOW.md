@@ -9,8 +9,8 @@ El flujo separa **experimentación/pruebas** de **código listo para producción
 | Rama | Entorno Vercel Pro | Base de datos | Regla de uso |
 | :--- | :--- | :--- | :--- |
 | `main` | **Production** (`www.kynea.dance`) | Supabase Producción | Solo recibe PRs desde `develop` cuando todo lo que contiene va a producción. |
-| `develop` | **Staging** (`dev.kynea.dance`) | `kynea-dev` | **Release Candidate siempre limpio.** Solo entra código (y migraciones) ya aprobado para el próximo release. |
-| `sandbox` | **Sandbox** (`sandbox.kynea.dance`) | `kynea-dev` | Rama desechable/reseteable para probar **múltiples features WIP juntas** o hacer demos. **Nunca** se mergea hacia `develop` ni `main`. |
+| `develop` | **staging** *(Custom)* (`dev.kynea.dance`) | `kynea-dev` | **Release Candidate siempre limpio.** Solo entra código (y migraciones) ya aprobado para el próximo release. |
+| `sandbox` | **Preview** (`sandbox.kynea.dance`) | `kynea-dev` | Rama desechable/reseteable para probar **múltiples features WIP juntas** o hacer demos. **Nunca** se mergea hacia `develop` ni `main`. |
 | `epic/*` | **Preview** (URL estable de rama) | `kynea-dev` | Rama de integración para features grandes o multi-PR (ej. `epic/bookings`). Recibe sub-PRs con CI automático hasta estar lista para entrar a `develop`. |
 | `feature/*`, `fix/*`, `chore/*` | **Preview** (por PR) | `kynea-dev` | Ramas cortas para cambios puntuales. Salen de `develop` (o de `epic/*`) y se borran al mergear. |
 | `user/*` | **Preview** (por rama/PR) | `kynea-dev` | Rama personal continua por integrante (ej. `user/DavidVilcaO`). Nunca se elimina tras mergear su PR. |
@@ -24,7 +24,7 @@ El flujo separa **experimentación/pruebas** de **código listo para producción
    - Si necesitas probar varias features WIP juntas en un dominio fijo (por OAuth o callbacks), fusiónalas temporalmente en `sandbox` (`sandbox.kynea.dance`). Cuando termines, resetea `sandbox` al estado de `develop` (`git push --force-with-lease origin develop:sandbox`).
    - **Migraciones en `epic/*`:** asigna o renumera el prefijo secuencial definitivo en `supabase/migrations/` recién cuando la épica vaya a abrir su PR final hacia `develop`, para no colisionar con fixes que entraron antes.
 2. **Si la feature se integra de forma incremental (Trunk-Based):**
-   - Protégela con una variable de entorno por ambiente en Vercel Pro (ej. `NEXT_PUBLIC_FEATURE_<X>=true` en `Preview`, `Sandbox` y `Staging`, y `false` en `Production`), asegurando que cualquier migración asociada sea aditiva y compatible hacia atrás.
+   - Protégela con una variable de entorno por ambiente en Vercel Pro (ej. `NEXT_PUBLIC_FEATURE_<X>=true` en `Preview` —incluyendo `sandbox`— y `staging`, y `false` en `Production`), asegurando que cualquier migración asociada sea aditiva y compatible hacia atrás.
 
 ### Fixes urgentes en producción (sin hotfix)
 

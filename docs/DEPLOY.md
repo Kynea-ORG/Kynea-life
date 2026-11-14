@@ -12,23 +12,22 @@ Kynea se despliega en dos capas independientes: la app (Vercel) y la base de dat
 
 ### 2. Variables de entorno y Custom Environments (Vercel Pro)
 
-En **Settings → Environments** de Vercel Pro se configuran los espacios de despliegue separados:
+En **Settings → Environments** de Vercel Pro se configuran los espacios de despliegue separados ($0 adicionales usando el **1 Custom Environment incluido** para `staging`):
 
 | Environment Vercel | Rama vinculada | Dominio | `NEXT_PUBLIC_APP_ENV` | Proyecto Supabase |
 | :--- | :--- | :--- | :--- | :--- |
 | **Production** | `main` | `www.kynea.dance` | `production` | Producción (`hmvonvxgmvwfnhlmrgpg`) |
-| **Staging** *(Custom)* | `develop` | `dev.kynea.dance` | `staging` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
-| **Sandbox** *(Custom)* | `sandbox` | `sandbox.kynea.dance` | `sandbox` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
-| **Preview** | PRs / `epic/*` / `feature/*` | `*.vercel.app` | `preview` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
+| **staging** *(Custom incluido)* | `develop` | `dev.kynea.dance` | `development` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
+| **Preview** *(incluye `sandbox`)* | `sandbox` / PRs / `epic/*` / `feature/*` | `sandbox.kynea.dance` / `kynea-*.vercel.app` | `development` | `kynea-dev` (`uibigobubqrolozvrkzd`) |
 
 > [!IMPORTANT]
-> **Protección SEO y analítica automática:** El helper `isProductionDeployment()` ([`lib/env.ts`](../lib/env.ts)) verifica `VERCEL_ENV`, `VERCEL_TARGET_ENV` y `NEXT_PUBLIC_APP_ENV`. Fuera de `Production`, [`next.config.ts`](../next.config.ts) envía automáticamente `X-Robots-Tag: noindex, nofollow`, [`app/robots.ts`](../app/robots.ts) bloquea todo rastreo (`Disallow: /`) y [`app/layout.tsx`](../app/layout.tsx) desactiva GTM. Además, en Vercel Pro conviene activar **Deployment Protection (Vercel Authentication)** en `Staging`, `Sandbox` y `Preview`.
+> **Protección SEO y analítica automática:** El helper `isProductionDeployment()` ([`lib/env.ts`](../lib/env.ts)) verifica `VERCEL_ENV`, `VERCEL_TARGET_ENV` y `NEXT_PUBLIC_APP_ENV`. Fuera de `Production`, [`next.config.ts`](../next.config.ts) envía automáticamente `X-Robots-Tag: noindex, nofollow`, [`app/robots.ts`](../app/robots.ts) bloquea todo rastreo (`Disallow: /`) y [`app/layout.tsx`](../app/layout.tsx) desactiva GTM. Además, en Vercel Pro conviene mantener **Deployment Protection (Vercel Authentication)** activo en `staging` y `Preview` (incluido `sandbox`). En `staging` y `Preview`, `NEXT_PUBLIC_APP_ENV` se mantiene en `development` para conservar la etiqueta visual `dev` en [`components/Header.tsx`](../components/Header.tsx).
 
 En cada entorno (o compartido según corresponda), configura las variables de `.env.example`:
 
 | Name | Value |
 |------|-------|
-| `NEXT_PUBLIC_APP_ENV` | `production` \| `staging` \| `sandbox` \| `preview` (según entorno) |
+| `NEXT_PUBLIC_APP_ENV` | `production` (en Production) \| `development` (en `staging` y `Preview`/`sandbox`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<tu-proyecto>.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` (anon key) |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (service_role key, Settings → API) |
