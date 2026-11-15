@@ -1,4 +1,18 @@
 import type { NextConfig } from "next";
+import { isProductionDeployment } from "./lib/env";
+
+const securityHeaders = [
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  // geolocation=(self): el mapa pide la ubicación del usuario (useUserLocation);
+  // con `()` el navegador la bloquea antes de preguntar y siempre queda "denegado".
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+  // Evita que buscadores indexen Staging, Sandbox o Previews aunque usen dominio propio.
+  ...(!isProductionDeployment()
+    ? [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }]
+    : []),
+];
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -42,14 +56,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/(.*)',
-        headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          // geolocation=(self): el mapa pide la ubicación del usuario (useUserLocation);
-          // con `()` el navegador la bloquea antes de preguntar y siempre queda "denegado".
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' }
-        ],
+        headers: securityHeaders,
       },
     ];
   },
