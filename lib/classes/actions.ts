@@ -130,6 +130,10 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
   }
 
   const cols = buildClassColumns(formData, { levelId, venueId });
+  // Una clase de organizador externo nunca acepta reservas en Kynea.
+  if (isSuperuser && externalOrganizerName) {
+    cols.booking_mode = 'none';
+  }
 
   if (cols.status === 'published' && targetTeacherId !== null) {
     try {
@@ -231,6 +235,21 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
   const isSuperuser = await isSuperuserModeActive();
 
   const payload: ClassUpdatePayload = { ...updates };
+  let publishedBookingMode: string | null = null;
+
+  // Despublicar o archivar una clase con reservas activas requiere cancelarlas primero.
+  if (payload.status === 'draft' || payload.status === 'archived') {
+    const stats = await loadBookingStats(supabase, classId);
+    if (stats.active > 0) {
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION',
+          message: 'Esta clase tiene reservas activas: cancélalas antes de archivarla o pasarla a borrador.',
+        },
+      };
+    }
+  }
 
   // Publish strictness parity (Addition B): the list-view "Publicar"/"Activar"
   // path bypasses the wizard's form entirely, so it must independently fetch
@@ -247,6 +266,7 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
     if (!row) return { ok: false, error: { code: 'VALIDATION', message: 'Clase no encontrada' } };
 
     const typedRow = row as unknown as DbClassRow;
+    publishedBookingMode = typedRow.booking_mode ?? null;
     const accessLink = await fetchClassAccessLink(supabase, classId);
     const result = validateForPublish(dbRowToValidationInput(typedRow, typedRow.class_schedules ?? [], accessLink), { isEdit: true });
     if (!result.ok) {
@@ -282,6 +302,11 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
 
   if (error) return { ok: false, error: { code: 'VALIDATION', message: translateGuardError(error.message) ?? error.message } };
 
+  // Si se publicó una clase "por fecha" desde la lista, asegura sus fechas reservables de inmediato.
+  if (payload.status === 'published' && (payload.booking_mode ?? publishedBookingMode) === 'session') {
+    await generateClassSessions(supabase, classId);
+  }
+
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);
   revalidatePath('/clases');
@@ -310,7 +335,15 @@ export async function deleteClass(classId: string): Promise<{ ok: true } | { ok:
   if (!isSuperuser) deleteQuery = deleteQuery.eq('teacher_id', user.id);
   const { error } = await deleteQuery;
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.code === '23503' || error.message.includes('bookings_')) {
+      return {
+        ok: false,
+        message: 'Esta clase tiene historial de reservas y no se puede eliminar. Mejor archívala para ocultarla.',
+      };
+    }
+    throw new Error(error.message);
+  }
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath('/clases');
@@ -505,14 +538,29 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
   }
 
   const cols = buildClassColumns(formData, { levelId, venueId });
+  // Una clase de organizador externo nunca acepta reservas en Kynea.
+  if (isSuperuser && externalOrganizerName) {
+    cols.booking_mode = 'none';
+  }
 
-  // Con reservas hechas no se puede cambiar el modo ni bajar los cupos por debajo de lo reservado.
+  // Con reservas hechas no se puede cambiar el modo ni bajar los cupos por debajo de lo reservado,
+  // ni archivar/despublicar mientras existan reservas activas.
   // Se revisa ANTES de reescribir estilos y horarios para no dejar un guardado a medias.
+  const bookingStats = await loadBookingStats(supabase, classId);
+  if ((cols.status === 'draft' || cols.status === 'archived') && bookingStats.active > 0) {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION',
+        message: 'Esta clase tiene reservas activas: cancélalas antes de archivarla o pasarla a borrador.',
+      },
+    };
+  }
   const guard = checkClassEditGuard({
     currentMode: (existing.booking_mode as 'none' | 'class' | 'session' | null) ?? 'none',
     newMode: cols.booking_mode ?? 'none',
     newMaxSpots: cols.max_spots ?? null,
-    stats: await loadBookingStats(supabase, classId),
+    stats: bookingStats,
   });
   if (!guard.ok) return { ok: false, error: { code: 'VALIDATION', message: GUARD_MESSAGES[guard.code] } };
 

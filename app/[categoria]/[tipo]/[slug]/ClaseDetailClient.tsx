@@ -151,6 +151,9 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
   const images = [cls.coverImage, ...(cls.gallery || [])].filter(Boolean);
   const spotsLeft = cls.availableSpots;
   const isFullyBooked = spotsLeft === 0;
+  // Si BookingCta ya muestra "Sin cupos" (bookingMode = 'class'), evitamos duplicar el
+  // botón deshabilitado en WhatsApp/Instagram para que el alumno aún pueda consultar próximas fechas.
+  const disableContactForFull = !isExpired && isFullyBooked && cls.bookingMode !== 'class';
   const mapsHref = buildGoogleMapsUrl({ placeId: cls.placeId, lat: cls.lat, lng: cls.lng, address: cls.address });
   const hasCoords = cls.lat != null && cls.lng != null;
 
@@ -751,30 +754,30 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
                       {showWa && (
                         <button
                           onClick={handleWhatsAppClick}
-                          disabled={!isExpired && isFullyBooked}
+                          disabled={disableContactForFull}
                           className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
-                            !isExpired && isFullyBooked
+                            disableContactForFull
                               ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                               : 'bg-whatsapp border-whatsapp hover:bg-whatsapp-dark hover:border-whatsapp-dark text-white'
                           }`}
                         >
                           {justContacted === 'whatsapp' ? <Check className="w-4 h-4 animate-fade-in" /> : <MessageCircle className="w-4 h-4" />}
-                          {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}
+                          {disableContactForFull ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}
                         </button>
                       )}
 
                       {showIg && (
                         <button
                           onClick={handleInstagramClick}
-                          disabled={!isExpired && isFullyBooked}
+                          disabled={disableContactForFull}
                           className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2 ${
-                            !isExpired && isFullyBooked
+                            disableContactForFull
                               ? 'bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed'
                               : 'bg-instagram border-instagram hover:bg-instagram-dark hover:border-instagram-dark text-white'
                           }`}
                         >
                           {justContacted === 'instagram' ? <Check className="w-4 h-4 animate-fade-in" /> : <InstagramIcon className="w-4 h-4" />}
-                          {!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
+                          {disableContactForFull ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}
                         </button>
                       )}
                     </>
@@ -881,25 +884,25 @@ export function ClaseDetailDesktop({ cls }: { cls: DanceClass }) {
               {showWa && (
                 <button
                   onClick={handleWhatsAppClick}
-                  disabled={!isExpired && isFullyBooked}
+                  disabled={disableContactForFull}
                   className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
-                    !isExpired && isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
+                    disableContactForFull ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-whatsapp hover:bg-whatsapp-dark text-white'
                   }`}
                 >
                   {justContacted === 'whatsapp' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <MessageCircle className="w-4 h-4 shrink-0" />}
-                  <span className="truncate">{!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}</span>
+                  <span className="truncate">{disableContactForFull ? 'Sin cupos' : justContacted === 'whatsapp' ? 'Abriendo…' : 'WhatsApp'}</span>
                 </button>
               )}
               {showIg && (
                 <button
                   onClick={handleInstagramClick}
-                  disabled={!isExpired && isFullyBooked}
+                  disabled={disableContactForFull}
                   className={`flex-1 flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] ${
-                    !isExpired && isFullyBooked ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
+                    disableContactForFull ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-instagram hover:bg-instagram-dark text-white'
                   }`}
                 >
                   {justContacted === 'instagram' ? <Check className="w-4 h-4 shrink-0 animate-fade-in" /> : <InstagramIcon className="w-4 h-4 shrink-0" />}
-                  <span className="truncate">{!isExpired && isFullyBooked ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}</span>
+                  <span className="truncate">{disableContactForFull ? 'Sin cupos' : justContacted === 'instagram' ? 'Abriendo…' : 'Instagram'}</span>
                 </button>
               )}
             </>

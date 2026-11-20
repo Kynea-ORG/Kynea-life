@@ -193,8 +193,8 @@ export function validateForPublish(input: ClassValidationInput, options: Validat
     if (!input.accessLink || !input.accessLink.trim()) errors.push({ field: 'accessLink', message: 'El enlace de acceso es obligatorio.' });
   }
 
-  // Con reservas activas el cupo es obligatorio: de él salen los cupos disponibles de cada reserva.
-  if (input.bookingMode === 'class' || input.bookingMode === 'session') {
+  // Con reservas activas el cupo es obligatorio (excepto organizador externo, que nunca acepta reservas).
+  if (input.superuserMode !== 'external' && (input.bookingMode === 'class' || input.bookingMode === 'session')) {
     const spots = Number.parseInt(String(input.maxSpots ?? ''), 10);
     if (!Number.isInteger(spots) || spots < 1) {
       errors.push({ field: 'maxSpots', message: 'Define el cupo máximo para aceptar reservas.' });

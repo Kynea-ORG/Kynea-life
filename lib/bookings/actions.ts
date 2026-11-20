@@ -38,6 +38,7 @@ function dispatchAfterResponse(limit: number) {
 }
 
 function revalidateBookings() {
+  revalidatePath('/dashboard/mis-reservas');
   revalidatePath('/dashboard/alumno/reservas');
   revalidatePath('/dashboard/reservas');
   safeRevalidateTag('classes', 'max');
@@ -122,8 +123,12 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
   const { error } = await supabase.rpc('cancel_booking', { p_booking_id: bookingId, p_reason: reason ?? null });
   if (error) return { ok: false, error: parseBookingError(error) };
 
-  await enqueueCancellationEmails(createAdminClient(), [bookingId], user.id);
-  dispatchAfterResponse(25);
+  try {
+    await enqueueCancellationEmails(createAdminClient(), [bookingId], user.id);
+    dispatchAfterResponse(25);
+  } catch (err) {
+    console.error('[cancelBooking] correos de cancelación', err);
+  }
   revalidateBookings();
   return { ok: true };
 }
@@ -149,22 +154,21 @@ export async function cancelClassSession(
   const supabase = await createClient();
   const user = await requireUser(supabase);
 
-  // Las reservas activas de la fecha se leen antes de cancelar, para avisar solo a esas personas.
-  let affected: string[] = [];
-  try {
-    const { data: active } = await createAdminClient().from('bookings').select('id').eq('session_id', sessionId).in('status', ['hold', 'pending_payment', 'confirmed']);
-    affected = ((active ?? []) as { id: string }[]).map(b => b.id);
-  } catch (err) {
-    console.error('[cancelClassSession] reservas afectadas', err);
-  }
-
+  // La RPC cancela atómicamente y devuelve los booking_id efectivamente cancelados (migración 74).
   const { data, error } = await supabase.rpc('cancel_class_session', { p_session_id: sessionId, p_reason: reason ?? null });
   if (error) return { ok: false, error: parseBookingError(error) };
 
-  await enqueueCancellationEmails(createAdminClient(), affected, user.id);
-  dispatchAfterResponse(25);
+  const affected = Array.isArray(data) ? (data as string[]) : [];
+  if (affected.length > 0) {
+    try {
+      await enqueueCancellationEmails(createAdminClient(), affected, user.id);
+      dispatchAfterResponse(Math.max(25, affected.length));
+    } catch (err) {
+      console.error('[cancelClassSession] correos de cancelación', err);
+    }
+  }
   revalidateBookings();
-  return { ok: true, data: { cancelled: Number(data ?? 0) } };
+  return { ok: true, data: { cancelled: affected.length } };
 }
 
 /** Fechas reservables de una clase (la ficha pública se cachea, así que se piden al abrir el selector). */

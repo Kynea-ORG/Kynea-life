@@ -1,7 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { pickInitialSchedule } from '@/lib/bookings/dates';
+import { buildGoogleMapsUrl } from '@/lib/utils';
 
 // Cola de correos transaccionales (tabla email_outbox, migración 70).
-// El servidor deja aquí el correo pendiente; un enviador (proveedor aún por elegir) lo despacha.
+// El servidor deja aquí el correo pendiente; un enviador (Resend) lo despacha.
 // La tabla solo es accesible con service role: pasa siempre un cliente admin.
 
 export interface OutboxEmail {
@@ -12,9 +14,9 @@ export interface OutboxEmail {
   dedupeKey: string;
 }
 
-export async function enqueueEmail(admin: SupabaseClient, email: OutboxEmail): Promise<void> {
+export async function enqueueEmail(admin: SupabaseClient, email: OutboxEmail): Promise<boolean> {
   const to = email.to?.trim();
-  if (!to) return;
+  if (!to) return false;
   const { error } = await admin
     .from('email_outbox')
     .upsert(
@@ -22,6 +24,7 @@ export async function enqueueEmail(admin: SupabaseClient, email: OutboxEmail): P
       { onConflict: 'dedupe_key', ignoreDuplicates: true },
     );
   if (error) throw new Error(error.message);
+  return true;
 }
 
 /** Borra de la cola los correos enviados hace más de `days` días (la tabla solo crece). Nunca lanza. */
@@ -53,7 +56,12 @@ interface BookingEmailRow {
     footwear: string[] | null;
     clothing: string | null;
     to_bring: string[] | null;
-    venue: { name: string | null; address: string | null; reference: string | null; maps_url: string | null; city: string | null } | null;
+    venue: {
+      name: string | null; address: string | null; reference: string | null;
+      maps_url: string | null; place_id?: string | null; lat?: number | null; lng?: number | null;
+      city: string | null;
+    } | null;
+    class_schedules?: { day_of_week: number; start_time: string; end_time: string }[] | null;
   };
   session: { session_date: string; start_time: string; end_time: string } | null;
 }
@@ -63,6 +71,17 @@ const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : undefined);
 /** Datos que necesita la plantilla del correo de una reserva (cuándo, dónde y qué llevar). */
 export function buildBookingEmailPayload(row: BookingEmailRow) {
   const c = row.class;
+  const fallbackSlot = row.session ? undefined : pickInitialSchedule(c.class_schedules, c.start_date);
+  const isOnline = c.modality === 'Online';
+  const mapsUrl = isOnline
+    ? undefined
+    : buildGoogleMapsUrl({
+        placeId: c.venue?.place_id ?? undefined,
+        lat: c.venue?.lat ?? undefined,
+        lng: c.venue?.lng ?? undefined,
+        address: c.venue?.address ?? undefined,
+      }) ?? c.venue?.maps_url ?? undefined;
+
   return {
     bookingId: row.id,
     classId: c.id,
@@ -76,13 +95,13 @@ export function buildBookingEmailPayload(row: BookingEmailRow) {
     paymentMethod: row.payment_method,
     date: row.session?.session_date ?? c.start_date ?? undefined,
     endDate: row.session ? undefined : c.end_date ?? undefined,
-    startTime: hhmm(row.session?.start_time),
-    endTime: hhmm(row.session?.end_time),
-    venueName: c.venue?.name ?? undefined,
-    address: c.venue?.address ?? undefined,
-    reference: c.venue?.reference ?? undefined,
-    mapsUrl: c.venue?.maps_url ?? undefined,
-    city: c.venue?.city ?? undefined,
+    startTime: hhmm(row.session?.start_time ?? fallbackSlot?.start_time),
+    endTime: hhmm(row.session?.end_time ?? fallbackSlot?.end_time),
+    venueName: isOnline ? undefined : c.venue?.name ?? undefined,
+    address: isOnline ? undefined : c.venue?.address ?? undefined,
+    reference: isOnline ? undefined : c.venue?.reference ?? undefined,
+    mapsUrl,
+    city: isOnline ? undefined : c.venue?.city ?? undefined,
     footwear: c.footwear ?? [],
     clothing: c.clothing ?? undefined,
     toBring: c.to_bring ?? [],

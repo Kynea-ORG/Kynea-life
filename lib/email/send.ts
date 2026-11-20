@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { SITE_URL } from '@/lib/constants';
 import { renderEmail } from './templates';
 
 // Envío de correos transaccionales con Resend (API REST, sin dependencias). El mismo proveedor
@@ -6,7 +7,14 @@ import { renderEmail } from './templates';
 // NEXT_PUBLIC_SITE_URL. Sin RESEND_API_KEY no se envía nada y los correos esperan en la cola.
 
 const MAX_ATTEMPTS = 5;
-const DEFAULT_SITE_URL = 'https://kynea.dance';
+
+function resolveSiteUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'production' && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return SITE_URL;
+}
 
 export type SendResult =
   | { sent: true }
@@ -44,9 +52,10 @@ export async function dispatchOutbox(admin: SupabaseClient, limit = 25): Promise
   const { data, error } = await admin.rpc('claim_email_outbox', { p_limit: limit });
   if (error || !data) return totals;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL;
+  const siteUrl = resolveSiteUrl();
   for (const row of data as OutboxRow[]) {
-    const attempts = row.attempts + 1;
+    // claim_email_outbox ya incrementó attempts atómicamente (migración 74).
+    const attempts = Math.max(row.attempts, 1);
     let result: SendResult;
     try {
       result = await sendEmail({ to: row.to_email, ...renderEmail(row.template, row.payload, { siteUrl }) });
@@ -59,8 +68,8 @@ export async function dispatchOutbox(admin: SupabaseClient, limit = 25): Promise
       await admin.from('email_outbox').update({ status: 'sent', attempts, claimed_at: null, sent_at: new Date().toISOString(), last_error: null }).eq('id', row.id);
       totals.sent += 1;
     } else if (result.reason === 'not_configured') {
-      // Sin proveedor configurado el correo espera en la cola: se libera sin contar el intento.
-      await admin.from('email_outbox').update({ status: 'pending', attempts: row.attempts, claimed_at: null }).eq('id', row.id);
+      // Sin proveedor configurado el correo espera en la cola: se libera devolviendo attempts.
+      await admin.from('email_outbox').update({ status: 'pending', attempts: Math.max(row.attempts - 1, 0), claimed_at: null }).eq('id', row.id);
       totals.skipped += 1;
     } else {
       await admin.from('email_outbox').update({ status: attempts >= MAX_ATTEMPTS ? 'failed' : 'pending', attempts, claimed_at: null, last_error: result.error }).eq('id', row.id);

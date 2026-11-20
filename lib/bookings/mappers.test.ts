@@ -48,20 +48,43 @@ describe('mapMyBookingRow', () => {
       class: {
         ...row.class!,
         footwear: ['Zapatillas'], clothing: 'Ropa cómoda', to_bring: ['Agua', 'Toalla'], requirements: ['Ganas'],
-        venue: { name: 'Estudio Sol', address: 'Av. 1', reference: 'Frente al parque', maps_url: 'https://maps.example/x', city: 'Lima' },
+        venue: { name: 'Estudio Sol', address: 'Av. 1', reference: 'Frente al parque', maps_url: null, place_id: 'pid1', city: 'Lima' },
         teacher: { name: 'Carlos', photo_url: 'c.jpg' },
         class_schedules: [
           { day_of_week: 4, start_time: '20:00:00', end_time: '21:00:00' },
           { day_of_week: 1, start_time: '19:00:00', end_time: '20:00:00' },
         ],
+        class_styles: [{ is_main: true, dance_styles: { slug: 'bachata' } }],
       },
     });
     expect(b.class).toMatchObject({
       footwear: ['Zapatillas'], clothing: 'Ropa cómoda', toBring: ['Agua', 'Toalla'], requirements: ['Ganas'],
-      reference: 'Frente al parque', mapsUrl: 'https://maps.example/x', teacherName: 'Carlos', teacherPhoto: 'c.jpg',
+      reference: 'Frente al parque', styleSlug: 'bachata', teacherName: 'Carlos', teacherPhoto: 'c.jpg',
       startTime: '19:00', endTime: '20:00', days: [1, 4],
     });
+    expect(b.class.mapsUrl).toContain('https://www.google.com/maps/search/');
+    expect(b.class.mapsUrl).toContain('query_place_id=pid1');
     expect(b.note).toBe('Soy principiante');
+  });
+
+  it('elige el horario del día real de start_date y omite mapsUrl en modalidad Online', () => {
+    // 2026-11-25 es miércoles (day_of_week = 2)
+    const b = mapMyBookingRow({
+      ...row,
+      session: null,
+      class: {
+        ...row.class!,
+        modality: 'Online',
+        start_date: '2026-11-25',
+        class_schedules: [
+          { day_of_week: 0, start_time: '19:00:00', end_time: '20:00:00' },
+          { day_of_week: 2, start_time: '10:00:00', end_time: '11:30:00' },
+        ],
+      },
+    });
+    expect(b.class.startTime).toBe('10:00');
+    expect(b.class.endTime).toBe('11:30');
+    expect(b.class.mapsUrl).toBeUndefined();
   });
 
   it('tolera una clase que ya no es visible (archivada o borrada)', () => {
@@ -73,15 +96,17 @@ describe('mapMyBookingRow', () => {
 describe('mapTeacherBookingRow', () => {
   it('mapea la fila de list_teacher_bookings', () => {
     const b = mapTeacherBookingRow({
-      booking_id: 'b1', class_id: 'c1', class_title: 'Taller', session_id: null, session_date: null, start_time: null,
+      booking_id: 'b1', class_id: 'c1', class_title: 'Taller', class_modality: 'Online', class_end_date: '2026-11-30',
+      session_id: null, session_date: null, session_status: null, start_time: null,
       capacity: 12, student_id: 'u1', student_name: 'Valentina', student_photo: 'v.jpg', student_bio: '  Bailo desde niña ',
-      student_district: 'Miraflores', student_instagram: 'vale', student_since: '2026-01-01T00:00:00Z',
+      student_instagram: 'vale', student_since: '2026-01-01T00:00:00Z',
       student_note: ' Tengo la rodilla sensible ', student_prior: 2, seats: 1, status: 'confirmed', price_amount: 0, currency: 'PEN',
       payment_method: 'free', created_at: '2026-11-11T10:00:00Z',
     });
     expect(b).toMatchObject({
-      id: 'b1', classTitle: 'Taller', studentName: 'Valentina', seats: 1, status: 'confirmed', capacity: 12,
-      studentPhoto: 'v.jpg', studentBio: 'Bailo desde niña', studentDistrict: 'Miraflores', studentInstagram: 'vale',
+      id: 'b1', classTitle: 'Taller', classModality: 'Online', classEndDate: '2026-11-30',
+      studentName: 'Valentina', seats: 1, status: 'confirmed', capacity: 12,
+      studentPhoto: 'v.jpg', studentBio: 'Bailo desde niña', studentInstagram: 'vale',
       note: 'Tengo la rodilla sensible', priorBookings: 2,
     });
     expect(b.sessionDate).toBeUndefined();

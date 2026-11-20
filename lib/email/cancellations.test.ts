@@ -37,6 +37,19 @@ describe('enqueueCancellationEmails', () => {
     expect(enqueue.mock.calls[0][1].payload).toMatchObject({ studentName: 'Valentina' });
   });
 
+  it('si cancela un admin ajeno a la clase, avisa tanto al alumno como al profesor', async () => {
+    await enqueueCancellationEmails(makeAdmin({ bookings: row() }), ['b1'], 'admin-user');
+    expect(enqueue).toHaveBeenCalledTimes(2);
+    expect(enqueue.mock.calls.map(c => c[1].template).sort()).toEqual([
+      'booking_cancelled',
+      'booking_cancelled_by_student',
+    ]);
+    expect(enqueue.mock.calls.map(c => c[1].to).sort()).toEqual([
+      'student1@mail.com',
+      'teacher1@mail.com',
+    ]);
+  });
+
   it('no hace nada con una lista vacía', async () => {
     await enqueueCancellationEmails(makeAdmin({ bookings: row() }), [], 'teacher1');
     expect(enqueue).not.toHaveBeenCalled();

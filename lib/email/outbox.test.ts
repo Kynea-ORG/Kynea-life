@@ -44,19 +44,26 @@ describe('buildBookingEmailPayload', () => {
       id: 'c1', title: 'Taller de bachata', slug: 'taller-bachata', type: 'taller', modality: 'Presencial',
       start_date: '2026-11-23', end_date: '2026-11-23', cancellation_policy: 'flexible',
       footwear: ['Zapatillas'], clothing: 'Ropa cómoda', to_bring: ['Agua'],
-      venue: { name: 'Estudio Sol', address: 'Av. Test 123', reference: 'Al costado del banco', maps_url: 'https://maps.app/x', city: 'Lima' },
+      venue: { name: 'Estudio Sol', address: 'Av. Test 123', reference: 'Al costado del banco', maps_url: null, place_id: 'pid-test', city: 'Lima' },
+      class_schedules: [
+        { day_of_week: 0, start_time: '19:00:00', end_time: '20:30:00' },
+        { day_of_week: 2, start_time: '10:00:00', end_time: '11:00:00' },
+      ],
     },
     session: null,
   };
 
-  it('reúne lo que el alumno necesita: cuándo, dónde y qué llevar', () => {
+  it('reúne lo que el alumno necesita: cuándo, dónde, horario y qué llevar', () => {
     const p = buildBookingEmailPayload(row);
     expect(p).toMatchObject({
       bookingId: 'b1', classTitle: 'Taller de bachata', seats: 2, price: 80, currency: 'PEN',
-      paymentMethod: 'pay_at_venue', date: '2026-11-23', venueName: 'Estudio Sol', address: 'Av. Test 123',
-      reference: 'Al costado del banco', mapsUrl: 'https://maps.app/x', footwear: ['Zapatillas'],
+      paymentMethod: 'pay_at_venue', date: '2026-11-23', startTime: '19:00', endTime: '20:30',
+      venueName: 'Estudio Sol', address: 'Av. Test 123',
+      reference: 'Al costado del banco', footwear: ['Zapatillas'],
       clothing: 'Ropa cómoda', toBring: ['Agua'], cancellationPolicy: 'flexible',
     });
+    expect(p.mapsUrl).toContain('https://www.google.com/maps/search/');
+    expect(p.mapsUrl).toContain('query_place_id=pid-test');
   });
 
   it('usa la fecha y hora de la sesión cuando la reserva es por fecha', () => {
@@ -64,9 +71,10 @@ describe('buildBookingEmailPayload', () => {
     expect(p).toMatchObject({ date: '2026-12-02', startTime: '19:00', endTime: '20:30' });
   });
 
-  it('tolera una clase online sin sede', () => {
+  it('tolera una clase online sin sede y omite mapsUrl', () => {
     const p = buildBookingEmailPayload({ ...row, class: { ...row.class, modality: 'Online', venue: null } });
     expect(p.venueName).toBeUndefined();
+    expect(p.mapsUrl).toBeUndefined();
     expect(p.modality).toBe('Online');
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   addDays, daysUntil, countdownLabel, classTimingLabel, cancellationDeadline, canStillCancel,
-  googleCalendarUrl, buildIcs, formatLongDate,
+  googleCalendarUrl, buildIcs, formatLongDate, pickInitialSchedule, hasStartPassedLima, formatDeadlineLima,
 } from './dates';
 
 describe('addDays', () => {
@@ -81,7 +81,7 @@ describe('calendario', () => {
   it('genera un .ics válido en UTC', () => {
     const ics = buildIcs(ev, 'abc');
     expect(ics).toContain('BEGIN:VCALENDAR');
-    expect(ics).toContain('UID:abc@kynea.life');
+    expect(ics).toContain('UID:abc@kynea.dance');
     expect(ics).toContain('DTSTART:20261124T000000Z');
     expect(ics).toContain('DTEND:20261124T013000Z');
     expect(ics).toContain('SUMMARY:Taller de bachata');
@@ -98,5 +98,29 @@ describe('calendario', () => {
 describe('formatLongDate', () => {
   it('escribe la fecha en español', () => {
     expect(formatLongDate('2026-11-23')).toMatch(/lunes,? 23 de noviembre/i);
+  });
+});
+
+describe('pickInitialSchedule / hasStartPassedLima / formatDeadlineLima', () => {
+  it('elige el horario que coincide con el día de startDate y desempata por hora', () => {
+    // 2026-11-25 es miércoles (day_of_week = 2)
+    const slot = pickInitialSchedule([
+      { day_of_week: 0, start_time: '19:00:00' },
+      { day_of_week: 2, start_time: '18:00:00' },
+      { day_of_week: 2, start_time: '10:00:00' },
+    ], '2026-11-25');
+    expect(slot).toEqual({ day_of_week: 2, start_time: '10:00:00' });
+  });
+
+  it('hasStartPassedLima corta exactamente en start_time hora Lima', () => {
+    // 2026-11-23 19:00 Lima = 2026-11-24T00:00:00Z
+    expect(hasStartPassedLima('2026-11-23', '19:00', new Date('2026-11-23T23:59:59Z'))).toBe(false);
+    expect(hasStartPassedLima('2026-11-23', '19:00', new Date('2026-11-24T00:00:00Z'))).toBe(true);
+    expect(hasStartPassedLima('2026-11-23', '19:00', new Date('2026-11-24T00:05:00Z'))).toBe(true);
+  });
+
+  it('formatDeadlineLima incluye día, mes y hora Lima', () => {
+    const deadline = cancellationDeadline('2026-11-23', '19:00', 'flexible');
+    expect(formatDeadlineLima(deadline)).toMatch(/22 de noviembre a las 19:00/i);
   });
 });

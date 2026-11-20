@@ -1,13 +1,15 @@
 'use client';
 import { useMemo, useState, useTransition } from 'react';
-import { CalendarCheck, Check, ChevronDown, MessageSquareText, Sparkles, UserX, X } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, CalendarCheck, Check, ChevronDown, MessageSquareText, Sparkles, UserX, X } from 'lucide-react';
 import SmartImage from '@/components/SmartImage';
 import { InstagramIcon } from '@/components/icons/SocialIcons';
 import type { TeacherBooking } from '@/lib/bookings/types';
 import { bookingStatusLabel } from '@/lib/bookings/rules';
-import { countdownLabel, formatLongDate } from '@/lib/bookings/dates';
+import { classTimingLabel, countdownLabel, formatLongDate } from '@/lib/bookings/dates';
 import { groupTeacherBookings, teacherSummary, type BookingGroup } from '@/lib/bookings/grouping';
 import { setBookingAttendance, cancelBooking, cancelClassSession } from '@/lib/bookings/actions';
+import { buildInstagramUrl, formatPriceShort, formatSocialHandle } from '@/lib/utils';
 
 type Tab = 'upcoming' | 'toClose' | 'history';
 type ActionResult = { ok: boolean; error?: { message: string } };
@@ -31,10 +33,18 @@ function Avatar({ name, photo, size = 40 }: { name: string; photo?: string; size
 
 function memberSince(date?: string): string | null {
   if (!date) return null;
-  return new Date(date).toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+  return new Date(date).toLocaleDateString('es-PE', { month: 'long', year: 'numeric', timeZone: 'America/Lima' });
 }
 
-export default function ReservasClient({ bookings, today }: { bookings: TeacherBooking[]; today: string }) {
+export default function ReservasClient({
+  bookings,
+  today,
+  isSuperuser = false,
+}: {
+  bookings: TeacherBooking[];
+  today: string;
+  isSuperuser?: boolean;
+}) {
   const groups = useMemo(() => groupTeacherBookings(bookings, today), [bookings, today]);
   const summary = teacherSummary(groups);
   const [tab, setTab] = useState<Tab>(groups.toClose.length > 0 && groups.upcoming.length === 0 ? 'toClose' : 'upcoming');
@@ -47,9 +57,14 @@ export default function ReservasClient({ bookings, today }: { bookings: TeacherB
     setError(null);
     setBusy(id);
     startTransition(async () => {
-      const r = await fn();
-      if (!r.ok) setError(r.error?.message ?? 'No se pudo completar la acción.');
-      setBusy(null);
+      try {
+        const r = await fn();
+        if (!r.ok) setError(r.error?.message ?? 'No se pudo completar la acción.');
+      } catch {
+        setError('No pudimos completar la acción. Verifica tu sesión e inténtalo de nuevo.');
+      } finally {
+        setBusy(null);
+      }
     });
   };
 
@@ -62,8 +77,26 @@ export default function ReservasClient({ bookings, today }: { bookings: TeacherB
 
   return (
     <div className="p-6 lg:p-8 w-full max-w-4xl">
-      <h1 className="text-2xl font-black text-neutral-900">Reservas</h1>
-      <p className="text-neutral-600 text-sm mt-1 mb-6">Quién viene a tus clases y cómo prepararte para recibirlos.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-black text-neutral-900">
+            {isSuperuser ? 'Reservas (vista global)' : 'Reservas recibidas'}
+          </h1>
+          <p className="text-neutral-600 text-sm mt-1">
+            {isSuperuser
+              ? 'Todas las reservas registradas en la plataforma en modo Superusuario.'
+              : 'Alumnos que reservaron en tus clases y cómo prepararte para recibirlos.'}
+          </p>
+        </div>
+        {!isSuperuser && (
+          <Link
+            href="/dashboard/mis-reservas"
+            className="btn-outline btn-sm inline-flex items-center gap-1.5 shrink-0"
+          >
+            Mis reservas como alumno <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+          </Link>
+        )}
+      </div>
 
       {bookings.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
@@ -90,7 +123,7 @@ export default function ReservasClient({ bookings, today }: { bookings: TeacherB
       {bookings.length === 0 ? (
         <div className="card-muted p-10 text-center">
           <CalendarCheck className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
-          <p className="font-semibold text-neutral-700 mb-1">Todavía no tienes reservas</p>
+          <p className="font-semibold text-neutral-700 mb-1">Todavía no tienes reservas recibidas</p>
           <p className="text-sm text-neutral-600">Activa «Reservas en Kynea» al crear o editar una clase y tus alumnos podrán apartar su cupo.</p>
         </div>
       ) : (
@@ -113,7 +146,7 @@ export default function ReservasClient({ bookings, today }: { bookings: TeacherB
           ) : (
             <div className="space-y-5">
               {list.map(g => (
-                <GroupCard key={g.key} group={g} tab={tab} busy={busy} open={open} setOpen={setOpen} run={run} />
+                <GroupCard key={g.key} group={g} tab={tab} today={today} busy={busy} open={open} setOpen={setOpen} run={run} />
               ))}
             </div>
           )}
@@ -123,12 +156,16 @@ export default function ReservasClient({ bookings, today }: { bookings: TeacherB
   );
 }
 
-function GroupCard({ group: g, tab, busy, open, setOpen, run }: {
-  group: BookingGroup; tab: Tab; busy: string | null; open: string | null;
+function GroupCard({ group: g, tab, today, busy, open, setOpen, run }: {
+  group: BookingGroup; tab: Tab; today: string; busy: string | null; open: string | null;
   setOpen: (id: string | null) => void; run: (id: string, fn: () => Promise<ActionResult>) => void;
 }) {
   const pct = g.capacity ? Math.min(100, Math.round((g.taken / g.capacity) * 100)) : null;
   const ordered = [...g.bookings].sort((a, b) => Number(['cancelled', 'expired'].includes(a.status)) - Number(['cancelled', 'expired'].includes(b.status)));
+  const isSessionCancelled = g.sessionStatus === 'cancelled';
+  const timingBadge = g.date && tab === 'upcoming'
+    ? (g.sessionId ? countdownLabel(g.daysAway ?? 0) : classTimingLabel(g.date, g.endDate, today))
+    : null;
 
   return (
     <section className="card-dash overflow-hidden">
@@ -140,8 +177,10 @@ function GroupCard({ group: g, tab, busy, open, setOpen, run }: {
               {g.date ? formatLongDate(g.date) : 'Fecha por definir'}{g.startTime ? ` · ${g.startTime}` : ''}
             </p>
           </div>
-          {g.daysAway !== null && tab === 'upcoming' && (
-            <span className="text-[12px] font-bold text-primary bg-primary-bg rounded-full px-2.5 py-1 whitespace-nowrap">{countdownLabel(g.daysAway)}</span>
+          {isSessionCancelled ? (
+            <span className="text-[12px] font-bold text-neutral-500 bg-neutral-200/80 rounded-full px-2.5 py-1 whitespace-nowrap">Fecha cancelada</span>
+          ) : timingBadge && (
+            <span className="text-[12px] font-bold text-primary bg-primary-bg rounded-full px-2.5 py-1 whitespace-nowrap">{timingBadge}</span>
           )}
         </div>
         <div className="mt-3 flex items-center gap-3">
@@ -153,7 +192,7 @@ function GroupCard({ group: g, tab, busy, open, setOpen, run }: {
           <p className="text-[12px] font-bold text-neutral-700 whitespace-nowrap">
             {g.capacity ? `${g.taken} de ${g.capacity} cupos` : `${g.taken} cupo${g.taken !== 1 ? 's' : ''}`}
           </p>
-          {g.sessionId && tab === 'upcoming' && (
+          {g.sessionId && tab === 'upcoming' && !isSessionCancelled && (
             <button type="button" disabled={busy === g.key} className="text-[12px] font-semibold text-red hover:underline whitespace-nowrap"
               onClick={() => {
                 if (window.confirm('¿Cancelar esta fecha? Se cancelarán todas las reservas y tus alumnos recibirán un aviso.')) {
@@ -171,6 +210,13 @@ function GroupCard({ group: g, tab, busy, open, setOpen, run }: {
           const isOpen = open === b.id;
           const inactive = b.status === 'cancelled' || b.status === 'expired';
           const since = memberSince(b.studentSince);
+          const igUrl = b.studentInstagram ? buildInstagramUrl(b.studentInstagram) : '';
+          const igHandle = b.studentInstagram ? formatSocialHandle(b.studentInstagram, 'instagram') : '';
+          const isOnline = b.classModality === 'Online';
+          const priceLabel = b.priceAmount > 0
+            ? `${isOnline ? 'Por coordinar' : 'Por cobrar en la clase'}: ${formatPriceShort('Pago único', b.priceAmount, b.currency)}`
+            : 'Reserva gratuita';
+
           return (
             <li key={b.id} className={inactive ? 'opacity-60' : ''}>
               <button type="button" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : b.id)}
@@ -209,18 +255,16 @@ function GroupCard({ group: g, tab, busy, open, setOpen, run }: {
                   <div className="text-[13px] text-neutral-700 space-y-1">
                     {b.studentBio && <p>{b.studentBio}</p>}
                     <p className="text-[12px] text-neutral-500">
-                      {[b.studentDistrict, since ? `En Kynea desde ${since}` : null, b.priorBookings > 0 ? `${b.priorBookings} reserva${b.priorBookings !== 1 ? 's' : ''} anterior${b.priorBookings !== 1 ? 'es' : ''} contigo` : null]
+                      {[since ? `En Kynea desde ${since}` : null, b.priorBookings > 0 ? `${b.priorBookings} reserva${b.priorBookings !== 1 ? 's' : ''} anterior${b.priorBookings !== 1 ? 'es' : ''} contigo` : null]
                         .filter(Boolean).join(' · ')}
                     </p>
-                    {b.studentInstagram && (
-                      <a href={`https://instagram.com/${b.studentInstagram.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer"
+                    {igUrl && igHandle && (
+                      <a href={igUrl} target="_blank" rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline">
-                        <InstagramIcon className="w-3.5 h-3.5" aria-hidden="true" />@{b.studentInstagram.replace(/^@/, '')}
+                        <InstagramIcon className="w-3.5 h-3.5" aria-hidden="true" />{igHandle}
                       </a>
                     )}
-                    <p className="text-[12px] text-neutral-500">
-                      {b.priceAmount > 0 ? `Por cobrar en la clase: ${b.currency} ${b.priceAmount.toFixed(2)}` : 'Reserva gratuita'}
-                    </p>
+                    <p className="text-[12px] text-neutral-500">{priceLabel}</p>
                   </div>
 
                   {b.status === 'confirmed' && (
@@ -232,6 +276,18 @@ function GroupCard({ group: g, tab, busy, open, setOpen, run }: {
                       <button type="button" disabled={busy === b.id}
                         onClick={() => { if (window.confirm('¿Cancelar esta reserva?')) run(b.id, () => cancelBooking(b.id, 'Cancelada por el profesor')); }}
                         className="btn-outline btn-sm inline-flex items-center gap-1.5 text-red"><X className="w-4 h-4" aria-hidden="true" />Cancelar reserva</button>
+                    </div>
+                  )}
+
+                  {(b.status === 'attended' || b.status === 'no_show') && (
+                    <div className="flex flex-wrap gap-2">
+                      {b.status === 'no_show' ? (
+                        <button type="button" disabled={busy === b.id} onClick={() => run(b.id, () => setBookingAttendance(b.id, 'attended'))}
+                          className="btn-outline btn-sm inline-flex items-center gap-1.5"><Check className="w-4 h-4" aria-hidden="true" />Cambiar a Vino</button>
+                      ) : (
+                        <button type="button" disabled={busy === b.id} onClick={() => run(b.id, () => setBookingAttendance(b.id, 'no_show'))}
+                          className="btn-outline btn-sm inline-flex items-center gap-1.5"><UserX className="w-4 h-4" aria-hidden="true" />Cambiar a No vino</button>
+                      )}
                     </div>
                   )}
                 </div>

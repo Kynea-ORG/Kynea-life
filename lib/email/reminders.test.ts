@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { enqueueBookingReminders } from './reminders';
 
-const enqueue = vi.fn();
+const enqueue = vi.fn().mockResolvedValue(true);
 vi.mock('./outbox', async (orig) => ({ ...(await orig<typeof import('./outbox')>()), enqueueEmail: (...a: unknown[]) => enqueue(...a) }));
 
 const booking = (over: Record<string, unknown> = {}) => ({
@@ -28,7 +28,7 @@ function makeAdmin(rows: unknown[]) {
 
 describe('enqueueBookingReminders', () => {
   it('el mismo día de la clase manda el aviso de "hoy" (daysAway 0)', async () => {
-    enqueue.mockReset();
+    enqueue.mockReset().mockResolvedValue(true);
     const n = await enqueueBookingReminders(makeAdmin([booking({ class: { ...booking().class, start_date: '2026-11-13' } })]), '2026-11-13');
     expect(n).toBe(1);
     expect(enqueue.mock.calls[0][1].payload).toMatchObject({ daysAway: 0 });
@@ -36,7 +36,7 @@ describe('enqueueBookingReminders', () => {
   });
 
   it('encola un recordatorio para las reservas cuya clase es mañana', async () => {
-    enqueue.mockReset();
+    enqueue.mockReset().mockResolvedValue(true);
     const n = await enqueueBookingReminders(makeAdmin([
       booking(),
       booking({ id: 'b2', session: { session_date: '2026-11-14', start_time: '19:00:00', end_time: '20:00:00' } }),
@@ -49,13 +49,13 @@ describe('enqueueBookingReminders', () => {
   });
 
   it('ignora clases completas que empezaron antes (cursos en curso)', async () => {
-    enqueue.mockReset();
+    enqueue.mockReset().mockResolvedValue(true);
     const n = await enqueueBookingReminders(makeAdmin([booking({ class: { ...booking().class, start_date: '2026-11-01', end_date: '2026-12-01' } })]), '2026-11-13');
     expect(n).toBe(0);
   });
 
   it('pide a la base solo las clases de hoy y mañana, no todas las reservas', async () => {
-    enqueue.mockReset();
+    enqueue.mockReset().mockResolvedValue(true);
     inCalls.length = 0;
     await enqueueBookingReminders(makeAdmin([]), '2026-11-30');
     expect(inCalls).toEqual([
@@ -65,8 +65,22 @@ describe('enqueueBookingReminders', () => {
   });
 
   it('no duplica una reserva que aparece en ambas consultas', async () => {
-    enqueue.mockReset();
+    enqueue.mockReset().mockResolvedValue(true);
     const n = await enqueueBookingReminders(makeAdmin([booking()]), '2026-11-13');
     expect(n).toBe(1);
+  });
+
+  it('aísla errores por fila y no cuenta correos omitidos sin destinatario', async () => {
+    enqueue.mockReset()
+      .mockRejectedValueOnce(new Error('db glitch'))
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const n = await enqueueBookingReminders(makeAdmin([
+      booking({ id: 'b1' }),
+      booking({ id: 'b2' }),
+      booking({ id: 'b3' }),
+    ]), '2026-11-13');
+    expect(n).toBe(1);
+    expect(enqueue).toHaveBeenCalledTimes(3);
   });
 });

@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTodayLima } from '@/lib/classes/helpers';
@@ -9,12 +10,18 @@ export const dynamic = 'force-dynamic';
 // Hasta 100 correos seguidos (~0,3 s cada uno): se pide margen explícito para que Vercel no lo corte.
 export const maxDuration = 60;
 
+function hasValidCronSecret(request: NextRequest, secret: string | undefined): boolean {
+  if (!secret) return false;
+  const expected = Buffer.from(`Bearer ${secret}`, 'utf8');
+  const provided = Buffer.from(request.headers.get('authorization') ?? '', 'utf8');
+  return expected.length === provided.length && timingSafeEqual(expected, provided);
+}
+
 // Cron diario: renueva las fechas reservables, encola los recordatorios de "mañana tienes clase" y reintenta los correos que
 // quedaron pendientes en la cola. Protegido con CRON_SECRET, igual que daily-suggestions.
 export async function GET(request: NextRequest) {
   // Esta ruta escribe con la service role y envía correos: sin CRON_SECRET no se ejecuta.
-  const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!hasValidCronSecret(request, process.env.CRON_SECRET)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
   try {

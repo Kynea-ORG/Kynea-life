@@ -50,7 +50,7 @@ function makeAdmin(rows: unknown[]) {
 }
 
 const row = (over = {}) => ({
-  id: 'o1', to_email: 'a@b.com', template: 'booking_confirmed', attempts: 0,
+  id: 'o1', to_email: 'a@b.com', template: 'booking_confirmed', attempts: 1,
   payload: { classTitle: 'Taller', date: '2026-11-23' }, ...over,
 });
 
@@ -62,9 +62,9 @@ describe('dispatchOutbox', () => {
     expect(updates[0]).toMatchObject({ id: 'o1', patch: { status: 'sent', attempts: 1 } });
   });
 
-  it('si falla, deja el correo pendiente con el error y suma el intento', async () => {
+  it('si falla, deja el correo pendiente con el error y conserva el intento reclamado', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500, text: async () => 'boom' });
-    const { admin, updates } = makeAdmin([row()]);
+    const { admin, updates } = makeAdmin([row({ attempts: 1 })]);
     expect(await dispatchOutbox(admin)).toEqual({ sent: 0, failed: 1, skipped: 0 });
     expect(updates[0].patch).toMatchObject({ status: 'pending', attempts: 1 });
     expect(String(updates[0].patch.last_error)).toContain('500');
@@ -72,14 +72,14 @@ describe('dispatchOutbox', () => {
 
   it('al quinto intento fallido lo marca como fallido', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500, text: async () => 'boom' });
-    const { admin, updates } = makeAdmin([row({ attempts: 4 })]);
+    const { admin, updates } = makeAdmin([row({ attempts: 5 })]);
     await dispatchOutbox(admin);
     expect(updates[0].patch).toMatchObject({ status: 'failed', attempts: 5 });
   });
 
-  it('sin configurar devuelve el correo a la cola sin gastar un intento', async () => {
+  it('sin configurar devuelve el correo a la cola revirtiendo el intento del claim', async () => {
     delete process.env.RESEND_API_KEY;
-    const { admin, updates } = makeAdmin([row({ attempts: 2 })]);
+    const { admin, updates } = makeAdmin([row({ attempts: 3 })]);
     expect(await dispatchOutbox(admin)).toEqual({ sent: 0, failed: 0, skipped: 1 });
     expect(updates).toHaveLength(1);
     expect(updates[0].patch).toMatchObject({ status: 'pending', attempts: 2, claimed_at: null });

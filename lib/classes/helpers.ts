@@ -203,8 +203,8 @@ export function buildClassColumns(
 }
 
 /** Formats today's date in YYYY-MM-DD format under the America/Lima timezone (UTC-5). */
-export function getTodayLima(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+export function getTodayLima(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(now);
 }
 
 /** Returns true if the class has a defined endDate that is strictly before today (in Lima timezone). */

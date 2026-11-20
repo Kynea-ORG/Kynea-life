@@ -18,8 +18,11 @@ const color = (i: number) => PALETTE[i % PALETTE.length];
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 function dayBadge(date: string) {
-  const d = new Date(`${date}T12:00:00`);
-  return { weekday: d.toLocaleDateString('es-PE', { weekday: 'short' }).replace('.', ''), day: d.getDate() };
+  const d = new Date(`${date}T12:00:00Z`);
+  return {
+    weekday: d.toLocaleDateString('es-PE', { weekday: 'short', timeZone: 'UTC' }).replace('.', ''),
+    day: d.getUTCDate(),
+  };
 }
 
 /** Calendario mensual con las clases que el alumno reservó en Kynea, con leyenda y agenda del mes. */

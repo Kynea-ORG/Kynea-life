@@ -47,7 +47,7 @@ export default function BookingCta({ cls, isLoggedIn, variant }: Props) {
           <span className="truncate">Reservar</span>
         </button>
       ) : (
-        <Link href={`/login?redirect=${classUrl(cls)}`} className={buttonClass}>
+        <Link href={`/login?redirect=${encodeURIComponent(classUrl(cls))}`} className={buttonClass}>
           <CalendarCheck className="w-4 h-4 shrink-0" />
           <span className="truncate">Reservar</span>
         </Link>

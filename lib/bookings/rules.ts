@@ -1,14 +1,41 @@
+import { DAY_MAP, getTodayLima, isClassExpired } from '@/lib/classes/helpers';
+import { hasStartPassedLima, pickInitialSchedule } from './dates';
 import type { BookingMode, BookingStatus, CancellationPolicy } from './types';
 
 export type Bookability =
   | { bookable: true }
-  | { bookable: false; reason: 'disabled' | 'external' | 'unpublished' | 'sold_out' };
+  | { bookable: false; reason: 'disabled' | 'external' | 'unpublished' | 'expired' | 'sold_out' };
+
+interface BookableSlot {
+  days?: string[];
+  startTime?: string;
+}
 
 interface BookableClass {
   bookingMode?: BookingMode;
   status: string;
   externalOrganizer?: unknown;
   availableSpots?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  timeSlots?: BookableSlot[];
+}
+
+/** Extrae el horario inicial desde los `timeSlots` del modelo `DanceClass` para una `startDate`. */
+export function initialClassStartTime(
+  timeSlots: BookableSlot[] | undefined,
+  startDate?: string | null,
+): string | undefined {
+  if (!timeSlots?.length) return undefined;
+  const expanded: { dayOfWeek: number; startTime: string }[] = [];
+  for (const slot of timeSlots) {
+    if (!slot.startTime) continue;
+    const days = slot.days?.length ? slot.days : [''];
+    for (const d of days) {
+      expanded.push({ dayOfWeek: DAY_MAP[d] ?? 99, startTime: slot.startTime });
+    }
+  }
+  return pickInitialSchedule(expanded, startDate)?.startTime ?? timeSlots[0]?.startTime;
 }
 
 /**
@@ -16,10 +43,18 @@ interface BookableClass {
  * datos (reserve_booking); esto solo decide qué mostrar. Una clase de organizador externo nunca
  * es reservable (no tiene profesor ni cuenta que reciba la reserva).
  */
-export function getBookability(cls: BookableClass): Bookability {
+export function getBookability(cls: BookableClass, now = new Date()): Bookability {
   if (!cls.bookingMode || cls.bookingMode === 'none') return { bookable: false, reason: 'disabled' };
   if (cls.externalOrganizer) return { bookable: false, reason: 'external' };
   if (cls.status !== 'published') return { bookable: false, reason: 'unpublished' };
+  const todayLima = getTodayLima(now);
+  if (isClassExpired(cls, todayLima)) return { bookable: false, reason: 'expired' };
+  if (cls.bookingMode === 'class' && cls.startDate) {
+    const startTime = initialClassStartTime(cls.timeSlots, cls.startDate);
+    if (hasStartPassedLima(cls.startDate, startTime, now)) {
+      return { bookable: false, reason: 'expired' };
+    }
+  }
   // En modo "por fecha" los cupos son de cada fecha, no de la clase.
   if (cls.bookingMode === 'class' && cls.availableSpots === 0) return { bookable: false, reason: 'sold_out' };
   return { bookable: true };

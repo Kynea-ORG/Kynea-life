@@ -43,7 +43,33 @@ describe('BookingCta', () => {
   it('sin sesión lleva a iniciar sesión y vuelve a la clase', () => {
     render(<BookingCta cls={makeClass()} isLoggedIn={false} variant="sidebar" />);
     const link = screen.getByRole('link', { name: /reservar/i });
-    expect(link).toHaveAttribute('href', '/login?redirect=/bachata/taller/taller');
+    expect(link).toHaveAttribute('href', `/login?redirect=${encodeURIComponent('/bachata/taller/taller')}`);
+  });
+
+  it('no muestra nada si la clase ya finalizó', () => {
+    const { container } = render(
+      <BookingCta cls={makeClass({ startDate: '2020-01-01', endDate: '2020-01-02' })} isLoggedIn variant="sidebar" />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('en clase Online muestra copy sin pago presencial y enlaza a /dashboard/mis-reservas', async () => {
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b-online' } });
+    render(<BookingCta cls={makeClass({ modality: 'Online' })} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
+    expect(screen.getByText(/coordinas el pago y el enlace de acceso directo con tu profesor/i)).toBeInTheDocument();
+    expect(screen.queryByText(/el día de la clase/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /confirmar reserva/i }));
+    await waitFor(() => expect(screen.getByRole('link', { name: /ver mis reservas/i })).toHaveAttribute('href', '/dashboard/mis-reservas'));
+  });
+
+  it('muestra error si falla la carga de fechas en modo por fecha', async () => {
+    mockList.mockRejectedValue(new Error('No autenticado'));
+    render(<BookingCta cls={makeClass({ bookingMode: 'session' })} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/no pudimos cargar las fechas/i));
   });
 
   it('con sesión abre la ventana y confirma la reserva', async () => {

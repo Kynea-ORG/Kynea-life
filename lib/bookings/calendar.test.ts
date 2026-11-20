@@ -51,6 +51,22 @@ describe('bookingOccurrences', () => {
     ]);
   });
 
+  it('un curso con horarios distintos por día respeta la hora de cada día', () => {
+    const b = booking({}, {
+      startDate: '2026-11-02',
+      endDate: '2026-11-05',
+      days: [0, 2],
+      schedules: [
+        { dayOfWeek: 0, startTime: '19:00', endTime: '20:00' },
+        { dayOfWeek: 2, startTime: '10:00', endTime: '11:30' },
+      ],
+    });
+    expect(bookingOccurrences(b)).toEqual([
+      { date: '2026-11-02', startTime: '19:00', endTime: '20:00' },
+      { date: '2026-11-04', startTime: '10:00', endTime: '11:30' },
+    ]);
+  });
+
   it('sin fecha de inicio no ocurre en ningún día', () => {
     expect(bookingOccurrences(booking())).toEqual([]);
   });

@@ -359,8 +359,13 @@ export default function CrearClaseForm({
         fd.set('offerPrice', form.offerPrice);
         fd.set('currency', form.currency);
         fd.set('maxSpots', form.maxSpots);
-        // Una clase de fecha única no tiene "fechas" que elegir: se reserva completa.
-        fd.set('bookingMode', form.bookingMode === 'session' && form.recurrence === 'unica' ? 'class' : form.bookingMode);
+        // Organizador externo nunca acepta reservas; clase de fecha única se reserva completa.
+        const effectiveBookingMode = isSuperuser && form.superuserMode === 'external'
+          ? 'none'
+          : form.bookingMode === 'session' && form.recurrence === 'unica'
+            ? 'class'
+            : form.bookingMode;
+        fd.set('bookingMode', effectiveBookingMode);
         fd.set('cancellationPolicy', form.cancellationPolicy);
         fd.set('modality', form.modality);
         fd.set('city', form.city);
@@ -542,7 +547,10 @@ export default function CrearClaseForm({
 
             <button
               type="button"
-              onClick={() => set('superuserMode', 'external')}
+              onClick={() => {
+                set('superuserMode', 'external');
+                set('bookingMode', 'none');
+              }}
               className={`text-left px-3 py-2.5 rounded-xl border-2 transition-colors flex items-start gap-2.5 ${
                 form.superuserMode === 'external'
                   ? 'border-primary bg-primary-bg'
@@ -829,6 +837,9 @@ export default function CrearClaseForm({
             <Pill key={opt.value} active={form.recurrence === opt.value} disabled={opt.disabled} badge={opt.badge} onClick={() => {
               if (opt.disabled || form.recurrence === opt.value) return;
               set('recurrence', opt.value);
+              if (opt.value === 'unica' && form.bookingMode === 'session') {
+                set('bookingMode', 'class');
+              }
               setSlots([{ days: [], startTime: '19:00', endTime: '20:30' }]);
             }}>
               {opt.label}

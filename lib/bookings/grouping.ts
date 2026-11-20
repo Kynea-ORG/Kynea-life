@@ -5,14 +5,19 @@ export interface BookingGroup {
   key: string;
   classId: string;
   classTitle: string;
+  classModality?: string;
   sessionId?: string;
+  sessionStatus?: 'open' | 'cancelled';
   date?: string;
+  endDate?: string;
   startTime?: string;
   /** null/undefined = sin límite. */
   capacity?: number;
   /** Cupos ocupados (activas + asistidas + no vinieron). */
   taken: number;
   daysAway: number | null;
+  /** Días hasta el fin efectivo (endDate en cursos completos, sessionDate en sesiones). */
+  endDaysAway: number | null;
   bookings: TeacherBooking[];
 }
 
@@ -32,10 +37,22 @@ export function groupTeacherBookings(bookings: TeacherBooking[], today: string):
     const key = `${bk.classId}|${bk.sessionId ?? 'class'}`;
     let g = map.get(key);
     if (!g) {
+      const effectiveEnd = bk.sessionId ? bk.sessionDate : (bk.classEndDate ?? bk.sessionDate);
       g = {
-        key, classId: bk.classId, classTitle: bk.classTitle, sessionId: bk.sessionId, date: bk.sessionDate,
-        startTime: bk.startTime, capacity: bk.capacity, taken: 0,
-        daysAway: bk.sessionDate ? daysUntil(bk.sessionDate, today) : null, bookings: [],
+        key,
+        classId: bk.classId,
+        classTitle: bk.classTitle,
+        classModality: bk.classModality,
+        sessionId: bk.sessionId,
+        sessionStatus: bk.sessionStatus,
+        date: bk.sessionDate,
+        endDate: bk.sessionId ? undefined : bk.classEndDate,
+        startTime: bk.startTime,
+        capacity: bk.capacity,
+        taken: 0,
+        daysAway: bk.sessionDate ? daysUntil(bk.sessionDate, today) : null,
+        endDaysAway: effectiveEnd ? daysUntil(effectiveEnd, today) : null,
+        bookings: [],
       };
       map.set(key, g);
     }
@@ -47,7 +64,8 @@ export function groupTeacherBookings(bookings: TeacherBooking[], today: string):
   const toClose: BookingGroup[] = [];
   const history: BookingGroup[] = [];
   for (const g of map.values()) {
-    if (g.daysAway === null || g.daysAway >= 0) upcoming.push(g);
+    const isPast = g.endDaysAway !== null && g.endDaysAway < 0;
+    if (!isPast) upcoming.push(g);
     else if (g.bookings.some(x => x.status === 'confirmed')) toClose.push(g);
     else history.push(g);
   }

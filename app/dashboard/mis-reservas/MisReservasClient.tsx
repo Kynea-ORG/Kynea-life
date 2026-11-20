@@ -1,15 +1,26 @@
 'use client';
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { CalendarCheck, CalendarDays, ChevronDown, List, MapPin } from 'lucide-react';
+import { ArrowRight, CalendarCheck, CalendarDays, ChevronDown, List, MapPin } from 'lucide-react';
 import SmartImage from '@/components/SmartImage';
 import ClassTips from '@/components/booking/ClassTips';
 import AddToCalendar from '@/components/booking/AddToCalendar';
 import BookingsCalendar from '@/components/booking/BookingsCalendar';
+import type { ClassType } from '@/lib/types';
 import type { MyBooking } from '@/lib/bookings/types';
 import { bookingStatusLabel, isActiveBookingStatus } from '@/lib/bookings/rules';
-import { cancellationDeadline, canStillCancel, classTimingLabel, countdownLabel, daysUntil, formatLongDate } from '@/lib/bookings/dates';
+import {
+  cancellationDeadline,
+  canStillCancel,
+  classTimingLabel,
+  countdownLabel,
+  daysUntil,
+  formatDeadlineLima,
+  formatLongDate,
+} from '@/lib/bookings/dates';
 import { cancelBooking } from '@/lib/bookings/actions';
+import { classUrl } from '@/lib/classes/helpers';
+import { formatPriceShort } from '@/lib/utils';
 
 function details(b: MyBooking) {
   return {
@@ -19,7 +30,15 @@ function details(b: MyBooking) {
   };
 }
 
-export default function MisReservasClient({ bookings, today }: { bookings: MyBooking[]; today: string }) {
+export default function MisReservasClient({
+  bookings,
+  today,
+  showReceivedLink = false,
+}: {
+  bookings: MyBooking[];
+  today: string;
+  showReceivedLink?: boolean;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -31,9 +50,14 @@ export default function MisReservasClient({ bookings, today }: { bookings: MyBoo
     setError(null);
     setPendingId(id);
     startTransition(async () => {
-      const r = await cancelBooking(id);
-      if (!r.ok) setError(r.error.message);
-      setPendingId(null);
+      try {
+        const r = await cancelBooking(id);
+        if (!r.ok) setError(r.error.message);
+      } catch {
+        setError('No pudimos cancelar tu reserva. Verifica tu sesión e inténtalo de nuevo.');
+      } finally {
+        setPendingId(null);
+      }
     });
   };
 
@@ -52,13 +76,20 @@ export default function MisReservasClient({ bookings, today }: { bookings: MyBoo
     const timing = !date ? null : b.session ? countdownLabel(daysUntil(date, today)) : classTimingLabel(date, b.class.endDate, today);
     const active = isUpcoming(b);
     const isOpen = open === b.id;
-    const place = [b.class.venueName, b.class.address].filter(Boolean).join(', ');
+    const isOnline = b.class.modality === 'Online';
+    const place = isOnline ? 'Clase online' : [b.class.venueName, b.class.address].filter(Boolean).join(', ');
     const policy = b.class.cancellationPolicy;
     const cancellable = active && date ? canStillCancel(date, start, policy) : active;
     const deadline = date ? cancellationDeadline(date, start, policy) : null;
     const event = date && start && end
       ? { title: b.class.title, date, startTime: start, endTime: end, location: place || undefined }
       : null;
+    const detailHref = b.class.styleSlug && b.class.type && b.class.slug
+      ? classUrl({ styleSlug: b.class.styleSlug, type: b.class.type as ClassType, slug: b.class.slug })
+      : null;
+    const priceLabel = b.priceAmount > 0
+      ? `${formatPriceShort('Pago único', b.priceAmount, b.currency)} (${isOnline ? 'coordinas con el profesor' : 'pagas en la clase'})`
+      : 'Gratis';
 
     return (
       <article key={b.id} className={`card-dash overflow-hidden ${isNext ? 'border-primary/40 shadow-md' : ''}`}>
@@ -68,7 +99,13 @@ export default function MisReservasClient({ bookings, today }: { bookings: MyBoo
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <p className="font-extrabold text-neutral-900 leading-tight line-clamp-2">{b.class.title}</p>
+              {detailHref ? (
+                <Link href={detailHref} className="font-extrabold text-neutral-900 leading-tight line-clamp-2 hover:text-primary transition-colors">
+                  {b.class.title}
+                </Link>
+              ) : (
+                <p className="font-extrabold text-neutral-900 leading-tight line-clamp-2">{b.class.title}</p>
+              )}
               {active && timing ? (
                 <span className={`text-[12px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${away !== null && away >= 0 && away <= 1 ? 'bg-primary text-white' : 'bg-primary-bg text-primary'}`}>
                   {timing}
@@ -85,7 +122,7 @@ export default function MisReservasClient({ bookings, today }: { bookings: MyBoo
             )}
             {place && <p className="text-[12px] text-neutral-500 flex items-center gap-1 mt-0.5 truncate"><MapPin className="w-3 h-3 shrink-0" aria-hidden="true" />{place}</p>}
             <p className="text-[12px] text-neutral-500 mt-0.5">
-              {b.seats} cupo{b.seats !== 1 ? 's' : ''} · {b.priceAmount > 0 ? `${b.currency} ${b.priceAmount.toFixed(2)} (pagas en la clase)` : 'Gratis'}
+              {b.seats} cupo{b.seats !== 1 ? 's' : ''} · {priceLabel}
             </p>
           </div>
         </div>
@@ -94,16 +131,21 @@ export default function MisReservasClient({ bookings, today }: { bookings: MyBoo
           <>
             <button type="button" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : b.id)}
               className="w-full flex items-center justify-between px-4 py-2.5 border-t border-neutral-100 text-[13px] font-bold text-primary hover:bg-neutral-50 transition-colors">
-              {isOpen ? 'Ocultar detalles' : 'Cómo prepararme y llegar'}
+              {isOpen ? 'Ocultar detalles' : isOnline ? 'Cómo prepararme' : 'Cómo prepararme y llegar'}
               <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
             </button>
             {isOpen && (
               <div className="p-4 pt-3 space-y-4 border-t border-neutral-100 animate-fade-in">
                 <ClassTips footwear={b.class.footwear} clothing={b.class.clothing} toBring={b.class.toBring} requirements={b.class.requirements} teacherName={b.class.teacherName} />
-                {b.class.reference && <p className="text-[13px] text-neutral-700"><b>Referencia:</b> {b.class.reference}</p>}
+                {isOnline && (
+                  <p className="text-[13px] text-neutral-700">
+                    Coordinas el enlace de acceso directamente con tu profesor antes de la clase.
+                  </p>
+                )}
+                {!isOnline && b.class.reference && <p className="text-[13px] text-neutral-700"><b>Referencia:</b> {b.class.reference}</p>}
                 {b.note && <p className="text-[13px] text-neutral-600"><b className="text-neutral-800">Tu mensaje:</b> {b.note}</p>}
                 <div className="flex flex-wrap items-center gap-2">
-                  {b.class.mapsUrl && (
+                  {!isOnline && b.class.mapsUrl && (
                     <a href={b.class.mapsUrl} target="_blank" rel="noopener noreferrer" className="btn-outline btn-sm inline-flex items-center gap-1.5">
                       <MapPin className="w-4 h-4" aria-hidden="true" /> Cómo llegar
                     </a>
@@ -113,7 +155,9 @@ export default function MisReservasClient({ bookings, today }: { bookings: MyBoo
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                   <p className="text-[12px] text-neutral-600 max-w-sm">
                     {cancellable
-                      ? <>Puedes cancelar sin problema hasta el {deadline?.toLocaleDateString('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })}.</>
+                      ? deadline
+                        ? <>Puedes cancelar sin problema hasta el {formatDeadlineLima(deadline)} (hora Lima).</>
+                        : <>Puedes cancelar esta reserva desde aquí si cambias de planes.</>
                       : <>El plazo para cancelar ya pasó. Si no puedes ir, avísale a tu profesor para que pueda ofrecer tu cupo.</>}
                   </p>
                   {cancellable && (
@@ -133,8 +177,20 @@ export default function MisReservasClient({ bookings, today }: { bookings: MyBoo
 
   return (
     <div className="p-6 lg:p-8 w-full max-w-3xl">
-      <h1 className="text-[28px] font-black text-neutral-900 tracking-tight">Mis reservas</h1>
-      <p className="text-neutral-600 text-[15px] mt-1 mb-5">Tus próximas clases, con lo que necesitas para llegar listo.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+        <div>
+          <h1 className="text-[28px] font-black text-neutral-900 tracking-tight">Mis reservas</h1>
+          <p className="text-neutral-600 text-[15px] mt-1">Las clases que reservaste como alumno, con lo que necesitas para llegar listo.</p>
+        </div>
+        {showReceivedLink && (
+          <Link
+            href="/dashboard/reservas"
+            className="btn-outline btn-sm inline-flex items-center gap-1.5 shrink-0"
+          >
+            Reservas recibidas <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+          </Link>
+        )}
+      </div>
       {bookings.length > 0 && (
         <div role="tablist" aria-label="Vista" className="inline-flex rounded-xl bg-neutral-100 p-1 mb-6">
           {([['list', 'Lista', List], ['calendar', 'Calendario', CalendarDays]] as const).map(([id, label, Icon]) => (

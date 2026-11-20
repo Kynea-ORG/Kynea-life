@@ -1,6 +1,7 @@
 import { cancellationPolicyText } from '@/lib/bookings/rules';
 import { formatLongDate } from '@/lib/bookings/dates';
 import type { CancellationPolicy } from '@/lib/bookings/types';
+import { formatPriceShort } from '@/lib/utils';
 
 // Plantillas de correo transaccional de reservas. HTML simple en tablas (compatible con
 // Gmail/Outlook) y una versión de texto plano. Todo texto que escribe un usuario se escapa.
@@ -13,22 +14,33 @@ const BRAND = '#8a11bc';
 const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '') : []);
+const safeHttpUrl = (v: unknown) => {
+  const raw = str(v);
+  return raw && /^https?:\/\//i.test(raw) ? raw : undefined;
+};
 
 function details(p: Payload) {
   const date = str(p.date);
   const start = str(p.startTime);
   const end = str(p.endTime);
-  const place = [str(p.venueName), str(p.address)].filter(Boolean).join(', ');
+  const isOnline = str(p.modality) === 'Online';
+  const place = isOnline ? 'Clase online (coordinas el enlace con tu profesor)' : [str(p.venueName), str(p.address)].filter(Boolean).join(', ');
   const seats = Number(p.seats ?? 1);
   const price = Number(p.price ?? 0);
+  const currency = str(p.currency) ?? 'PEN';
+  const priceFormatted = formatPriceShort('Pago único', price, currency);
+  const paymentNote = isOnline
+    ? '(coordinas el pago directo con el profesor)'
+    : '(se paga directo al profesor en la clase)';
   return {
     title: str(p.classTitle) ?? 'tu clase',
+    isOnline,
     when: date ? `${formatLongDate(date)}${start ? ` · ${start}${end ? ` – ${end}` : ''}` : ''}` : undefined,
     place: place || undefined,
-    reference: str(p.reference),
-    mapsUrl: str(p.mapsUrl),
+    reference: isOnline ? undefined : str(p.reference),
+    mapsUrl: isOnline ? undefined : safeHttpUrl(p.mapsUrl),
     seatsText: `${seats} cupo${seats !== 1 ? 's' : ''}`,
-    priceText: price > 0 ? `${p.currency ?? 'PEN'} ${price.toFixed(2)} (se paga directo al profesor en la clase)` : 'Gratis',
+    priceText: price > 0 ? `${priceFormatted} ${paymentNote}` : 'Gratis',
     tips: [
       ['Calzado', list(p.footwear).join(', ')],
       ['Ropa', str(p.clothing) ?? ''],
@@ -64,7 +76,7 @@ function studentEmail(p: Payload, o: RenderOptions, kind: 'confirmed' | 'reminde
   const d = details(p);
   const days = Number(p.daysAway ?? NaN);
   const teacher = str(p.teacherName);
-  const url = `${o.siteUrl}/dashboard/alumno/reservas`;
+  const url = `${o.siteUrl}/dashboard/mis-reservas`;
   const rows: [string, string][] = [
     ...(d.when ? [['Cuándo', d.when] as [string, string]] : []),
     ...(d.place ? [['Dónde', d.place + (d.reference ? ` (${d.reference})` : '')] as [string, string]] : []),

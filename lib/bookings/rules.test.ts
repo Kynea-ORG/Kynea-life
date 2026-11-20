@@ -30,6 +30,18 @@ describe('getBookability', () => {
   it('modo por fecha: reservable aunque availableSpots sea 0 (los cupos son por fecha)', () => {
     expect(getBookability({ ...base, bookingMode: 'session', availableSpots: 0 })).toEqual({ bookable: true });
   });
+
+  it('bloquea clases expiradas o que ya alcanzaron start_time (hora Lima)', () => {
+    // 2026-11-23 19:00 Lima = 2026-11-24T00:00:00Z
+    const cls = {
+      ...base,
+      startDate: '2026-11-23',
+      endDate: '2026-11-30',
+      timeSlots: [{ days: ['Lunes'], startTime: '19:00' }],
+    };
+    expect(getBookability(cls, new Date('2026-11-23T23:59:00Z'))).toEqual({ bookable: true });
+    expect(getBookability(cls, new Date('2026-11-24T00:00:00Z'))).toEqual({ bookable: false, reason: 'expired' });
+  });
 });
 
 describe('bookingStatusLabel / isActiveBookingStatus', () => {

@@ -19,9 +19,22 @@ describe('renderEmail', () => {
       expect(text).toContain('Estudio Sol');
       expect(text).toContain('Frente al parque');
       expect(text).toContain('Zapatillas');
-      expect(text).toContain('https://kynea.dance/dashboard/alumno/reservas');
+      expect(text).toContain('https://kynea.dance/dashboard/mis-reservas');
     }
     expect(e.html).toContain('https://maps.example/x');
+  });
+
+  it('en clases Online usa copy sin pago presencial y omite enlace de Maps', () => {
+    const e = renderEmail('booking_confirmed', { ...payload, modality: 'Online' }, opts);
+    expect(e.text).toContain('coordinas el pago directo con el profesor');
+    expect(e.text).not.toContain('en la clase');
+    expect(e.html).not.toContain('Cómo llegar');
+  });
+
+  it('bloquea esquemas inseguros en mapsUrl (ej. javascript:)', () => {
+    const e = renderEmail('booking_confirmed', { ...payload, mapsUrl: 'javascript:alert(1)' }, opts);
+    expect(e.html).not.toContain('javascript:');
+    expect(e.html).not.toContain('Cómo llegar');
   });
 
   it('escapa el HTML de los textos que escribe el usuario', () => {

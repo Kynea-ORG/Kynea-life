@@ -36,7 +36,7 @@ export interface MyBooking {
     title: string;
     slug?: string;
     type: string;
-    categoria?: string;
+    styleSlug?: string;
     coverImage?: string;
     modality: string;
     cancellationPolicy: CancellationPolicy;
@@ -47,9 +47,11 @@ export interface MyBooking {
     reference?: string;
     mapsUrl?: string;
     city?: string;
-    /** Horario de la primera sesión semanal (para reservas de la clase completa). */
+    /** Horario de la primera sesión correspondiente al inicio (para reservas de clase completa). */
     startTime?: string;
     endTime?: string;
+    /** Horarios semanales completos (0 = lunes … 6 = domingo), usados por el calendario. */
+    schedules?: { dayOfWeek: number; startTime: string; endTime: string }[];
     /** Días de la semana en que hay clase (0 = lunes … 6 = domingo). */
     days: number[];
     teacherName?: string;
@@ -63,13 +65,16 @@ export interface MyBooking {
   session?: { id: string; date: string; startTime: string; endTime: string };
 }
 
-/** Reserva vista por el profesor (panel "Reservas"). */
+/** Reserva vista por el profesor (panel "Reservas recibidas"). */
 export interface TeacherBooking {
   id: string;
   classId: string;
   classTitle: string;
+  classModality?: string;
+  classEndDate?: string;
   sessionId?: string;
   sessionDate?: string;
+  sessionStatus?: 'open' | 'cancelled';
   startTime?: string;
   /** Cupo total de la fecha (o de la clase); null = sin límite. */
   capacity?: number;
@@ -77,11 +82,10 @@ export interface TeacherBooking {
   studentName: string;
   studentPhoto?: string;
   studentBio?: string;
-  studentDistrict?: string;
   studentInstagram?: string;
   studentSince?: string;
   note?: string;
-  /** Otras reservas del alumno con este profesor (fidelidad). */
+  /** Otras reservas previas/asistidas del alumno con este profesor (fidelidad). */
   priorBookings: number;
   seats: number;
   status: BookingStatus;

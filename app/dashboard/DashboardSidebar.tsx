@@ -7,7 +7,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
   Settings, LogOut, Shield, Loader2, ArrowLeftRight,
-  CalendarCheck,
+  CalendarCheck, CalendarDays,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { switchSuperuserMode } from '@/lib/auth/superuserActions';
@@ -30,30 +30,32 @@ const BADGE = {
 
 const NAV_BY_ROLE = {
   alumno: [
-    { href: '/dashboard/alumno',       label: 'Mis clases',     icon: BookOpen },
-    { href: '/dashboard/alumno/reservas', label: 'Mis reservas', icon: CalendarCheck },
-    { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
-    { href: '/dashboard/configuracion',label: 'Configuración',  icon: Settings },
+    { href: '/dashboard/alumno',        label: 'Mis clases',   mobileLabel: 'Clases',    icon: BookOpen },
+    { href: '/dashboard/mis-reservas',  label: 'Mis reservas', mobileLabel: 'Reservas',  icon: CalendarDays },
+    { href: '/dashboard/perfil',        label: 'Perfil',       mobileLabel: 'Perfil',    icon: User },
+    { href: '/dashboard/configuracion', label: 'Configuración', mobileLabel: 'Config.',  icon: Settings },
   ],
   profesor: [
-    { href: '/dashboard',              label: 'Inicio',         icon: LayoutDashboard },
-    { href: '/dashboard/mis-clases',   label: 'Mis clases',     icon: BookOpen },
-    { href: '/dashboard/reservas',     label: 'Reservas',       icon: CalendarCheck },
-    { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
-    { href: '/dashboard/importar-csv', label: 'Subir clases masivas', icon: Upload },
-    { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
-    { href: '/dashboard/configuracion',label: 'Configuración',  icon: Settings },
+    { href: '/dashboard',               label: 'Inicio',               mobileLabel: 'Inicio',    icon: LayoutDashboard },
+    { href: '/dashboard/mis-clases',    label: 'Mis clases',           mobileLabel: 'Clases',    icon: BookOpen },
+    { href: '/dashboard/reservas',      label: 'Reservas recibidas',   mobileLabel: 'Recibidas', icon: CalendarCheck },
+    { href: '/dashboard/crear-clase',   label: 'Crear clase',          mobileLabel: 'Crear',     icon: PlusCircle },
+    { href: '/dashboard/mis-reservas',  label: 'Mis reservas',         mobileLabel: 'Mis res.',  icon: CalendarDays },
+    { href: '/dashboard/importar-csv',  label: 'Subir clases masivas', mobileLabel: 'Importar',  icon: Upload },
+    { href: '/dashboard/perfil',        label: 'Perfil',               mobileLabel: 'Perfil',    icon: User },
+    { href: '/dashboard/configuracion', label: 'Configuración',        mobileLabel: 'Config.',   icon: Settings },
   ],
   academia: [
-    { href: '/dashboard',              label: 'Inicio',         icon: LayoutDashboard },
-    { href: '/dashboard/mis-clases',   label: 'Mis clases',     icon: BookOpen },
-    { href: '/dashboard/reservas',     label: 'Reservas',       icon: CalendarCheck },
+    { href: '/dashboard',               label: 'Inicio',               mobileLabel: 'Inicio',    icon: LayoutDashboard },
+    { href: '/dashboard/mis-clases',    label: 'Mis clases',           mobileLabel: 'Clases',    icon: BookOpen },
+    { href: '/dashboard/reservas',      label: 'Reservas recibidas',   mobileLabel: 'Recibidas', icon: CalendarCheck },
+    { href: '/dashboard/crear-clase',   label: 'Crear clase',          mobileLabel: 'Crear',     icon: PlusCircle },
+    { href: '/dashboard/mis-reservas',  label: 'Mis reservas',         mobileLabel: 'Mis res.',  icon: CalendarDays },
     // 'Profesores' (roster) deliberadamente oculto — corre sobre datos mock,
     // no persiste nada real. Ver docs/TASKS.md sección 8.8.
-    { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
-    { href: '/dashboard/importar-csv', label: 'Subir clases masivas', icon: Upload },
-    { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
-    { href: '/dashboard/configuracion',label: 'Configuración',  icon: Settings },
+    { href: '/dashboard/importar-csv',  label: 'Subir clases masivas', mobileLabel: 'Importar',  icon: Upload },
+    { href: '/dashboard/perfil',        label: 'Perfil',               mobileLabel: 'Perfil',    icon: User },
+    { href: '/dashboard/configuracion', label: 'Configuración',        mobileLabel: 'Config.',   icon: Settings },
   ],
 };
 
@@ -95,9 +97,10 @@ function NavLinks({
 }
 
 const SUPERUSER_NAV = [
-  { href: '/dashboard',             label: 'Inicio',      icon: LayoutDashboard },
-  { href: '/dashboard/mis-clases',  label: 'Mis clases',  icon: BookOpen },
-  { href: '/dashboard/crear-clase', label: 'Crear clase', icon: PlusCircle },
+  { href: '/dashboard',             label: 'Inicio',      mobileLabel: 'Inicio',   icon: LayoutDashboard },
+  { href: '/dashboard/mis-clases',  label: 'Mis clases',  mobileLabel: 'Clases',   icon: BookOpen },
+  { href: '/dashboard/reservas',    label: 'Reservas',    mobileLabel: 'Reservas', icon: CalendarCheck },
+  { href: '/dashboard/crear-clase', label: 'Crear clase', mobileLabel: 'Crear',    icon: PlusCircle },
 ];
 
 export default function DashboardSidebar({ profile, isSuperuser = false }: { profile: Profile; isSuperuser?: boolean }) {
@@ -115,7 +118,7 @@ export default function DashboardSidebar({ profile, isSuperuser = false }: { pro
   const NAV = isSuperuser
     ? SUPERUSER_NAV
     : profile.is_admin
-      ? [...NAV_BY_ROLE[profile.role], { href: '/dashboard/admin/resumen', label: 'Admin', icon: Shield }]
+      ? [...NAV_BY_ROLE[profile.role], { href: '/dashboard/admin/resumen', label: 'Admin', mobileLabel: 'Admin', icon: Shield }]
       : NAV_BY_ROLE[profile.role];
 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -297,7 +300,7 @@ export default function DashboardSidebar({ profile, isSuperuser = false }: { pro
                     }`}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="text-[11px] font-medium">{item.label.split(' ')[0]}</span>
+                    <span className="text-[11px] font-medium">{item.mobileLabel}</span>
                   </Link>
                 );
               });

@@ -49,16 +49,36 @@ export function monthTitle(year: number, month: number): string {
 /** Días concretos en que ocurre una reserva: su fecha, o cada día de clase de un curso. */
 export function bookingOccurrences(b: MyBooking): BookingOccurrence[] {
   if (b.session) return [{ date: b.session.date, startTime: b.session.startTime, endTime: b.session.endTime }];
-  const { startDate, endDate, days, startTime, endTime } = b.class;
+  const { startDate, endDate, days, startTime, endTime, schedules } = b.class;
   if (!startDate) return [];
   const single = [{ date: startDate, startTime, endTime }];
-  if (!endDate || endDate <= startDate || days.length === 0) return single;
+  const hasSchedules = Boolean(schedules && schedules.length > 0);
+  if (!endDate || endDate <= startDate || (days.length === 0 && !hasSchedules)) return single;
+
+  const byDay = new Map<number, { startTime: string; endTime: string }[]>();
+  if (hasSchedules) {
+    for (const s of schedules!) {
+      const list = byDay.get(s.dayOfWeek) ?? [];
+      list.push({ startTime: s.startTime, endTime: s.endTime });
+      byDay.set(s.dayOfWeek, list);
+    }
+  }
 
   const out: BookingOccurrence[] = [];
   const cursor = parse(startDate);
   const last = parse(endDate);
   for (let i = 0; i < MAX_COURSE_DAYS && cursor <= last; i++) {
-    if (days.includes(weekday(cursor))) out.push({ date: iso(cursor), startTime, endTime });
+    const dow = weekday(cursor);
+    if (hasSchedules) {
+      const daySlots = byDay.get(dow);
+      if (daySlots) {
+        for (const slot of daySlots) {
+          out.push({ date: iso(cursor), startTime: slot.startTime, endTime: slot.endTime });
+        }
+      }
+    } else if (days.includes(dow)) {
+      out.push({ date: iso(cursor), startTime, endTime });
+    }
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return out.length ? out : single;

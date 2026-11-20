@@ -58,6 +58,15 @@ describe('groupTeacherBookings', () => {
     expect(g.upcoming[0]).toMatchObject({ taken: 3, capacity: 10, sessionId: undefined });
   });
 
+  it('un curso completo en curso (start_date pasada, classEndDate vigente) permanece en próximas', () => {
+    const g = groupTeacherBookings([
+      b({ sessionDate: '2026-11-01', classEndDate: '2026-11-30', capacity: 10 }),
+    ], TODAY);
+    expect(g.upcoming).toHaveLength(1);
+    expect(g.toClose).toHaveLength(0);
+    expect(g.upcoming[0].endDate).toBe('2026-11-30');
+  });
+
   it('sin fecha conocida se considera próxima', () => {
     expect(groupTeacherBookings([b()], TODAY).upcoming).toHaveLength(1);
   });

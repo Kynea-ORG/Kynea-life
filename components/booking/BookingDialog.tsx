@@ -7,9 +7,19 @@ import { DanceClass } from '@/lib/types';
 import type { ClassSession } from '@/lib/bookings/types';
 import { sessionSpotsLeft } from '@/lib/bookings/mappers';
 import { reserveBooking, listClassSessions } from '@/lib/bookings/actions';
-import { cancellationDeadline, classTimingLabel, countdownLabel, daysUntil, formatLongDate } from '@/lib/bookings/dates';
-import { getTodayLima } from '@/lib/classes/helpers';
+import {
+  cancellationDeadline,
+  canStillCancel,
+  classTimingLabel,
+  countdownLabel,
+  daysUntil,
+  formatDeadlineLima,
+  formatLongDate,
+  isoWeekday,
+} from '@/lib/bookings/dates';
+import { DAY_MAP, getTodayLima } from '@/lib/classes/helpers';
 import { trackBookingCreated } from '@/lib/analytics';
+import { buildGoogleMapsUrl, formatPriceShort } from '@/lib/utils';
 import ClassTips from './ClassTips';
 import AddToCalendar from './AddToCalendar';
 
@@ -35,6 +45,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const bySession = cls.bookingMode === 'session';
   const [step, setStep] = useState<Step>(bySession ? 'date' : 'details');
   const [sessions, setSessions] = useState<ClassSession[] | null>(bySession ? null : []);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [seats, setSeats] = useState(1);
   const [note, setNote] = useState('');
@@ -46,7 +57,19 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   useEffect(() => {
     if (!bySession) return;
     let cancelled = false;
-    listClassSessions(cls.id).then(rows => { if (!cancelled) setSessions(rows); });
+    listClassSessions(cls.id)
+      .then(rows => {
+        if (!cancelled) {
+          setSessionsError(null);
+          setSessions(rows);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSessions([]);
+          setSessionsError('No pudimos cargar las fechas disponibles. Verifica tu sesión e inténtalo de nuevo.');
+        }
+      });
     return () => { cancelled = true; };
   }, [bySession, cls.id]);
 
@@ -57,18 +80,39 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   }, [onClose]);
 
   const selected = sessions?.find(s => s.id === sessionId) ?? null;
-  const firstSlot = cls.timeSlots?.[0];
+  const firstSlot = useMemo(() => {
+    const slots = cls.timeSlots ?? [];
+    if (!slots.length) return undefined;
+    const targetDay = cls.startDate ? isoWeekday(cls.startDate) : null;
+    const candidates = slots.flatMap(slot => {
+      const days = slot.days?.length ? slot.days : [''];
+      return days.map(d => ({ day: DAY_MAP[d] ?? 99, slot }));
+    });
+    candidates.sort((a, b) => {
+      const aMatch = targetDay !== null && a.day === targetDay ? 0 : 1;
+      const bMatch = targetDay !== null && b.day === targetDay ? 0 : 1;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+      if (a.day !== b.day) return a.day - b.day;
+      return (a.slot.startTime ?? '99:99').localeCompare(b.slot.startTime ?? '99:99');
+    });
+    return candidates[0]?.slot ?? slots[0];
+  }, [cls.timeSlots, cls.startDate]);
+  const isOnline = cls.modality === 'Online';
   const eventDate = bySession ? selected?.date : cls.startDate;
   const startTime = bySession ? selected?.startTime : firstSlot?.startTime;
   const endTime = bySession ? selected?.endTime : firstSlot?.endTime;
   const spotsLeft = bySession ? (selected ? sessionSpotsLeft(selected) : null) : (cls.availableSpots ?? null);
   const maxSeats = Math.max(1, Math.min(MAX_SEATS, spotsLeft ?? MAX_SEATS));
-  const unitPrice = cls.priceType === 'Gratis' ? 0 : (cls.offerPrice || cls.price);
+  const unitPrice = cls.priceType === 'Gratis' ? 0 : (cls.offerPrice || cls.price || 0);
   const total = unitPrice * seats;
   const timing = eventDate ? (bySession ? countdownLabel(daysUntil(eventDate, today)) : classTimingLabel(eventDate, cls.endDate, today)) : null;
   const policy = cls.cancellationPolicy ?? 'moderada';
   const deadline = eventDate ? cancellationDeadline(eventDate, startTime, policy) : null;
-  const place = [cls.venueName, cls.address].filter(Boolean).join(', ') || (cls.modality === 'Online' ? 'Clase online' : '');
+  const canCancelAfterBooking = eventDate ? canStillCancel(eventDate, startTime, policy) : true;
+  const place = isOnline ? 'Clase online' : [cls.venueName, cls.address].filter(Boolean).join(', ');
+  const mapsHref = isOnline
+    ? undefined
+    : buildGoogleMapsUrl({ placeId: cls.placeId, lat: cls.lat, lng: cls.lng, address: cls.address }) ?? cls.mapsUrl;
 
   const steps: Step[] = bySession ? ['date', 'details', 'confirm'] : ['details', 'confirm'];
   const stepIndex = steps.indexOf(step);
@@ -78,7 +122,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const byMonth = useMemo(() => {
     const groups = new Map<string, ClassSession[]>();
     for (const s of sessions ?? []) {
-      const key = new Date(`${s.date}T12:00:00`).toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+      const key = new Date(`${s.date}T12:00:00Z`).toLocaleDateString('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' });
       groups.set(key, [...(groups.get(key) ?? []), s]);
     }
     return [...groups.entries()];
@@ -87,14 +131,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const confirm = () => {
     setError(null);
     startTransition(async () => {
-      const result = await reserveBooking({ classId: cls.id, sessionId: bySession ? sessionId : null, seats, note });
-      if (!result.ok) { setError(result.error.message); return; }
-      trackBookingCreated({
-        classId: cls.id, className: cls.title, teacherId: cls.teacher.id,
-        bookingMode: bySession ? 'session' : 'class', seats, value: total, currency: cls.currency,
-      });
-      setBookingId(result.data.bookingId);
-      setStep('done');
+      try {
+        const result = await reserveBooking({ classId: cls.id, sessionId: bySession ? sessionId : null, seats, note });
+        if (!result.ok) { setError(result.error.message); return; }
+        trackBookingCreated({
+          classId: cls.id, className: cls.title, teacherId: cls.teacher.id,
+          bookingMode: bySession ? 'session' : 'class', seats, value: total, currency: cls.currency,
+        });
+        setBookingId(result.data.bookingId);
+        setStep('done');
+      } catch {
+        setError('No pudimos completar tu reserva. Verifica tu sesión e inténtalo de nuevo.');
+      }
     });
   };
 
@@ -142,6 +190,8 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <p className="text-sm text-neutral-600 mt-0.5 mb-4">Elige la fecha. Puedes reservar otra más adelante.</p>
               {sessions === null ? (
                 <p className="text-sm text-neutral-500 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Buscando fechas…</p>
+              ) : sessionsError ? (
+                <p role="alert" className="text-sm text-red">{sessionsError}</p>
               ) : sessions.length === 0 ? (
                 <p className="text-sm text-neutral-600">Todavía no hay fechas abiertas. Escríbele a {cls.teacher.name.split(' ')[0]} por WhatsApp o Instagram para preguntar.</p>
               ) : (
@@ -154,7 +204,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                           const left = sessionSpotsLeft(s);
                           const full = left === 0;
                           const chip = spotsChip(left);
-                          const d = new Date(`${s.date}T12:00:00`);
+                          const d = new Date(`${s.date}T12:00:00Z`);
                           const away = daysUntil(s.date, today);
                           const isSel = sessionId === s.id;
                           return (
@@ -165,8 +215,8 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                                   : isSel ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
                               }`}>
                               <span className={`w-12 shrink-0 rounded-lg py-1.5 text-center ${isSel ? 'bg-primary text-white' : 'bg-neutral-100 text-neutral-900'}`}>
-                                <span className="block text-[10px] font-bold leading-none opacity-80">{d.toLocaleDateString('es-PE', { weekday: 'short' }).replace('.', '')}</span>
-                                <span className="block text-[20px] font-black leading-tight">{d.getDate()}</span>
+                                <span className="block text-[10px] font-bold leading-none opacity-80">{d.toLocaleDateString('es-PE', { weekday: 'short', timeZone: 'UTC' }).replace('.', '')}</span>
+                                <span className="block text-[20px] font-black leading-tight">{d.getUTCDate()}</span>
                               </span>
                               <span className="min-w-0 flex-1">
                                 <span className="block text-[14px] font-bold text-neutral-900">{s.startTime} – {s.endTime}</span>
@@ -256,12 +306,16 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                   <div className="flex-1">
                     <div className="flex justify-between font-bold text-neutral-900">
                       <span>{seats} cupo{seats !== 1 ? 's' : ''}</span>
-                      <span>{total === 0 ? 'Gratis' : `${cls.currency} ${total.toFixed(2)}`}</span>
+                      <span>{total === 0 ? 'Gratis' : formatPriceShort('Pago único', total, cls.currency)}</span>
                     </div>
                     <p className="text-[12px] text-neutral-600 mt-0.5">
-                      {total === 0
-                        ? 'No tienes que pagar nada.'
-                        : 'Hoy no pagas nada aquí. Le pagas directo a tu profesor el día de la clase. Muy pronto podrás pagar en Kynea con tarjeta o Yape.'}
+                      {isOnline
+                        ? total === 0
+                          ? 'No tienes que pagar nada. Coordinas el enlace de acceso directo con tu profesor.'
+                          : 'Hoy no pagas nada aquí. Coordinas el pago y el enlace de acceso directo con tu profesor.'
+                        : total === 0
+                          ? 'No tienes que pagar nada.'
+                          : 'Hoy no pagas nada aquí. Le pagas directo a tu profesor el día de la clase. Muy pronto podrás pagar en Kynea con tarjeta o Yape.'}
                     </p>
                   </div>
                 </div>
@@ -270,9 +324,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <ClassTips footwear={cls.footwear} clothing={cls.clothing} toBring={cls.toBring} requirements={cls.requirements} teacherName={cls.teacher.name} />
 
               <p className="text-[12px] text-neutral-600 leading-relaxed">
-                <b className="text-neutral-900">¿Cambio de planes? Sin problema.</b>{' '}
-                Puedes cancelar {POLICY_HUMAN[policy]} desde «Mis reservas» y tu cupo queda libre para otra persona.
-                {deadline && <> Tienes tiempo hasta el {deadline.toLocaleDateString('es-PE', { day: 'numeric', month: 'long', timeZone: 'America/Lima' })}.</>}
+                {canCancelAfterBooking ? (
+                  <>
+                    <b className="text-neutral-900">¿Cambio de planes? Sin problema.</b>{' '}
+                    Puedes cancelar {POLICY_HUMAN[policy]} desde «Mis reservas» y tu cupo queda libre para otra persona.
+                    {deadline && <> Tienes tiempo hasta el {formatDeadlineLima(deadline)} (hora Lima).</>}
+                  </>
+                ) : (
+                  <>
+                    <b className="text-neutral-900">Reserva fuera del plazo de cancelación.</b>{' '}
+                    Esta clase exige avisar {POLICY_HUMAN[policy]}, por lo que una vez confirmada ya no podrás cancelarla desde Kynea. Si surge un imprevisto, escríbele directo al profesor.
+                  </>
+                )}
               </p>
 
               {error && <p role="alert" className="text-sm text-red">{error}</p>}
@@ -302,8 +365,8 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <div className="mt-5 text-left">
                 <ClassTips footwear={cls.footwear} clothing={cls.clothing} toBring={cls.toBring} requirements={cls.requirements} teacherName={cls.teacher.name} />
               </div>
-              {cls.mapsUrl && (
-                <a href={cls.mapsUrl} target="_blank" rel="noopener noreferrer" className="btn-outline btn-sm inline-flex items-center gap-1.5 mt-4">
+              {mapsHref && (
+                <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="btn-outline btn-sm inline-flex items-center gap-1.5 mt-4">
                   <MapPin className="w-4 h-4" aria-hidden="true" /> Cómo llegar
                 </a>
               )}
@@ -314,7 +377,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
         {/* Pie fijo con la acción principal */}
         <div className="border-t border-neutral-200 p-4 flex items-center gap-3">
           {step === 'done' ? (
-            <Link href="/dashboard/alumno/reservas" className="btn-primary w-full py-3.5 text-center">Ver mis reservas</Link>
+            <Link href="/dashboard/mis-reservas" className="btn-primary w-full py-3.5 text-center">Ver mis reservas</Link>
           ) : (
             <>
               {stepIndex > 0 && (

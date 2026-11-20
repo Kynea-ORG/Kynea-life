@@ -10,8 +10,9 @@ export const BOOKING_EMAIL_SELECT = `
   id, user_id, seats, price_amount, currency, payment_method, status, student_note, cancel_reason,
   class:classes(id, title, slug, type, modality, start_date, end_date, cancellation_policy,
     footwear, clothing, to_bring, teacher_id,
-    venue:venues(name, address, reference, maps_url, city),
-    teacher:profiles!teacher_id(name)),
+    venue:venues(name, address, reference, maps_url, place_id, lat, lng, city),
+    teacher:profiles!teacher_id(name),
+    class_schedules(day_of_week, start_time, end_time)),
   session:class_sessions(session_date, start_time, end_time)
 `;
 
@@ -57,22 +58,37 @@ export async function enqueueBookingReminders(admin: SupabaseClient, today: stri
     })
     .filter(r => r.days === 0 || r.days === 1);
 
-  // Un correo por alumno, consultado en paralelo (no uno tras otro).
+  // Un correo por alumno, consultado en lotes acotados para no saturar Supabase Auth Admin.
   const userIds = [...new Set(due.map(r => r.row.user_id))];
-  const emails = new Map(await Promise.all(userIds.map(async id => {
-    const { data } = await admin.auth.admin.getUserById(id);
-    return [id, data?.user?.email ?? ''] as const;
-  })));
+  const emails = new Map<string, string>();
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+    const chunk = userIds.slice(i, i + BATCH_SIZE);
+    const resolved = await Promise.all(chunk.map(async id => {
+      try {
+        const { data } = await admin.auth.admin.getUserById(id);
+        return [id, data?.user?.email ?? ''] as const;
+      } catch (err) {
+        console.error('[enqueueBookingReminders] getUserById', id, err);
+        return [id, ''] as const;
+      }
+    }));
+    for (const [id, email] of resolved) emails.set(id, email);
+  }
 
   let queued = 0;
   for (const { row, payload, days } of due) {
-    await enqueueEmail(admin, {
-      to: emails.get(row.user_id) ?? '',
-      template: 'booking_reminder',
-      payload: { ...payload, daysAway: days, teacherName: row.class.teacher?.name ?? undefined },
-      dedupeKey: `booking_reminder:${row.id}:${payload.date}:${days}`,
-    });
-    queued += 1;
+    try {
+      const enqueued = await enqueueEmail(admin, {
+        to: emails.get(row.user_id) ?? '',
+        template: 'booking_reminder',
+        payload: { ...payload, daysAway: days, teacherName: row.class.teacher?.name ?? undefined },
+        dedupeKey: `booking_reminder:${row.id}:${payload.date}:${days}`,
+      });
+      if (enqueued) queued += 1;
+    } catch (err) {
+      console.error('[enqueueBookingReminders] enqueueEmail', row.id, err);
+    }
   }
   return queued;
 }

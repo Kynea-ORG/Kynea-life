@@ -10,12 +10,13 @@ type CancelledRow = Parameters<typeof buildBookingEmailPayload>[0] & {
 
 /**
  * Avisa por correo de reservas ya canceladas. Si canceló el propio alumno, se avisa al profesor;
- * si canceló el profesor (o se canceló la fecha), se avisa al alumno. Mejor esfuerzo: nunca lanza.
+ * si canceló el profesor (o se canceló la fecha), se avisa al alumno; si canceló un admin ajeno,
+ * se avisa a ambos. Mejor esfuerzo con aislamiento por fila: nunca lanza.
  */
 export async function enqueueCancellationEmails(admin: SupabaseClient, bookingIds: string[], actorId: string): Promise<void> {
   if (bookingIds.length === 0) return;
-  try {
-    for (const id of bookingIds) {
+  for (const id of bookingIds) {
+    try {
       const { data } = await admin.from('bookings').select(BOOKING_EMAIL_SELECT).eq('id', id).single();
       if (!data) continue;
       const row = data as unknown as CancelledRow;
@@ -41,9 +42,23 @@ export async function enqueueCancellationEmails(admin: SupabaseClient, bookingId
           payload,
           dedupeKey: `booking_cancelled:${id}`,
         });
+
+        // Si canceló un admin (no el profesor dueño), también avisamos al profesor.
+        if (row.class.teacher_id && actorId !== row.class.teacher_id) {
+          const [{ data: teacher }, { data: profile }] = await Promise.all([
+            admin.auth.admin.getUserById(row.class.teacher_id),
+            admin.from('profiles').select('name').eq('id', row.user_id).single(),
+          ]);
+          await enqueueEmail(admin, {
+            to: teacher?.user?.email ?? '',
+            template: 'booking_cancelled_by_student',
+            payload: { ...payload, studentName: (profile as { name?: string | null } | null)?.name ?? 'Un alumno' },
+            dedupeKey: `booking_cancelled_teacher:${id}`,
+          });
+        }
       }
+    } catch (err) {
+      console.error('[enqueueCancellationEmails]', id, err);
     }
-  } catch (err) {
-    console.error('[enqueueCancellationEmails]', err);
   }
 }

@@ -138,10 +138,18 @@ describe('cancelBooking / setBookingAttendance / cancelClassSession', () => {
     expect(await setBookingAttendance('b1', 'no_show')).toMatchObject({ ok: false, error: { code: 'NOT_ALLOWED' } });
   });
 
-  it('cancelClassSession devuelve cuántas reservas se cancelaron', async () => {
-    mockRpc.mockResolvedValue({ data: 3, error: null });
+  it('si falla createAdminClient al cancelar, la cancelación igual responde ok', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+    mockAdmin.mockImplementationOnce(() => { throw new Error('missing key'); });
+    const r = await cancelBooking('b1');
+    expect(r).toEqual({ ok: true });
+  });
+
+  it('cancelClassSession devuelve cuántas reservas se cancelaron y avisa a los IDs atómicos', async () => {
+    mockRpc.mockResolvedValue({ data: ['b1', 'b2', 'b3'], error: null });
     const r = await cancelClassSession('s1', 'lluvia');
     expect(mockRpc).toHaveBeenCalledWith('cancel_class_session', { p_session_id: 's1', p_reason: 'lluvia' });
+    expect(mockCancelEmails).toHaveBeenCalledWith(expect.anything(), ['b1', 'b2', 'b3'], 'u1');
     expect(r).toEqual({ ok: true, data: { cancelled: 3 } });
   });
 });
