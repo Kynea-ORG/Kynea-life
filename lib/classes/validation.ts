@@ -45,6 +45,9 @@ export interface ClassValidationInput {
   accessLink: string;
   coverImage: string;
   slots: ValidationSlot[];
+  /** 'none' | 'class' | 'session' (migración 70). Con reservas activas el cupo máximo es obligatorio. */
+  bookingMode?: string;
+  maxSpots?: string;
   superuserMode?: 'assigned' | 'external' | '';
   assignedTeacherId?: string;
   externalOrganizerName?: string;
@@ -190,6 +193,14 @@ export function validateForPublish(input: ClassValidationInput, options: Validat
     if (!input.accessLink || !input.accessLink.trim()) errors.push({ field: 'accessLink', message: 'El enlace de acceso es obligatorio.' });
   }
 
+  // Con reservas activas el cupo es obligatorio: de él salen los cupos disponibles de cada reserva.
+  if (input.bookingMode === 'class' || input.bookingMode === 'session') {
+    const spots = Number.parseInt(String(input.maxSpots ?? ''), 10);
+    if (!Number.isInteger(spots) || spots < 1) {
+      errors.push({ field: 'maxSpots', message: 'Define el cupo máximo para aceptar reservas.' });
+    }
+  }
+
   if (input.superuserMode === 'assigned') {
     if (!input.assignedTeacherId || !input.assignedTeacherId.trim()) {
       errors.push({ field: 'assignedTeacherId', message: 'Selecciona el profesor o academia al que se le asignará la clase.' });
@@ -232,6 +243,8 @@ export function formDataToValidationInput(fd: FormData): ClassValidationInput {
     district: (fd.get('district') as string) ?? '',
     address: (fd.get('address') as string) ?? '',
     accessLink: (fd.get('accessLink') as string) ?? '',
+    bookingMode: (fd.get('bookingMode') as string) ?? 'none',
+    maxSpots: (fd.get('maxSpots') as string) ?? '',
     coverImage: (fd.get('coverImage') as string) ?? '',
     slots,
     ...(superuserMode && {
@@ -243,7 +256,12 @@ export function formDataToValidationInput(fd: FormData): ClassValidationInput {
   };
 }
 
-export function dbRowToValidationInput(row: DbClassRow, schedules: DbClassSchedule[]): ClassValidationInput {
+// `accessLink` viene de `class_access` (el enlace online ya no vive en la fila de `classes`).
+export function dbRowToValidationInput(
+  row: DbClassRow,
+  schedules: DbClassSchedule[],
+  accessLink: string | null = null,
+): ClassValidationInput {
   const days = schedules
     .map(s => REVERSE_DAY_MAP[s.day_of_week])
     .filter((d): d is string => Boolean(d));
@@ -276,7 +294,9 @@ export function dbRowToValidationInput(row: DbClassRow, schedules: DbClassSchedu
     city: row.venue?.city ?? '',
     district: row.venue?.district ?? '',
     address: row.venue?.address ?? '',
-    accessLink: row.access_link ?? '',
+    accessLink: accessLink ?? '',
+    bookingMode: row.booking_mode ?? 'none',
+    maxSpots: row.max_spots != null ? String(row.max_spots) : '',
     coverImage: row.cover_image ?? '',
     slots,
     ...(superuserMode && {

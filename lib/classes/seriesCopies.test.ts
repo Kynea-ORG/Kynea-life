@@ -19,10 +19,12 @@ function makeSupabase(respond: (op: Op) => { data?: unknown; error?: { message: 
       select: () => { if (!state.op) state.op = 'select'; return b; },
       insert: (p: unknown) => { state.op = 'insert'; state.payload = p; return b; },
       update: (p: unknown) => { state.op = 'update'; state.payload = p; return b; },
+      upsert: (p: unknown) => { state.op = 'upsert'; state.payload = p; return b; },
       delete: () => { state.op = 'delete'; return b; },
       eq: (c: string, v: unknown) => { state.filters.push([c, v]); return b; },
       in: (c: string, v: unknown) => { state.filters.push([c, v]); return b; },
       single: () => Promise.resolve(settle()),
+      maybeSingle: () => Promise.resolve(settle()),
       then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => Promise.resolve(settle()).then(res, rej),
     };
     return b;
@@ -65,6 +67,31 @@ function standardRespond(overrides?: { failOnInsertNumber?: number; original?: R
 }
 
 const inserts = (log: Op[], table: string) => log.filter(o => o.table === table && o.op === 'insert');
+
+describe('createSeriesCopies — enlace de acceso online', () => {
+  it('copia el enlace de class_access a cada copia de la serie', async () => {
+    const base = standardRespond();
+    const { client, log } = makeSupabase(op =>
+      op.table === 'class_access' && op.op === 'select'
+        ? { data: { access_link: 'https://zoom.us/j/55' } }
+        : base(op),
+    );
+    await createSeriesCopies(client, {
+      originalId: 'orig', teacherId: 'teacher-1', months: ['2026-11', '2026-12'], autoPublish: false,
+    });
+    const upserts = log.filter(o => o.table === 'class_access' && o.op === 'upsert').map(o => o.payload);
+    expect(upserts).toEqual([
+      { class_id: 'copy-1', access_link: 'https://zoom.us/j/55' },
+      { class_id: 'copy-2', access_link: 'https://zoom.us/j/55' },
+    ]);
+  });
+
+  it('no escribe class_access si la original no tiene enlace', async () => {
+    const { client, log } = makeSupabase(standardRespond());
+    await createSeriesCopies(client, { originalId: 'orig', teacherId: 'teacher-1', months: ['2026-11'], autoPublish: false });
+    expect(log.filter(o => o.table === 'class_access' && o.op === 'upsert')).toHaveLength(0);
+  });
+});
 
 describe('createSeriesCopies', () => {
   it('crea una copia en borrador por mes con las fechas desplazadas', async () => {

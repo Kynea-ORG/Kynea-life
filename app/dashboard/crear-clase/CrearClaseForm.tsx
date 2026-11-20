@@ -33,7 +33,7 @@ const FIELD_STEP: Record<string, number> = {
   title: 0, style: 0, level: 0, fullDesc: 0, coverImage: 0,
   assignedTeacherId: 0, externalOrganizerName: 0, externalInfoUrl: 0,
   schedule: 1, startDate: 1, endDate: 1, modality: 1, address: 1, city: 1, district: 1, accessLink: 1,
-  price: 2,
+  price: 2, maxSpots: 2,
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -76,6 +76,8 @@ function buildInitialForm(editClass: DanceClass | null) {
       offerPrice: '',
       currency: 'PEN',
       maxSpots: '',
+      bookingMode: 'none',
+      cancellationPolicy: 'moderada',
       contactMode: 'whatsapp',
       modality: 'Presencial',
       city: 'Lima',
@@ -122,6 +124,8 @@ function buildInitialForm(editClass: DanceClass | null) {
     offerPrice: editClass.offerPrice ? String(editClass.offerPrice) : '',
     currency: editClass.currency ?? 'PEN',
     maxSpots: editClass.maxSpots ? String(editClass.maxSpots) : '',
+    bookingMode: editClass.bookingMode ?? 'none',
+    cancellationPolicy: editClass.cancellationPolicy ?? 'moderada',
     contactMode: editClass.contactMode ?? 'whatsapp',
     modality: editClass.modality ?? 'Presencial',
     city: editClass.city ?? 'Lima',
@@ -355,6 +359,9 @@ export default function CrearClaseForm({
         fd.set('offerPrice', form.offerPrice);
         fd.set('currency', form.currency);
         fd.set('maxSpots', form.maxSpots);
+        // Una clase de fecha única no tiene "fechas" que elegir: se reserva completa.
+        fd.set('bookingMode', form.bookingMode === 'session' && form.recurrence === 'unica' ? 'class' : form.bookingMode);
+        fd.set('cancellationPolicy', form.cancellationPolicy);
         fd.set('modality', form.modality);
         fd.set('city', form.city);
         fd.set('district', form.district);
@@ -1236,6 +1243,55 @@ export default function CrearClaseForm({
               <p className="col-span-2 text-[11px] text-neutral-400 -mt-1">Preventa: deja vacío si no hay descuento; el precio base se mostrará tachado.</p>
             )}
           </div>
+
+          {!(isSuperuser && form.superuserMode === 'external') && (
+            <div className="border border-neutral-200 rounded-xl p-3.5 sm:p-4 space-y-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-wider text-neutral-900">Reservas en Kynea</p>
+                <p className="text-[11px] text-neutral-600 mt-0.5">
+                  Deja que los alumnos aparten su cupo desde la ficha de la clase. Los botones de WhatsApp e Instagram se mantienen.
+                  Por ahora el alumno reserva en Kynea y paga directo contigo; el pago en línea llegará después.
+                </p>
+              </div>
+              <div className="grid sm:grid-cols-3 gap-2">
+                {([
+                  { value: 'none', label: 'Solo contacto', desc: 'Como hasta ahora' },
+                  { value: 'class', label: 'Reservar la clase completa', desc: 'Talleres, cursos y eventos' },
+                  ...(form.recurrence !== 'unica'
+                    ? [{ value: 'session', label: 'Reservar por fecha', desc: 'Cada clase semanal por separado' }]
+                    : []),
+                ] as { value: string; label: string; desc: string }[]).map(opt => (
+                  <label key={opt.value}
+                    className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-[border-color,background-color] ${
+                      form.bookingMode === opt.value ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:bg-neutral-50'
+                    }`}>
+                    <input type="radio" name="bookingMode" value={opt.value}
+                      checked={form.bookingMode === opt.value} onChange={() => set('bookingMode', opt.value)}
+                      className="accent-primary shrink-0 mt-0.5" />
+                    <span>
+                      <span className="block text-[13px] font-bold text-neutral-900 leading-tight">{opt.label}</span>
+                      <span className="block text-[11px] text-neutral-600 leading-snug mt-0.5">{opt.desc}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {form.bookingMode !== 'none' && (
+                <div>
+                  <FieldLabel>Política de cancelación</FieldLabel>
+                  <select className="input" value={form.cancellationPolicy}
+                    onChange={e => set('cancellationPolicy', e.target.value)}>
+                    <option value="flexible">Flexible: hasta 24 horas antes</option>
+                    <option value="moderada">Moderada: hasta 48 horas antes</option>
+                    <option value="estricta">Estricta: hasta 7 días antes</option>
+                  </select>
+                  {!form.maxSpots && (
+                    <p className="text-xs text-red mt-1">Define los cupos máximos arriba para aceptar reservas.</p>
+                  )}
+                  {fieldErrors.maxSpots && <p className="text-xs text-red mt-1">{fieldErrors.maxSpots}</p>}
+                </div>
+              )}
+            </div>
+          )}
 
           {isSuperuser && form.superuserMode === 'external' ? (
             <div className="border border-neutral-200 rounded-xl p-3 space-y-1">

@@ -72,6 +72,20 @@ export const searchAiRateLimiter = redis
     })
   : null;
 
+/**
+ * Reservas de clases (reserve_booking). 10 intentos por minuto por usuario: frena a quien
+ * intente acaparar cupos o probar la API en bucle.
+ */
+export const bookingRateLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, '60 s'),
+      prefix: `${envPrefix}:rl:booking`,
+      analytics: false,
+      ephemeralCache: new Map(),
+    })
+  : null;
+
 export interface RateLimitResult {
   success: boolean;
   limit: number;

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Upload, User,
   Settings, LogOut, Shield, Loader2, ArrowLeftRight,
+  CalendarCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { switchSuperuserMode } from '@/lib/auth/superuserActions';
@@ -30,12 +31,14 @@ const BADGE = {
 const NAV_BY_ROLE = {
   alumno: [
     { href: '/dashboard/alumno',       label: 'Mis clases',     icon: BookOpen },
+    { href: '/dashboard/alumno/reservas', label: 'Mis reservas', icon: CalendarCheck },
     { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
     { href: '/dashboard/configuracion',label: 'Configuración',  icon: Settings },
   ],
   profesor: [
     { href: '/dashboard',              label: 'Inicio',         icon: LayoutDashboard },
     { href: '/dashboard/mis-clases',   label: 'Mis clases',     icon: BookOpen },
+    { href: '/dashboard/reservas',     label: 'Reservas',       icon: CalendarCheck },
     { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
     { href: '/dashboard/importar-csv', label: 'Subir clases masivas', icon: Upload },
     { href: '/dashboard/perfil',       label: 'Perfil',         icon: User },
@@ -44,6 +47,7 @@ const NAV_BY_ROLE = {
   academia: [
     { href: '/dashboard',              label: 'Inicio',         icon: LayoutDashboard },
     { href: '/dashboard/mis-clases',   label: 'Mis clases',     icon: BookOpen },
+    { href: '/dashboard/reservas',     label: 'Reservas',       icon: CalendarCheck },
     // 'Profesores' (roster) deliberadamente oculto — corre sobre datos mock,
     // no persiste nada real. Ver docs/TASKS.md sección 8.8.
     { href: '/dashboard/crear-clase',  label: 'Crear clase',    icon: PlusCircle },
@@ -70,7 +74,7 @@ function NavLinks({
         const Icon = item.icon;
         const isCrearClase = item.href === '/dashboard/crear-clase';
         const active = !(isCrearClase && isEditingClass)
-          && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) || (item.href === '/dashboard/admin/resumen' && pathname.startsWith('/dashboard/admin')));
+          && (pathname === item.href || (item.href !== '/dashboard' && item.href !== '/dashboard/alumno' && pathname.startsWith(item.href)) || (item.href === '/dashboard/admin/resumen' && pathname.startsWith('/dashboard/admin')));
         return (
           <Link
             key={item.href}
@@ -283,7 +287,7 @@ export default function DashboardSidebar({ profile, isSuperuser = false }: { pro
                 const Icon = item.icon;
                 const isCrearClase = item.href === '/dashboard/crear-clase';
                 const active = !(isCrearClase && isEditingClass)
-                  && (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) || (item.href === '/dashboard/admin/resumen' && pathname.startsWith('/dashboard/admin')));
+                  && (pathname === item.href || (item.href !== '/dashboard' && item.href !== '/dashboard/alumno' && pathname.startsWith(item.href)) || (item.href === '/dashboard/admin/resumen' && pathname.startsWith('/dashboard/admin')));
                 return (
                   <Link
                     key={item.href}

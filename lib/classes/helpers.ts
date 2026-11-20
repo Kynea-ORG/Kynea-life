@@ -156,6 +156,12 @@ export function buildClassColumns(
 ): ClassUpdatePayload {
   const toBring      = formData.get('toBring') as string;
   const maxSpots     = formData.get('maxSpots') as string | null;
+  const bookingModeRaw = formData.get('bookingMode') as string | null;
+  const bookingMode: 'none' | 'class' | 'session' =
+    bookingModeRaw === 'class' || bookingModeRaw === 'session' ? bookingModeRaw : 'none';
+  const policyRaw = formData.get('cancellationPolicy') as string | null;
+  const cancellationPolicy: 'flexible' | 'moderada' | 'estricta' =
+    policyRaw === 'flexible' || policyRaw === 'estricta' ? policyRaw : 'moderada';
   const footwear     = formData.get('footwear') as string | null;
   const prerequisites = formData.get('prerequisites') as string | null;
 
@@ -179,10 +185,13 @@ export function buildClassColumns(
     offer_price:       formData.get('offerPrice') ? parseFloat(formData.get('offerPrice') as string) : null,
     currency:          (formData.get('currency') as string) || 'PEN',
     max_spots:         maxSpots ? parseInt(maxSpots) : null,
-    available_spots:   maxSpots ? parseInt(maxSpots) : null,
+    // Con reservas activas available_spots lo mantiene la base de datos (triggers de classes y
+    // bookings, migración 72): reiniciarlo en cada edición borraría las reservas ya hechas.
+    ...(bookingMode === 'none' && { available_spots: maxSpots ? parseInt(maxSpots) : null }),
+    booking_mode:      bookingMode,
+    cancellation_policy: cancellationPolicy,
     modality:          formData.get('modality') as Modality,
     platform:          (formData.get('platform') as string) || null,
-    access_link:       (formData.get('accessLink') as string) || null,
     footwear:          footwear ? JSON.parse(footwear) : [],
     requirements:      prerequisites ? JSON.parse(prerequisites) : [],
     clothing:          (formData.get('clothing') as string) || null,

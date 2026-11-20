@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { safeRevalidateTag } from '@/lib/cache';
+import { checkClassEditGuard, deleteBlockedReason, GUARD_MESSAGES, loadBookingStats, translateGuardError } from '@/lib/bookings/guards';
 import { createClient } from '@/lib/supabase/server';
 import { assertRole } from '@/lib/auth/assertRole';
 import { isSuperuserModeActive } from '@/lib/auth/superuser';
@@ -11,6 +12,8 @@ import {
 } from './helpers';
 import { parseSeriesMonths } from './series';
 import { createSeriesCopies } from './seriesCopies';
+import { syncClassAccess, fetchClassAccessLink, copyClassAccess } from './classAccess';
+import { generateClassSessions } from '@/lib/bookings/sessions';
 import {
   validateForPublish, formDataToValidationInput, dbRowToValidationInput, parsePublishError,
 } from './validation';
@@ -169,6 +172,7 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
     await Promise.all([
       insertClassStyles(supabase, classId, styleId),
       insertClassSchedules(supabase, classId, slots, cols.start_date),
+      isPresencial ? Promise.resolve() : syncClassAccess(supabase, classId, formData.get('accessLink') as string | null),
     ]);
   } catch {
     // Roll back the orphaned class row rather than leaving a published/draft
@@ -176,6 +180,9 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
     await supabase.from('classes').delete().eq('id', classId);
     return { ok: false, error: { code: 'VALIDATION', message: 'Error al asociar horarios a la clase' } };
   }
+
+  // Clases "por fecha": crea las fechas reservables a partir del horario semanal.
+  if (cols.booking_mode === 'session') await generateClassSessions(supabase, classId);
 
   // Copias mensuales (serie): una por mes marcado en el calendario del wizard, en borrador.
   // Solo al crear una clase Mensual. No pasan por el rate limit: se cuenta 1 por createClass.
@@ -197,6 +204,9 @@ export async function createClass(formData: FormData): Promise<ClassActionResult
       return { ok: false, error: { code: 'VALIDATION', message: series.message } };
     }
     seriesCopies = series.createdIds.length;
+    if (cols.booking_mode === 'session') {
+      for (const copyId of series.createdIds) await generateClassSessions(supabase, copyId);
+    }
   }
 
   revalidatePath('/dashboard/mis-clases');
@@ -237,7 +247,8 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
     if (!row) return { ok: false, error: { code: 'VALIDATION', message: 'Clase no encontrada' } };
 
     const typedRow = row as unknown as DbClassRow;
-    const result = validateForPublish(dbRowToValidationInput(typedRow, typedRow.class_schedules ?? []), { isEdit: true });
+    const accessLink = await fetchClassAccessLink(supabase, classId);
+    const result = validateForPublish(dbRowToValidationInput(typedRow, typedRow.class_schedules ?? [], accessLink), { isEdit: true });
     if (!result.ok) {
       return {
         ok: false,
@@ -269,7 +280,7 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
   if (!isSuperuser) updateQuery = updateQuery.eq('teacher_id', user.id);
   const { error } = await updateQuery;
 
-  if (error) return { ok: false, error: { code: 'VALIDATION', message: error.message } };
+  if (error) return { ok: false, error: { code: 'VALIDATION', message: translateGuardError(error.message) ?? error.message } };
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);
@@ -281,12 +292,16 @@ export async function updateClass(classId: string, updates: ClassUpdatePayload):
   return { ok: true, classId };
 }
 
-export async function deleteClass(classId: string) {
+export async function deleteClass(classId: string): Promise<{ ok: true } | { ok: false; message: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
   await assertRole(supabase, user.id, ['profesor', 'academia']);
   const isSuperuser = await isSuperuserModeActive();
+
+  // Borrar una clase borraría en cascada las reservas de los alumnos: se bloquea si las tiene.
+  const blocked = deleteBlockedReason(await loadBookingStats(supabase, classId));
+  if (blocked) return { ok: false, message: blocked };
 
   let deleteQuery = supabase
     .from('classes')
@@ -303,6 +318,7 @@ export async function deleteClass(classId: string) {
   safeRevalidateTag('classes', 'max');
   safeRevalidateTag('stats', 'max');
   safeRevalidateTag('catalog', 'max');
+  return { ok: true };
 }
 
 export async function duplicateClass(classId: string) {
@@ -335,6 +351,7 @@ export async function duplicateClass(classId: string) {
   if (insertError || !newClass) throw new Error(insertError?.message ?? 'Error al duplicar');
 
   const newClassId = newClass.id;
+  await copyClassAccess(supabase, classId, newClassId);
   const styleRows  = (stylesResult.data ?? []).map(s => ({ ...s, class_id: newClassId }));
   const schedRows  = (schedulesResult.data ?? []).map(s => ({ ...s, class_id: newClassId }));
 
@@ -342,6 +359,9 @@ export async function duplicateClass(classId: string) {
     styleRows.length  ? supabase.from('class_styles').insert(styleRows)   : Promise.resolve(),
     schedRows.length  ? supabase.from('class_schedules').insert(schedRows) : Promise.resolve(),
   ]);
+
+  // Las fechas reservables se generan a partir del horario, así que van después de copiarlo.
+  if (rest.booking_mode === 'session') await generateClassSessions(supabase, newClassId);
 
   revalidatePath('/dashboard/mis-clases');
 }
@@ -402,7 +422,7 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
 
   let existingQuery = supabase
     .from('classes')
-    .select('teacher_id, venue_id, venues(place_id, address, name, city, district, country_code)')
+    .select('teacher_id, venue_id, booking_mode, venues(place_id, address, name, city, district, country_code)')
     .eq('id', classId);
   if (!isSuperuser) existingQuery = existingQuery.eq('teacher_id', user.id);
   const { data: existing } = await existingQuery.single();
@@ -485,6 +505,17 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
   }
 
   const cols = buildClassColumns(formData, { levelId, venueId });
+
+  // Con reservas hechas no se puede cambiar el modo ni bajar los cupos por debajo de lo reservado.
+  // Se revisa ANTES de reescribir estilos y horarios para no dejar un guardado a medias.
+  const guard = checkClassEditGuard({
+    currentMode: (existing.booking_mode as 'none' | 'class' | 'session' | null) ?? 'none',
+    newMode: cols.booking_mode ?? 'none',
+    newMaxSpots: cols.max_spots ?? null,
+    stats: await loadBookingStats(supabase, classId),
+  });
+  if (!guard.ok) return { ok: false, error: { code: 'VALIDATION', message: GUARD_MESSAGES[guard.code] } };
+
   const updates: ClassUpdatePayload = {
     ...cols,
     ...(isSuperuser && formData.get('superuserMode') && {
@@ -534,6 +565,8 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
     [, newScheduleKeys] = await Promise.all([
       insertClassStyles(supabase, classId, styleId),
       insertClassSchedules(supabase, classId, slots, cols.start_date),
+      // Presencial: sin enlace (borra el que hubiera). Online: guarda el del formulario.
+      syncClassAccess(supabase, classId, isPresencial ? null : (formData.get('accessLink') as string | null)),
     ]);
   } catch (err) {
     console.error('[updateClassFromForm:styles_schedules]', err);
@@ -575,8 +608,11 @@ export async function updateClassFromForm(classId: string, formData: FormData): 
 
   if (error) {
     console.error('[updateClassFromForm]', error.message);
-    return { ok: false, error: { code: 'VALIDATION', message: error.message } };
+    return { ok: false, error: { code: 'VALIDATION', message: translateGuardError(error.message) ?? error.message } };
   }
+
+  // Clases "por fecha": (re)genera las fechas con el horario y el cupo recién guardados.
+  if (cols.booking_mode === 'session') await generateClassSessions(supabase, classId);
 
   revalidatePath('/dashboard/mis-clases');
   revalidatePath(`/clases/${classId}`);
