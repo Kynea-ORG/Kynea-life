@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { ArrowLeft, CalendarCheck, Check, Clock, Loader2, MapPin, Minus, Plus, ShieldCheck, Wallet, X } from 'lucide-react';
 import SmartImage from '@/components/SmartImage';
@@ -151,15 +152,15 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
         details: [cls.toBring?.length ? `Lleva: ${cls.toBring.join(', ')}` : '', cls.clothing ? `Ropa: ${cls.clothing}` : ''].filter(Boolean).join('\n') || undefined }
     : null;
 
-  return (
+  const modal = (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-neutral-900/60 p-0 sm:p-4" onClick={onClose}>
       <div
         role="dialog" aria-modal="true" aria-label="Reservar clase"
         onClick={e => e.stopPropagation()}
-        className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl max-h-[94vh] flex flex-col overflow-hidden"
+        className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl max-h-[90dvh] sm:max-h-[85dvh] flex flex-col overflow-hidden"
       >
         {/* Cabecera fija: qué estás reservando */}
-        <div className="flex items-center gap-3 p-4 border-b border-neutral-200">
+        <div className="shrink-0 flex items-center gap-3 p-4 border-b border-neutral-200">
           <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-neutral-100 shrink-0">
             {cls.coverImage && <SmartImage src={cls.coverImage} alt="" fill sizes="48px" className="object-cover" />}
           </div>
@@ -174,7 +175,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
         </div>
 
         {step !== 'done' && (
-          <div className="px-4 pt-3" aria-label={`Paso ${stepIndex + 1} de ${steps.length}`}>
+          <div className="shrink-0 px-4 pt-3" aria-label={`Paso ${stepIndex + 1} de ${steps.length}`}>
             <div className="flex gap-1.5">
               {steps.map((s, i) => (
                 <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${i <= stepIndex ? 'bg-primary' : 'bg-neutral-200'}`} />
@@ -183,7 +184,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
           {step === 'date' && (
             <div>
               <h2 className="text-lg font-black text-neutral-900">¿Qué día quieres ir?</h2>
@@ -198,7 +199,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                 <div className="space-y-5">
                   {byMonth.map(([month, rows]) => (
                     <div key={month}>
-                      <p className="text-[13px] font-bold text-neutral-700 capitalize mb-2">{month}</p>
+                      <p className="text-[13px] font-bold text-neutral-700 first-letter:uppercase mb-2">{month}</p>
                       <div className="grid gap-2">
                         {rows.map(s => {
                           const left = sessionSpotsLeft(s);
@@ -239,7 +240,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <div>
                 <h2 className="text-lg font-black text-neutral-900">Cuéntanos cómo vienes</h2>
                 {eventDate && (
-                  <p className="text-sm text-neutral-600 mt-0.5 capitalize">
+                  <p className="text-sm text-neutral-600 mt-0.5 first-letter:uppercase">
                     {formatLongDate(eventDate)}{startTime ? ` · ${startTime}` : ''}
                   </p>
                 )}
@@ -285,7 +286,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                   <div className="flex items-start gap-3 p-3">
                     <CalendarCheck className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
                     <div>
-                      <p className="font-bold text-neutral-900 capitalize">{formatLongDate(eventDate)}</p>
+                      <p className="font-bold text-neutral-900 first-letter:uppercase">{formatLongDate(eventDate)}</p>
                       <p className="text-[12px] text-neutral-600">
                         {startTime && endTime ? `${startTime} – ${endTime} · ` : ''}{timing ?? ''}
                       </p>
@@ -375,7 +376,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
         </div>
 
         {/* Pie fijo con la acción principal */}
-        <div className="border-t border-neutral-200 p-4 flex items-center gap-3">
+        <div className="shrink-0 border-t border-neutral-200 p-4 flex items-center gap-3">
           {step === 'done' ? (
             <Link href="/dashboard/mis-reservas" className="btn-primary w-full py-3.5 text-center">Ver mis reservas</Link>
           ) : (
@@ -403,4 +404,6 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
 }

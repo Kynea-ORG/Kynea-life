@@ -72,6 +72,14 @@ describe('BookingCta', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/no pudimos cargar las fechas/i));
   });
 
+  it('monta el modal en document.body vía portal fuera del contenedor del CTA', () => {
+    const { container } = render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(document.body).toContainElement(dialog);
+    expect(container).not.toContainElement(dialog);
+  });
+
   it('con sesión abre la ventana y confirma la reserva', async () => {
     mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b1' } });
     render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
