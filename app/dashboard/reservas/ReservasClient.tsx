@@ -76,7 +76,7 @@ export default function ReservasClient({
   const list = groups[tab];
 
   return (
-    <div className="p-6 lg:p-8 w-full max-w-4xl">
+    <div className="p-6 lg:p-8 w-full max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-black text-neutral-900">

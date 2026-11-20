@@ -176,7 +176,7 @@ export default function MisReservasClient({
   };
 
   return (
-    <div className="p-6 lg:p-8 w-full max-w-3xl">
+    <div className="p-6 lg:p-8 w-full max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
           <h1 className="text-[28px] font-black text-neutral-900 tracking-tight">Mis reservas</h1>
