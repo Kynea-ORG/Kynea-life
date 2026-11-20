@@ -30,7 +30,8 @@ export default function ClaseDetailMobileLegacy({ cls }: { cls: DanceClass }) {
   const [showContact, setShowContact] = useState(false);
   const [contactType, setContactType] = useState<'whatsapp' | 'instagram'>('whatsapp');
   const { saved, toggleSave } = useSavedClass({ cls, requireAuth: true });
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
+  const isOwnClass = Boolean(user?.id && cls.teacher.id && user.id === cls.teacher.id);
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
@@ -727,7 +728,7 @@ export default function ClaseDetailMobileLegacy({ cls }: { cls: DanceClass }) {
                     </>
                   ) : (
                     <>
-                      <BookingCta cls={cls} isLoggedIn={isLoggedIn} variant="sidebar" />
+                      <BookingCta cls={cls} isLoggedIn={isLoggedIn} isOwnClass={isOwnClass} variant="sidebar" />
                       {showWa && (
                         <button
                           onClick={handleWhatsAppClick}
@@ -861,7 +862,7 @@ export default function ClaseDetailMobileLegacy({ cls }: { cls: DanceClass }) {
             </>
           ) : (
             <>
-              <BookingCta cls={cls} isLoggedIn={isLoggedIn} variant="bar" />
+              <BookingCta cls={cls} isLoggedIn={isLoggedIn} isOwnClass={isOwnClass} variant="bar" />
               {showWa && (
                 <button
                   onClick={handleWhatsAppClick}

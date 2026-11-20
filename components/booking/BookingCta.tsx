@@ -10,6 +10,8 @@ import { classUrl } from '@/lib/classes/helpers';
 interface Props {
   cls: DanceClass;
   isLoggedIn: boolean;
+  /** true cuando el usuario autenticado es el profesor/academia dueño de la clase. */
+  isOwnClass?: boolean;
   /** 'sidebar' = botón grande de la tarjeta de acciones; 'bar' = barra fija inferior en móvil. */
   variant: 'sidebar' | 'bar';
 }
@@ -19,7 +21,7 @@ interface Props {
  * acepta reservas (booking_mode ≠ none) y no es de un organizador externo. Los botones de
  * contacto por WhatsApp/Instagram se mantienen al lado.
  */
-export default function BookingCta({ cls, isLoggedIn, variant }: Props) {
+export default function BookingCta({ cls, isLoggedIn, isOwnClass = false, variant }: Props) {
   const bookability = getBookability(cls);
   const [open, setOpen] = useState(false);
 
@@ -27,8 +29,21 @@ export default function BookingCta({ cls, isLoggedIn, variant }: Props) {
     ? 'w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-btn transition-[background-color,border-color] active:scale-[0.97] text-[15px] border-2'
     : 'flex-[1.4] flex items-center justify-center gap-2 font-bold py-3 px-3 rounded-btn text-[14px] transition-colors active:scale-[0.97] border-2';
 
+  if (!bookability.bookable && bookability.reason !== 'sold_out') return null;
+
+  if (isOwnClass) {
+    return (
+      <Link
+        href="/dashboard/reservas"
+        className={`${base} bg-neutral-900 border-neutral-900 hover:bg-neutral-800 hover:border-neutral-800 text-white`}
+      >
+        <CalendarCheck className="w-4 h-4 shrink-0" />
+        <span className="truncate">Gestionar reservas</span>
+      </Link>
+    );
+  }
+
   if (!bookability.bookable) {
-    if (bookability.reason !== 'sold_out') return null;
     return (
       <button type="button" disabled className={`${base} bg-neutral-100 border-neutral-100 text-neutral-400 cursor-not-allowed`}>
         <CalendarCheck className="w-4 h-4 shrink-0" />

@@ -40,6 +40,22 @@ describe('BookingCta', () => {
     expect(screen.getByRole('button', { name: /sin cupos/i })).toBeDisabled();
   });
 
+  it('cuando es la propia clase del profesor muestra enlace a /dashboard/reservas y no abre el modal', () => {
+    render(<BookingCta cls={makeClass()} isLoggedIn isOwnClass variant="sidebar" />);
+    const link = screen.getByRole('link', { name: /gestionar reservas/i });
+    expect(link).toHaveAttribute('href', '/dashboard/reservas');
+    expect(screen.queryByRole('button', { name: /reservar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('cuando es la propia clase y está agotada (sold_out) sigue mostrando "Gestionar reservas"', () => {
+    render(<BookingCta cls={makeClass({ availableSpots: 0 })} isLoggedIn isOwnClass variant="bar" />);
+    const link = screen.getByRole('link', { name: /gestionar reservas/i });
+    expect(link).toHaveAttribute('href', '/dashboard/reservas');
+    expect(screen.queryByRole('button', { name: /sin cupos/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('sin sesión lleva a iniciar sesión y vuelve a la clase', () => {
     render(<BookingCta cls={makeClass()} isLoggedIn={false} variant="sidebar" />);
     const link = screen.getByRole('link', { name: /reservar/i });
