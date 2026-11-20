@@ -13,8 +13,8 @@
 --  5. _refresh_class_sessions: cancela sesiones futuras fuera de horario que solo tienen reservas
 --     canceladas (evita sesiones fantasma) y actualiza cupo/horario cuando no hay cupos ocupados.
 --  6. bookings_sync_available_spots cubre también DELETE (ON DELETE CASCADE de auth.users).
---  7. bookings_one_active_per_target_idx y reserve_booking impiden volver a reservar una sesión
---     donde ya existe registro attended/no_show el mismo día.
+--  7. reserve_booking impide volver a reservar una sesión/clase donde ya existe registro
+--     attended/no_show (serializado vía classes FOR UPDATE, sin alterar filas históricas).
 --  8. list_class_sessions exige c.booking_mode = 'session'.
 --  9. claim_email_outbox incrementa attempts en el claim atómico (evita bucles poison-pill).
 -- ============================================================
@@ -48,12 +48,7 @@ $$;
 REVOKE EXECUTE ON FUNCTION public._class_initial_start_time(uuid, date) FROM PUBLIC, anon, authenticated;
 GRANT  EXECUTE ON FUNCTION public._class_initial_start_time(uuid, date) TO service_role;
 
--- ── 2. ÍNDICE ÚNICO Y TRIGGER DE CUPOS ───────────────────────────────────────
-
-DROP INDEX IF EXISTS public.bookings_one_active_per_target_idx;
-CREATE UNIQUE INDEX bookings_one_active_per_target_idx
-  ON public.bookings (user_id, class_id, COALESCE(session_id, '00000000-0000-0000-0000-000000000000'::uuid))
-  WHERE status IN ('hold', 'pending_payment', 'confirmed', 'attended', 'no_show');
+-- ── 2. TRIGGER DE CUPOS (INCLUYE DELETE) ────────────────────────────────────
 
 DROP TRIGGER IF EXISTS bookings_sync_available_spots ON public.bookings;
 CREATE TRIGGER bookings_sync_available_spots
