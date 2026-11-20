@@ -45,46 +45,61 @@ function revalidateBookings() {
 }
 
 /**
- * Deja en la cola los correos de una reserva nueva: confirmación al alumno y aviso al profesor.
- * Es "mejor esfuerzo": si falla, la reserva ya está hecha y no se revierte.
+ * Deja en la cola los correos de una o varias reservas nuevas: confirmación al alumno y aviso al profesor.
+ * Es "mejor esfuerzo" con aislamiento por reserva: si falla, las reservas ya están hechas y no se revierten.
  */
-async function enqueueBookingEmails(bookingId: string, student: { id: string; email?: string | null }) {
+async function enqueueBookingEmails(bookingIds: string[], student: { id: string; email?: string | null }) {
+  if (bookingIds.length === 0) return;
   try {
     const admin = createAdminClient();
-    const { data: row } = await admin
-      .from('bookings')
-      .select(BOOKING_EMAIL_SELECT)
-      .eq('id', bookingId)
-      .single();
-    if (!row) return;
-
-    const typed = row as unknown as Parameters<typeof buildBookingEmailPayload>[0] & {
-      student_note?: string | null;
-      class: { teacher_id: string | null; teacher?: { name: string | null } | null };
-    };
-    const teacherName = typed.class.teacher?.name ?? undefined;
-    const payload = { ...buildBookingEmailPayload(typed), teacherName };
     const { data: profile } = await admin.from('profiles').select('name').eq('id', student.id).single();
+    const studentName = (profile as { name?: string | null } | null)?.name ?? 'Un alumno';
+    const teacherEmailCache = new Map<string, string>();
 
-    await enqueueEmail(admin, {
-      to: student.email ?? '',
-      template: 'booking_confirmed',
-      payload,
-      dedupeKey: `booking_confirmed:${bookingId}`,
-    });
+    for (const bookingId of bookingIds) {
+      try {
+        const { data: row } = await admin
+          .from('bookings')
+          .select(BOOKING_EMAIL_SELECT)
+          .eq('id', bookingId)
+          .single();
+        if (!row) continue;
 
-    if (typed.class.teacher_id) {
-      const { data: teacher } = await admin.auth.admin.getUserById(typed.class.teacher_id);
-      await enqueueEmail(admin, {
-        to: teacher?.user?.email ?? '',
-        template: 'booking_received',
-        payload: { ...payload, studentName: (profile as { name?: string | null } | null)?.name ?? 'Un alumno', note: typed.student_note ?? undefined },
-        dedupeKey: `booking_received:${bookingId}`,
-      });
+        const typed = row as unknown as Parameters<typeof buildBookingEmailPayload>[0] & {
+          student_note?: string | null;
+          class: { teacher_id: string | null; teacher?: { name: string | null } | null };
+        };
+        const teacherName = typed.class.teacher?.name ?? undefined;
+        const payload = { ...buildBookingEmailPayload(typed), teacherName };
+
+        await enqueueEmail(admin, {
+          to: student.email ?? '',
+          template: 'booking_confirmed',
+          payload,
+          dedupeKey: `booking_confirmed:${bookingId}`,
+        });
+
+        if (typed.class.teacher_id) {
+          let teacherEmail = teacherEmailCache.get(typed.class.teacher_id);
+          if (teacherEmail === undefined) {
+            const { data: teacher } = await admin.auth.admin.getUserById(typed.class.teacher_id);
+            teacherEmail = teacher?.user?.email ?? '';
+            teacherEmailCache.set(typed.class.teacher_id, teacherEmail);
+          }
+          await enqueueEmail(admin, {
+            to: teacherEmail,
+            template: 'booking_received',
+            payload: { ...payload, studentName, note: typed.student_note ?? undefined },
+            dedupeKey: `booking_received:${bookingId}`,
+          });
+        }
+      } catch (err) {
+        console.error('[enqueueBookingEmails]', bookingId, err);
+      }
     }
 
     // Si el proveedor falla o no está configurado, el cron diario lo reintenta.
-    dispatchAfterResponse(10);
+    dispatchAfterResponse(Math.max(10, bookingIds.length * 2));
   } catch (err) {
     console.error('[enqueueBookingEmails]', err);
   }
@@ -93,25 +108,44 @@ async function enqueueBookingEmails(bookingId: string, student: { id: string; em
 export async function reserveBooking(input: {
   classId: string;
   sessionId?: string | null;
+  sessionIds?: string[];
   seats?: number;
   note?: string;
-}): Promise<BookingActionResult<{ bookingId: string }>> {
+}): Promise<BookingActionResult<{ bookingId: string; bookingIds?: string[] }>> {
   const supabase = await createClient();
   const user = await requireUser(supabase);
 
   const { success } = await checkRateLimit(bookingRateLimiter, user.id);
   if (!success) return fail('RATE_LIMITED');
 
+  const cleanNote = input.note?.trim() || null;
+  const seats = input.seats ?? 1;
+
+  if (input.sessionIds && input.sessionIds.length > 0) {
+    const { data, error } = await supabase.rpc('reserve_bookings', {
+      p_class_id: input.classId,
+      p_session_ids: input.sessionIds,
+      p_seats: seats,
+      p_note: cleanNote,
+    });
+    const bookingIds = Array.isArray(data) ? (data as string[]) : [];
+    if (error || bookingIds.length === 0) return { ok: false, error: parseBookingError(error) };
+
+    await enqueueBookingEmails(bookingIds, user);
+    revalidateBookings();
+    return { ok: true, data: { bookingId: bookingIds[0], bookingIds } };
+  }
+
   const { data, error } = await supabase.rpc('reserve_booking', {
     p_class_id: input.classId,
     p_session_id: input.sessionId ?? null,
-    p_seats: input.seats ?? 1,
-    p_note: input.note?.trim() || null,
+    p_seats: seats,
+    p_note: cleanNote,
   });
   if (error || !data) return { ok: false, error: parseBookingError(error) };
 
   const bookingId = data as string;
-  await enqueueBookingEmails(bookingId, user);
+  await enqueueBookingEmails([bookingId], user);
   revalidateBookings();
   return { ok: true, data: { bookingId } };
 }

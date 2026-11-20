@@ -18,6 +18,11 @@ describe('mapSessionRow / sessionSpotsLeft', () => {
   it('capacidad null = sin límite', () => {
     expect(sessionSpotsLeft(mapSessionRow('c1', { ...row, capacity: null }))).toBeNull();
   });
+
+  it('mapea already_booked cuando lo devuelve list_class_sessions', () => {
+    expect(mapSessionRow('c1', { ...row, already_booked: true }).alreadyBooked).toBe(true);
+    expect(mapSessionRow('c1', { ...row, already_booked: false }).alreadyBooked).toBe(false);
+  });
 });
 
 describe('mapMyBookingRow', () => {

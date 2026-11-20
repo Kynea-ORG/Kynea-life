@@ -121,4 +121,39 @@ describe('BookingCta', () => {
     fireEvent.click(screen.getByRole('button', { name: /confirmar reserva/i }));
     await waitFor(() => expect(mockReserve).toHaveBeenCalledWith({ classId: 'c1', sessionId: 's1', seats: 1, note: '' }));
   });
+
+  it('permite seleccionar varias fechas, deshabilita las ya reservadas, limita cupos al mínimo y calcula el total', async () => {
+    mockList.mockResolvedValue([
+      { id: 's1', classId: 'c1', date: '2026-12-02', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 8, status: 'open', alreadyBooked: false },
+      { id: 's2', classId: 'c1', date: '2026-12-04', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 4, status: 'open', alreadyBooked: false },
+      { id: 's3', classId: 'c1', date: '2026-12-06', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 1, status: 'open', alreadyBooked: true },
+    ]);
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b1', bookingIds: ['b1', 'b2'] } });
+    render(<BookingCta cls={makeClass({ bookingMode: 'session', price: 40 })} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+
+    const alreadyBookedBtn = (await screen.findByText(/ya reservada/i)).closest('button')!;
+    expect(alreadyBookedBtn).toBeDisabled();
+
+    fireEvent.click(screen.getByText(/últimos 2 cupos/i).closest('button')!);
+    fireEvent.click(screen.getByText(/6 cupos/i).closest('button')!);
+    expect(screen.getByText(/2 fechas seleccionadas/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /continuar \(2 fechas\)/i }));
+    expect(screen.getByText(/hasta 2 cupos/i)).toBeInTheDocument();
+    const plus = screen.getByRole('button', { name: /más cupos/i });
+    fireEvent.click(plus);
+    expect(plus).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
+    expect(screen.getByText(/2 cupos × 2 fechas/i)).toBeInTheDocument();
+    expect(screen.getByText(/160/)).toBeInTheDocument();
+    expect(screen.getByText(/reserva independiente/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /confirmar 2 reservas/i }));
+    await waitFor(() => expect(screen.getByText(/tus 2 reservas están listas/i)).toBeInTheDocument());
+    expect(mockReserve).toHaveBeenCalledWith({ classId: 'c1', sessionIds: ['s1', 's2'], seats: 2, note: '' });
+    expect(mockTrack).toHaveBeenCalledWith(expect.objectContaining({ classId: 'c1', bookingMode: 'session', seats: 4, value: 160 }));
+    expect(screen.getAllByRole('link', { name: /google calendar/i })).toHaveLength(2);
+  });
 });

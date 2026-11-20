@@ -5,6 +5,7 @@
 export type BookingErrorCode =
   | 'NOT_AUTHENTICATED'
   | 'INVALID_SEATS'
+  | 'INVALID_SESSIONS'
   | 'CLASS_NOT_BOOKABLE'
   | 'OWN_CLASS'
   | 'PAST_DATE'
@@ -23,6 +24,7 @@ export type BookingErrorCode =
 export const BOOKING_ERROR_MESSAGES: Record<BookingErrorCode, string> = {
   NOT_AUTHENTICATED: 'Inicia sesión para reservar.',
   INVALID_SEATS: 'La cantidad de cupos no es válida.',
+  INVALID_SESSIONS: 'La selección de fechas no es válida (máximo 20 fechas por reserva).',
   CLASS_NOT_BOOKABLE: 'Esta clase no acepta reservas en este momento.',
   OWN_CLASS: 'No puedes reservar tu propia clase.',
   PAST_DATE: 'Esta fecha ya pasó.',

@@ -6,7 +6,15 @@ const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : '');
 
 export function mapSessionRow(
   classId: string,
-  row: { id: string; session_date: string; start_time: string; end_time: string; capacity: number | null; taken: number },
+  row: {
+    id: string;
+    session_date: string;
+    start_time: string;
+    end_time: string;
+    capacity: number | null;
+    taken: number;
+    already_booked?: boolean | null;
+  },
 ): ClassSession {
   return {
     id: row.id,
@@ -17,6 +25,7 @@ export function mapSessionRow(
     capacity: row.capacity,
     taken: Number(row.taken ?? 0),
     status: 'open',
+    ...(row.already_booked != null ? { alreadyBooked: Boolean(row.already_booked) } : {}),
   };
 }
 

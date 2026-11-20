@@ -29,7 +29,8 @@ describe('parseBookingError', () => {
     expect(parseBookingError('SOLD_OUT').code).toBe('SOLD_OUT');
   });
 
-  it('traduce el plazo de cancelación vencido', () => {
+  it('traduce el plazo de cancelación vencido y selección de sesiones inválida', () => {
     expect(parseBookingError({ message: 'CANCEL_WINDOW_CLOSED' }).code).toBe('CANCEL_WINDOW_CLOSED');
+    expect(parseBookingError({ message: 'INVALID_SESSIONS' }).code).toBe('INVALID_SESSIONS');
   });
 });

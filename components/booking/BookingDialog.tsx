@@ -17,6 +17,7 @@ import {
   formatDeadlineLima,
   formatLongDate,
   isoWeekday,
+  type CalendarEvent,
 } from '@/lib/bookings/dates';
 import { DAY_MAP, getTodayLima } from '@/lib/classes/helpers';
 import { trackBookingCreated } from '@/lib/analytics';
@@ -25,6 +26,7 @@ import ClassTips from './ClassTips';
 import AddToCalendar from './AddToCalendar';
 
 const MAX_SEATS = 4;
+const MAX_MULTI_SESSIONS = 20;
 const NOTE_MAX = 500;
 
 type Step = 'date' | 'details' | 'confirm' | 'done';
@@ -42,16 +44,30 @@ function spotsChip(left: number | null): { text: string; tone: string } {
   return { text: `${left} cupos`, tone: 'bg-green-bg text-green-text' };
 }
 
+function minAvailableSpots(list: ClassSession[]): number | null {
+  const finite = list
+    .map(sessionSpotsLeft)
+    .filter((v): v is number => v !== null);
+  return finite.length > 0 ? Math.min(...finite) : null;
+}
+
+function formatShortSession(s: ClassSession): string {
+  const d = new Date(`${s.date}T12:00:00Z`);
+  const wd = d.toLocaleDateString('es-PE', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+  const month = d.toLocaleDateString('es-PE', { month: 'short', timeZone: 'UTC' }).replace('.', '');
+  return `${wd} ${d.getUTCDate()} ${month} · ${s.startTime}`;
+}
+
 export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClose: () => void }) {
   const bySession = cls.bookingMode === 'session';
   const [step, setStep] = useState<Step>(bySession ? 'date' : 'details');
   const [sessions, setSessions] = useState<ClassSession[] | null>(bySession ? null : []);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionIds, setSessionIds] = useState<string[]>([]);
   const [seats, setSeats] = useState(1);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [bookingIds, setBookingIds] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const today = getTodayLima();
 
@@ -80,7 +96,14 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const selected = sessions?.find(s => s.id === sessionId) ?? null;
+  const selectedSessions = useMemo(
+    () => (sessions ?? []).filter(s => sessionIds.includes(s.id)),
+    [sessions, sessionIds],
+  );
+  const earliestSession = selectedSessions[0] ?? null;
+  const isMulti = bySession && selectedSessions.length > 1;
+  const sessionCount = bySession ? Math.max(selectedSessions.length, 1) : 1;
+
   const firstSlot = useMemo(() => {
     const slots = cls.timeSlots ?? [];
     if (!slots.length) return undefined;
@@ -98,14 +121,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
     });
     return candidates[0]?.slot ?? slots[0];
   }, [cls.timeSlots, cls.startDate]);
+
   const isOnline = cls.modality === 'Online';
-  const eventDate = bySession ? selected?.date : cls.startDate;
-  const startTime = bySession ? selected?.startTime : firstSlot?.startTime;
-  const endTime = bySession ? selected?.endTime : firstSlot?.endTime;
-  const spotsLeft = bySession ? (selected ? sessionSpotsLeft(selected) : null) : (cls.availableSpots ?? null);
+  const eventDate = bySession ? earliestSession?.date : cls.startDate;
+  const startTime = bySession ? earliestSession?.startTime : firstSlot?.startTime;
+  const endTime = bySession ? earliestSession?.endTime : firstSlot?.endTime;
+  const spotsLeft = bySession
+    ? (selectedSessions.length > 0 ? minAvailableSpots(selectedSessions) : null)
+    : (cls.availableSpots ?? null);
   const maxSeats = Math.max(1, Math.min(MAX_SEATS, spotsLeft ?? MAX_SEATS));
   const unitPrice = cls.priceType === 'Gratis' ? 0 : (cls.offerPrice || cls.price || 0);
-  const total = unitPrice * seats;
+  const estimatedPerPerson = unitPrice * selectedSessions.length;
+  const total = unitPrice * seats * sessionCount;
   const timing = eventDate ? (bySession ? countdownLabel(daysUntil(eventDate, today)) : classTimingLabel(eventDate, cls.endDate, today)) : null;
   const policy = cls.cancellationPolicy ?? 'moderada';
   const deadline = eventDate ? cancellationDeadline(eventDate, startTime, policy) : null;
@@ -118,6 +145,20 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const steps: Step[] = bySession ? ['date', 'details', 'confirm'] : ['details', 'confirm'];
   const stepIndex = steps.indexOf(step);
   const back = () => { setError(null); setStep(steps[Math.max(stepIndex - 1, 0)]); };
+
+  const toggleSession = (id: string) => {
+    setError(null);
+    const nextIds = sessionIds.includes(id)
+      ? sessionIds.filter(x => x !== id)
+      : sessionIds.length < MAX_MULTI_SESSIONS
+        ? [...sessionIds, id]
+        : sessionIds;
+    setSessionIds(nextIds);
+    const nextSelected = (sessions ?? []).filter(s => nextIds.includes(s.id));
+    const nextSpots = nextSelected.length > 0 ? minAvailableSpots(nextSelected) : null;
+    const nextMaxSeats = Math.max(1, Math.min(MAX_SEATS, nextSpots ?? MAX_SEATS));
+    setSeats(n => Math.min(n, nextMaxSeats));
+  };
 
   // Agrupa las fechas por mes para que la lista larga se lea como un calendario.
   const byMonth = useMemo(() => {
@@ -133,13 +174,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
     setError(null);
     startTransition(async () => {
       try {
-        const result = await reserveBooking({ classId: cls.id, sessionId: bySession ? sessionId : null, seats, note });
+        const orderedIds = selectedSessions.map(s => s.id);
+        const payload = bySession && orderedIds.length > 1
+          ? { classId: cls.id, sessionIds: orderedIds, seats, note }
+          : { classId: cls.id, sessionId: bySession ? (orderedIds[0] ?? null) : null, seats, note };
+
+        const result = await reserveBooking(payload);
         if (!result.ok) { setError(result.error.message); return; }
         trackBookingCreated({
           classId: cls.id, className: cls.title, teacherId: cls.teacher.id,
-          bookingMode: bySession ? 'session' : 'class', seats, value: total, currency: cls.currency,
+          bookingMode: bySession ? 'session' : 'class', seats: seats * sessionCount, value: total, currency: cls.currency,
         });
-        setBookingId(result.data.bookingId);
+        setBookingIds(result.data.bookingIds ?? [result.data.bookingId]);
         setStep('done');
       } catch {
         setError('No pudimos completar tu reserva. Verifica tu sesión e inténtalo de nuevo.');
@@ -147,9 +193,22 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
     });
   };
 
-  const event = eventDate && startTime && endTime
-    ? { title: cls.title, date: eventDate, startTime, endTime, location: place || undefined,
-        details: [cls.toBring?.length ? `Lleva: ${cls.toBring.join(', ')}` : '', cls.clothing ? `Ropa: ${cls.clothing}` : ''].filter(Boolean).join('\n') || undefined }
+  const eventDetailsText = [
+    cls.toBring?.length ? `Lleva: ${cls.toBring.join(', ')}` : '',
+    cls.clothing ? `Ropa: ${cls.clothing}` : '',
+  ].filter(Boolean).join('\n') || undefined;
+
+  const buildCalendarEvent = (date: string, sTime: string, eTime: string): CalendarEvent => ({
+    title: cls.title,
+    date,
+    startTime: sTime,
+    endTime: eTime,
+    location: place || undefined,
+    details: eventDetailsText,
+  });
+
+  const singleEvent = eventDate && startTime && endTime
+    ? buildCalendarEvent(eventDate, startTime, endTime)
     : null;
 
   const modal = (
@@ -187,8 +246,29 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
         <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
           {step === 'date' && (
             <div>
-              <h2 className="text-lg font-black text-neutral-900">¿Qué día quieres ir?</h2>
-              <p className="text-sm text-neutral-600 mt-0.5 mb-4">Elige la fecha. Puedes reservar otra más adelante.</p>
+              <h2 className="text-lg font-black text-neutral-900">¿Qué días quieres ir?</h2>
+              <p className="text-sm text-neutral-600 mt-0.5 mb-4">Elige una o varias fechas para reservarlas de una sola vez.</p>
+              {selectedSessions.length > 0 && (
+                <div className="mb-4 flex items-center justify-between gap-2 rounded-xl bg-primary-bg/70 border border-primary/20 px-3 py-2 text-[12.5px]">
+                  <p className="font-bold text-neutral-900">
+                    {selectedSessions.length} {selectedSessions.length === 1 ? 'fecha seleccionada' : 'fechas seleccionadas'}
+                    {unitPrice > 0 && (
+                      <span className="font-semibold text-primary">
+                        {' '}· {formatPriceShort('Pago único', estimatedPerPerson, cls.currency)}
+                      </span>
+                    )}
+                  </p>
+                  {selectedSessions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => { setSessionIds([]); setSeats(1); }}
+                      className="text-[12px] font-bold text-primary hover:underline shrink-0"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+              )}
               {sessions === null ? (
                 <p className="text-sm text-neutral-500 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Buscando fechas…</p>
               ) : sessionsError ? (
@@ -204,15 +284,19 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                         {rows.map(s => {
                           const left = sessionSpotsLeft(s);
                           const full = left === 0;
-                          const chip = spotsChip(left);
+                          const booked = Boolean(s.alreadyBooked);
+                          const disabled = full || booked;
+                          const chip = booked
+                            ? { text: 'Ya reservada', tone: 'bg-neutral-100 text-neutral-600' }
+                            : spotsChip(left);
                           const d = new Date(`${s.date}T12:00:00Z`);
                           const away = daysUntil(s.date, today);
-                          const isSel = sessionId === s.id;
+                          const isSel = sessionIds.includes(s.id);
                           return (
-                            <button key={s.id} type="button" disabled={full} aria-pressed={isSel}
-                              onClick={() => { setSessionId(s.id); setSeats(1); }}
+                            <button key={s.id} type="button" disabled={disabled} aria-pressed={isSel}
+                              onClick={() => toggleSession(s.id)}
                               className={`flex items-center gap-3 text-left p-2.5 rounded-xl border-2 transition-[border-color,background-color] ${
-                                full ? 'border-neutral-100 bg-neutral-50 opacity-60 cursor-not-allowed'
+                                disabled ? 'border-neutral-100 bg-neutral-50 opacity-60 cursor-not-allowed'
                                   : isSel ? 'border-primary bg-primary-bg' : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
                               }`}>
                               <span className={`w-12 shrink-0 rounded-lg py-1.5 text-center ${isSel ? 'bg-primary text-white' : 'bg-neutral-100 text-neutral-900'}`}>
@@ -224,6 +308,16 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                                 <span className="block text-[12px] text-neutral-600">{countdownLabel(away)}</span>
                               </span>
                               <span className={`text-[11px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${chip.tone}`}>{chip.text}</span>
+                              {!disabled && (
+                                <span
+                                  aria-hidden="true"
+                                  className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                                    isSel ? 'bg-primary border-primary text-white' : 'border-neutral-300 bg-white'
+                                  }`}
+                                >
+                                  {isSel && <Check className="w-3.5 h-3.5" />}
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -239,7 +333,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
             <div className="space-y-5">
               <div>
                 <h2 className="text-lg font-black text-neutral-900">Cuéntanos cómo vienes</h2>
-                {eventDate && (
+                {isMulti ? (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-xs font-bold text-primary">{selectedSessions.length} fechas seleccionadas</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedSessions.map(s => (
+                        <span key={s.id} className="text-[11.5px] font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-full first-letter:uppercase">
+                          {formatShortSession(s)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : eventDate && (
                   <p className="text-sm text-neutral-600 mt-0.5 first-letter:uppercase">
                     {formatLongDate(eventDate)}{startTime ? ` · ${startTime}` : ''}
                   </p>
@@ -249,7 +354,13 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-3">
                 <div>
                   <p className="text-[14px] font-bold text-neutral-900">¿Cuántos van?</p>
-                  <p className="text-[12px] text-neutral-600">{spotsLeft != null ? `Quedan ${spotsLeft} cupos` : 'Tú y quien te acompañe'}</p>
+                  <p className="text-[12px] text-neutral-600">
+                    {spotsLeft != null
+                      ? isMulti
+                        ? `Hasta ${spotsLeft} cupo${spotsLeft !== 1 ? 's' : ''} (mínimo entre tus fechas)`
+                        : `Quedan ${spotsLeft} cupos`
+                      : 'Tú y quien te acompañe'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <button type="button" aria-label="Menos cupos" disabled={seats <= 1} onClick={() => setSeats(n => n - 1)}
@@ -282,7 +393,25 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <h2 className="text-lg font-black text-neutral-900">Revisa y confirma</h2>
 
               <div className="rounded-xl border border-neutral-200 divide-y divide-neutral-200 text-[14px]">
-                {eventDate && (
+                {isMulti ? (
+                  <div className="flex items-start gap-3 p-3">
+                    <CalendarCheck className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-neutral-900">{selectedSessions.length} fechas seleccionadas</p>
+                      <ul className="mt-1.5 space-y-1">
+                        {selectedSessions.map(s => (
+                          <li key={s.id} className="text-[12.5px] text-neutral-700 flex items-center justify-between gap-2">
+                            <span className="first-letter:uppercase font-medium">{formatLongDate(s.date)}</span>
+                            <span className="text-neutral-500 whitespace-nowrap">{s.startTime} – {s.endTime}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-[11.5px] text-neutral-500 mt-2">
+                        Cada fecha quedará guardada como una reserva independiente en «Mis reservas».
+                      </p>
+                    </div>
+                  </div>
+                ) : eventDate && (
                   <div className="flex items-start gap-3 p-3">
                     <CalendarCheck className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
                     <div>
@@ -305,8 +434,12 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                 <div className="flex items-start gap-3 p-3">
                   <Wallet className="w-4 h-4 text-primary mt-0.5 shrink-0" aria-hidden="true" />
                   <div className="flex-1">
-                    <div className="flex justify-between font-bold text-neutral-900">
-                      <span>{seats} cupo{seats !== 1 ? 's' : ''}</span>
+                    <div className="flex justify-between font-bold text-neutral-900 gap-2">
+                      <span>
+                        {isMulti
+                          ? `${seats} cupo${seats !== 1 ? 's' : ''} × ${selectedSessions.length} fechas`
+                          : `${seats} cupo${seats !== 1 ? 's' : ''}`}
+                      </span>
                       <span>{total === 0 ? 'Gratis' : formatPriceShort('Pago único', total, cls.currency)}</span>
                     </div>
                     <p className="text-[12px] text-neutral-600 mt-0.5">
@@ -329,12 +462,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                   <>
                     <b className="text-neutral-900">¿Cambio de planes? Sin problema.</b>{' '}
                     Puedes cancelar {POLICY_HUMAN[policy]} desde «Mis reservas» y tu cupo queda libre para otra persona.
-                    {deadline && <> Tienes tiempo hasta el {formatDeadlineLima(deadline)} (hora Lima).</>}
+                    {deadline && (
+                      <>
+                        {' '}{isMulti ? 'Para la fecha más próxima tienes tiempo' : 'Tienes tiempo'} hasta el {formatDeadlineLima(deadline)} (hora Lima).
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
                     <b className="text-neutral-900">Reserva fuera del plazo de cancelación.</b>{' '}
-                    Esta clase exige avisar {POLICY_HUMAN[policy]}, por lo que una vez confirmada ya no podrás cancelarla desde Kynea. Si surge un imprevisto, escríbele directo al profesor.
+                    {isMulti
+                      ? `La fecha más próxima está dentro del plazo de ${POLICY_HUMAN[policy]}, por lo que esa fecha ya no podrás cancelarla desde Kynea una vez confirmada.`
+                      : `Esta clase exige avisar ${POLICY_HUMAN[policy]}, por lo que una vez confirmada ya no podrás cancelarla desde Kynea. Si surge un imprevisto, escríbele directo al profesor.`}
                   </>
                 )}
               </p>
@@ -348,19 +487,39 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <div className="mx-auto w-14 h-14 rounded-full bg-green-bg flex items-center justify-center mb-3">
                 <Check className="w-7 h-7 text-green-text" />
               </div>
-              <h2 className="text-xl font-black text-neutral-900">¡Tu cupo está listo!</h2>
+              <h2 className="text-xl font-black text-neutral-900">
+                {isMulti ? `¡Tus ${selectedSessions.length} reservas están listas!` : '¡Tu cupo está listo!'}
+              </h2>
               {timing && (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] font-bold text-primary bg-primary-bg rounded-full px-3 py-1">
-                  <Clock className="w-3.5 h-3.5" aria-hidden="true" /> {timing}
+                  <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                  {isMulti ? `Próxima: ${timing}` : timing}
                 </p>
               )}
               <p className="text-sm text-neutral-600 mt-3">
-                {cls.teacher.name.split(' ')[0]} ya sabe que vas. Te mandaremos los detalles por correo.
+                {isMulti
+                  ? `${cls.teacher.name.split(' ')[0]} ya sabe que vas a esas ${selectedSessions.length} fechas. Cada una quedó como una reserva independiente en «Mis reservas» y te mandaremos los detalles por correo.`
+                  : `${cls.teacher.name.split(' ')[0]} ya sabe que vas. Te mandaremos los detalles por correo.`}
               </p>
-              {event && bookingId && (
+              {isMulti ? (
+                <div className="mt-4 text-left space-y-2">
+                  <p className="text-[12px] font-bold text-neutral-700 text-center">Guárdalas para no olvidarlas</p>
+                  {selectedSessions.map((s, i) => (
+                    <div key={s.id} className="rounded-xl border border-neutral-200 p-2.5 flex flex-col gap-2">
+                      <p className="text-[12.5px] font-bold text-neutral-900 first-letter:uppercase">
+                        {formatLongDate(s.date)} · {s.startTime} – {s.endTime}
+                      </p>
+                      <AddToCalendar
+                        event={buildCalendarEvent(s.date, s.startTime, s.endTime)}
+                        uid={bookingIds[i] ?? `${cls.id}-${s.id}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : singleEvent && bookingIds[0] && (
                 <div className="mt-4 flex flex-col items-center gap-2">
                   <p className="text-[12px] font-bold text-neutral-700">Guárdalo para no olvidarlo</p>
-                  <AddToCalendar event={event} uid={bookingId} className="justify-center" />
+                  <AddToCalendar event={singleEvent} uid={bookingIds[0]} className="justify-center" />
                 </div>
               )}
               <div className="mt-5 text-left">
@@ -389,13 +548,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               {step === 'confirm' ? (
                 <button type="button" onClick={confirm} disabled={isPending}
                   className="btn-primary flex-1 py-3.5 flex items-center justify-center gap-2 disabled:opacity-50">
-                  {isPending && <Loader2 className="w-4 h-4 animate-spin" />} Confirmar reserva
+                  {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isMulti ? `Confirmar ${selectedSessions.length} reservas` : 'Confirmar reserva'}
                 </button>
               ) : (
                 <button type="button" onClick={() => setStep(steps[stepIndex + 1])}
-                  disabled={step === 'date' && !selected}
+                  disabled={step === 'date' && selectedSessions.length === 0}
                   className="btn-primary flex-1 py-3.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {step === 'date' && !selected ? 'Elige una fecha' : 'Continuar'}
+                  {step === 'date' && selectedSessions.length === 0
+                    ? 'Elige una fecha'
+                    : step === 'date' && selectedSessions.length > 1
+                      ? `Continuar (${selectedSessions.length} fechas)`
+                      : 'Continuar'}
                 </button>
               )}
             </>

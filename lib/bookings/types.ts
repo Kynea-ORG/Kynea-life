@@ -19,6 +19,8 @@ export interface ClassSession {
   /** Cupos ocupados (reservas activas). */
   taken: number;
   status: 'open' | 'cancelled';
+  /** true si el usuario actual ya tiene una reserva registrada en esta fecha. */
+  alreadyBooked?: boolean;
 }
 
 /** Reserva vista por el alumno ("Mis reservas"). */

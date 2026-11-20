@@ -38,6 +38,7 @@ const BOOKING_ROW = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockEnqueue.mockReset().mockResolvedValue(true);
   mockGetUser.mockResolvedValue({ data: { user: USER } });
   mockCheckRateLimit.mockResolvedValue({ success: true });
   mockRpc.mockResolvedValue({ data: 'b1', error: null });
@@ -100,6 +101,34 @@ describe('reserveBooking', () => {
     mockEnqueue.mockRejectedValue(new Error('smtp'));
     const r = await reserveBooking({ classId: 'c1' });
     expect(r).toEqual({ ok: true, data: { bookingId: 'b1' } });
+  });
+
+  it('con múltiples sessionIds llama a reserve_bookings con 1 rate limit y encola correos para todas', async () => {
+    mockRpc.mockResolvedValue({ data: ['b1', 'b2'], error: null });
+    const r = await reserveBooking({ classId: 'c1', sessionIds: ['s1', 's2'], seats: 2, note: '  Vamos juntos ' });
+    expect(mockCheckRateLimit).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith('reserve_bookings', {
+      p_class_id: 'c1',
+      p_session_ids: ['s1', 's2'],
+      p_seats: 2,
+      p_note: 'Vamos juntos',
+    });
+    expect(r).toEqual({ ok: true, data: { bookingId: 'b1', bookingIds: ['b1', 'b2'] } });
+    expect(mockGetUserById).toHaveBeenCalledTimes(1);
+    const keys = mockEnqueue.mock.calls.map(c => c[1].dedupeKey).sort();
+    expect(keys).toEqual([
+      'booking_confirmed:b1',
+      'booking_confirmed:b2',
+      'booking_received:b1',
+      'booking_received:b2',
+    ]);
+  });
+
+  it('traduce INVALID_SESSIONS si reserve_bookings rechaza la selección', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'INVALID_SESSIONS' } });
+    const r = await reserveBooking({ classId: 'c1', sessionIds: ['s1', 's1'] });
+    expect(r).toMatchObject({ ok: false, error: { code: 'INVALID_SESSIONS' } });
+    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 });
 
