@@ -46,13 +46,20 @@ interface MyBookingRow {
   class: {
     id: string; title: string; slug: string | null; type: string; cover_image: string | null; modality: string;
     cancellation_policy: string | null; start_date: string | null; end_date: string | null;
+    contact_mode?: string | null;
     footwear?: string[] | null; clothing?: string | null; to_bring?: string[] | null; requirements?: string[] | null;
     venue: {
       name: string | null; address: string | null; reference?: string | null;
       maps_url?: string | null; place_id?: string | null; lat?: number | null; lng?: number | null;
       city: string | null;
     } | null;
-    teacher?: { name: string | null; photo_url: string | null } | null;
+    teacher?: {
+      name: string | null;
+      photo_url: string | null;
+      whatsapp?: string | null;
+      instagram?: string | null;
+      show_whatsapp?: boolean | null;
+    } | null;
     class_schedules?: { day_of_week: number; start_time: string; end_time: string }[] | null;
     class_styles?: { is_main: boolean; dance_styles: { slug: string | null } | null }[] | null;
   } | null;
@@ -111,6 +118,10 @@ export function mapMyBookingRow(row: MyBookingRow): MyBooking {
       days: [...new Set(rawSchedules.map(s => s.day_of_week))].sort((a, b) => a - b),
       teacherName: c?.teacher?.name ?? undefined,
       teacherPhoto: c?.teacher?.photo_url ?? undefined,
+      teacherWhatsapp: c?.teacher?.whatsapp?.trim() || undefined,
+      teacherInstagram: c?.teacher?.instagram?.trim() || undefined,
+      teacherShowWhatsapp: c?.teacher?.show_whatsapp ?? undefined,
+      contactMode: (c?.contact_mode === 'instagram' || c?.contact_mode === 'both' ? c.contact_mode : c?.contact_mode === 'whatsapp' ? 'whatsapp' : undefined),
       footwear: c?.footwear ?? [],
       clothing: c?.clothing ?? undefined,
       toBring: c?.to_bring ?? [],
@@ -128,8 +139,10 @@ interface TeacherBookingRow {
   session_id: string | null; session_date: string | null; session_status?: string | null;
   start_time: string | null; capacity: number | null; student_id: string; student_name: string;
   student_photo: string | null; student_bio: string | null;
+  student_whatsapp?: string | null;
   student_instagram: string | null; student_since: string | null; student_note: string | null; student_prior: number | null;
   seats: number; status: string;
+  confirmed_at?: string | null;
   price_amount: number | string; currency: string; payment_method: string; created_at: string;
 }
 
@@ -149,12 +162,14 @@ export function mapTeacherBookingRow(row: TeacherBookingRow): TeacherBooking {
     studentName: row.student_name,
     studentPhoto: row.student_photo ?? undefined,
     studentBio: row.student_bio?.trim() || undefined,
+    studentWhatsapp: row.student_whatsapp?.trim() || undefined,
     studentInstagram: row.student_instagram ?? undefined,
     studentSince: row.student_since ?? undefined,
     note: row.student_note?.trim() || undefined,
     priorBookings: row.student_prior ?? 0,
     seats: row.seats,
     status: row.status as BookingStatus,
+    confirmedAt: row.confirmed_at ?? undefined,
     priceAmount: Number(row.price_amount),
     currency: row.currency,
     paymentMethod: row.payment_method as BookingPaymentMethod,

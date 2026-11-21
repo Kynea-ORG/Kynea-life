@@ -54,6 +54,7 @@ export interface ClassUpdatePayload {
   contact_mode?:     'whatsapp' | 'instagram' | 'both';
   booking_mode?:     'none' | 'class' | 'session';
   cancellation_policy?: 'flexible' | 'moderada' | 'estricta';
+  reminder_hours_before?: number | null;
   cover_image?:      string | null;
   cover_image_position?: string;
   cover_image_zoom?: number;
@@ -150,9 +151,10 @@ export interface DbClassRow {
   to_bring: string[] | null;
   age_group: string | null;
   contact_mode: string | null;
-  // Reservas (migración 70). Opcionales: filas/fixtures anteriores no las traen.
+  // Reservas (migración 70 / 76). Opcionales: filas/fixtures anteriores no las traen.
   booking_mode?: string | null;
   cancellation_policy?: string | null;
+  reminder_hours_before?: number | null;
   views_count: number | null;
   contacts_count: number | null;
   saved_count: number | null;

@@ -162,6 +162,11 @@ export function buildClassColumns(
   const policyRaw = formData.get('cancellationPolicy') as string | null;
   const cancellationPolicy: 'flexible' | 'moderada' | 'estricta' =
     policyRaw === 'flexible' || policyRaw === 'estricta' ? policyRaw : 'moderada';
+  const reminderRaw = Number(formData.get('reminderHoursBefore'));
+  const VALID_REMINDER_HOURS = [1, 2, 4, 12, 24, 48] as const;
+  const reminderHoursBefore = (VALID_REMINDER_HOURS as readonly number[]).includes(reminderRaw)
+    ? reminderRaw
+    : 24;
   const footwear     = formData.get('footwear') as string | null;
   const prerequisites = formData.get('prerequisites') as string | null;
 
@@ -190,6 +195,7 @@ export function buildClassColumns(
     ...(bookingMode === 'none' && { available_spots: maxSpots ? parseInt(maxSpots) : null }),
     booking_mode:      bookingMode,
     cancellation_policy: cancellationPolicy,
+    reminder_hours_before: reminderHoursBefore,
     modality:          formData.get('modality') as Modality,
     platform:          (formData.get('platform') as string) || null,
     footwear:          footwear ? JSON.parse(footwear) : [],

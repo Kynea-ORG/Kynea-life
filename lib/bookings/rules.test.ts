@@ -46,16 +46,20 @@ describe('getBookability', () => {
 
 describe('bookingStatusLabel / isActiveBookingStatus', () => {
   it('etiqueta cada estado en español', () => {
+    expect(bookingStatusLabel('pending_confirmation')).toBe('Pendiente de confirmación');
     expect(bookingStatusLabel('confirmed')).toBe('Confirmada');
     expect(bookingStatusLabel('cancelled')).toBe('Cancelada');
+    expect(bookingStatusLabel('expired')).toBe('Sin confirmar');
     expect(bookingStatusLabel('attended')).toBe('Asistió');
     expect(bookingStatusLabel('no_show')).toBe('No asistió');
   });
 
-  it('solo hold, pendiente de pago y confirmada cuentan como activas', () => {
+  it('hold, pendiente de pago, pendiente de confirmación y confirmada cuentan como activas', () => {
+    expect(isActiveBookingStatus('pending_confirmation')).toBe(true);
     expect(isActiveBookingStatus('confirmed')).toBe(true);
     expect(isActiveBookingStatus('hold')).toBe(true);
     expect(isActiveBookingStatus('cancelled')).toBe(false);
+    expect(isActiveBookingStatus('expired')).toBe(false);
     expect(isActiveBookingStatus('attended')).toBe(false);
   });
 });

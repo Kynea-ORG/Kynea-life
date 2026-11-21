@@ -21,10 +21,10 @@ export async function fetchMyBookings(userId: string): Promise<MyBooking[]> {
     .select(`
       id, status, seats, price_amount, currency, payment_method, created_at, cancelled_at,
       student_note,
-      class:classes(id, title, slug, type, cover_image, modality, cancellation_policy, start_date, end_date,
+      class:classes(id, title, slug, type, cover_image, modality, cancellation_policy, contact_mode, start_date, end_date,
         footwear, clothing, to_bring, requirements,
         venue:venues(name, address, reference, maps_url, place_id, lat, lng, city),
-        teacher:profiles!teacher_id(name, photo_url),
+        teacher:profiles!teacher_id(name, photo_url, whatsapp, instagram, show_whatsapp),
         class_schedules(day_of_week, start_time, end_time),
         class_styles(is_main, dance_styles(slug))),
       session:class_sessions(id, session_date, start_time, end_time)

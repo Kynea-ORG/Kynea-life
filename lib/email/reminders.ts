@@ -7,11 +7,11 @@ import { buildBookingEmailPayload, enqueueEmail } from './outbox';
 // (reserva + fecha + días) evita duplicados si el cron corre dos veces.
 
 export const BOOKING_EMAIL_SELECT = `
-  id, user_id, seats, price_amount, currency, payment_method, status, student_note, cancel_reason,
-  class:classes(id, title, slug, type, modality, start_date, end_date, cancellation_policy,
+  id, user_id, seats, price_amount, currency, payment_method, status, student_note, student_whatsapp, student_instagram, cancel_reason,
+  class:classes(id, title, slug, type, modality, start_date, end_date, cancellation_policy, contact_mode, reminder_hours_before,
     footwear, clothing, to_bring, teacher_id,
     venue:venues(name, address, reference, maps_url, place_id, lat, lng, city),
-    teacher:profiles!teacher_id(name),
+    teacher:profiles!teacher_id(name, whatsapp, instagram, show_whatsapp),
     class_schedules(day_of_week, start_time, end_time)),
   session:class_sessions(session_date, start_time, end_time)
 `;

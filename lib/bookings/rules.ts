@@ -63,9 +63,10 @@ export function getBookability(cls: BookableClass, now = new Date()): Bookabilit
 const STATUS_LABELS: Record<BookingStatus, string> = {
   hold: 'Cupo guardado',
   pending_payment: 'Pendiente de pago',
+  pending_confirmation: 'Pendiente de confirmación',
   confirmed: 'Confirmada',
   cancelled: 'Cancelada',
-  expired: 'Vencida',
+  expired: 'Sin confirmar',
   attended: 'Asistió',
   no_show: 'No asistió',
 };
@@ -76,7 +77,7 @@ export function bookingStatusLabel(status: BookingStatus): string {
 
 /** Estados que ocupan cupo y se pueden cancelar. */
 export function isActiveBookingStatus(status: BookingStatus): boolean {
-  return status === 'hold' || status === 'pending_payment' || status === 'confirmed';
+  return status === 'hold' || status === 'pending_payment' || status === 'pending_confirmation' || status === 'confirmed';
 }
 
 const POLICY_TEXT: Record<CancellationPolicy, string> = {

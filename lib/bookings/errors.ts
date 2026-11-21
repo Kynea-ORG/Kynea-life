@@ -15,7 +15,9 @@ export type BookingErrorCode =
   | 'BOOKING_NOT_FOUND'
   | 'NOT_ALLOWED'
   | 'NOT_CANCELLABLE'
+  | 'NOT_CONFIRMABLE'
   | 'CANCEL_WINDOW_CLOSED'
+  | 'CONTACT_REQUIRED'
   | 'INVALID_STATUS'
   | 'CLASS_NOT_FOUND'
   | 'RATE_LIMITED'
@@ -34,7 +36,9 @@ export const BOOKING_ERROR_MESSAGES: Record<BookingErrorCode, string> = {
   BOOKING_NOT_FOUND: 'No encontramos esa reserva.',
   NOT_ALLOWED: 'No tienes permiso para hacer esto.',
   NOT_CANCELLABLE: 'Esta reserva ya no se puede cambiar.',
+  NOT_CONFIRMABLE: 'Esta reserva ya no está pendiente de confirmación.',
   CANCEL_WINDOW_CLOSED: 'Ya pasó el plazo para cancelar según la política de la clase. Escríbele al profesor si necesitas cambiarla.',
+  CONTACT_REQUIRED: 'Ingresa tu WhatsApp o tu usuario de Instagram para que el profesor pueda coordinar contigo.',
   INVALID_STATUS: 'El estado indicado no es válido.',
   CLASS_NOT_FOUND: 'No encontramos esa clase.',
   RATE_LIMITED: 'Hiciste demasiados intentos. Espera un minuto e inténtalo de nuevo.',

@@ -78,6 +78,7 @@ function buildInitialForm(editClass: DanceClass | null) {
       maxSpots: '',
       bookingMode: 'none',
       cancellationPolicy: 'moderada',
+      reminderHoursBefore: '24',
       contactMode: 'whatsapp',
       modality: 'Presencial',
       city: 'Lima',
@@ -126,6 +127,7 @@ function buildInitialForm(editClass: DanceClass | null) {
     maxSpots: editClass.maxSpots ? String(editClass.maxSpots) : '',
     bookingMode: editClass.bookingMode ?? 'none',
     cancellationPolicy: editClass.cancellationPolicy ?? 'moderada',
+    reminderHoursBefore: String(editClass.reminderHoursBefore ?? 24),
     contactMode: editClass.contactMode ?? 'whatsapp',
     modality: editClass.modality ?? 'Presencial',
     city: editClass.city ?? 'Lima',
@@ -367,6 +369,7 @@ export default function CrearClaseForm({
             : form.bookingMode;
         fd.set('bookingMode', effectiveBookingMode);
         fd.set('cancellationPolicy', form.cancellationPolicy);
+        fd.set('reminderHoursBefore', form.reminderHoursBefore);
         fd.set('modality', form.modality);
         fd.set('city', form.city);
         fd.set('district', form.district);
@@ -1260,8 +1263,8 @@ export default function CrearClaseForm({
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-wider text-neutral-900">Reservas en Kynea</p>
                 <p className="text-[11px] text-neutral-600 mt-0.5">
-                  Deja que los alumnos aparten su cupo desde la ficha de la clase. Los botones de WhatsApp e Instagram se mantienen.
-                  Por ahora el alumno reserva en Kynea y paga directo contigo; el pago en línea llegará después.
+                  Deja que los alumnos aparten su cupo desde la ficha de la clase. Las clases gratuitas se confirman al instante;
+                  en clases de pago la solicitud llega pendiente para que coordines el pago y la confirmes en 1 clic.
                 </p>
               </div>
               <div className="grid sm:grid-cols-3 gap-2">
@@ -1287,18 +1290,35 @@ export default function CrearClaseForm({
                 ))}
               </div>
               {form.bookingMode !== 'none' && (
-                <div>
-                  <FieldLabel>Política de cancelación</FieldLabel>
-                  <select className="input" value={form.cancellationPolicy}
-                    onChange={e => set('cancellationPolicy', e.target.value)}>
-                    <option value="flexible">Flexible: hasta 24 horas antes</option>
-                    <option value="moderada">Moderada: hasta 48 horas antes</option>
-                    <option value="estricta">Estricta: hasta 7 días antes</option>
-                  </select>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <FieldLabel>Política de cancelación</FieldLabel>
+                    <select className="input" value={form.cancellationPolicy}
+                      onChange={e => set('cancellationPolicy', e.target.value)}>
+                      <option value="flexible">Flexible: hasta 24 horas antes</option>
+                      <option value="moderada">Moderada: hasta 48 horas antes</option>
+                      <option value="estricta">Estricta: hasta 7 días antes</option>
+                    </select>
+                  </div>
+                  <div>
+                    <FieldLabel>Recordatorio para confirmar</FieldLabel>
+                    <select className="input" value={form.reminderHoursBefore}
+                      onChange={e => set('reminderHoursBefore', e.target.value)}>
+                      <option value="48">48 horas antes</option>
+                      <option value="24">24 horas antes (recomendado)</option>
+                      <option value="12">12 horas antes</option>
+                      <option value="4">4 horas antes</option>
+                      <option value="2">2 horas antes</option>
+                      <option value="1">1 hora antes</option>
+                    </select>
+                    <p className="text-[11px] text-neutral-500 mt-1">
+                      Te enviamos un correo resumen si quedan reservas por confirmar antes de la clase.
+                    </p>
+                  </div>
                   {!form.maxSpots && (
-                    <p className="text-xs text-red mt-1">Define los cupos máximos arriba para aceptar reservas.</p>
+                    <p className="sm:col-span-2 text-xs text-red">Define los cupos máximos arriba para aceptar reservas.</p>
                   )}
-                  {fieldErrors.maxSpots && <p className="text-xs text-red mt-1">{fieldErrors.maxSpots}</p>}
+                  {fieldErrors.maxSpots && <p className="sm:col-span-2 text-xs text-red">{fieldErrors.maxSpots}</p>}
                 </div>
               )}
             </div>

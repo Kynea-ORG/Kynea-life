@@ -13,6 +13,8 @@ export interface AuthProfile {
   photo_url: string | null;
   photo_position: string | null;
   photo_zoom: number | null;
+  whatsapp?: string | null;
+  instagram?: string | null;
 }
 
 export interface AuthContextType {
@@ -44,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, role, photo_url, photo_position, photo_zoom')
+      .select('id, name, role, photo_url, photo_position, photo_zoom, whatsapp, instagram')
       .eq('id', userId)
       .single();
     if (data) {

@@ -25,7 +25,15 @@ vi.mock('@/lib/supabase/server', () => ({
   })),
 }));
 
-import { fetchAdminCreatedUsers, fetchIsAdmin, fetchUserCounts, fetchAdminProfesores, ADMIN_PROFESORES_PAGE_SIZE } from './queries';
+import {
+  fetchAdminCreatedUsers,
+  fetchIsAdmin,
+  fetchUserCounts,
+  fetchAdminProfesores,
+  fetchAdminClassesSummary,
+  fetchAdminBookingsSummary,
+  ADMIN_PROFESORES_PAGE_SIZE,
+} from './queries';
 
 describe('fetchIsAdmin', () => {
   beforeEach(() => {
@@ -250,5 +258,184 @@ describe('fetchAdminProfesores', () => {
     const res = await fetchAdminProfesores({ page: 1 });
     expect(res.profesores).toEqual([]);
     expect(res.migrationPending).toBe(true);
+  });
+});
+
+describe('fetchAdminClassesSummary', () => {
+  afterEach(() => {
+    mockFrom.mockImplementation(defaultFromImpl);
+  });
+
+  function mockClassesQuery(result: { data: unknown; error: { message: string } | null }) {
+    mockFrom.mockImplementation(() => ({
+      select: vi.fn(() => Promise.resolve(result)),
+    }));
+  }
+
+  it('agrega conteos por estado, reservas, tipo, modalidad, origen, engagement y top 5', async () => {
+    const now = new Date('2026-11-20T15:00:00Z'); // 2026-11-20 en Lima
+    mockClassesQuery({
+      data: [
+        {
+          id: 'c1', title: 'Bachata Sensual', slug: 'bachata-sensual', type: 'taller', modality: 'Presencial',
+          status: 'published', end_date: '2026-11-30', booking_mode: 'class',
+          views_count: 120, contacts_count: 15, saved_count: 10,
+          external_organizer_name: null, created_by_superuser: false,
+          class_styles: [{ is_main: true, dance_styles: { slug: 'bachata' } }],
+        },
+        {
+          id: 'c2', title: 'Salsa Semanal', slug: 'salsa-semanal', type: 'clase-suelta', modality: 'Online',
+          status: 'published', end_date: null, booking_mode: 'session',
+          views_count: 250, contacts_count: 30, saved_count: 20,
+          external_organizer_name: null, created_by_superuser: true,
+          class_styles: [{ is_main: true, dance_styles: { slug: 'salsa' } }],
+        },
+        {
+          id: 'c3', title: 'Masterclass Pasada', slug: 'mc-pasada', type: 'masterclass', modality: 'Presencial',
+          status: 'published', end_date: '2026-11-10', booking_mode: 'none',
+          views_count: 80, contacts_count: 5, saved_count: 4,
+          external_organizer_name: 'Estudio Externo', created_by_superuser: true,
+          class_styles: [],
+        },
+        {
+          id: 'c4', title: 'Evento Borrador', slug: 'evento-b', type: 'evento', modality: 'Presencial',
+          status: 'draft', end_date: '2026-12-01', booking_mode: 'class',
+          views_count: 999, contacts_count: 0, saved_count: 0,
+          external_organizer_name: null, created_by_superuser: false,
+          class_styles: [],
+        },
+        {
+          id: 'c5', title: 'Archivada', slug: 'arch', type: 'taller', modality: 'Online',
+          status: 'archived', end_date: null, booking_mode: 'none',
+          views_count: 10, contacts_count: 1, saved_count: 1,
+          external_organizer_name: null, created_by_superuser: false,
+          class_styles: [],
+        },
+      ],
+      error: null,
+    });
+
+    const summary = await fetchAdminClassesSummary(now);
+    expect(summary).toMatchObject({
+      total: 5,
+      published: 3,
+      activePublished: 2,
+      expiredPublished: 1,
+      draft: 1,
+      archived: 1,
+      bookableTotal: 2,
+      byClassMode: 1,
+      bySessionMode: 1,
+      noBookingMode: 1,
+      byType: { 'clase-suelta': 1, taller: 2, masterclass: 1, evento: 1 },
+      presencial: 3,
+      online: 2,
+      externalOrganizers: 1,
+      createdBySuperuser: 2,
+      totalViews: 1459,
+      totalContacts: 51,
+      totalSaved: 35,
+    });
+    expect(summary.topClasses).toEqual([
+      {
+        id: 'c2', title: 'Salsa Semanal', viewsCount: 250, contactsCount: 30, savedCount: 20,
+        bookingMode: 'session', href: '/salsa/clase-suelta/salsa-semanal',
+      },
+      {
+        id: 'c1', title: 'Bachata Sensual', viewsCount: 120, contactsCount: 15, savedCount: 10,
+        bookingMode: 'class', href: '/bachata/taller/bachata-sensual',
+      },
+      {
+        id: 'c3', title: 'Masterclass Pasada', viewsCount: 80, contactsCount: 5, savedCount: 4,
+        bookingMode: 'none', href: null,
+      },
+    ]);
+  });
+
+  it('retorna defaults seguros y loguea si la consulta falla', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockClassesQuery({ data: null, error: { message: 'db down' } });
+
+    const summary = await fetchAdminClassesSummary();
+    expect(summary.total).toBe(0);
+    expect(summary.topClasses).toEqual([]);
+    expect(spy).toHaveBeenCalledWith('fetchAdminClassesSummary error:', 'db down');
+    spy.mockRestore();
+  });
+});
+
+describe('fetchAdminBookingsSummary', () => {
+  afterEach(() => {
+    mockFrom.mockImplementation(defaultFromImpl);
+  });
+
+  function mockBookingsQuery(result: { data: unknown; error: { message: string } | null }) {
+    mockFrom.mockImplementation(() => ({
+      select: vi.fn(() => Promise.resolve(result)),
+    }));
+  }
+
+  it('calcula confirmadas próximas, por confirmar, tasa de confirmación, canceladas/expiradas, 7 días y modalidad', async () => {
+    const now = new Date('2026-11-20T15:00:00Z'); // 2026-11-20 en Lima
+    mockBookingsQuery({
+      data: [
+        // Confirmada próxima (sesión futura)
+        { status: 'confirmed', seats: 2, created_at: '2026-11-19T12:00:00Z', cancel_reason: null, class: { modality: 'Presencial', start_date: '2026-11-01', end_date: null }, session: { session_date: '2026-11-25' } },
+        // Confirmada pasada (NO cuenta en próximas, SÍ cuenta en tasa histórica)
+        { status: 'confirmed', seats: 1, created_at: '2026-11-10T10:00:00Z', cancel_reason: null, class: { modality: 'Presencial', start_date: '2026-11-12', end_date: '2026-11-12' }, session: null },
+        // Pendiente próxima
+        { status: 'pending_confirmation', seats: 3, created_at: '2026-11-19T14:00:00Z', cancel_reason: null, class: { modality: 'Online', start_date: '2026-11-26', end_date: null }, session: null },
+        // Expirada (sin confirmar >48h)
+        { status: 'expired', seats: 1, created_at: '2026-11-05T10:00:00Z', cancel_reason: null, class: { modality: 'Online', start_date: '2026-11-08', end_date: null }, session: null },
+        // Cancelada rechazada por profesor ("Cupo liberado...")
+        { status: 'cancelled', seats: 2, created_at: '2026-11-19T08:00:00Z', cancel_reason: 'Cupo liberado por el profesor (sin confirmación)', class: { modality: 'Presencial', start_date: '2026-11-24', end_date: null }, session: null },
+        // Cancelada voluntaria por alumno (NO penaliza tasa de confirmación)
+        { status: 'cancelled', seats: 1, created_at: '2026-11-18T08:00:00Z', cancel_reason: 'Cambio de planes', class: { modality: 'Presencial', start_date: '2026-11-28', end_date: null }, session: null },
+      ],
+      error: null,
+    });
+
+    const summary = await fetchAdminBookingsSummary(now);
+    expect(summary).toEqual({
+      totalBookings: 6,
+      confirmedUpcomingCount: 1,
+      confirmedUpcomingSeats: 2,
+      pendingUpcomingCount: 1,
+      pendingUpcomingSeats: 3,
+      confirmedTotal: 2,
+      cancelledCount: 2,
+      expiredCount: 1,
+      rejectedCount: 1,
+      confirmationRate: 50, // 2 / (2 + 1 expired + 1 rejected)
+      last7DaysCount: 4,
+      last7DaysSeats: 8,
+      presencialCount: 4,
+      onlineCount: 2,
+    });
+  });
+
+  it('devuelve confirmationRate en null sin registros y maneja errores sin lanzar', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBookingsQuery({ data: null, error: { message: 'bookings err' } });
+
+    const summary = await fetchAdminBookingsSummary();
+    expect(summary).toEqual({
+      totalBookings: 0,
+      confirmedUpcomingCount: 0,
+      confirmedUpcomingSeats: 0,
+      pendingUpcomingCount: 0,
+      pendingUpcomingSeats: 0,
+      confirmedTotal: 0,
+      cancelledCount: 0,
+      expiredCount: 0,
+      rejectedCount: 0,
+      confirmationRate: null,
+      last7DaysCount: 0,
+      last7DaysSeats: 0,
+      presencialCount: 0,
+      onlineCount: 0,
+    });
+    expect(spy).toHaveBeenCalledWith('fetchAdminBookingsSummary error:', 'bookings err');
+    spy.mockRestore();
   });
 });

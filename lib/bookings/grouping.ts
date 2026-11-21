@@ -13,8 +13,12 @@ export interface BookingGroup {
   startTime?: string;
   /** null/undefined = sin límite. */
   capacity?: number;
-  /** Cupos ocupados (activas + asistidas + no vinieron). */
+  /** Cupos ocupados (activas + pendientes + asistidas + no vinieron). */
   taken: number;
+  /** Cantidad de reservas pendientes de confirmación en este grupo. */
+  pendingCount: number;
+  /** Cupos pendientes de confirmación en este grupo. */
+  pendingSeats: number;
   daysAway: number | null;
   /** Días hasta el fin efectivo (endDate en cursos completos, sessionDate en sesiones). */
   endDaysAway: number | null;
@@ -23,12 +27,12 @@ export interface BookingGroup {
 
 export interface GroupedBookings {
   upcoming: BookingGroup[];
-  /** Fechas que ya pasaron y todavía tienen reservas por marcar (asistió / no vino). */
+  /** Fechas que ya pasaron y todavía tienen reservas por confirmar o por marcar asistencia. */
   toClose: BookingGroup[];
   history: BookingGroup[];
 }
 
-const OCCUPYING = new Set(['hold', 'pending_payment', 'confirmed', 'attended', 'no_show']);
+const OCCUPYING = new Set(['hold', 'pending_payment', 'pending_confirmation', 'confirmed', 'attended', 'no_show']);
 
 /** Reúne las reservas por fecha (o por clase, si se reserva completa) y las separa por momento. */
 export function groupTeacherBookings(bookings: TeacherBooking[], today: string): GroupedBookings {
@@ -50,6 +54,8 @@ export function groupTeacherBookings(bookings: TeacherBooking[], today: string):
         startTime: bk.startTime,
         capacity: bk.capacity,
         taken: 0,
+        pendingCount: 0,
+        pendingSeats: 0,
         daysAway: bk.sessionDate ? daysUntil(bk.sessionDate, today) : null,
         endDaysAway: effectiveEnd ? daysUntil(effectiveEnd, today) : null,
         bookings: [],
@@ -58,6 +64,10 @@ export function groupTeacherBookings(bookings: TeacherBooking[], today: string):
     }
     g.bookings.push(bk);
     if (OCCUPYING.has(bk.status)) g.taken += bk.seats;
+    if (bk.status === 'pending_confirmation') {
+      g.pendingCount += 1;
+      g.pendingSeats += bk.seats;
+    }
   }
 
   const upcoming: BookingGroup[] = [];
@@ -66,7 +76,7 @@ export function groupTeacherBookings(bookings: TeacherBooking[], today: string):
   for (const g of map.values()) {
     const isPast = g.endDaysAway !== null && g.endDaysAway < 0;
     if (!isPast) upcoming.push(g);
-    else if (g.bookings.some(x => x.status === 'confirmed')) toClose.push(g);
+    else if (g.bookings.some(x => x.status === 'confirmed' || x.status === 'pending_confirmation')) toClose.push(g);
     else history.push(g);
   }
 
@@ -77,10 +87,17 @@ export function groupTeacherBookings(bookings: TeacherBooking[], today: string):
   return { upcoming, toClose, history };
 }
 
-export function teacherSummary(g: GroupedBookings): { upcomingPeople: number; nextDate?: string; toClose: number } {
+export function teacherSummary(g: GroupedBookings): {
+  upcomingPeople: number;
+  nextDate?: string;
+  toClose: number;
+  pendingCount: number;
+} {
+  const pendingCount = [...g.upcoming, ...g.toClose].reduce((sum, x) => sum + x.pendingCount, 0);
   return {
     upcomingPeople: g.upcoming.reduce((sum, x) => sum + x.taken, 0),
     nextDate: g.upcoming.find(x => x.date && x.taken > 0)?.date,
     toClose: g.toClose.length,
+    pendingCount,
   };
 }

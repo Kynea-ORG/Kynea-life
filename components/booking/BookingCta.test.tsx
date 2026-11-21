@@ -3,11 +3,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import type { DanceClass } from '@/lib/types';
 
-const { mockReserve, mockList, mockTrack } = vi.hoisted(() => ({
-  mockReserve: vi.fn(), mockList: vi.fn(), mockTrack: vi.fn(),
+const { mockReserve, mockList, mockTrack, mockAuthState } = vi.hoisted(() => ({
+  mockReserve: vi.fn(),
+  mockList: vi.fn(),
+  mockTrack: vi.fn(),
+  mockAuthState: {
+    profile: { id: 'u1', name: 'Alumna', role: 'alumno', photo_url: null, photo_position: null, photo_zoom: null, whatsapp: '+51 999 888 777', instagram: null } as {
+      id: string; name: string; role: string; photo_url: null; photo_position: null; photo_zoom: null;
+      whatsapp?: string | null; instagram?: string | null;
+    } | null,
+    refreshProfile: vi.fn(),
+  },
 }));
 vi.mock('@/lib/bookings/actions', () => ({ reserveBooking: mockReserve, listClassSessions: mockList }));
 vi.mock('@/lib/analytics', () => ({ trackBookingCreated: mockTrack }));
+vi.mock('@/components/AuthProvider', () => ({
+  useAuth: () => ({
+    user: { id: 'u1' },
+    profile: mockAuthState.profile,
+    loading: false,
+    isLoggedIn: true,
+    signOut: vi.fn(),
+    refreshProfile: mockAuthState.refreshProfile,
+  }),
+}));
 
 import BookingCta from './BookingCta';
 
@@ -15,13 +34,22 @@ function makeClass(over: Partial<DanceClass> = {}): DanceClass {
   return {
     id: 'c1', slug: 'taller', styleSlug: 'bachata', type: 'taller', title: 'Taller de bachata',
     priceType: 'Por clase', price: 40, currency: 'PEN', bookingMode: 'class', cancellationPolicy: 'flexible',
+    contactMode: 'both',
     startDate: '2026-11-23', timeSlots: [{ days: ['Lunes'], startTime: '19:00', endTime: '20:00' }], footwear: ['Zapatillas'], availableSpots: 5, maxSpots: 10, status: 'published',
-    teacher: { id: 't1', name: 'Carlos Pérez' },
+    teacher: { id: 't1', name: 'Carlos Pérez', whatsapp: '+51 911 222 333', instagram: '@carlosperez' },
     ...over,
   } as unknown as DanceClass;
 }
 
-beforeEach(() => { cleanup(); vi.clearAllMocks(); mockList.mockResolvedValue([]); });
+beforeEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  mockList.mockResolvedValue([]);
+  mockAuthState.profile = {
+    id: 'u1', name: 'Alumna', role: 'alumno', photo_url: null, photo_position: null, photo_zoom: null,
+    whatsapp: '+51 999 888 777', instagram: null,
+  };
+});
 
 describe('BookingCta', () => {
   it('no muestra nada si la clase no acepta reservas', () => {
@@ -69,15 +97,31 @@ describe('BookingCta', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('exige al menos WhatsApp o Instagram si el perfil no tiene contacto guardado', () => {
+    mockAuthState.profile = {
+      id: 'u1', name: 'Alumna', role: 'alumno', photo_url: null, photo_position: null, photo_zoom: null,
+      whatsapp: null, instagram: null,
+    };
+    render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/ingresa tu whatsapp o tu usuario de instagram/i);
+    expect(screen.queryByRole('button', { name: /solicitar reserva/i })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/instagram/i), { target: { value: '@soyalumna' } });
+    fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
+    expect(screen.getByRole('button', { name: /solicitar reserva/i })).toBeInTheDocument();
+  });
+
   it('en clase Online muestra copy sin pago presencial y enlaza a /dashboard/mis-reservas', async () => {
-    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b-online' } });
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b-online', status: 'pending_confirmation' } });
     render(<BookingCta cls={makeClass({ modality: 'Online' })} isLoggedIn variant="sidebar" />);
     fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
     fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
     expect(screen.getByText(/coordinas el pago y el enlace de acceso directo con tu profesor/i)).toBeInTheDocument();
     expect(screen.queryByText(/el día de la clase/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /confirmar reserva/i }));
+    fireEvent.click(screen.getByRole('button', { name: /solicitar reserva/i }));
     await waitFor(() => expect(screen.getByRole('link', { name: /ver mis reservas/i })).toHaveAttribute('href', '/dashboard/mis-reservas'));
   });
 
@@ -96,19 +140,38 @@ describe('BookingCta', () => {
     expect(container).not.toContainElement(dialog);
   });
 
-  it('con sesión abre la ventana y confirma la reserva', async () => {
-    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b1' } });
+  it('en clase de pago crea solicitud pendiente y muestra CTAs de WhatsApp/Instagram del profesor', async () => {
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b1', status: 'pending_confirmation' } });
     render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
     fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/un mensaje para/i), { target: { value: 'Soy principiante' } });
     fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
-    expect(screen.getByText(/le pagas directo a tu profesor/i)).toBeInTheDocument();
+    expect(screen.getByText(/coordinas el pago directo con tu profesor/i)).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: /solicitar reserva/i }));
+    await waitFor(() => expect(screen.getByText(/solicitud enviada/i)).toBeInTheDocument());
+    expect(screen.getByRole('link', { name: /escribir por whatsapp/i })).toHaveAttribute(
+      'href',
+      expect.stringContaining('https://wa.me/51911222333'),
+    );
+    expect(screen.getByRole('link', { name: /instagram/i })).toHaveAttribute(
+      'href',
+      'https://instagram.com/carlosperez',
+    );
+    expect(mockReserve).toHaveBeenCalledWith({
+      classId: 'c1', sessionId: null, seats: 1, note: 'Soy principiante', whatsapp: '+51 999 888 777',
+    });
+    expect(mockTrack).toHaveBeenCalledWith(expect.objectContaining({ classId: 'c1', bookingMode: 'class', seats: 1, value: 40 }));
+  });
+
+  it('en clase gratuita confirma al instante y muestra "¡Tu cupo está listo!"', async () => {
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b-free', status: 'confirmed' } });
+    render(<BookingCta cls={makeClass({ priceType: 'Gratis', price: 0 })} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirmar reserva/i }));
     await waitFor(() => expect(screen.getByText(/tu cupo está listo/i)).toBeInTheDocument());
-    expect(mockReserve).toHaveBeenCalledWith({ classId: 'c1', sessionId: null, seats: 1, note: 'Soy principiante' });
-    expect(mockTrack).toHaveBeenCalledWith(expect.objectContaining({ classId: 'c1', bookingMode: 'class', seats: 1, value: 40 }));
   });
 
   it('muestra el error de la base de datos si no se pudo reservar', async () => {
@@ -116,16 +179,16 @@ describe('BookingCta', () => {
     render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
     fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
     fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
-    fireEvent.click(screen.getByRole('button', { name: /confirmar reserva/i }));
+    fireEvent.click(screen.getByRole('button', { name: /solicitar reserva/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Ya no quedan cupos suficientes.'));
     expect(mockTrack).not.toHaveBeenCalled();
   });
 
-  it('en modo por fecha exige elegir una fecha antes de confirmar', async () => {
+  it('en modo por fecha exige elegir una fecha antes de solicitar', async () => {
     mockList.mockResolvedValue([
       { id: 's1', classId: 'c1', date: '2026-12-02', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 4, status: 'open' },
     ]);
-    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b2' } });
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b2', status: 'pending_confirmation' } });
     render(<BookingCta cls={makeClass({ bookingMode: 'session' })} isLoggedIn variant="sidebar" />);
     fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
 
@@ -134,8 +197,10 @@ describe('BookingCta', () => {
     fireEvent.click(await screen.findByText(/6 cupos/i));
     fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
     fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
-    fireEvent.click(screen.getByRole('button', { name: /confirmar reserva/i }));
-    await waitFor(() => expect(mockReserve).toHaveBeenCalledWith({ classId: 'c1', sessionId: 's1', seats: 1, note: '' }));
+    fireEvent.click(screen.getByRole('button', { name: /solicitar reserva/i }));
+    await waitFor(() => expect(mockReserve).toHaveBeenCalledWith({
+      classId: 'c1', sessionId: 's1', seats: 1, note: '', whatsapp: '+51 999 888 777',
+    }));
   });
 
   it('permite seleccionar varias fechas, deshabilita las ya reservadas, limita cupos al mínimo y calcula el total', async () => {
@@ -144,7 +209,7 @@ describe('BookingCta', () => {
       { id: 's2', classId: 'c1', date: '2026-12-04', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 4, status: 'open', alreadyBooked: false },
       { id: 's3', classId: 'c1', date: '2026-12-06', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 1, status: 'open', alreadyBooked: true },
     ]);
-    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b1', bookingIds: ['b1', 'b2'] } });
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b1', bookingIds: ['b1', 'b2'], status: 'pending_confirmation' } });
     render(<BookingCta cls={makeClass({ bookingMode: 'session', price: 40 })} isLoggedIn variant="sidebar" />);
     fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
 
@@ -166,9 +231,11 @@ describe('BookingCta', () => {
     expect(screen.getByText(/160/)).toBeInTheDocument();
     expect(screen.getByText(/reserva independiente/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /confirmar 2 reservas/i }));
-    await waitFor(() => expect(screen.getByText(/tus 2 reservas están listas/i)).toBeInTheDocument());
-    expect(mockReserve).toHaveBeenCalledWith({ classId: 'c1', sessionIds: ['s1', 's2'], seats: 2, note: '' });
+    fireEvent.click(screen.getByRole('button', { name: /solicitar 2 reservas/i }));
+    await waitFor(() => expect(screen.getByText(/tus 2 solicitudes fueron enviadas/i)).toBeInTheDocument());
+    expect(mockReserve).toHaveBeenCalledWith({
+      classId: 'c1', sessionIds: ['s1', 's2'], seats: 2, note: '', whatsapp: '+51 999 888 777',
+    });
     expect(mockTrack).toHaveBeenCalledWith(expect.objectContaining({ classId: 'c1', bookingMode: 'session', seats: 4, value: 160 }));
     expect(screen.getAllByRole('link', { name: /google calendar/i })).toHaveLength(2);
   });

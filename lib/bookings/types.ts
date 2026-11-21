@@ -3,7 +3,16 @@
 
 export type BookingMode = 'none' | 'class' | 'session';
 export type CancellationPolicy = 'flexible' | 'moderada' | 'estricta';
-export type BookingStatus = 'hold' | 'pending_payment' | 'confirmed' | 'cancelled' | 'expired' | 'attended' | 'no_show';
+export type ReminderHoursBefore = 1 | 2 | 4 | 12 | 24 | 48;
+export type BookingStatus =
+  | 'hold'
+  | 'pending_payment'
+  | 'pending_confirmation'
+  | 'confirmed'
+  | 'cancelled'
+  | 'expired'
+  | 'attended'
+  | 'no_show';
 export type BookingPaymentMethod = 'free' | 'pay_at_venue' | 'online';
 
 /** Una fecha concreta de una clase semanal. */
@@ -58,6 +67,10 @@ export interface MyBooking {
     days: number[];
     teacherName?: string;
     teacherPhoto?: string;
+    teacherWhatsapp?: string;
+    teacherInstagram?: string;
+    teacherShowWhatsapp?: boolean;
+    contactMode?: 'whatsapp' | 'instagram' | 'both';
     footwear: string[];
     clothing?: string;
     toBring: string[];
@@ -84,6 +97,7 @@ export interface TeacherBooking {
   studentName: string;
   studentPhoto?: string;
   studentBio?: string;
+  studentWhatsapp?: string;
   studentInstagram?: string;
   studentSince?: string;
   note?: string;
@@ -91,6 +105,7 @@ export interface TeacherBooking {
   priorBookings: number;
   seats: number;
   status: BookingStatus;
+  confirmedAt?: string;
   priceAmount: number;
   currency: string;
   paymentMethod: BookingPaymentMethod;

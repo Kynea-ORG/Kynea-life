@@ -4,8 +4,11 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { ArrowLeft, CalendarCheck, Check, Clock, Loader2, MapPin, Minus, Plus, ShieldCheck, Wallet, X } from 'lucide-react';
 import SmartImage from '@/components/SmartImage';
+import { useAuth } from '@/components/AuthProvider';
+import { InstagramIcon, WhatsAppIcon } from '@/components/icons/SocialIcons';
 import { DanceClass } from '@/lib/types';
-import type { ClassSession } from '@/lib/bookings/types';
+import type { BookingStatus, ClassSession } from '@/lib/bookings/types';
+import { buildStudentToTeacherMessage, resolveTeacherChannels } from '@/lib/bookings/contact';
 import { sessionSpotsLeft } from '@/lib/bookings/mappers';
 import { reserveBooking, listClassSessions } from '@/lib/bookings/actions';
 import {
@@ -59,6 +62,7 @@ function formatShortSession(s: ClassSession): string {
 }
 
 export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClose: () => void }) {
+  const { profile, refreshProfile } = useAuth();
   const bySession = cls.bookingMode === 'session';
   const [step, setStep] = useState<Step>(bySession ? 'date' : 'details');
   const [sessions, setSessions] = useState<ClassSession[] | null>(bySession ? null : []);
@@ -66,10 +70,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const [sessionIds, setSessionIds] = useState<string[]>([]);
   const [seats, setSeats] = useState(1);
   const [note, setNote] = useState('');
+  const [whatsappDraft, setWhatsappDraft] = useState<string | null>(null);
+  const [instagramDraft, setInstagramDraft] = useState<string | null>(null);
+  const [contactError, setContactError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bookingIds, setBookingIds] = useState<string[]>([]);
+  const [createdStatus, setCreatedStatus] = useState<BookingStatus | null>(null);
   const [isPending, startTransition] = useTransition();
   const today = getTodayLima();
+
+  const whatsapp = whatsappDraft ?? profile?.whatsapp ?? '';
+  const instagram = instagramDraft ?? profile?.instagram ?? '';
+  const hasContact = Boolean(whatsapp.trim() || instagram.trim());
 
   useEffect(() => {
     if (!bySession) return;
@@ -133,6 +145,21 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const unitPrice = cls.priceType === 'Gratis' ? 0 : (cls.offerPrice || cls.price || 0);
   const estimatedPerPerson = unitPrice * selectedSessions.length;
   const total = unitPrice * seats * sessionCount;
+  const requiresApproval = total > 0;
+  const isDonePending = (createdStatus ?? (requiresApproval ? 'pending_confirmation' : 'confirmed')) === 'pending_confirmation';
+  const teacherContactMsg = buildStudentToTeacherMessage({
+    teacherName: cls.teacher.name,
+    classTitle: cls.title,
+    date: eventDate,
+    seats,
+    sessionCount: bySession ? selectedSessions.length : 1,
+  });
+  const teacherChannels = resolveTeacherChannels({
+    contactMode: cls.contactMode,
+    whatsapp: cls.teacher.whatsapp,
+    instagram: cls.teacher.instagram,
+    message: teacherContactMsg,
+  });
   const timing = eventDate ? (bySession ? countdownLabel(daysUntil(eventDate, today)) : classTimingLabel(eventDate, cls.endDate, today)) : null;
   const policy = cls.cancellationPolicy ?? 'moderada';
   const deadline = eventDate ? cancellationDeadline(eventDate, startTime, policy) : null;
@@ -171,13 +198,22 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   }, [sessions]);
 
   const confirm = () => {
+    if (!hasContact) {
+      setContactError('Ingresa tu WhatsApp o tu usuario de Instagram para que el profesor pueda coordinar contigo.');
+      setStep('details');
+      return;
+    }
     setError(null);
     startTransition(async () => {
       try {
         const orderedIds = selectedSessions.map(s => s.id);
+        const contactFields = {
+          ...(whatsapp.trim() ? { whatsapp: whatsapp.trim() } : {}),
+          ...(instagram.trim() ? { instagram: instagram.trim() } : {}),
+        };
         const payload = bySession && orderedIds.length > 1
-          ? { classId: cls.id, sessionIds: orderedIds, seats, note }
-          : { classId: cls.id, sessionId: bySession ? (orderedIds[0] ?? null) : null, seats, note };
+          ? { classId: cls.id, sessionIds: orderedIds, seats, note, ...contactFields }
+          : { classId: cls.id, sessionId: bySession ? (orderedIds[0] ?? null) : null, seats, note, ...contactFields };
 
         const result = await reserveBooking(payload);
         if (!result.ok) { setError(result.error.message); return; }
@@ -186,6 +222,10 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
           bookingMode: bySession ? 'session' : 'class', seats: seats * sessionCount, value: total, currency: cls.currency,
         });
         setBookingIds(result.data.bookingIds ?? [result.data.bookingId]);
+        setCreatedStatus(result.data.status ?? (requiresApproval ? 'pending_confirmation' : 'confirmed'));
+        if (whatsappDraft !== null || instagramDraft !== null) {
+          void refreshProfile();
+        }
         setStep('done');
       } catch {
         setError('No pudimos completar tu reserva. Verifica tu sesión e inténtalo de nuevo.');
@@ -371,6 +411,44 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                 </div>
               </div>
 
+              <div className="rounded-xl border border-neutral-200 p-3.5 space-y-3">
+                <div>
+                  <p className="text-[14px] font-bold text-neutral-900">Tu contacto para coordinar</p>
+                  <p className="text-[12px] text-neutral-600 mt-0.5">
+                    Ingresa al menos WhatsApp o Instagram para que {cls.teacher.name.split(' ')[0]} pueda coordinar contigo.
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label htmlFor="booking-whatsapp" className="block text-[12px] font-bold text-neutral-700 mb-1">
+                      WhatsApp
+                    </label>
+                    <input
+                      id="booking-whatsapp"
+                      type="tel"
+                      value={whatsapp}
+                      onChange={e => { setWhatsappDraft(e.target.value); setContactError(null); }}
+                      placeholder="Ej: +51 999 888 777"
+                      className="input w-full text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="booking-instagram" className="block text-[12px] font-bold text-neutral-700 mb-1">
+                      Instagram
+                    </label>
+                    <input
+                      id="booking-instagram"
+                      type="text"
+                      value={instagram}
+                      onChange={e => { setInstagramDraft(e.target.value); setContactError(null); }}
+                      placeholder="Ej: @tuusuario"
+                      className="input w-full text-sm"
+                    />
+                  </div>
+                </div>
+                {contactError && <p role="alert" className="text-xs font-semibold text-red">{contactError}</p>}
+              </div>
+
               <div>
                 <label htmlFor="booking-note" className="block text-[14px] font-bold text-neutral-900">
                   Un mensaje para {cls.teacher.name.split(' ')[0]} <span className="font-medium text-neutral-500">(opcional)</span>
@@ -383,7 +461,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
 
               <p className="flex items-start gap-2 text-[12px] text-neutral-600 bg-neutral-50 rounded-lg p-3">
                 <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-                {cls.teacher.name.split(' ')[0]} verá tu nombre, tu foto y tu mensaje para recibirte mejor. Nunca verá tu correo ni tu teléfono.
+                Compartiremos tu nombre, tu foto, tu mensaje y el contacto que ingreses solo con {cls.teacher.name.split(' ')[0]} para coordinar esta clase. Nunca verá tu correo.
               </p>
             </div>
           )}
@@ -445,11 +523,11 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                     <p className="text-[12px] text-neutral-600 mt-0.5">
                       {isOnline
                         ? total === 0
-                          ? 'No tienes que pagar nada. Coordinas el enlace de acceso directo con tu profesor.'
-                          : 'Hoy no pagas nada aquí. Coordinas el pago y el enlace de acceso directo con tu profesor.'
+                          ? 'No tienes que pagar nada. Tu cupo se confirma al instante y coordinas el enlace directo con tu profesor.'
+                          : 'Hoy no pagas nada aquí. Tu solicitud queda pendiente mientras coordinas el pago y el enlace de acceso directo con tu profesor.'
                         : total === 0
-                          ? 'No tienes que pagar nada.'
-                          : 'Hoy no pagas nada aquí. Le pagas directo a tu profesor el día de la clase. Muy pronto podrás pagar en Kynea con tarjeta o Yape.'}
+                          ? 'No tienes que pagar nada. Tu cupo se confirma al instante.'
+                          : 'Hoy no pagas nada aquí. Tu cupo queda apartado mientras coordinas el pago directo con tu profesor para que confirme tu reserva.'}
                     </p>
                   </div>
                 </div>
@@ -458,7 +536,13 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <ClassTips footwear={cls.footwear} clothing={cls.clothing} toBring={cls.toBring} requirements={cls.requirements} teacherName={cls.teacher.name} />
 
               <p className="text-[12px] text-neutral-600 leading-relaxed">
-                {canCancelAfterBooking ? (
+                {requiresApproval ? (
+                  <>
+                    <b className="text-neutral-900">Cancelación libre mientras esté pendiente.</b>{' '}
+                    Puedes cancelar sin restricción antes de que {cls.teacher.name.split(' ')[0]} confirme tu cupo.
+                    Una vez confirmada aplicará la política ({POLICY_HUMAN[policy]}).
+                  </>
+                ) : canCancelAfterBooking ? (
                   <>
                     <b className="text-neutral-900">¿Cambio de planes? Sin problema.</b>{' '}
                     Puedes cancelar {POLICY_HUMAN[policy]} desde «Mis reservas» y tu cupo queda libre para otra persona.
@@ -484,11 +568,17 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
 
           {step === 'done' && (
             <div className="text-center">
-              <div className="mx-auto w-14 h-14 rounded-full bg-green-bg flex items-center justify-center mb-3">
-                <Check className="w-7 h-7 text-green-text" />
+              <div className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-3 ${
+                isDonePending ? 'bg-yellow-bg' : 'bg-green-bg'
+              }`}>
+                {isDonePending
+                  ? <Clock className="w-7 h-7 text-yellow-dark" />
+                  : <Check className="w-7 h-7 text-green-text" />}
               </div>
               <h2 className="text-xl font-black text-neutral-900">
-                {isMulti ? `¡Tus ${selectedSessions.length} reservas están listas!` : '¡Tu cupo está listo!'}
+                {isDonePending
+                  ? isMulti ? `¡Tus ${selectedSessions.length} solicitudes fueron enviadas!` : '¡Solicitud enviada!'
+                  : isMulti ? `¡Tus ${selectedSessions.length} reservas están listas!` : '¡Tu cupo está listo!'}
               </h2>
               {timing && (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] font-bold text-primary bg-primary-bg rounded-full px-3 py-1">
@@ -497,10 +587,45 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                 </p>
               )}
               <p className="text-sm text-neutral-600 mt-3">
-                {isMulti
-                  ? `${cls.teacher.name.split(' ')[0]} ya sabe que vas a esas ${selectedSessions.length} fechas. Cada una quedó como una reserva independiente en «Mis reservas» y te mandaremos los detalles por correo.`
-                  : `${cls.teacher.name.split(' ')[0]} ya sabe que vas. Te mandaremos los detalles por correo.`}
+                {isDonePending
+                  ? isMulti
+                    ? `Apartamos tus ${selectedSessions.length} fechas como pendientes de confirmación. Escríbele ahora a ${cls.teacher.name.split(' ')[0]} para coordinar el pago y asegurar tu lugar.`
+                    : `Tu cupo está apartado, pendiente de confirmación por ${cls.teacher.name.split(' ')[0]}. Escríbele ahora para coordinar el pago y asegurar tu lugar.`
+                  : isMulti
+                    ? `${cls.teacher.name.split(' ')[0]} ya sabe que vas a esas ${selectedSessions.length} fechas. Cada una quedó como una reserva independiente en «Mis reservas» y te mandaremos los detalles por correo.`
+                    : `${cls.teacher.name.split(' ')[0]} ya sabe que vas. Te mandaremos los detalles por correo.`}
               </p>
+              {isDonePending && (teacherChannels.whatsappUrl || teacherChannels.instagramUrl) && (
+                <div className="mt-4 rounded-xl bg-neutral-50 border border-neutral-200 p-3.5 space-y-2.5 text-left">
+                  <p className="text-[12px] font-bold text-neutral-800 text-center">
+                    Escribir al profesor para confirmar
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {teacherChannels.whatsappUrl && (
+                      <a
+                        href={teacherChannels.whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold bg-[#16a34a] text-white hover:opacity-90 transition-opacity"
+                      >
+                        <WhatsAppIcon className="w-4 h-4" aria-hidden="true" />
+                        Escribir por WhatsApp
+                      </a>
+                    )}
+                    {teacherChannels.instagramUrl && (
+                      <a
+                        href={teacherChannels.instagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+                      >
+                        <InstagramIcon className="w-4 h-4" aria-hidden="true" />
+                        {teacherChannels.instagramHandle ? `Instagram (${teacherChannels.instagramHandle})` : 'Escribir por Instagram'}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
               {isMulti ? (
                 <div className="mt-4 text-left space-y-2">
                   <p className="text-[12px] font-bold text-neutral-700 text-center">Guárdalas para no olvidarlas</p>
@@ -549,10 +674,19 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                 <button type="button" onClick={confirm} disabled={isPending}
                   className="btn-primary flex-1 py-3.5 flex items-center justify-center gap-2 disabled:opacity-50">
                   {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {isMulti ? `Confirmar ${selectedSessions.length} reservas` : 'Confirmar reserva'}
+                  {requiresApproval
+                    ? isMulti ? `Solicitar ${selectedSessions.length} reservas` : 'Solicitar reserva'
+                    : isMulti ? `Confirmar ${selectedSessions.length} reservas` : 'Confirmar reserva'}
                 </button>
               ) : (
-                <button type="button" onClick={() => setStep(steps[stepIndex + 1])}
+                <button type="button" onClick={() => {
+                  if (step === 'details' && !hasContact) {
+                    setContactError('Ingresa tu WhatsApp o tu usuario de Instagram para continuar.');
+                    return;
+                  }
+                  setContactError(null);
+                  setStep(steps[stepIndex + 1]);
+                }}
                   disabled={step === 'date' && selectedSessions.length === 0}
                   className="btn-primary flex-1 py-3.5 disabled:opacity-50 disabled:cursor-not-allowed">
                   {step === 'date' && selectedSessions.length === 0

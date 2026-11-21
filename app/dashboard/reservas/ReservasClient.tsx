@@ -3,23 +3,36 @@ import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CalendarCheck, Check, ChevronDown, MessageSquareText, Sparkles, UserX, X } from 'lucide-react';
 import SmartImage from '@/components/SmartImage';
-import { InstagramIcon } from '@/components/icons/SocialIcons';
+import { InstagramIcon, WhatsAppIcon } from '@/components/icons/SocialIcons';
 import type { TeacherBooking } from '@/lib/bookings/types';
 import { bookingStatusLabel } from '@/lib/bookings/rules';
+import { buildTeacherToStudentMessage, resolveStudentChannels } from '@/lib/bookings/contact';
 import { classTimingLabel, countdownLabel, formatLongDate } from '@/lib/bookings/dates';
 import { groupTeacherBookings, teacherSummary, type BookingGroup } from '@/lib/bookings/grouping';
-import { setBookingAttendance, cancelBooking, cancelClassSession } from '@/lib/bookings/actions';
-import { buildInstagramUrl, formatPriceShort, formatSocialHandle } from '@/lib/utils';
+import { setBookingAttendance, cancelBooking, cancelClassSession, confirmBooking } from '@/lib/bookings/actions';
+import { formatPriceShort } from '@/lib/utils';
 
 type Tab = 'upcoming' | 'toClose' | 'history';
 type ActionResult = { ok: boolean; error?: { message: string } };
 
+const RELEASE_REASON = 'Cupo liberado por el profesor (sin confirmación)';
+
 const STATUS_TONE: Record<string, string> = {
+  pending_confirmation: 'bg-yellow-bg text-yellow-dark',
   confirmed: 'bg-green-bg text-green-text',
   attended: 'bg-primary-bg text-primary',
   no_show: 'bg-yellow-bg text-yellow-dark',
   cancelled: 'bg-neutral-100 text-neutral-500',
   expired: 'bg-neutral-100 text-neutral-500',
+};
+
+const STATUS_SORT_ORDER: Record<string, number> = {
+  pending_confirmation: 0,
+  confirmed: 1,
+  attended: 2,
+  no_show: 3,
+  cancelled: 4,
+  expired: 5,
 };
 
 function Avatar({ name, photo, size = 40 }: { name: string; photo?: string; size?: number }) {
@@ -85,7 +98,7 @@ export default function ReservasClient({
           <p className="text-neutral-600 text-sm mt-1">
             {isSuperuser
               ? 'Todas las reservas registradas en la plataforma en modo Superusuario.'
-              : 'Alumnos que reservaron en tus clases y cómo prepararte para recibirlos.'}
+              : 'Confirma solicitudes pendientes, contacta a tus alumnos y gestiona tus cupos.'}
           </p>
         </div>
         {!isSuperuser && (
@@ -99,19 +112,25 @@ export default function ReservasClient({
       </div>
 
       {bookings.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <div className="card-dash p-4">
             <p className="text-[26px] font-black text-neutral-900 leading-none">{summary.upcomingPeople}</p>
-            <p className="text-[12px] text-neutral-600 mt-1">personas esperadas</p>
+            <p className="text-[12px] text-neutral-600 mt-1">cupos próximos</p>
+          </div>
+          <div className={`card-dash p-4 ${summary.pendingCount > 0 ? 'bg-yellow-bg border-yellow-dark/30' : ''}`}>
+            <p className="text-[26px] font-black text-neutral-900 leading-none">{summary.pendingCount}</p>
+            <p className="text-[12px] text-neutral-600 mt-1">
+              {summary.pendingCount === 1 ? 'por confirmar' : 'por confirmar'}
+            </p>
           </div>
           <div className="card-dash p-4">
-            <p className="text-[16px] font-black text-neutral-900 leading-tight capitalize">
+            <p className="text-[16px] font-black text-neutral-900 leading-tight first-letter:uppercase">
               {summary.nextDate ? formatLongDate(summary.nextDate) : 'Sin fechas'}
             </p>
             <p className="text-[12px] text-neutral-600 mt-1">próxima clase con reservas</p>
           </div>
           <button type="button" onClick={() => setTab('toClose')}
-            className={`card-dash p-4 text-left ${summary.toClose > 0 ? 'bg-yellow-bg border-yellow-dark/30' : ''}`}>
+            className={`card-dash p-4 text-left ${summary.toClose > 0 ? 'bg-yellow-bg/60 border-yellow-dark/30' : ''}`}>
             <p className="text-[26px] font-black text-neutral-900 leading-none">{summary.toClose}</p>
             <p className="text-[12px] text-neutral-600 mt-1">{summary.toClose === 1 ? 'clase por cerrar' : 'clases por cerrar'}</p>
           </button>
@@ -161,7 +180,9 @@ function GroupCard({ group: g, tab, today, busy, open, setOpen, run }: {
   setOpen: (id: string | null) => void; run: (id: string, fn: () => Promise<ActionResult>) => void;
 }) {
   const pct = g.capacity ? Math.min(100, Math.round((g.taken / g.capacity) * 100)) : null;
-  const ordered = [...g.bookings].sort((a, b) => Number(['cancelled', 'expired'].includes(a.status)) - Number(['cancelled', 'expired'].includes(b.status)));
+  const ordered = [...g.bookings].sort(
+    (a, b) => (STATUS_SORT_ORDER[a.status] ?? 99) - (STATUS_SORT_ORDER[b.status] ?? 99),
+  );
   const isSessionCancelled = g.sessionStatus === 'cancelled';
   const timingBadge = g.date && tab === 'upcoming'
     ? (g.sessionId ? countdownLabel(g.daysAway ?? 0) : classTimingLabel(g.date, g.endDate, today))
@@ -173,15 +194,22 @@ function GroupCard({ group: g, tab, today, busy, open, setOpen, run }: {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-extrabold text-neutral-900 truncate">{g.classTitle}</p>
-            <p className="text-[13px] text-neutral-600 capitalize">
+            <p className="text-[13px] text-neutral-600 first-letter:uppercase">
               {g.date ? formatLongDate(g.date) : 'Fecha por definir'}{g.startTime ? ` · ${g.startTime}` : ''}
             </p>
           </div>
-          {isSessionCancelled ? (
-            <span className="text-[12px] font-bold text-neutral-500 bg-neutral-200/80 rounded-full px-2.5 py-1 whitespace-nowrap">Fecha cancelada</span>
-          ) : timingBadge && (
-            <span className="text-[12px] font-bold text-primary bg-primary-bg rounded-full px-2.5 py-1 whitespace-nowrap">{timingBadge}</span>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {g.pendingCount > 0 && (
+              <span className="text-[11px] font-bold bg-yellow-bg text-yellow-dark rounded-full px-2.5 py-1 whitespace-nowrap">
+                {g.pendingCount} por confirmar
+              </span>
+            )}
+            {isSessionCancelled ? (
+              <span className="text-[12px] font-bold text-neutral-500 bg-neutral-200/80 rounded-full px-2.5 py-1 whitespace-nowrap">Fecha cancelada</span>
+            ) : timingBadge && (
+              <span className="text-[12px] font-bold text-primary bg-primary-bg rounded-full px-2.5 py-1 whitespace-nowrap">{timingBadge}</span>
+            )}
+          </div>
         </div>
         <div className="mt-3 flex items-center gap-3">
           {pct !== null && (
@@ -208,41 +236,104 @@ function GroupCard({ group: g, tab, today, busy, open, setOpen, run }: {
       <ul className="divide-y divide-neutral-100">
         {ordered.map(b => {
           const isOpen = open === b.id;
+          const isPending = b.status === 'pending_confirmation';
           const inactive = b.status === 'cancelled' || b.status === 'expired';
           const since = memberSince(b.studentSince);
-          const igUrl = b.studentInstagram ? buildInstagramUrl(b.studentInstagram) : '';
-          const igHandle = b.studentInstagram ? formatSocialHandle(b.studentInstagram, 'instagram') : '';
+          const waMsg = buildTeacherToStudentMessage({
+            studentName: b.studentName,
+            classTitle: b.classTitle,
+            date: b.sessionDate,
+          });
+          const channels = resolveStudentChannels({
+            whatsapp: b.studentWhatsapp,
+            instagram: b.studentInstagram,
+            message: waMsg,
+          });
           const isOnline = b.classModality === 'Online';
           const priceLabel = b.priceAmount > 0
-            ? `${isOnline ? 'Por coordinar' : 'Por cobrar en la clase'}: ${formatPriceShort('Pago único', b.priceAmount, b.currency)}`
+            ? `${isOnline ? 'Por coordinar' : 'Por cobrar'}: ${formatPriceShort('Pago único', b.priceAmount, b.currency)}`
             : 'Reserva gratuita';
 
           return (
-            <li key={b.id} className={inactive ? 'opacity-60' : ''}>
-              <button type="button" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : b.id)}
-                className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-neutral-50 transition-colors">
-                <Avatar name={b.studentName} photo={b.studentPhoto} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-[14px] text-neutral-900 truncate">{b.studentName}</span>
-                    {b.seats > 1 && <span className="text-[11px] font-bold text-neutral-600 bg-neutral-100 rounded-full px-2 py-0.5">+{b.seats - 1} acompañante{b.seats > 2 ? 's' : ''}</span>}
-                    {b.priorBookings > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary"><Sparkles className="w-3 h-3" aria-hidden="true" />Vuelve a tus clases</span>
-                    ) : b.status === 'confirmed' && (
-                      <span className="text-[11px] font-bold text-green-text">Primera vez contigo</span>
-                    )}
-                  </span>
-                  {b.note && (
-                    <span className="flex items-center gap-1 text-[12px] text-neutral-600 mt-0.5 truncate">
-                      <MessageSquareText className="w-3 h-3 shrink-0" aria-hidden="true" />{b.note}
+            <li key={b.id} className={`${inactive ? 'opacity-60' : ''} ${isPending ? 'bg-yellow-bg/20' : ''}`}>
+              <div className="p-3.5 hover:bg-neutral-50/80 transition-colors">
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpen(isOpen ? null : b.id)}
+                    className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                  >
+                    <Avatar name={b.studentName} photo={b.studentPhoto} />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-[14px] text-neutral-900 truncate">{b.studentName}</span>
+                        {b.seats > 1 && <span className="text-[11px] font-bold text-neutral-600 bg-neutral-100 rounded-full px-2 py-0.5">+{b.seats - 1} acompañante{b.seats > 2 ? 's' : ''}</span>}
+                        {b.priorBookings > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary"><Sparkles className="w-3 h-3" aria-hidden="true" />Vuelve a tus clases</span>
+                        ) : (b.status === 'confirmed' || isPending) && (
+                          <span className="text-[11px] font-bold text-green-text">Primera vez contigo</span>
+                        )}
+                      </span>
+                      {b.note && (
+                        <span className="flex items-center gap-1 text-[12px] text-neutral-600 mt-0.5 truncate">
+                          <MessageSquareText className="w-3 h-3 shrink-0" aria-hidden="true" />{b.note}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
-                <span className={`text-[11px] font-bold rounded-full px-2 py-1 whitespace-nowrap ${STATUS_TONE[b.status] ?? 'bg-neutral-100 text-neutral-600'}`}>
-                  {bookingStatusLabel(b.status)}
-                </span>
-                <ChevronDown className={`w-4 h-4 text-neutral-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
-              </button>
+                    <span className={`text-[11px] font-bold rounded-full px-2 py-1 whitespace-nowrap ${STATUS_TONE[b.status] ?? 'bg-neutral-100 text-neutral-600'}`}>
+                      {bookingStatusLabel(b.status)}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-neutral-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  </button>
+                </div>
+
+                {/* Acciones directas inline para reservas pendientes (sin expandir acordeón) */}
+                {isPending && (
+                  <div className="mt-2.5 pl-[52px] flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={busy === b.id}
+                      onClick={() => run(b.id, () => confirmBooking(b.id))}
+                      className="btn-primary btn-sm inline-flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" aria-hidden="true" />Confirmar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy === b.id}
+                      onClick={() => {
+                        if (window.confirm(`¿Liberar el cupo de ${b.studentName}? Se cancelará su solicitud y recibirá un aviso.`)) {
+                          run(b.id, () => cancelBooking(b.id, RELEASE_REASON));
+                        }
+                      }}
+                      className="btn-outline btn-sm inline-flex items-center gap-1.5 text-red"
+                    >
+                      <X className="w-3.5 h-3.5" aria-hidden="true" />Liberar cupo
+                    </button>
+                    {channels.whatsappUrl && (
+                      <a
+                        href={channels.whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-bold bg-[#16a34a] text-white hover:opacity-90 transition-opacity"
+                      >
+                        <WhatsAppIcon className="w-3.5 h-3.5" aria-hidden="true" />WhatsApp
+                      </a>
+                    )}
+                    {channels.instagramUrl && (
+                      <a
+                        href={channels.instagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-bold bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+                      >
+                        <InstagramIcon className="w-3.5 h-3.5" aria-hidden="true" />{channels.instagramHandle ?? 'Instagram'}
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {isOpen && (
                 <div className="px-4 pb-4 pt-1 pl-[68px] space-y-3 animate-fade-in">
@@ -258,12 +349,20 @@ function GroupCard({ group: g, tab, today, busy, open, setOpen, run }: {
                       {[since ? `En Kynea desde ${since}` : null, b.priorBookings > 0 ? `${b.priorBookings} reserva${b.priorBookings !== 1 ? 's' : ''} anterior${b.priorBookings !== 1 ? 'es' : ''} contigo` : null]
                         .filter(Boolean).join(' · ')}
                     </p>
-                    {igUrl && igHandle && (
-                      <a href={igUrl} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline">
-                        <InstagramIcon className="w-3.5 h-3.5" aria-hidden="true" />{igHandle}
-                      </a>
-                    )}
+                    <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                      {channels.whatsappUrl && (
+                        <a href={channels.whatsappUrl} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#16a34a] hover:underline">
+                          <WhatsAppIcon className="w-3.5 h-3.5" aria-hidden="true" />{channels.whatsappDisplay ?? 'WhatsApp'}
+                        </a>
+                      )}
+                      {channels.instagramUrl && channels.instagramHandle && (
+                        <a href={channels.instagramUrl} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline">
+                          <InstagramIcon className="w-3.5 h-3.5" aria-hidden="true" />{channels.instagramHandle}
+                        </a>
+                      )}
+                    </div>
                     <p className="text-[12px] text-neutral-500">{priceLabel}</p>
                   </div>
 

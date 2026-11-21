@@ -126,6 +126,9 @@ export function mapDbClassToType(
     accessLink:       options?.accessLink ?? undefined,
     bookingMode:      (row.booking_mode as DanceClass['bookingMode']) ?? 'none',
     cancellationPolicy: (row.cancellation_policy as DanceClass['cancellationPolicy']) ?? 'moderada',
+    reminderHoursBefore: ([1, 2, 4, 12, 24, 48].includes(Number(row.reminder_hours_before))
+      ? Number(row.reminder_hours_before)
+      : 24) as DanceClass['reminderHoursBefore'],
     coverImage:       row.cover_image ?? '',
     coverImagePosition: row.cover_image_position || '50% 50%',
     coverImageZoom:   row.cover_image_zoom ?? 1,

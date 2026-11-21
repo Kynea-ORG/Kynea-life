@@ -78,4 +78,64 @@ describe('renderEmail', () => {
   it('una plantilla desconocida lanza error', () => {
     expect(() => renderEmail('nope', payload, opts)).toThrow(/plantilla/i);
   });
+
+  it('booking_pending: muestra estado pendiente y CTA directo a WhatsApp/Instagram del profesor', () => {
+    const e = renderEmail('booking_pending', {
+      ...payload,
+      contactMode: 'both',
+      teacherWhatsapp: '+51 999 111 222',
+      teacherInstagram: '@carlosperez',
+      teacherShowWhatsapp: true,
+    }, opts);
+    expect(e.subject).toMatch(/pendiente de confirmación/i);
+    expect(e.html).toContain('https://wa.me/51999111222');
+    expect(e.html).toContain('https://instagram.com/carlosperez');
+    expect(e.text).toContain('Pendiente de confirmación');
+  });
+
+  it('booking_approved: confirma la reserva al alumno con el nombre del profesor', () => {
+    const e = renderEmail('booking_approved', payload, opts);
+    expect(e.subject).toMatch(/reserva confirmada/i);
+    expect(e.html).toContain('Carlos Pérez confirmó');
+    expect(e.html).toContain('https://kynea.dance/dashboard/mis-reservas');
+  });
+
+  it('booking_received pendiente: incluye contacto del alumno y botón 1-tap hacia /reservas/accion', () => {
+    const e = renderEmail('booking_received', {
+      ...payload,
+      status: 'pending_confirmation',
+      studentWhatsapp: '+51 987 654 321',
+      studentInstagram: 'valedance',
+      actionToken: 'tok_abc123',
+    }, opts);
+    expect(e.subject).toMatch(/por confirmar/i);
+    expect(e.html).toContain('https://kynea.dance/reservas/accion?t=tok_abc123');
+    expect(e.html).toContain('https://wa.me/51987654321');
+    expect(e.html).toContain('https://instagram.com/valedance');
+  });
+
+  it('teacher_pending_reminder: agrupa alumnos pendientes con botones 1-tap en aviso pre y post clase', () => {
+    const pre = renderEmail('teacher_pending_reminder', {
+      ...payload,
+      kind: 'pre_class',
+      reminderHoursBefore: 12,
+      items: [
+        { studentName: 'Valentina', seats: 2, price: 80, currency: 'PEN', studentWhatsapp: '987654321', actionToken: 't1' },
+        { studentName: 'Mateo', seats: 1, price: 40, currency: 'PEN', studentInstagram: '@mateo', actionToken: 't2' },
+      ],
+    }, opts);
+    expect(pre.subject).toContain('2 reservas por confirmar');
+    expect(pre.html).toContain('https://kynea.dance/reservas/accion?t=t1');
+    expect(pre.html).toContain('https://kynea.dance/reservas/accion?t=t2');
+    expect(pre.html).toContain('https://wa.me/51987654321');
+    expect(pre.html).toContain('https://instagram.com/mateo');
+
+    const post = renderEmail('teacher_pending_reminder', {
+      ...payload,
+      kind: 'post_class',
+      items: [{ studentName: 'Valentina', seats: 1, price: 40, currency: 'PEN', actionToken: 't1' }],
+    }, opts);
+    expect(post.subject).toMatch(/último aviso/i);
+    expect(post.html).toContain('48 horas');
+  });
 });

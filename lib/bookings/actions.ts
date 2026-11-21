@@ -9,13 +9,16 @@ import { bookingRateLimiter, checkRateLimit } from '@/lib/ratelimit';
 import { enqueueEmail, buildBookingEmailPayload } from '@/lib/email/outbox';
 import { dispatchOutbox } from '@/lib/email/send';
 import { enqueueCancellationEmails } from '@/lib/email/cancellations';
+import { enqueueBookingApprovedEmail } from '@/lib/email/confirmations';
 import { BOOKING_EMAIL_SELECT } from '@/lib/email/reminders';
+import { extractSocialHandle } from '@/lib/utils';
 import { parseBookingError, BOOKING_ERROR_MESSAGES } from './errors';
 import { fetchClassSessions } from './queries';
-import type { BookingActionResult, ClassSession } from './types';
+import { createBookingActionToken } from './tokens';
+import type { BookingActionResult, BookingStatus, ClassSession } from './types';
 
 // Server Actions de reservas. Cada una exige sesión y delega la autorización real en la RPC
-// (migración 70): la base de datos decide quién puede reservar, cancelar o marcar asistencia.
+// (migraciones 70–76): la base de datos decide quién puede reservar, confirmar, cancelar o marcar asistencia.
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -41,19 +44,31 @@ function revalidateBookings() {
   revalidatePath('/dashboard/mis-reservas');
   revalidatePath('/dashboard/alumno/reservas');
   revalidatePath('/dashboard/reservas');
+  revalidatePath('/dashboard/admin/resumen');
   safeRevalidateTag('classes', 'max');
 }
 
 /**
- * Deja en la cola los correos de una o varias reservas nuevas: confirmación al alumno y aviso al profesor.
+ * Deja en la cola los correos de una o varias reservas nuevas:
+ * - Al alumno: `booking_pending` (si nació pendiente de confirmación) o `booking_confirmed` (si es gratuita).
+ * - Al profesor: `booking_received` con contacto del alumno y botón 1-tap si requiere confirmación.
  * Es "mejor esfuerzo" con aislamiento por reserva: si falla, las reservas ya están hechas y no se revierten.
  */
-async function enqueueBookingEmails(bookingIds: string[], student: { id: string; email?: string | null }) {
-  if (bookingIds.length === 0) return;
+async function enqueueBookingEmails(
+  bookingIds: string[],
+  student: { id: string; email?: string | null },
+): Promise<BookingStatus | undefined> {
+  if (bookingIds.length === 0) return undefined;
+  let detectedStatus: BookingStatus | undefined;
   try {
     const admin = createAdminClient();
-    const { data: profile } = await admin.from('profiles').select('name').eq('id', student.id).single();
-    const studentName = (profile as { name?: string | null } | null)?.name ?? 'Un alumno';
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('name, whatsapp, instagram')
+      .eq('id', student.id)
+      .single();
+    const prof = profile as { name?: string | null; whatsapp?: string | null; instagram?: string | null } | null;
+    const studentName = prof?.name ?? 'Un alumno';
     const teacherEmailCache = new Map<string, string>();
 
     for (const bookingId of bookingIds) {
@@ -66,17 +81,24 @@ async function enqueueBookingEmails(bookingIds: string[], student: { id: string;
         if (!row) continue;
 
         const typed = row as unknown as Parameters<typeof buildBookingEmailPayload>[0] & {
+          status?: string | null;
           student_note?: string | null;
+          student_whatsapp?: string | null;
+          student_instagram?: string | null;
           class: { teacher_id: string | null; teacher?: { name: string | null } | null };
         };
+        const isPending = typed.status === 'pending_confirmation';
+        if (!detectedStatus) {
+          detectedStatus = isPending ? 'pending_confirmation' : 'confirmed';
+        }
         const teacherName = typed.class.teacher?.name ?? undefined;
         const payload = { ...buildBookingEmailPayload(typed), teacherName };
 
         await enqueueEmail(admin, {
           to: student.email ?? '',
-          template: 'booking_confirmed',
+          template: isPending ? 'booking_pending' : 'booking_confirmed',
           payload,
-          dedupeKey: `booking_confirmed:${bookingId}`,
+          dedupeKey: `${isPending ? 'booking_pending' : 'booking_confirmed'}:${bookingId}`,
         });
 
         if (typed.class.teacher_id) {
@@ -86,10 +108,30 @@ async function enqueueBookingEmails(bookingIds: string[], student: { id: string;
             teacherEmail = teacher?.user?.email ?? '';
             teacherEmailCache.set(typed.class.teacher_id, teacherEmail);
           }
+
+          const actionToken = isPending
+            ? await createBookingActionToken(admin, {
+                bookingId,
+                teacherId: typed.class.teacher_id,
+                date: payload.date,
+                startTime: payload.startTime,
+              })
+            : null;
+
+          const studentWhatsapp = typed.student_whatsapp?.trim() || prof?.whatsapp?.trim() || undefined;
+          const studentInstagram = typed.student_instagram?.trim() || prof?.instagram?.trim() || undefined;
+
           await enqueueEmail(admin, {
             to: teacherEmail,
             template: 'booking_received',
-            payload: { ...payload, studentName, note: typed.student_note ?? undefined },
+            payload: {
+              ...payload,
+              studentName,
+              note: typed.student_note ?? undefined,
+              ...(studentWhatsapp ? { studentWhatsapp } : {}),
+              ...(studentInstagram ? { studentInstagram } : {}),
+              ...(actionToken ? { actionToken } : {}),
+            },
             dedupeKey: `booking_received:${bookingId}`,
           });
         }
@@ -98,11 +140,12 @@ async function enqueueBookingEmails(bookingIds: string[], student: { id: string;
       }
     }
 
-    // Si el proveedor falla o no está configurado, el cron diario lo reintenta.
+    // Si el proveedor falla o no está configurado, el cron diario/horario lo reintenta.
     dispatchAfterResponse(Math.max(10, bookingIds.length * 2));
   } catch (err) {
     console.error('[enqueueBookingEmails]', err);
   }
+  return detectedStatus;
 }
 
 export async function reserveBooking(input: {
@@ -111,7 +154,9 @@ export async function reserveBooking(input: {
   sessionIds?: string[];
   seats?: number;
   note?: string;
-}): Promise<BookingActionResult<{ bookingId: string; bookingIds?: string[] }>> {
+  whatsapp?: string;
+  instagram?: string;
+}): Promise<BookingActionResult<{ bookingId: string; bookingIds?: string[]; status?: BookingStatus }>> {
   const supabase = await createClient();
   const user = await requireUser(supabase);
 
@@ -119,6 +164,8 @@ export async function reserveBooking(input: {
   if (!success) return fail('RATE_LIMITED');
 
   const cleanNote = input.note?.trim() || null;
+  const cleanWhatsapp = input.whatsapp?.trim() || null;
+  const cleanInstagram = input.instagram?.trim() ? extractSocialHandle(input.instagram, 'instagram') || null : null;
   const seats = input.seats ?? 1;
 
   if (input.sessionIds && input.sessionIds.length > 0) {
@@ -127,13 +174,15 @@ export async function reserveBooking(input: {
       p_session_ids: input.sessionIds,
       p_seats: seats,
       p_note: cleanNote,
+      p_whatsapp: cleanWhatsapp,
+      p_instagram: cleanInstagram,
     });
     const bookingIds = Array.isArray(data) ? (data as string[]) : [];
     if (error || bookingIds.length === 0) return { ok: false, error: parseBookingError(error) };
 
-    await enqueueBookingEmails(bookingIds, user);
+    const status = await enqueueBookingEmails(bookingIds, user);
     revalidateBookings();
-    return { ok: true, data: { bookingId: bookingIds[0], bookingIds } };
+    return { ok: true, data: { bookingId: bookingIds[0], bookingIds, ...(status ? { status } : {}) } };
   }
 
   const { data, error } = await supabase.rpc('reserve_booking', {
@@ -141,13 +190,35 @@ export async function reserveBooking(input: {
     p_session_id: input.sessionId ?? null,
     p_seats: seats,
     p_note: cleanNote,
+    p_whatsapp: cleanWhatsapp,
+    p_instagram: cleanInstagram,
   });
   if (error || !data) return { ok: false, error: parseBookingError(error) };
 
   const bookingId = data as string;
-  await enqueueBookingEmails([bookingId], user);
+  const status = await enqueueBookingEmails([bookingId], user);
   revalidateBookings();
-  return { ok: true, data: { bookingId } };
+  return { ok: true, data: { bookingId, ...(status ? { status } : {}) } };
+}
+
+export async function confirmBooking(bookingId: string): Promise<BookingActionResult> {
+  const supabase = await createClient();
+  await requireUser(supabase);
+
+  const { data, error } = await supabase.rpc('confirm_booking', { p_booking_id: bookingId });
+  if (error) return { ok: false, error: parseBookingError(error) };
+
+  // Solo encola correo de aprobación si realmente transicionó desde pending_confirmation.
+  if (data === true) {
+    try {
+      await enqueueBookingApprovedEmail(createAdminClient(), bookingId);
+      dispatchAfterResponse(10);
+    } catch (err) {
+      console.error('[confirmBooking] correo de aprobación', err);
+    }
+  }
+  revalidateBookings();
+  return { ok: true };
 }
 
 export async function cancelBooking(bookingId: string, reason?: string): Promise<BookingActionResult> {

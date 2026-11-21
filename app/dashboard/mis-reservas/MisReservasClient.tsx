@@ -3,11 +3,13 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CalendarCheck, CalendarDays, ChevronDown, List, MapPin } from 'lucide-react';
 import SmartImage from '@/components/SmartImage';
+import { InstagramIcon, WhatsAppIcon } from '@/components/icons/SocialIcons';
 import ClassTips from '@/components/booking/ClassTips';
 import AddToCalendar from '@/components/booking/AddToCalendar';
 import BookingsCalendar from '@/components/booking/BookingsCalendar';
 import type { ClassType } from '@/lib/types';
 import type { MyBooking } from '@/lib/bookings/types';
+import { buildStudentToTeacherMessage, resolveTeacherChannels } from '@/lib/bookings/contact';
 import { bookingStatusLabel, isActiveBookingStatus } from '@/lib/bookings/rules';
 import {
   cancellationDeadline,
@@ -76,11 +78,25 @@ export default function MisReservasClient({
     const timing = !date ? null : b.session ? countdownLabel(daysUntil(date, today)) : classTimingLabel(date, b.class.endDate, today);
     const active = isUpcoming(b);
     const isOpen = open === b.id;
+    const isPendingConfirmation = b.status === 'pending_confirmation';
     const isOnline = b.class.modality === 'Online';
     const place = isOnline ? 'Clase online' : [b.class.venueName, b.class.address].filter(Boolean).join(', ');
     const policy = b.class.cancellationPolicy;
-    const cancellable = active && date ? canStillCancel(date, start, policy) : active;
+    const cancellable = active && (isPendingConfirmation || (date ? canStillCancel(date, start, policy) : true));
     const deadline = date ? cancellationDeadline(date, start, policy) : null;
+    const teacherMsg = buildStudentToTeacherMessage({
+      teacherName: b.class.teacherName,
+      classTitle: b.class.title,
+      date,
+      seats: b.seats,
+    });
+    const teacherChannels = resolveTeacherChannels({
+      contactMode: b.class.contactMode,
+      whatsapp: b.class.teacherWhatsapp,
+      instagram: b.class.teacherInstagram,
+      showWhatsapp: b.class.teacherShowWhatsapp,
+      message: teacherMsg,
+    });
     const event = date && start && end
       ? { title: b.class.title, date, startTime: start, endTime: end, location: place || undefined }
       : null;
@@ -88,11 +104,11 @@ export default function MisReservasClient({
       ? classUrl({ styleSlug: b.class.styleSlug, type: b.class.type as ClassType, slug: b.class.slug })
       : null;
     const priceLabel = b.priceAmount > 0
-      ? `${formatPriceShort('Pago único', b.priceAmount, b.currency)} (${isOnline ? 'coordinas con el profesor' : 'pagas en la clase'})`
+      ? `${formatPriceShort('Pago único', b.priceAmount, b.currency)} (coordinas con el profesor)`
       : 'Gratis';
 
     return (
-      <article key={b.id} className={`card-dash overflow-hidden ${isNext ? 'border-primary/40 shadow-md' : ''}`}>
+      <article key={b.id} className={`card-dash overflow-hidden ${isPendingConfirmation && active ? 'border-yellow-dark/40' : isNext ? 'border-primary/40 shadow-md' : ''}`}>
         <div className="flex gap-3.5 p-3.5">
           <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-neutral-100 shrink-0">
             {b.class.coverImage && <SmartImage src={b.class.coverImage} alt="" fill sizes="96px" className="object-cover" />}
@@ -106,7 +122,11 @@ export default function MisReservasClient({
               ) : (
                 <p className="font-extrabold text-neutral-900 leading-tight line-clamp-2">{b.class.title}</p>
               )}
-              {active && timing ? (
+              {active && isPendingConfirmation ? (
+                <span className="text-[11px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap bg-yellow-bg text-yellow-dark">
+                  {bookingStatusLabel(b.status)}
+                </span>
+              ) : active && timing ? (
                 <span className={`text-[12px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${away !== null && away >= 0 && away <= 1 ? 'bg-primary text-white' : 'bg-primary-bg text-primary'}`}>
                   {timing}
                 </span>
@@ -116,7 +136,7 @@ export default function MisReservasClient({
             </div>
             {b.class.teacherName && <p className="text-[12px] text-neutral-600 mt-0.5">con {b.class.teacherName}</p>}
             {date && (
-              <p className="text-[13px] font-semibold text-neutral-800 mt-1.5 capitalize">
+              <p className="text-[13px] font-semibold text-neutral-800 mt-1.5 first-letter:uppercase">
                 {formatLongDate(date)}{start ? ` · ${start}${end ? ` – ${end}` : ''}` : ''}
               </p>
             )}
@@ -126,6 +146,38 @@ export default function MisReservasClient({
             </p>
           </div>
         </div>
+
+        {active && isPendingConfirmation && (teacherChannels.whatsappUrl || teacherChannels.instagramUrl) && (
+          <div className="px-4 py-3 bg-yellow-bg/40 border-t border-yellow-dark/15 flex flex-wrap items-center justify-between gap-2.5">
+            <p className="text-[12px] font-semibold text-neutral-800">
+              Tu cupo está apartado. Escríbele al profesor para coordinar el pago y confirmarlo:
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {teacherChannels.whatsappUrl && (
+                <a
+                  href={teacherChannels.whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold bg-[#16a34a] text-white hover:opacity-90 transition-opacity"
+                >
+                  <WhatsAppIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                  Escribir por WhatsApp
+                </a>
+              )}
+              {teacherChannels.instagramUrl && (
+                <a
+                  href={teacherChannels.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+                >
+                  <InstagramIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                  {teacherChannels.instagramHandle ? `Instagram (${teacherChannels.instagramHandle})` : 'Escribir por Instagram'}
+                </a>
+              )}
+            </div>
+          </div>
+        )}
 
         {active && (
           <>
@@ -154,11 +206,13 @@ export default function MisReservasClient({
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                   <p className="text-[12px] text-neutral-600 max-w-sm">
-                    {cancellable
-                      ? deadline
-                        ? <>Puedes cancelar sin problema hasta el {formatDeadlineLima(deadline)} (hora Lima).</>
-                        : <>Puedes cancelar esta reserva desde aquí si cambias de planes.</>
-                      : <>El plazo para cancelar ya pasó. Si no puedes ir, avísale a tu profesor para que pueda ofrecer tu cupo.</>}
+                    {isPendingConfirmation
+                      ? <>Puedes cancelar esta solicitud gratis en cualquier momento mientras esté pendiente de confirmación.</>
+                      : cancellable
+                        ? deadline
+                          ? <>Puedes cancelar sin problema hasta el {formatDeadlineLima(deadline)} (hora Lima).</>
+                          : <>Puedes cancelar esta reserva desde aquí si cambias de planes.</>
+                        : <>El plazo para cancelar ya pasó. Si no puedes ir, avísale a tu profesor para que pueda ofrecer tu cupo.</>}
                   </p>
                   {cancellable && (
                     <button type="button" onClick={() => cancel(b.id)} disabled={pendingId === b.id}

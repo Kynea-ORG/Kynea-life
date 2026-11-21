@@ -52,9 +52,10 @@ describe('mapMyBookingRow', () => {
       student_note: 'Soy principiante',
       class: {
         ...row.class!,
+        contact_mode: 'both',
         footwear: ['Zapatillas'], clothing: 'Ropa cómoda', to_bring: ['Agua', 'Toalla'], requirements: ['Ganas'],
         venue: { name: 'Estudio Sol', address: 'Av. 1', reference: 'Frente al parque', maps_url: null, place_id: 'pid1', city: 'Lima' },
-        teacher: { name: 'Carlos', photo_url: 'c.jpg' },
+        teacher: { name: 'Carlos', photo_url: 'c.jpg', whatsapp: '+51 999 111 222', instagram: '@carlosdance', show_whatsapp: true },
         class_schedules: [
           { day_of_week: 4, start_time: '20:00:00', end_time: '21:00:00' },
           { day_of_week: 1, start_time: '19:00:00', end_time: '20:00:00' },
@@ -65,6 +66,7 @@ describe('mapMyBookingRow', () => {
     expect(b.class).toMatchObject({
       footwear: ['Zapatillas'], clothing: 'Ropa cómoda', toBring: ['Agua', 'Toalla'], requirements: ['Ganas'],
       reference: 'Frente al parque', styleSlug: 'bachata', teacherName: 'Carlos', teacherPhoto: 'c.jpg',
+      teacherWhatsapp: '+51 999 111 222', teacherInstagram: '@carlosdance', teacherShowWhatsapp: true, contactMode: 'both',
       startTime: '19:00', endTime: '20:00', days: [1, 4],
     });
     expect(b.class.mapsUrl).toContain('https://www.google.com/maps/search/');
@@ -104,14 +106,14 @@ describe('mapTeacherBookingRow', () => {
       booking_id: 'b1', class_id: 'c1', class_title: 'Taller', class_modality: 'Online', class_end_date: '2026-11-30',
       session_id: null, session_date: null, session_status: null, start_time: null,
       capacity: 12, student_id: 'u1', student_name: 'Valentina', student_photo: 'v.jpg', student_bio: '  Bailo desde niña ',
-      student_instagram: 'vale', student_since: '2026-01-01T00:00:00Z',
-      student_note: ' Tengo la rodilla sensible ', student_prior: 2, seats: 1, status: 'confirmed', price_amount: 0, currency: 'PEN',
-      payment_method: 'free', created_at: '2026-11-11T10:00:00Z',
+      student_whatsapp: '+51 988 777 666', student_instagram: 'vale', student_since: '2026-01-01T00:00:00Z',
+      student_note: ' Tengo la rodilla sensible ', student_prior: 2, seats: 1, status: 'pending_confirmation', confirmed_at: null, price_amount: 40, currency: 'PEN',
+      payment_method: 'pay_at_venue', created_at: '2026-11-11T10:00:00Z',
     });
     expect(b).toMatchObject({
       id: 'b1', classTitle: 'Taller', classModality: 'Online', classEndDate: '2026-11-30',
-      studentName: 'Valentina', seats: 1, status: 'confirmed', capacity: 12,
-      studentPhoto: 'v.jpg', studentBio: 'Bailo desde niña', studentInstagram: 'vale',
+      studentName: 'Valentina', seats: 1, status: 'pending_confirmation', capacity: 12,
+      studentPhoto: 'v.jpg', studentBio: 'Bailo desde niña', studentWhatsapp: '+51 988 777 666', studentInstagram: 'vale',
       note: 'Tengo la rodilla sensible', priorBookings: 2,
     });
     expect(b.sessionDate).toBeUndefined();

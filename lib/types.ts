@@ -114,9 +114,10 @@ export interface DanceClass {
   toBring?: string[];
   ageGroup?: string;
   contactMode?: 'whatsapp' | 'instagram' | 'both';
-  // Reservas (migración 70): 'none' = solo contacto; 'class' = clase completa; 'session' = por fecha.
+  // Reservas (migración 70 / 76): 'none' = solo contacto; 'class' = clase completa; 'session' = por fecha.
   bookingMode?: 'none' | 'class' | 'session';
   cancellationPolicy?: 'flexible' | 'moderada' | 'estricta';
+  reminderHoursBefore?: 1 | 2 | 4 | 12 | 24 | 48;
 
   status: ClassStatus;
   teacher: Teacher;

@@ -44,6 +44,9 @@ interface BookingEmailRow {
   price_amount: number | string;
   currency: string;
   payment_method: string;
+  status?: string | null;
+  student_whatsapp?: string | null;
+  student_instagram?: string | null;
   class: {
     id: string;
     title: string;
@@ -53,6 +56,7 @@ interface BookingEmailRow {
     start_date: string | null;
     end_date: string | null;
     cancellation_policy: string | null;
+    contact_mode?: string | null;
     footwear: string[] | null;
     clothing: string | null;
     to_bring: string[] | null;
@@ -60,6 +64,12 @@ interface BookingEmailRow {
       name: string | null; address: string | null; reference: string | null;
       maps_url: string | null; place_id?: string | null; lat?: number | null; lng?: number | null;
       city: string | null;
+    } | null;
+    teacher?: {
+      name?: string | null;
+      whatsapp?: string | null;
+      instagram?: string | null;
+      show_whatsapp?: boolean | null;
     } | null;
     class_schedules?: { day_of_week: number; start_time: string; end_time: string }[] | null;
   };
@@ -106,5 +116,10 @@ export function buildBookingEmailPayload(row: BookingEmailRow) {
     clothing: c.clothing ?? undefined,
     toBring: c.to_bring ?? [],
     cancellationPolicy: c.cancellation_policy ?? 'moderada',
+    contactMode: c.contact_mode ?? 'whatsapp',
+    ...(row.status ? { status: row.status } : {}),
+    ...(c.teacher?.whatsapp?.trim() ? { teacherWhatsapp: c.teacher.whatsapp.trim() } : {}),
+    ...(c.teacher?.instagram?.trim() ? { teacherInstagram: c.teacher.instagram.trim() } : {}),
+    ...(c.teacher?.show_whatsapp != null ? { teacherShowWhatsapp: c.teacher.show_whatsapp } : {}),
   };
 }

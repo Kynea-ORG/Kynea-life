@@ -73,17 +73,19 @@ describe('groupTeacherBookings', () => {
 });
 
 describe('teacherSummary', () => {
-  it('resume lo que le importa al profesor', () => {
+  it('resume lo que le importa al profesor incluyendo pendientes de confirmación', () => {
     const groups = groupTeacherBookings([
-      b({ sessionId: 's1', sessionDate: '2026-11-14', seats: 2 }),
+      b({ sessionId: 's1', sessionDate: '2026-11-14', seats: 2, status: 'pending_confirmation' }),
       b({ sessionId: 's1', sessionDate: '2026-11-14' }),
       b({ sessionId: 's2', sessionDate: '2026-11-30' }),
-      b({ sessionId: 's3', sessionDate: '2026-11-10' }),
+      b({ sessionId: 's3', sessionDate: '2026-11-10', status: 'pending_confirmation' }),
     ], TODAY);
-    expect(teacherSummary(groups)).toEqual({ upcomingPeople: 4, nextDate: '2026-11-14', toClose: 1 });
+    expect(groups.upcoming[0]).toMatchObject({ taken: 3, pendingCount: 1, pendingSeats: 2 });
+    expect(groups.toClose).toHaveLength(1);
+    expect(teacherSummary(groups)).toEqual({ upcomingPeople: 4, nextDate: '2026-11-14', toClose: 1, pendingCount: 2 });
   });
 
   it('sin próximas deja nextDate vacío', () => {
-    expect(teacherSummary(groupTeacherBookings([], TODAY))).toEqual({ upcomingPeople: 0, nextDate: undefined, toClose: 0 });
+    expect(teacherSummary(groupTeacherBookings([], TODAY))).toEqual({ upcomingPeople: 0, nextDate: undefined, toClose: 0, pendingCount: 0 });
   });
 });
