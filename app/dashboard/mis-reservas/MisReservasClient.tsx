@@ -122,17 +122,22 @@ export default function MisReservasClient({
               ) : (
                 <p className="font-extrabold text-neutral-900 leading-tight line-clamp-2">{b.class.title}</p>
               )}
-              {active && isPendingConfirmation ? (
-                <span className="text-[11px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap bg-yellow-bg text-yellow-dark">
+              <div className="flex flex-wrap items-center justify-end gap-1.5 max-w-[55%] sm:max-w-none shrink-0">
+                {active && timing && (
+                  <span className={`text-[11px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${away !== null && away >= 0 && away <= 1 ? 'bg-primary text-white' : 'bg-primary-bg text-primary'}`}>
+                    {timing}
+                  </span>
+                )}
+                <span className={`text-[11px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${
+                  active && isPendingConfirmation
+                    ? 'bg-yellow-bg text-yellow-dark'
+                    : active && b.status === 'confirmed'
+                      ? 'bg-green-bg text-green-text'
+                      : 'bg-neutral-100 text-neutral-600'
+                }`}>
                   {bookingStatusLabel(b.status)}
                 </span>
-              ) : active && timing ? (
-                <span className={`text-[12px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${away !== null && away >= 0 && away <= 1 ? 'bg-primary text-white' : 'bg-primary-bg text-primary'}`}>
-                  {timing}
-                </span>
-              ) : (
-                <span className="badge-gray text-[11px] px-2 py-1">{bookingStatusLabel(b.status)}</span>
-              )}
+              </div>
             </div>
             {b.class.teacherName && <p className="text-[12px] text-neutral-600 mt-0.5">con {b.class.teacherName}</p>}
             {date && (
