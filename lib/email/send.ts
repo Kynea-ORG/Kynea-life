@@ -50,7 +50,11 @@ interface OutboxRow { id: string; to_email: string; template: string; payload: R
 export async function dispatchOutbox(admin: SupabaseClient, limit = 25): Promise<{ sent: number; failed: number; skipped: number }> {
   const totals = { sent: 0, failed: 0, skipped: 0 };
   const { data, error } = await admin.rpc('claim_email_outbox', { p_limit: limit });
-  if (error || !data) return totals;
+  if (error) {
+    console.error('[dispatchOutbox] claim_email_outbox', error);
+    return totals;
+  }
+  if (!data) return totals;
 
   const siteUrl = resolveSiteUrl();
   for (const row of data as OutboxRow[]) {

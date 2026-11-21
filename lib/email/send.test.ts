@@ -99,4 +99,15 @@ describe('dispatchOutbox', () => {
     expect(updates.find(u => u.id === 'bad')?.patch).toMatchObject({ status: 'failed' });
     expect(updates.find(u => u.id === 'ok')?.patch).toMatchObject({ status: 'sent' });
   });
+
+  it('registra el error y no falla si claim_email_outbox devuelve error', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const admin = {
+      rpc: vi.fn(async () => ({ data: null, error: { message: 'ambiguous' } })),
+      from: vi.fn(),
+    } as unknown as SupabaseClient;
+    expect(await dispatchOutbox(admin)).toEqual({ sent: 0, failed: 0, skipped: 0 });
+    expect(errSpy).toHaveBeenCalledWith('[dispatchOutbox] claim_email_outbox', { message: 'ambiguous' });
+    errSpy.mockRestore();
+  });
 });
