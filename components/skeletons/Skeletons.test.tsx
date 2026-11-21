@@ -160,11 +160,14 @@ describe('Contextual Skeletons', () => {
     expect(root?.className).toContain('max-w-3xl');
   });
 
-  it('renders AdminResumenSkeleton with stat grid and aria-busy', () => {
+  it('renders AdminResumenSkeleton with 3 sections, max-w-6xl container and top 5 rows', () => {
     const { container } = render(<AdminResumenSkeleton />);
     const root = container.querySelector('[aria-busy="true"]');
     expect(root).not.toBeNull();
     expect(root?.getAttribute('aria-label')).toBe('Cargando resumen de administración...');
+    expect(root?.className).toContain('max-w-6xl');
+    expect(container.querySelectorAll('section')).toHaveLength(3);
+    expect(container.querySelectorAll('ul > li')).toHaveLength(5);
   });
 
   it('renders AdminTableSkeleton for usuarios and academias variants', () => {
