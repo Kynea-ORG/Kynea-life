@@ -106,7 +106,7 @@ describe('BookingCta', () => {
     render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
     fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
 
-    expect(screen.getByText(/mín\. 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/mínimo 1/i)).toBeInTheDocument();
     const waToggle = screen.getByRole('button', { name: /^whatsapp$/i });
     const igToggle = screen.getByRole('button', { name: /^instagram$/i });
     const nextBtn = screen.getByRole('button', { name: /continuar/i });
