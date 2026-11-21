@@ -1,4 +1,4 @@
-import { buildInstagramUrl, formatSocialHandle } from '@/lib/utils';
+import { buildInstagramUrl, extractSocialHandle, formatSocialHandle } from '@/lib/utils';
 import { formatLongDate } from './dates';
 
 /**
@@ -14,6 +14,75 @@ export function buildWhatsAppChatUrl(phone: string | null | undefined, message?:
   if (digits.length < 7) return null;
   const base = `https://wa.me/${digits}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+}
+
+/** Valida que el WhatsApp tenga al menos 7 dígitos útiles. */
+export function isValidWhatsAppContact(phone: string | null | undefined): boolean {
+  return buildWhatsAppChatUrl(phone) !== null;
+}
+
+/** Valida que el Instagram tenga al menos 1 carácter de usuario válido además de `@` / espacios. */
+export function isValidInstagramContact(handle: string | null | undefined): boolean {
+  const clean = extractSocialHandle(handle, 'instagram');
+  return Boolean(clean && buildInstagramUrl(clean));
+}
+
+/** Indica si el alumno ingresó al menos un canal de contacto válido (WhatsApp o Instagram). */
+export function hasValidBookingContact(
+  whatsapp: string | null | undefined,
+  instagram: string | null | undefined,
+): boolean {
+  return isValidWhatsAppContact(whatsapp) || isValidInstagramContact(instagram);
+}
+
+export type ContactValidationResult =
+  | { valid: true; value: string; error: null }
+  | { valid: false; value: string; error: string };
+
+const WHATSAPP_ONLY_DIGITS_ERROR = 'Ingresa solo dígitos de tu número local, sin enlaces ni espacios.';
+const INSTAGRAM_STRICT_ERROR = 'Ingresa solo tu usuario de Instagram (ej. tuusuario), sin enlaces ni espacios.';
+const URL_OR_LINK_PATTERN = /https?:\/\/|www\.|wa\.me|instagram\.com|\.com|\/|\?|#/i;
+const INSTAGRAM_HANDLE_PATTERN = /^[a-zA-Z0-9._]{1,30}$/;
+
+/**
+ * Validador estricto para el número local de WhatsApp en BookingDialog:
+ * rechaza enlaces, letras, espacios y símbolos; exige entre 7 y 15 dígitos locales.
+ */
+export function validateBookingWhatsApp(localNumber: string | null | undefined): ContactValidationResult {
+  const raw = localNumber ?? '';
+  if (!raw.trim()) {
+    return { valid: false, value: '', error: 'Ingresa tu número local de WhatsApp.' };
+  }
+  if (URL_OR_LINK_PATTERN.test(raw) || !/^\d+$/.test(raw)) {
+    return { valid: false, value: '', error: WHATSAPP_ONLY_DIGITS_ERROR };
+  }
+  if (raw.length < 7) {
+    return { valid: false, value: '', error: 'Ingresa al menos 7 dígitos de tu número local.' };
+  }
+  if (raw.length > 15) {
+    return { valid: false, value: '', error: 'El número local no puede tener más de 15 dígitos.' };
+  }
+  return { valid: true, value: raw, error: null };
+}
+
+/**
+ * Validador estricto para usuario de Instagram en BookingDialog:
+ * rechaza explícitamente enlaces/URLs, espacios, caracteres fuera de `^[a-zA-Z0-9._]{1,30}$` y `..`.
+ */
+export function validateBookingInstagram(rawHandle: string | null | undefined): ContactValidationResult {
+  const raw = rawHandle ?? '';
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { valid: false, value: '', error: 'Ingresa tu usuario de Instagram.' };
+  }
+  if (/\s/.test(trimmed) || URL_OR_LINK_PATTERN.test(trimmed)) {
+    return { valid: false, value: '', error: INSTAGRAM_STRICT_ERROR };
+  }
+  const handle = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+  if (!handle || handle.includes('..') || !INSTAGRAM_HANDLE_PATTERN.test(handle)) {
+    return { valid: false, value: '', error: INSTAGRAM_STRICT_ERROR };
+  }
+  return { valid: true, value: handle, error: null };
 }
 
 /** Mensaje prellenado para que el alumno escriba al profesor y coordine el pago/confirmación. */

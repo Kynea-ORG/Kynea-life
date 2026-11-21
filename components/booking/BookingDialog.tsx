@@ -5,10 +5,17 @@ import Link from 'next/link';
 import { ArrowLeft, CalendarCheck, Check, Clock, Loader2, MapPin, Minus, Plus, ShieldCheck, Wallet, X } from 'lucide-react';
 import SmartImage from '@/components/SmartImage';
 import { useAuth } from '@/components/AuthProvider';
+import PhoneCountrySelect from '@/components/PhoneCountrySelect';
 import { InstagramIcon, WhatsAppIcon } from '@/components/icons/SocialIcons';
 import { DanceClass } from '@/lib/types';
 import type { BookingStatus, ClassSession } from '@/lib/bookings/types';
-import { buildStudentToTeacherMessage, resolveTeacherChannels } from '@/lib/bookings/contact';
+import {
+  buildStudentToTeacherMessage,
+  resolveTeacherChannels,
+  validateBookingInstagram,
+  validateBookingWhatsApp,
+} from '@/lib/bookings/contact';
+import { getPhoneExample, parsePhonePrefix } from '@/lib/countries';
 import { sessionSpotsLeft } from '@/lib/bookings/mappers';
 import { reserveBooking, listClassSessions } from '@/lib/bookings/actions';
 import {
@@ -24,7 +31,7 @@ import {
 } from '@/lib/bookings/dates';
 import { DAY_MAP, getTodayLima } from '@/lib/classes/helpers';
 import { trackBookingCreated } from '@/lib/analytics';
-import { buildGoogleMapsUrl, formatPriceShort } from '@/lib/utils';
+import { buildGoogleMapsUrl, extractSocialHandle, formatPriceShort } from '@/lib/utils';
 import ClassTips from './ClassTips';
 import AddToCalendar from './AddToCalendar';
 
@@ -70,8 +77,11 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const [sessionIds, setSessionIds] = useState<string[]>([]);
   const [seats, setSeats] = useState(1);
   const [note, setNote] = useState('');
-  const [whatsappDraft, setWhatsappDraft] = useState<string | null>(null);
-  const [instagramDraft, setInstagramDraft] = useState<string | null>(null);
+  const [useWaDraft, setUseWaDraft] = useState<boolean | null>(null);
+  const [useIgDraft, setUseIgDraft] = useState<boolean | null>(null);
+  const [waCodeDraft, setWaCodeDraft] = useState<string | null>(null);
+  const [waNumberDraft, setWaNumberDraft] = useState<string | null>(null);
+  const [igHandleDraft, setIgHandleDraft] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bookingIds, setBookingIds] = useState<string[]>([]);
@@ -79,9 +89,32 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const [isPending, startTransition] = useTransition();
   const today = getTodayLima();
 
-  const whatsapp = whatsappDraft ?? profile?.whatsapp ?? '';
-  const instagram = instagramDraft ?? profile?.instagram ?? '';
-  const hasContact = Boolean(whatsapp.trim() || instagram.trim());
+  const profilePrefill = useMemo(() => {
+    const parsedWa = parsePhonePrefix(profile?.whatsapp);
+    const cleanWaDigits = parsedWa.number.replace(/\D/g, '');
+    const waOk = validateBookingWhatsApp(cleanWaDigits).valid;
+
+    const cleanIg = profile?.instagram ? extractSocialHandle(profile.instagram, 'instagram') : '';
+    const igOk = validateBookingInstagram(cleanIg).valid;
+
+    return {
+      useWa: waOk,
+      waCode: waOk ? parsedWa.code : '+51',
+      waNumber: waOk ? cleanWaDigits : '',
+      useIg: igOk,
+      igHandle: igOk ? cleanIg : '',
+    };
+  }, [profile]);
+
+  const useWa = useWaDraft ?? profilePrefill.useWa;
+  const useIg = useIgDraft ?? profilePrefill.useIg;
+  const waCode = waCodeDraft ?? profilePrefill.waCode;
+  const waNumber = waNumberDraft ?? profilePrefill.waNumber;
+  const igHandle = igHandleDraft ?? profilePrefill.igHandle;
+
+  const waValidation = useMemo(() => validateBookingWhatsApp(waNumber), [waNumber]);
+  const igValidation = useMemo(() => validateBookingInstagram(igHandle), [igHandle]);
+  const hasContact = (useWa || useIg) && (!useWa || waValidation.valid) && (!useIg || igValidation.valid);
 
   useEffect(() => {
     if (!bySession) return;
@@ -208,8 +241,8 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
       try {
         const orderedIds = selectedSessions.map(s => s.id);
         const contactFields = {
-          ...(whatsapp.trim() ? { whatsapp: whatsapp.trim() } : {}),
-          ...(instagram.trim() ? { instagram: instagram.trim() } : {}),
+          ...(useWa && waValidation.valid ? { whatsapp: `${waCode}${waValidation.value}` } : {}),
+          ...(useIg && igValidation.valid ? { instagram: igValidation.value } : {}),
         };
         const payload = bySession && orderedIds.length > 1
           ? { classId: cls.id, sessionIds: orderedIds, seats, note, ...contactFields }
@@ -223,7 +256,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
         });
         setBookingIds(result.data.bookingIds ?? [result.data.bookingId]);
         setCreatedStatus(result.data.status ?? (requiresApproval ? 'pending_confirmation' : 'confirmed'));
-        if (whatsappDraft !== null || instagramDraft !== null) {
+        if (waCodeDraft !== null || waNumberDraft !== null || igHandleDraft !== null) {
           void refreshProfile();
         }
         setStep('done');
@@ -370,7 +403,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
           )}
 
           {step === 'details' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-black text-neutral-900">Cuéntanos cómo vienes</h2>
                 {isMulti ? (
@@ -411,41 +444,108 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                 </div>
               </div>
 
-              <div className="rounded-xl border border-neutral-200 p-3.5 space-y-3">
-                <div>
-                  <p className="text-[14px] font-bold text-neutral-900">Tu contacto para coordinar</p>
-                  <p className="text-[12px] text-neutral-600 mt-0.5">
-                    Ingresa al menos WhatsApp o Instagram para que {cls.teacher.name.split(' ')[0]} pueda coordinar contigo.
-                  </p>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[14px] font-bold text-neutral-900">
+                      Tu contacto <span className="text-red" aria-hidden="true">*</span>
+                    </p>
+                    <span className={`text-[10.5px] font-bold rounded-full px-2 py-0.5 whitespace-nowrap ${
+                      hasContact ? 'bg-green-bg text-green-text' : 'bg-yellow-bg text-yellow-dark'
+                    }`}>
+                      Mínimo 1
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5" role="group" aria-label="Canales de contacto">
+                    <button
+                      type="button"
+                      aria-pressed={useWa}
+                      onClick={() => { setUseWaDraft(!useWa); setContactError(null); }}
+                      className={`inline-flex items-center gap-1.5 py-1 px-2.5 rounded-lg border-2 text-xs font-bold transition-colors ${
+                        useWa
+                          ? 'border-[#16a34a] bg-[#16a34a]/10 text-[#15803d]'
+                          : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+                      }`}
+                    >
+                      <WhatsAppIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                      WhatsApp
+                      {useWa && <Check className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={useIg}
+                      onClick={() => { setUseIgDraft(!useIg); setContactError(null); }}
+                      className={`inline-flex items-center gap-1.5 py-1 px-2.5 rounded-lg border-2 text-xs font-bold transition-colors ${
+                        useIg
+                          ? 'border-primary bg-primary-bg text-primary'
+                          : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+                      }`}
+                    >
+                      <InstagramIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                      Instagram
+                      {useIg && <Check className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                    </button>
+                  </div>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-2.5">
+
+                {useWa && (
                   <div>
-                    <label htmlFor="booking-whatsapp" className="block text-[12px] font-bold text-neutral-700 mb-1">
+                    <label htmlFor="booking-whatsapp" className="sr-only">
                       WhatsApp
                     </label>
-                    <input
-                      id="booking-whatsapp"
-                      type="tel"
-                      value={whatsapp}
-                      onChange={e => { setWhatsappDraft(e.target.value); setContactError(null); }}
-                      placeholder="Ej: +51 999 888 777"
-                      className="input w-full text-sm"
-                    />
+                    <div className="flex gap-2">
+                      <PhoneCountrySelect value={waCode} onChange={code => { setWaCodeDraft(code); setContactError(null); }} />
+                      <input
+                        id="booking-whatsapp"
+                        type="tel"
+                        inputMode="numeric"
+                        value={waNumber}
+                        onChange={e => { setWaNumberDraft(e.target.value); setContactError(null); }}
+                        placeholder={getPhoneExample(waCode)}
+                        aria-invalid={waNumber.trim().length > 0 && !waValidation.valid}
+                        className={`input flex-1 !py-2.5 ${
+                          waNumber.trim().length > 0 && !waValidation.valid ? '!border-red' : ''
+                        }`}
+                      />
+                    </div>
+                    {waNumber.trim().length > 0 && !waValidation.valid && (
+                      <p role="alert" className="text-xs font-semibold text-red mt-1">{waValidation.error}</p>
+                    )}
                   </div>
+                )}
+
+                {useIg && (
                   <div>
-                    <label htmlFor="booking-instagram" className="block text-[12px] font-bold text-neutral-700 mb-1">
+                    <label htmlFor="booking-instagram" className="sr-only">
                       Instagram
                     </label>
-                    <input
-                      id="booking-instagram"
-                      type="text"
-                      value={instagram}
-                      onChange={e => { setInstagramDraft(e.target.value); setContactError(null); }}
-                      placeholder="Ej: @tuusuario"
-                      className="input w-full text-sm"
-                    />
+                    <div className={`flex items-center w-full bg-white border-2 border-neutral-200 rounded-btn transition-[border-color] duration-100 ease-out hover:border-neutral-900 focus-within:!border-primary ${
+                      igHandle.trim().length > 0 && !igValidation.valid ? '!border-red' : ''
+                    }`}>
+                      <span className="pl-3.5 pr-1 text-[15px] text-neutral-400 select-none" aria-hidden="true">@</span>
+                      <input
+                        id="booking-instagram"
+                        type="text"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        value={igHandle}
+                        onChange={e => {
+                          const raw = e.target.value;
+                          setIgHandleDraft(raw.startsWith('@') ? raw.slice(1) : raw);
+                          setContactError(null);
+                        }}
+                        placeholder="tuusuario (sin enlaces)"
+                        aria-invalid={igHandle.trim().length > 0 && !igValidation.valid}
+                        className="flex-1 min-w-0 bg-transparent py-2.5 pr-3.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 outline-none"
+                      />
+                    </div>
+                    {igHandle.trim().length > 0 && !igValidation.valid && (
+                      <p role="alert" className="text-xs font-semibold text-red mt-1">{igValidation.error}</p>
+                    )}
                   </div>
-                </div>
+                )}
+
                 {contactError && <p role="alert" className="text-xs font-semibold text-red">{contactError}</p>}
               </div>
 
@@ -687,7 +787,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                   setContactError(null);
                   setStep(steps[stepIndex + 1]);
                 }}
-                  disabled={step === 'date' && selectedSessions.length === 0}
+                  disabled={(step === 'date' && selectedSessions.length === 0) || (step === 'details' && !hasContact)}
                   className="btn-primary flex-1 py-3.5 disabled:opacity-50 disabled:cursor-not-allowed">
                   {step === 'date' && selectedSessions.length === 0
                     ? 'Elige una fecha'

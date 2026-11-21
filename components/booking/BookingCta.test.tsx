@@ -97,20 +97,100 @@ describe('BookingCta', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('exige al menos WhatsApp o Instagram si el perfil no tiene contacto guardado', () => {
+  it('multiselect de canales: deshabilita Continuar sin canal o con enlaces/errores y envía solo los seleccionados', async () => {
     mockAuthState.profile = {
       id: 'u1', name: 'Alumna', role: 'alumno', photo_url: null, photo_position: null, photo_zoom: null,
       whatsapp: null, instagram: null,
     };
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b-multi-ch', status: 'pending_confirmation' } });
     render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
     fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
-    expect(screen.getByRole('alert')).toHaveTextContent(/ingresa tu whatsapp o tu usuario de instagram/i);
-    expect(screen.queryByRole('button', { name: /solicitar reserva/i })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/instagram/i), { target: { value: '@soyalumna' } });
+    expect(screen.getByText(/mín\. 1/i)).toBeInTheDocument();
+    const waToggle = screen.getByRole('button', { name: /^whatsapp$/i });
+    const igToggle = screen.getByRole('button', { name: /^instagram$/i });
+    const nextBtn = screen.getByRole('button', { name: /continuar/i });
+
+    // Sin canales seleccionados: inputs ocultos y Continuar deshabilitado
+    expect(waToggle).toHaveAttribute('aria-pressed', 'false');
+    expect(igToggle).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByLabelText(/^whatsapp$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^instagram$/i)).not.toBeInTheDocument();
+    expect(nextBtn).toBeDisabled();
+
+    // Activar WhatsApp: muestra PhoneCountrySelect (+51) e input numérico
+    fireEvent.click(waToggle);
+    expect(waToggle).toHaveAttribute('aria-pressed', 'true');
+    const waInput = screen.getByLabelText(/^whatsapp$/i);
+    const dialBtn = screen.getByRole('button', { name: /\+51/ });
+    expect(dialBtn).toBeInTheDocument();
+    expect(nextBtn).toBeDisabled();
+
+    // Rechaza enlaces y caracteres inválidos en WhatsApp
+    fireEvent.change(waInput, { target: { value: 'https://wa.me/51999888777' } });
+    expect(nextBtn).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/sin enlaces ni espacios/i);
+
+    // Cambiar país a Argentina (+54) e ingresar número local válido
+    fireEvent.click(dialBtn);
+    fireEvent.click(screen.getByRole('option', { name: /argentina/i }));
+    expect(screen.getByRole('button', { name: /\+54/ })).toBeInTheDocument();
+    fireEvent.change(waInput, { target: { value: '1198765432' } });
+    expect(nextBtn).toBeEnabled();
+
+    // Activar también Instagram: si queda vacío o con enlace vuelve a deshabilitar Continuar
+    fireEvent.click(igToggle);
+    expect(igToggle).toHaveAttribute('aria-pressed', 'true');
+    const igInput = screen.getByLabelText(/^instagram$/i);
+    expect(nextBtn).toBeDisabled();
+
+    fireEvent.change(igInput, { target: { value: 'https://instagram.com/soyalumna' } });
+    expect(nextBtn).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/sin enlaces ni espacios/i);
+
+    // Con usuario válido (limpiando @ inicial) se habilita y envía ambos canales
+    fireEvent.change(igInput, { target: { value: '@soyalumna' } });
+    expect(igInput).toHaveValue('soyalumna');
+    expect(nextBtn).toBeEnabled();
+
+    fireEvent.click(nextBtn);
+    fireEvent.click(screen.getByRole('button', { name: /solicitar reserva/i }));
+    await waitFor(() => expect(mockReserve).toHaveBeenCalledWith({
+      classId: 'c1',
+      sessionId: null,
+      seats: 1,
+      note: '',
+      whatsapp: '+541198765432',
+      instagram: 'soyalumna',
+    }));
+  });
+
+  it('si el usuario desactiva un canal prellenado del perfil, envía solo el canal seleccionado', async () => {
+    mockAuthState.profile = {
+      id: 'u1', name: 'Alumna', role: 'alumno', photo_url: null, photo_position: null, photo_zoom: null,
+      whatsapp: '+51 999 888 777', instagram: '@perfil_ig',
+    };
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b-ig-only', status: 'pending_confirmation' } });
+    render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+
+    // Ambos preseleccionados desde el perfil
+    expect(screen.getByRole('button', { name: /^whatsapp$/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^instagram$/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText(/^whatsapp$/i)).toHaveValue('999888777');
+    expect(screen.getByLabelText(/^instagram$/i)).toHaveValue('perfil_ig');
+
+    // Desactiva WhatsApp -> solo envía Instagram
+    fireEvent.click(screen.getByRole('button', { name: /^whatsapp$/i }));
     fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
-    expect(screen.getByRole('button', { name: /solicitar reserva/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /solicitar reserva/i }));
+    await waitFor(() => expect(mockReserve).toHaveBeenCalledWith({
+      classId: 'c1',
+      sessionId: null,
+      seats: 1,
+      note: '',
+      instagram: 'perfil_ig',
+    }));
   });
 
   it('en clase Online muestra copy sin pago presencial y enlaza a /dashboard/mis-reservas', async () => {
@@ -160,7 +240,7 @@ describe('BookingCta', () => {
       'https://instagram.com/carlosperez',
     );
     expect(mockReserve).toHaveBeenCalledWith({
-      classId: 'c1', sessionId: null, seats: 1, note: 'Soy principiante', whatsapp: '+51 999 888 777',
+      classId: 'c1', sessionId: null, seats: 1, note: 'Soy principiante', whatsapp: '+51999888777',
     });
     expect(mockTrack).toHaveBeenCalledWith(expect.objectContaining({ classId: 'c1', bookingMode: 'class', seats: 1, value: 40 }));
   });
@@ -199,7 +279,7 @@ describe('BookingCta', () => {
     fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
     fireEvent.click(screen.getByRole('button', { name: /solicitar reserva/i }));
     await waitFor(() => expect(mockReserve).toHaveBeenCalledWith({
-      classId: 'c1', sessionId: 's1', seats: 1, note: '', whatsapp: '+51 999 888 777',
+      classId: 'c1', sessionId: 's1', seats: 1, note: '', whatsapp: '+51999888777',
     }));
   });
 
@@ -234,7 +314,7 @@ describe('BookingCta', () => {
     fireEvent.click(screen.getByRole('button', { name: /solicitar 2 reservas/i }));
     await waitFor(() => expect(screen.getByText(/tus 2 solicitudes fueron enviadas/i)).toBeInTheDocument());
     expect(mockReserve).toHaveBeenCalledWith({
-      classId: 'c1', sessionIds: ['s1', 's2'], seats: 2, note: '', whatsapp: '+51 999 888 777',
+      classId: 'c1', sessionIds: ['s1', 's2'], seats: 2, note: '', whatsapp: '+51999888777',
     });
     expect(mockTrack).toHaveBeenCalledWith(expect.objectContaining({ classId: 'c1', bookingMode: 'session', seats: 4, value: 160 }));
     expect(screen.getAllByRole('link', { name: /google calendar/i })).toHaveLength(2);
