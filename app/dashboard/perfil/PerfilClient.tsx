@@ -1,6 +1,6 @@
 'use client';
 import { useState, useTransition, useRef, useEffect } from 'react';
-import { Save, Upload, Loader2, LogOut, X, Building2 } from 'lucide-react';
+import { Save, Upload, Loader2, LogOut, X, Building2, ShieldCheck } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { updateProfile } from '@/lib/profiles/actions';
 import { uploadProfileImage } from '@/lib/profiles/imageActions';
@@ -10,6 +10,8 @@ import SmartImage from '@/components/SmartImage';
 import CountrySelect from '@/components/CountrySelect';
 import PhoneCountrySelect from '@/components/PhoneCountrySelect';
 import { parsePhonePrefix, getPhonePlaceholder, getPhoneExample } from '@/lib/countries';
+import { validateBookingWhatsApp, validateBookingInstagram } from '@/lib/bookings/contact';
+import { useAuth } from '@/components/AuthProvider';
 import { getImageDimensions, MIN_IMAGE_DIMENSION } from '@/lib/imageDimensions';
 import { compressImage } from '@/lib/images/compressImage';
 import { DEFAULT_ACADEMIA_COVER, extractSocialHandle, buildWebsiteUrl } from '@/lib/utils';
@@ -75,6 +77,7 @@ export default function PerfilClient({
 }) {
   const isTeacher = role !== 'alumno';
   const isAcademia = role === 'academia';
+  const { refreshProfile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -151,6 +154,7 @@ export default function PerfilClient({
       setPhotoPosition('50% 50%');
       setPhotoZoom(1);
       await updateProfile({ photo_url: url, photo_position: '50% 50%', photo_zoom: 1 });
+      void refreshProfile();
       if (previousPath) createClient().storage.from('class-images').remove([previousPath]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir foto');
@@ -179,6 +183,7 @@ export default function PerfilClient({
     if (photoInputRef.current) photoInputRef.current.value = '';
     try {
       await updateProfile({ photo_url: '', photo_position: '50% 50%', photo_zoom: 1 });
+      void refreshProfile();
       if (previousPath) createClient().storage.from('class-images').remove([previousPath]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar la foto');
@@ -267,6 +272,20 @@ export default function PerfilClient({
     const cleanTt = extractSocialHandle(tiktok, 'tiktok');
     const cleanYt = extractSocialHandle(youtube, 'youtube');
     const cleanWeb = buildWebsiteUrl(website);
+    if (waNumber) {
+      const waCheck = validateBookingWhatsApp(waNumber);
+      if (!waCheck.valid) {
+        setError(waCheck.error);
+        return;
+      }
+    }
+    if (instagram.trim()) {
+      const igCheck = validateBookingInstagram(cleanIg);
+      if (!cleanIg || !igCheck.valid) {
+        setError(igCheck.error || 'Ingresa solo tu usuario de Instagram (ej. tuusuario), sin enlaces ni espacios.');
+        return;
+      }
+    }
     if (isTeacher && !whatsappFull && !cleanIg) {
       setError('Ingresa al menos tu WhatsApp o Instagram para que los alumnos puedan contactarte.');
       return;
@@ -293,6 +312,7 @@ export default function PerfilClient({
             city: city.trim() || undefined,
           } : undefined,
         });
+        void refreshProfile();
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       } catch (err: unknown) {
@@ -580,13 +600,21 @@ export default function PerfilClient({
         )}
 
         {/* Contact & social */}
-        {isTeacher && (
-          <div id="contacto" className="bg-white card-dash p-6 space-y-4">
-            <h2 className="text-lg font-bold text-neutral-900">Contacto y redes</h2>
+        <div id="contacto" className="bg-white card-dash p-6 space-y-4">
+          <h2 className="text-lg font-bold text-neutral-900">Contacto y redes</h2>
+          {isTeacher ? (
             <p className="text-xs text-neutral-400"><span className="text-red">*</span> Al menos WhatsApp o Instagram es obligatorio</p>
+          ) : (
+            <p className="flex items-start gap-2 text-xs text-neutral-600 bg-neutral-50 rounded-lg p-3">
+              <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+              <span>Opcional y privado. Se prellenarán al reservar y solo se compartirán con el profesor de la clase que elijas.</span>
+            </p>
+          )}
 
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">WhatsApp <span className="text-red">*</span></label>
+          <div>
+            <label htmlFor="field-whatsapp" className="block text-xs font-semibold text-neutral-700 mb-1.5">
+              WhatsApp {isTeacher && <span className="text-red">*</span>}
+            </label>
               <div className="flex gap-2">
                 <PhoneCountrySelect
                   value={waCode}
@@ -607,39 +635,42 @@ export default function PerfilClient({
               <p className="text-xs text-neutral-400 mt-1">Solo números locales, sin código de país, espacios ni guiones. {getPhoneExample(waCode)}</p>
             </div>
 
-            <SocialHandleInput
-              platform="instagram"
-              label="Instagram"
-              required
-              id="field-instagram"
+          <SocialHandleInput
+            platform="instagram"
+            label="Instagram"
+            required={isTeacher}
+            id="field-instagram"
               inputRef={instagramInputRef}
               value={instagram}
               onChange={setInstagram}
               highlighted={highlightField === 'instagram'}
             />
 
-            <SocialHandleInput
-              platform="tiktok"
-              label="TikTok"
-              value={tiktok}
-              onChange={setTiktok}
-            />
+          {isTeacher && (
+            <>
+              <SocialHandleInput
+                platform="tiktok"
+                label="TikTok"
+                value={tiktok}
+                onChange={setTiktok}
+              />
 
-            <SocialHandleInput
-              platform="youtube"
-              label="YouTube"
-              value={youtube}
-              onChange={setYoutube}
-            />
+              <SocialHandleInput
+                platform="youtube"
+                label="YouTube"
+                value={youtube}
+                onChange={setYoutube}
+              />
 
-            <SocialHandleInput
-              platform="website"
-              label="Sitio web"
-              value={website}
-              onChange={setWebsite}
-            />
-          </div>
-        )}
+              <SocialHandleInput
+                platform="website"
+                label="Sitio web"
+                value={website}
+                onChange={setWebsite}
+              />
+            </>
+          )}
+        </div>
 
         {error && <ErrorBanner>{error}</ErrorBanner>}
 
