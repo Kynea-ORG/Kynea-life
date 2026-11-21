@@ -82,6 +82,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const [waCodeDraft, setWaCodeDraft] = useState<string | null>(null);
   const [waNumberDraft, setWaNumberDraft] = useState<string | null>(null);
   const [igHandleDraft, setIgHandleDraft] = useState<string | null>(null);
+  const [saveToProfile, setSaveToProfile] = useState(true);
   const [contactError, setContactError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bookingIds, setBookingIds] = useState<string[]>([]);
@@ -115,6 +116,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
   const waValidation = useMemo(() => validateBookingWhatsApp(waNumber), [waNumber]);
   const igValidation = useMemo(() => validateBookingInstagram(igHandle), [igHandle]);
   const hasContact = (useWa || useIg) && (!useWa || waValidation.valid) && (!useIg || igValidation.valid);
+  const canSaveContactToProfile = (useWa && !profile?.whatsapp?.trim()) || (useIg && !profile?.instagram?.trim());
 
   useEffect(() => {
     if (!bySession) return;
@@ -240,9 +242,11 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
     startTransition(async () => {
       try {
         const orderedIds = selectedSessions.map(s => s.id);
+        const shouldSaveToProfile = canSaveContactToProfile && saveToProfile;
         const contactFields = {
           ...(useWa && waValidation.valid ? { whatsapp: `${waCode}${waValidation.value}` } : {}),
           ...(useIg && igValidation.valid ? { instagram: igValidation.value } : {}),
+          ...(canSaveContactToProfile ? { saveContact: saveToProfile } : {}),
         };
         const payload = bySession && orderedIds.length > 1
           ? { classId: cls.id, sessionIds: orderedIds, seats, note, ...contactFields }
@@ -256,7 +260,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
         });
         setBookingIds(result.data.bookingIds ?? [result.data.bookingId]);
         setCreatedStatus(result.data.status ?? (requiresApproval ? 'pending_confirmation' : 'confirmed'));
-        if (waCodeDraft !== null || waNumberDraft !== null || igHandleDraft !== null) {
+        if (shouldSaveToProfile) {
           void refreshProfile();
         }
         setStep('done');
@@ -544,6 +548,18 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                       <p role="alert" className="text-xs font-semibold text-red mt-1">{igValidation.error}</p>
                     )}
                   </div>
+                )}
+
+                {canSaveContactToProfile && (
+                  <label className="inline-flex items-center gap-2 text-[12.5px] text-neutral-600 cursor-pointer select-none pt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={saveToProfile}
+                      onChange={e => setSaveToProfile(e.target.checked)}
+                      className="w-4 h-4 rounded border-neutral-300 accent-primary cursor-pointer"
+                    />
+                    <span>Guardar en mi perfil para futuras reservas</span>
+                  </label>
                 )}
 
                 {contactError && <p role="alert" className="text-xs font-semibold text-red">{contactError}</p>}

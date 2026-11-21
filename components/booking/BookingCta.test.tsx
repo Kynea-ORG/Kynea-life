@@ -162,7 +162,36 @@ describe('BookingCta', () => {
       note: '',
       whatsapp: '+541198765432',
       instagram: 'soyalumna',
+      saveContact: true,
     }));
+  });
+
+  it('oculta el checkbox cuando el canal ya existe en el perfil y permite desmarcar saveContact cuando es nuevo', async () => {
+    mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b-opt-out', status: 'pending_confirmation' } });
+    const { unmount } = render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+    expect(screen.queryByRole('checkbox', { name: /guardar en mi perfil/i })).not.toBeInTheDocument();
+    unmount();
+
+    mockAuthState.profile = {
+      id: 'u1', name: 'Alumna', role: 'alumno', photo_url: null, photo_position: null, photo_zoom: null,
+      whatsapp: null, instagram: null,
+    };
+    render(<BookingCta cls={makeClass()} isLoggedIn variant="sidebar" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reservar$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^whatsapp$/i }));
+    const saveCheckbox = screen.getByRole('checkbox', { name: /guardar en mi perfil/i });
+    expect(saveCheckbox).toBeChecked();
+    fireEvent.click(saveCheckbox);
+    expect(saveCheckbox).not.toBeChecked();
+
+    fireEvent.change(screen.getByLabelText(/^whatsapp$/i), { target: { value: '999888777' } });
+    fireEvent.click(screen.getByRole('button', { name: /continuar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /solicitar reserva/i }));
+    await waitFor(() => expect(mockReserve).toHaveBeenCalledWith({
+      classId: 'c1', sessionId: null, seats: 1, note: '', whatsapp: '+51999888777', saveContact: false,
+    }));
+    expect(mockAuthState.refreshProfile).not.toHaveBeenCalled();
   });
 
   it('si el usuario desactiva un canal prellenado del perfil, envía solo el canal seleccionado', async () => {

@@ -156,6 +156,7 @@ export async function reserveBooking(input: {
   note?: string;
   whatsapp?: string;
   instagram?: string;
+  saveContact?: boolean;
 }): Promise<BookingActionResult<{ bookingId: string; bookingIds?: string[]; status?: BookingStatus }>> {
   const supabase = await createClient();
   const user = await requireUser(supabase);
@@ -176,6 +177,7 @@ export async function reserveBooking(input: {
       p_note: cleanNote,
       p_whatsapp: cleanWhatsapp,
       p_instagram: cleanInstagram,
+      p_save_contact: input.saveContact ?? true,
     });
     const bookingIds = Array.isArray(data) ? (data as string[]) : [];
     if (error || bookingIds.length === 0) return { ok: false, error: parseBookingError(error) };
@@ -192,6 +194,7 @@ export async function reserveBooking(input: {
     p_note: cleanNote,
     p_whatsapp: cleanWhatsapp,
     p_instagram: cleanInstagram,
+    p_save_contact: input.saveContact ?? true,
   });
   if (error || !data) return { ok: false, error: parseBookingError(error) };
 

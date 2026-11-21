@@ -99,6 +99,7 @@ describe('reserveBooking', () => {
       p_note: null,
       p_whatsapp: '+51 999 888 777',
       p_instagram: 'valebaila',
+      p_save_contact: true,
     });
     expect(r).toEqual({ ok: true, data: { bookingId: 'b1', status: 'confirmed' } });
   });
@@ -108,10 +109,15 @@ describe('reserveBooking', () => {
     expect(mockRpc).toHaveBeenCalledWith('reserve_booking', expect.objectContaining({ p_note: 'Vengo con una lesión leve' }));
   });
 
+  it('envía p_save_contact en false cuando el alumno decide no guardar en su perfil', async () => {
+    await reserveBooking({ classId: 'c1', whatsapp: '+51999888777', saveContact: false });
+    expect(mockRpc).toHaveBeenCalledWith('reserve_booking', expect.objectContaining({ p_save_contact: false }));
+  });
+
   it('usa 1 cupo y sin sesión por defecto', async () => {
     await reserveBooking({ classId: 'c1' });
     expect(mockRpc).toHaveBeenCalledWith('reserve_booking', {
-      p_class_id: 'c1', p_session_id: null, p_seats: 1, p_note: null, p_whatsapp: null, p_instagram: null,
+      p_class_id: 'c1', p_session_id: null, p_seats: 1, p_note: null, p_whatsapp: null, p_instagram: null, p_save_contact: true,
     });
   });
 
@@ -176,6 +182,7 @@ describe('reserveBooking', () => {
       p_note: 'Vamos juntos',
       p_whatsapp: '+51999111222',
       p_instagram: null,
+      p_save_contact: true,
     });
     expect(r).toEqual({ ok: true, data: { bookingId: 'b1', bookingIds: ['b1', 'b2'], status: 'confirmed' } });
     expect(mockGetUserById).toHaveBeenCalledTimes(1);
