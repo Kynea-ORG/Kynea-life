@@ -100,12 +100,15 @@ describe('Contextual Skeletons', () => {
     expect(container.querySelector('[aria-label="Cargando artículo..."]')).toBeDefined();
   });
 
-  it('renders DashboardReservasSkeleton with max-w-5xl container and aria-busy', () => {
+  it('renders DashboardReservasSkeleton with max-w-6xl master-detail layout, pill tabs and no circular avatars', () => {
     const { container } = render(<DashboardReservasSkeleton />);
     const root = container.querySelector('[aria-busy="true"]');
     expect(root).not.toBeNull();
     expect(root?.getAttribute('aria-label')).toBe('Cargando reservas recibidas...');
-    expect(root?.className).toContain('max-w-5xl');
+    expect(root?.className).toContain('max-w-6xl');
+    expect(container.querySelector('.lg\\:grid-cols-\\[360px_1fr\\]')).not.toBeNull();
+    expect(container.querySelector('.w-24.h-1\\.5')).not.toBeNull();
+    expect(container.querySelector('.w-10.h-10.rounded-full')).toBeNull();
   });
 
   it('renders DashboardMisReservasSkeleton with max-w-5xl container and aria-busy', () => {
