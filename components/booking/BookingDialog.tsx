@@ -435,7 +435,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                     {spotsLeft != null
                       ? isMulti
                         ? `Hasta ${spotsLeft} cupo${spotsLeft !== 1 ? 's' : ''} (mínimo entre tus fechas)`
-                        : `Quedan ${spotsLeft} cupos`
+                        : spotsLeft === 1 ? 'Queda 1 cupo' : `Quedan ${spotsLeft} cupos`
                       : 'Tú y quien te acompañe'}
                   </p>
                 </div>
@@ -640,7 +640,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                       {isOnline
                         ? total === 0
                           ? 'No tienes que pagar nada. Tu cupo se confirma al instante y coordinas el enlace directo con tu profesor.'
-                          : 'Hoy no pagas nada aquí. Tu solicitud queda pendiente mientras coordinas el pago y el enlace de acceso directo con tu profesor.'
+                          : 'Hoy no pagas nada aquí. Tu cupo queda apartado mientras coordinas el pago y el enlace de acceso directo con tu profesor para que confirme tu reserva.'
                         : total === 0
                           ? 'No tienes que pagar nada. Tu cupo se confirma al instante.'
                           : 'Hoy no pagas nada aquí. Tu cupo queda apartado mientras coordinas el pago directo con tu profesor para que confirme tu reserva.'}
@@ -655,7 +655,7 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
                 {requiresApproval ? (
                   <>
                     <b className="text-neutral-900">Cancelación libre mientras esté pendiente.</b>{' '}
-                    Puedes cancelar sin restricción antes de que {cls.teacher.name.split(' ')[0]} confirme tu cupo.
+                    Puedes cancelar sin restricción antes de que {cls.teacher.name.split(' ')[0]} confirme tu reserva.
                     Una vez confirmada aplicará la política ({POLICY_HUMAN[policy]}).
                   </>
                 ) : canCancelAfterBooking ? (
@@ -705,11 +705,11 @@ export default function BookingDialog({ cls, onClose }: { cls: DanceClass; onClo
               <p className="text-sm text-neutral-600 mt-3">
                 {isDonePending
                   ? isMulti
-                    ? `Apartamos tus ${selectedSessions.length} fechas como pendientes de confirmación. Escríbele ahora a ${cls.teacher.name.split(' ')[0]} para coordinar el pago y asegurar tu lugar.`
-                    : `Tu cupo está apartado, pendiente de confirmación por ${cls.teacher.name.split(' ')[0]}. Escríbele ahora para coordinar el pago y asegurar tu lugar.`
+                    ? `Apartamos tus ${selectedSessions.length} fechas como pendientes de confirmación. Escríbele ahora a ${cls.teacher.name.split(' ')[0]} para coordinar el pago${isOnline ? ' y el enlace de acceso' : ''} y asegurar tu lugar.`
+                    : `Tu cupo está apartado, pendiente de confirmación por ${cls.teacher.name.split(' ')[0]}. Escríbele ahora para coordinar el pago${isOnline ? ' y el enlace de acceso' : ''} y asegurar tu lugar.`
                   : isMulti
-                    ? `${cls.teacher.name.split(' ')[0]} ya sabe que vas a esas ${selectedSessions.length} fechas. Cada una quedó como una reserva independiente en «Mis reservas» y te mandaremos los detalles por correo.`
-                    : `${cls.teacher.name.split(' ')[0]} ya sabe que vas. Te mandaremos los detalles por correo.`}
+                    ? `${cls.teacher.name.split(' ')[0]} ya sabe que vas a esas ${selectedSessions.length} fechas.${isOnline ? ' Coordinas el enlace de acceso directo con tu profesor.' : ''} Cada una quedó como una reserva independiente en «Mis reservas» y te mandaremos los detalles por correo.`
+                    : `${cls.teacher.name.split(' ')[0]} ya sabe que vas.${isOnline ? ' Coordinas el enlace de acceso directo con tu profesor.' : ''} Te mandaremos los detalles por correo.`}
               </p>
               {isDonePending && (teacherChannels.whatsappUrl || teacherChannels.instagramUrl) && (
                 <div className="mt-4 rounded-xl bg-neutral-50 border border-neutral-200 p-3.5 space-y-2.5 text-left">

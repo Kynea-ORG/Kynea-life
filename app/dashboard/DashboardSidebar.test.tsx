@@ -43,4 +43,17 @@ describe('DashboardSidebar · modo enfoque en crear-clase', () => {
     const { container } = render(<DashboardSidebar profile={profile} />);
     expect(container.querySelector('aside')).not.toBeNull();
   });
+
+  it('el sidebar de desktop es sticky al viewport y hace scroll interno en la navegación', () => {
+    pathname = '/dashboard/reservas';
+    const { container } = render(<DashboardSidebar profile={profile} />);
+    const aside = container.querySelector('aside');
+    const nav = aside?.querySelector('nav');
+    expect(aside?.className).toContain('sticky');
+    expect(aside?.className).toContain('top-0');
+    expect(aside?.className).toContain('self-start');
+    expect(aside?.className).toContain('h-dvh');
+    expect(nav?.className).toContain('min-h-0');
+    expect(nav?.className).toContain('overflow-y-auto');
+  });
 });

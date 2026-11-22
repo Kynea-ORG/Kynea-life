@@ -9,6 +9,7 @@ export type BookingErrorCode =
   | 'CLASS_NOT_BOOKABLE'
   | 'OWN_CLASS'
   | 'PAST_DATE'
+  | 'FUTURE_DATE'
   | 'SESSION_NOT_FOUND'
   | 'ALREADY_BOOKED'
   | 'SOLD_OUT'
@@ -30,8 +31,9 @@ export const BOOKING_ERROR_MESSAGES: Record<BookingErrorCode, string> = {
   CLASS_NOT_BOOKABLE: 'Esta clase no acepta reservas en este momento.',
   OWN_CLASS: 'No puedes reservar tu propia clase.',
   PAST_DATE: 'Esta fecha ya pasó.',
+  FUTURE_DATE: 'Todavía no puedes marcar ausencia en una clase que aún no termina.',
   SESSION_NOT_FOUND: 'Esa fecha ya no está disponible.',
-  ALREADY_BOOKED: 'Ya tienes una reserva activa para esta clase.',
+  ALREADY_BOOKED: 'Ya tienes una reserva registrada para esta fecha o clase.',
   SOLD_OUT: 'Ya no quedan cupos suficientes.',
   BOOKING_NOT_FOUND: 'No encontramos esa reserva.',
   NOT_ALLOWED: 'No tienes permiso para hacer esto.',

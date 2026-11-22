@@ -36,12 +36,7 @@ function details(p: Payload) {
   const price = Number(p.price ?? 0);
   const currency = str(p.currency) ?? 'PEN';
   const priceFormatted = formatPriceShort('Pago único', price, currency);
-  const paymentNote = isOnline
-    ? '(coordinas el pago directo con el profesor)'
-    : '(coordinas el pago directo con el profesor)';
-  const legacyPaymentNote = isOnline
-    ? '(coordinas el pago directo con el profesor)'
-    : '(se paga directo al profesor en la clase)';
+  const paymentNote = '(coordinas el pago directo con el profesor)';
   return {
     title: str(p.classTitle) ?? 'tu clase',
     isOnline,
@@ -54,7 +49,7 @@ function details(p: Payload) {
     seatsText: `${seats} cupo${seats !== 1 ? 's' : ''}`,
     price,
     priceFormatted,
-    priceText: price > 0 ? `${priceFormatted} ${legacyPaymentNote}` : 'Gratis',
+    priceText: price > 0 ? priceFormatted : 'Gratis',
     pendingPriceText: price > 0 ? `${priceFormatted} ${paymentNote}` : 'Gratis',
     tips: [
       ['Calzado', list(p.footwear).join(', ')],
@@ -224,7 +219,12 @@ function teacherEmail(p: Payload, o: RenderOptions): RenderedEmail {
   const actionUrl = actionToken ? `${o.siteUrl}/reservas/accion?t=${encodeURIComponent(actionToken)}` : undefined;
   const panelUrl = `${o.siteUrl}/dashboard/reservas`;
 
-  const waMsg = buildTeacherToStudentMessage({ studentName: student, classTitle: d.title, date: d.date });
+  const waMsg = buildTeacherToStudentMessage({
+    studentName: student,
+    classTitle: d.title,
+    date: d.date,
+    confirmed: !isPending,
+  });
   const studentChannels = resolveStudentChannels({
     whatsapp: str(p.studentWhatsapp),
     instagram: str(p.studentInstagram),

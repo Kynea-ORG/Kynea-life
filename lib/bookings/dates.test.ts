@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   addDays, daysUntil, countdownLabel, classTimingLabel, cancellationDeadline, canStillCancel,
   googleCalendarUrl, buildIcs, formatLongDate, pickInitialSchedule, hasStartPassedLima, formatDeadlineLima,
+  BOOKING_AUTO_CLOSE_HOURS, autoCloseCountdown, limaToDate,
 } from './dates';
 
 describe('addDays', () => {
@@ -122,5 +123,68 @@ describe('pickInitialSchedule / hasStartPassedLima / formatDeadlineLima', () => 
   it('formatDeadlineLima incluye día, mes y hora Lima', () => {
     const deadline = cancellationDeadline('2026-11-23', '19:00', 'flexible');
     expect(formatDeadlineLima(deadline)).toMatch(/22 de noviembre a las 19:00/i);
+  });
+});
+
+describe('autoCloseCountdown', () => {
+  it('usa 48 horas por defecto tras el fin de la clase en Lima', () => {
+    expect(BOOKING_AUTO_CLOSE_HOURS).toBe(48);
+    // Clase terminó el 2026-11-20 a las 20:00 Lima -> autocierre el 2026-11-22 a las 20:00 Lima
+    const after6h = limaToDate('2026-11-21', '02:00');
+    expect(autoCloseCountdown('2026-11-20', '20:00', '19:00', after6h)).toMatchObject({
+      overdue: false,
+      urgent: false,
+      label: 'Se cierra en 1 d 18 h',
+      shortLabel: '1 d 18 h',
+    });
+
+    const after34h = limaToDate('2026-11-22', '06:00');
+    expect(autoCloseCountdown('2026-11-20', '20:00', '19:00', after34h)).toMatchObject({
+      overdue: false,
+      urgent: false,
+      label: 'Se cierra en 14 h',
+      shortLabel: '14 h',
+    });
+
+    const after45h = limaToDate('2026-11-22', '17:00');
+    expect(autoCloseCountdown('2026-11-20', '20:00', '19:00', after45h)).toMatchObject({
+      overdue: false,
+      urgent: true,
+      label: 'Se cierra en 3 h',
+      shortLabel: '3 h',
+    });
+
+    const after47h15m = limaToDate('2026-11-22', '19:15');
+    expect(autoCloseCountdown('2026-11-20', '20:00', '19:00', after47h15m)).toMatchObject({
+      overdue: false,
+      urgent: true,
+      label: 'Se cierra en 45 min',
+      shortLabel: '45 min',
+    });
+
+    const after48h = limaToDate('2026-11-22', '20:00');
+    expect(autoCloseCountdown('2026-11-20', '20:00', '19:00', after48h)).toMatchObject({
+      overdue: true,
+      urgent: true,
+      remainingMs: 0,
+      label: 'Cierre automático pendiente',
+      shortLabel: 'Cierre pronto',
+    });
+  });
+
+  it('maneja cruce de medianoche y fallback sin endTime', () => {
+    // Cruce de medianoche: empezó 23:00 del 20 y terminó 01:00 del 21 -> autocierre 01:00 del 23
+    const now = limaToDate('2026-11-22', '11:00');
+    expect(autoCloseCountdown('2026-11-20', '01:00', '23:00', now)).toMatchObject({
+      label: 'Se cierra en 14 h',
+      shortLabel: '14 h',
+    });
+
+    // Sin endTime: usa startTime + 1h (terminó 19:00 del 20 -> autocierre 19:00 del 22)
+    expect(autoCloseCountdown('2026-11-20', undefined, '18:00', limaToDate('2026-11-22', '18:30'))).toMatchObject({
+      label: 'Se cierra en 30 min',
+      shortLabel: '30 min',
+      urgent: true,
+    });
   });
 });

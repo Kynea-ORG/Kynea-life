@@ -15,9 +15,9 @@ function hasValidCronSecret(request: NextRequest, secret: string | undefined): b
 }
 
 // Cron cada hora (Vercel Pro):
-// 1) Aviso pre-clase al profesor cuando entra en reminder_hours_before con pendientes.
-// 2) Último recordatorio post-clase (~12h) antes del cierre automático.
-// 3) Cierre silencioso (+48h post-clase) a 'expired' sin enviar correo al alumno.
+// 1) Cierre automático (+48h post-clase) a nivel de clase/sesión: `confirmed` -> `attended` y `pending_confirmation` -> `expired`.
+// 2) Aviso pre-clase al profesor cuando entra en reminder_hours_before con pendientes.
+// 3) Último recordatorio post-clase (~12h) antes del cierre automático de 48h.
 // 4) Despacho de cola de correos.
 export async function GET(request: NextRequest) {
   if (!hasValidCronSecret(request, process.env.CRON_SECRET)) {

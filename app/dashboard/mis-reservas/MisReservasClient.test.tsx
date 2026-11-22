@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import type { MyBooking } from '@/lib/bookings/types';
 
 vi.mock('next/link', () => ({
@@ -42,7 +42,7 @@ function makeBooking(over: Partial<MyBooking> = {}): MyBooking {
       footwear: [],
       clothing: null,
       toBring: [],
-      requirements: null,
+      requirements: [],
       teacherName: 'José',
       teacherWhatsapp: '+51933839178',
       teacherInstagram: null,
@@ -68,13 +68,15 @@ beforeEach(() => {
 });
 
 describe('MisReservasClient', () => {
-  it('muestra Confirmada junto al badge "Es mañana" sin reemplazarlo', () => {
+  it('muestra Confirmada junto al badge "Es mañana" sin reemplazarlo y solo el monto sin texto de pago pendiente', () => {
     render(<MisReservasClient bookings={[makeBooking({ status: 'confirmed' })]} today="2026-11-20" />);
     expect(screen.getByText('Es mañana')).toBeInTheDocument();
     expect(screen.getByText('Confirmada')).toBeInTheDocument();
+    expect(screen.getByText(/1 cupo · PEN 35/)).toBeInTheDocument();
+    expect(screen.queryByText(/coordinas el pago con el profesor/i)).not.toBeInTheDocument();
   });
 
-  it('muestra Pendiente de confirmación junto al badge temporal en próximas', () => {
+  it('muestra Pendiente de confirmación junto al badge temporal y la nota de pago en próximas', () => {
     render(
       <MisReservasClient
         bookings={[makeBooking({ status: 'pending_confirmation', session: { id: 's2', date: '2026-11-28', startTime: '10:30', endTime: '12:00' } })]}
@@ -83,11 +85,31 @@ describe('MisReservasClient', () => {
     );
     expect(screen.getByText('Faltan 8 días')).toBeInTheDocument();
     expect(screen.getByText('Pendiente de confirmación')).toBeInTheDocument();
+    expect(screen.getByText(/PEN 35 \(coordinas el pago con el profesor\)/)).toBeInTheDocument();
   });
 
-  it('en reservas canceladas muestra solo el badge de estado', () => {
+  it('en reservas canceladas muestra solo el badge de estado y solo el monto', () => {
     render(<MisReservasClient bookings={[makeBooking({ status: 'cancelled' })]} today="2026-11-20" />);
     expect(screen.queryByText('Es mañana')).not.toBeInTheDocument();
     expect(screen.getByText('Cancelada')).toBeInTheDocument();
+    expect(screen.getByText(/1 cupo · PEN 35/)).toBeInTheDocument();
+    expect(screen.queryByText(/coordinas el pago con el profesor/i)).not.toBeInTheDocument();
+  });
+
+  it('usa "Cancelar solicitud" en pending_confirmation y muestra "Finalizada" para confirmadas pasadas en Historial', () => {
+    const pending = makeBooking({
+      id: 'b-p',
+      status: 'pending_confirmation',
+      session: { id: 's-fut', date: '2026-11-25', startTime: '10:30', endTime: '12:00' },
+    });
+    const pastConfirmed = makeBooking({
+      id: 'b-old',
+      status: 'confirmed',
+      session: { id: 's-old', date: '2026-11-10', startTime: '10:30', endTime: '12:00' },
+    });
+    render(<MisReservasClient bookings={[pending, pastConfirmed]} today="2026-11-20" />);
+    fireEvent.click(screen.getByRole('button', { name: /cómo prepararme/i }));
+    expect(screen.getByRole('button', { name: 'Cancelar solicitud' })).toBeInTheDocument();
+    expect(screen.getByText('Finalizada')).toBeInTheDocument();
   });
 });

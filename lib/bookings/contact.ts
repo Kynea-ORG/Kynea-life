@@ -105,15 +105,19 @@ export function buildStudentToTeacherMessage(opts: {
   return `${greeting}, acabo de solicitar ${seatsText} en "${opts.classTitle}"${when} por Kynea. Quedo atento/a para coordinar el pago y confirmar mi cupo.`;
 }
 
-/** Mensaje prellenado para que el profesor escriba al alumno que solicitó un cupo. */
+/** Mensaje prellenado para que el profesor escriba al alumno sobre su reserva. */
 export function buildTeacherToStudentMessage(opts: {
   studentName?: string;
   classTitle: string;
   date?: string;
+  confirmed?: boolean;
 }): string {
   const first = opts.studentName?.trim().split(/\s+/)[0];
   const greeting = first ? `Hola ${first}` : 'Hola';
   const when = opts.date ? ` del ${formatLongDate(opts.date)}` : '';
+  if (opts.confirmed) {
+    return `${greeting}, te escribo por tu reserva en "${opts.classTitle}"${when} por Kynea.`;
+  }
   return `${greeting}, vi tu solicitud de reserva en "${opts.classTitle}"${when} por Kynea. Te escribo para coordinar el pago y confirmar tu cupo.`;
 }
 

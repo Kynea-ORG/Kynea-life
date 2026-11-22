@@ -84,7 +84,7 @@ export function bookingOccurrences(b: MyBooking): BookingOccurrence[] {
   return out.length ? out : single;
 }
 
-const SHOWN = new Set(['hold', 'pending_payment', 'confirmed', 'attended']);
+const SHOWN = new Set(['hold', 'pending_payment', 'pending_confirmation', 'confirmed', 'attended']);
 
 /** Eventos del calendario por día (YYYY-MM-DD), ordenados por hora. No incluye reservas canceladas. */
 export function eventsByDate(bookings: MyBooking[]): Map<string, CalendarEntry[]> {

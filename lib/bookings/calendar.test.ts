@@ -83,9 +83,13 @@ describe('eventsByDate', () => {
     expect(map.size).toBe(1);
   });
 
-  it('incluye las clases a las que ya asistió', () => {
-    const map = eventsByDate([booking({ status: 'attended', session: { id: 's1', date: '2026-11-05', startTime: '19:00', endTime: '20:00' } })]);
+  it('incluye las clases a las que ya asistió y las pendientes de confirmación', () => {
+    const map = eventsByDate([
+      booking({ id: 'a', status: 'attended', session: { id: 's1', date: '2026-11-05', startTime: '19:00', endTime: '20:00' } }),
+      booking({ id: 'b', status: 'pending_confirmation', session: { id: 's2', date: '2026-11-26', startTime: '20:00', endTime: '21:00' } }),
+    ]);
     expect(map.get('2026-11-05')).toHaveLength(1);
+    expect(map.get('2026-11-26')?.[0].status).toBe('pending_confirmation');
   });
 });
 

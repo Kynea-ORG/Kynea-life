@@ -18,12 +18,26 @@ import { processPendingConfirmations } from './confirmations';
 
 function makeAdmin(opts: {
   expired?: number;
+  attended?: number;
+  autoCloseError?: { message: string } | null;
   pendingRows?: unknown[];
   existingDedupeKeys?: string[];
   profiles?: unknown[];
 }) {
   return {
-    rpc: vi.fn(async () => ({ data: opts.expired ?? 0, error: null })),
+    rpc: vi.fn(async (fn: string) => {
+      if (fn === 'auto_close_past_bookings') {
+        if (opts.autoCloseError) return { data: null, error: opts.autoCloseError };
+        return {
+          data: [{ expired_count: opts.expired ?? 0, attended_count: opts.attended ?? 0 }],
+          error: null,
+        };
+      }
+      if (fn === 'expire_unconfirmed_bookings') {
+        return { data: opts.expired ?? 0, error: null };
+      }
+      throw new Error(`Unexpected rpc ${fn}`);
+    }),
     from: vi.fn((table: string) => {
       if (table === 'bookings') {
         return {
@@ -77,6 +91,7 @@ describe('processPendingConfirmations', () => {
     const now = new Date('2026-11-20T22:00:00Z');
     const admin = makeAdmin({
       expired: 2,
+      attended: 5,
       pendingRows: [
         // Sesión en 2 horas (19:00 Lima), reminder configurado en 4h -> DUE pre_class (2 alumnos agrupados)
         {
@@ -109,7 +124,8 @@ describe('processPendingConfirmations', () => {
     });
 
     const res = await processPendingConfirmations(admin, now);
-    expect(res).toEqual({ expired: 2, preReminders: 1, postReminders: 1 });
+    expect(res).toEqual({ expired: 2, attended: 5, preReminders: 1, postReminders: 1 });
+    expect(admin.rpc).toHaveBeenCalledWith('auto_close_past_bookings', { p_grace_hours: 48 });
     expect(mockEnqueue).toHaveBeenCalledTimes(2);
 
     const preCall = mockEnqueue.mock.calls.find(c => c[1].payload.kind === 'pre_class')![1];
@@ -137,8 +153,23 @@ describe('processPendingConfirmations', () => {
     });
 
     const res = await processPendingConfirmations(admin, now);
-    expect(res).toEqual({ expired: 0, preReminders: 0, postReminders: 0 });
+    expect(res).toEqual({ expired: 0, attended: 0, preReminders: 0, postReminders: 0 });
     expect(mockCreateToken).not.toHaveBeenCalled();
     expect(mockEnqueue).not.toHaveBeenCalled();
+  });
+
+  it('si auto_close_past_bookings falla (ej. entorno sin migración 79), hace fallback a expire_unconfirmed_bookings', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const now = new Date('2026-11-20T22:00:00Z');
+    const admin = makeAdmin({
+      expired: 3,
+      autoCloseError: { message: 'function auto_close_past_bookings does not exist' },
+    });
+
+    const res = await processPendingConfirmations(admin, now);
+    expect(res).toEqual({ expired: 3, attended: 0, preReminders: 0, postReminders: 0 });
+    expect(admin.rpc).toHaveBeenCalledWith('auto_close_past_bookings', { p_grace_hours: 48 });
+    expect(admin.rpc).toHaveBeenCalledWith('expire_unconfirmed_bookings', { p_grace_hours: 48 });
+    errSpy.mockRestore();
   });
 });

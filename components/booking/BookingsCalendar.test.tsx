@@ -67,4 +67,22 @@ describe('BookingsCalendar', () => {
     expect(screen.getByText('Sin clases este mes')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /tu próxima clase/i })).toBeNull();
   });
+
+  it('muestra reservas pendientes de confirmación con su badge y clases pasadas confirmadas como Finalizada', () => {
+    const pending: MyBooking = {
+      ...base,
+      id: 'b-pending',
+      status: 'pending_confirmation',
+      session: { id: 's2', date: '2026-11-24', startTime: '18:00', endTime: '19:00' },
+    };
+    const pastConfirmed: MyBooking = {
+      ...base,
+      id: 'b-past',
+      status: 'confirmed',
+      session: { id: 's3', date: '2026-11-10', startTime: '19:00', endTime: '20:00' },
+    };
+    render(<BookingsCalendar bookings={[pending, pastConfirmed]} today="2026-11-13" />);
+    expect(screen.getByText('Pendiente de confirmación')).toBeInTheDocument();
+    expect(screen.getByText('Finalizada')).toBeInTheDocument();
+  });
 });

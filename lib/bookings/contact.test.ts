@@ -76,7 +76,10 @@ describe('resolveStudentChannels & mensajes', () => {
     expect(ch.instagramHandle).toBe('@valebaila');
 
     expect(buildStudentToTeacherMessage({ teacherName: 'Carlos Pérez', classTitle: 'Salsa', seats: 2 })).toContain('Hola Carlos');
-    expect(buildTeacherToStudentMessage({ studentName: 'Valentina Cruz', classTitle: 'Salsa' })).toContain('Hola Valentina');
+    expect(buildTeacherToStudentMessage({ studentName: 'Valentina Cruz', classTitle: 'Salsa' })).toContain('coordinar el pago y confirmar tu cupo');
+    const confirmedMsg = buildTeacherToStudentMessage({ studentName: 'Valentina Cruz', classTitle: 'Salsa', confirmed: true });
+    expect(confirmedMsg).toBe('Hola Valentina, te escribo por tu reserva en "Salsa" por Kynea.');
+    expect(confirmedMsg).not.toContain('coordinar el pago');
   });
 });
 

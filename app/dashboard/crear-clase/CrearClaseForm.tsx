@@ -1302,18 +1302,26 @@ export default function CrearClaseForm({
                   </div>
                   <div>
                     <FieldLabel>Recordatorio para confirmar</FieldLabel>
-                    <select className="input" value={form.reminderHoursBefore}
-                      onChange={e => set('reminderHoursBefore', e.target.value)}>
-                      <option value="48">48 horas antes</option>
-                      <option value="24">24 horas antes (recomendado)</option>
-                      <option value="12">12 horas antes</option>
-                      <option value="4">4 horas antes</option>
-                      <option value="2">2 horas antes</option>
-                      <option value="1">1 hora antes</option>
-                    </select>
-                    <p className="text-[11px] text-neutral-500 mt-1">
-                      Te enviamos un correo resumen si quedan reservas por confirmar antes de la clase.
-                    </p>
+                    {form.priceType === 'Gratis' ? (
+                      <p className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-btn px-3 py-2.5">
+                        En clases gratuitas las reservas se confirman al instante.
+                      </p>
+                    ) : (
+                      <>
+                        <select className="input" value={form.reminderHoursBefore}
+                          onChange={e => set('reminderHoursBefore', e.target.value)}>
+                          <option value="48">48 horas antes</option>
+                          <option value="24">24 horas antes (recomendado)</option>
+                          <option value="12">12 horas antes</option>
+                          <option value="4">4 horas antes</option>
+                          <option value="2">2 horas antes</option>
+                          <option value="1">1 hora antes</option>
+                        </select>
+                        <p className="text-[11px] text-neutral-500 mt-1">
+                          Te enviamos un correo resumen si quedan reservas por confirmar antes de la clase.
+                        </p>
+                      </>
+                    )}
                   </div>
                   {!form.maxSpots && (
                     <p className="sm:col-span-2 text-xs text-red">Define los cupos máximos arriba para aceptar reservas.</p>

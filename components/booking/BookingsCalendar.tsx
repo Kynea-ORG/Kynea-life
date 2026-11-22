@@ -56,13 +56,22 @@ export default function BookingsCalendar({ bookings, today }: { bookings: MyBook
       <li key={`${e.bookingId}-${i}`} className={`flex overflow-hidden rounded-xl border border-neutral-200 ${past ? 'opacity-70' : ''}`}>
         <span className="w-1.5 shrink-0" style={{ background: c.bar }} aria-hidden="true" />
         <div className="flex-1 min-w-0 p-3">
-          <p className="text-[12px] font-bold" style={{ color: c.fg }}>
-            {e.startTime ?? 'Horario por confirmar'}{e.endTime ? ` – ${e.endTime}` : ''}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[12px] font-bold" style={{ color: c.fg }}>
+              {e.startTime ?? 'Horario por definir'}{e.endTime ? ` – ${e.endTime}` : ''}
+            </p>
+            {e.status === 'pending_confirmation' && (
+              <span className="text-[10.5px] font-bold rounded-full px-2 py-0.5 bg-yellow-bg text-yellow-dark whitespace-nowrap">
+                Pendiente de confirmación
+              </span>
+            )}
+          </div>
           <p className="font-extrabold text-[14px] text-neutral-900 leading-tight">{e.title}</p>
           {e.teacherName && <p className="text-[12px] text-neutral-600">con {e.teacherName}</p>}
           {e.place && <p className="text-[12px] text-neutral-500 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3 shrink-0" aria-hidden="true" /><span className="truncate">{e.place}</span></p>}
-          {e.status === 'attended' && <p className="text-[11px] font-bold text-green-text mt-1">Asististe</p>}
+          {(e.status === 'attended' || (e.status === 'confirmed' && past)) && (
+            <p className="text-[11px] font-bold text-neutral-500 mt-1">Finalizada</p>
+          )}
         </div>
       </li>
     );
@@ -80,7 +89,7 @@ export default function BookingsCalendar({ bookings, today }: { bookings: MyBook
           <div className="min-w-0 flex-1">
             <p className="text-[12px] font-bold" style={{ color: nextColor.fg }}>Tu próxima clase · {countdownLabel(daysUntil(next.date, today))}</p>
             <p className="font-black text-[16px] text-neutral-900 leading-tight truncate">{next.title}</p>
-            <p className="text-[13px] text-neutral-700 capitalize">{formatLongDate(next.date)}{next.startTime ? ` · ${next.startTime}` : ''}</p>
+            <p className="text-[13px] text-neutral-700 first-letter:uppercase">{formatLongDate(next.date)}{next.startTime ? ` · ${next.startTime}` : ''}</p>
           </div>
         </section>
       )}
@@ -88,7 +97,7 @@ export default function BookingsCalendar({ bookings, today }: { bookings: MyBook
       <div className="card-dash p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-[20px] font-black text-neutral-900 capitalize">{monthTitle(cursor.year, cursor.month)}</h2>
+            <h2 className="text-[20px] font-black text-neutral-900 first-letter:uppercase">{monthTitle(cursor.year, cursor.month)}</h2>
             <p className="text-[12px] text-neutral-600">{monthCount === 0 ? 'Sin clases este mes' : `${monthCount} clase${monthCount !== 1 ? 's' : ''} este mes`}</p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -165,7 +174,7 @@ export default function BookingsCalendar({ bookings, today }: { bookings: MyBook
       {/* Agenda: el detalle completo, día por día */}
       <section aria-live="polite" className="card-dash p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h3 className="text-[16px] font-black text-neutral-900 capitalize">
+          <h3 className="text-[16px] font-black text-neutral-900 first-letter:uppercase">
             {selected ? formatLongDate(selected) : `Agenda de ${monthName}`}
           </h3>
           {selected && <button type="button" onClick={() => setSelected(null)} className="text-[13px] font-bold text-primary hover:underline">Ver todo el mes</button>}

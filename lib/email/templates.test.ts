@@ -24,10 +24,11 @@ describe('renderEmail', () => {
     expect(e.html).toContain('https://maps.example/x');
   });
 
-  it('en clases Online usa copy sin pago presencial y omite enlace de Maps', () => {
+  it('en clases Online muestra solo el monto sin pago presencial y omite enlace de Maps', () => {
     const e = renderEmail('booking_confirmed', { ...payload, modality: 'Online' }, opts);
-    expect(e.text).toContain('coordinas el pago directo con el profesor');
+    expect(e.text).toContain('PEN 80');
     expect(e.text).not.toContain('en la clase');
+    expect(e.text).not.toContain('coordinas el pago');
     expect(e.html).not.toContain('Cómo llegar');
   });
 
@@ -51,8 +52,11 @@ describe('renderEmail', () => {
     expect(e.html).toContain('https://kynea.dance/dashboard/reservas');
   });
 
-  it('recordatorio: "mañana" o "hoy" en el asunto', () => {
-    expect(renderEmail('booking_reminder', { ...payload, daysAway: 1 }, opts).subject).toMatch(/mañana/i);
+  it('recordatorio: "mañana" o "hoy" en el asunto y muestra solo el monto sin "en la clase"', () => {
+    const tomorrow = renderEmail('booking_reminder', { ...payload, daysAway: 1 }, opts);
+    expect(tomorrow.subject).toMatch(/mañana/i);
+    expect(tomorrow.text).toContain('PEN 80');
+    expect(tomorrow.text).not.toContain('en la clase');
     expect(renderEmail('booking_reminder', { ...payload, daysAway: 0 }, opts).subject).toMatch(/hoy/i);
   });
 
@@ -79,7 +83,7 @@ describe('renderEmail', () => {
     expect(() => renderEmail('nope', payload, opts)).toThrow(/plantilla/i);
   });
 
-  it('booking_pending: muestra estado pendiente y CTA directo a WhatsApp/Instagram del profesor', () => {
+  it('booking_pending: muestra estado pendiente, nota de pago y CTA directo a WhatsApp/Instagram del profesor', () => {
     const e = renderEmail('booking_pending', {
       ...payload,
       contactMode: 'both',
@@ -91,13 +95,16 @@ describe('renderEmail', () => {
     expect(e.html).toContain('https://wa.me/51999111222');
     expect(e.html).toContain('https://instagram.com/carlosperez');
     expect(e.text).toContain('Pendiente de confirmación');
+    expect(e.text).toContain('(coordinas el pago directo con el profesor)');
   });
 
-  it('booking_approved: confirma la reserva al alumno con el nombre del profesor', () => {
+  it('booking_approved: confirma la reserva al alumno con solo el monto sin "en la clase"', () => {
     const e = renderEmail('booking_approved', payload, opts);
     expect(e.subject).toMatch(/reserva confirmada/i);
     expect(e.html).toContain('Carlos Pérez confirmó');
     expect(e.html).toContain('https://kynea.dance/dashboard/mis-reservas');
+    expect(e.text).toContain('PEN 80');
+    expect(e.text).not.toContain('en la clase');
   });
 
   it('booking_received pendiente: incluye contacto del alumno y botón 1-tap hacia /reservas/accion', () => {

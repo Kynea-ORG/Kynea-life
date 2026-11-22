@@ -91,6 +91,7 @@ export interface TeacherBooking {
   sessionDate?: string;
   sessionStatus?: 'open' | 'cancelled';
   startTime?: string;
+  endTime?: string;
   /** Cupo total de la fecha (o de la clase); null = sin límite. */
   capacity?: number;
   studentId: string;
@@ -101,8 +102,10 @@ export interface TeacherBooking {
   studentInstagram?: string;
   studentSince?: string;
   note?: string;
-  /** Otras reservas previas/asistidas del alumno con este profesor (fidelidad). */
+  /** Asistencias previas registradas del alumno con este profesor/academia (attended o confirmed de fecha pasada, excluyendo esta reserva). */
   priorBookings: number;
+  /** Inasistencias previas registradas del alumno con este profesor/academia (no_show, excluyendo esta reserva). */
+  priorNoShows: number;
   seats: number;
   status: BookingStatus;
   confirmedAt?: string;

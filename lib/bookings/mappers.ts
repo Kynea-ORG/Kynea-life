@@ -137,10 +137,11 @@ export function mapMyBookingRow(row: MyBookingRow): MyBooking {
 interface TeacherBookingRow {
   booking_id: string; class_id: string; class_title: string; class_modality?: string | null; class_end_date?: string | null;
   session_id: string | null; session_date: string | null; session_status?: string | null;
-  start_time: string | null; capacity: number | null; student_id: string; student_name: string;
+  start_time: string | null; end_time?: string | null; capacity: number | null; student_id: string; student_name: string;
   student_photo: string | null; student_bio: string | null;
   student_whatsapp?: string | null;
-  student_instagram: string | null; student_since: string | null; student_note: string | null; student_prior: number | null;
+  student_instagram: string | null; student_since: string | null; student_note: string | null;
+  student_prior: number | null; student_no_shows?: number | null;
   seats: number; status: string;
   confirmed_at?: string | null;
   price_amount: number | string; currency: string; payment_method: string; created_at: string;
@@ -157,6 +158,7 @@ export function mapTeacherBookingRow(row: TeacherBookingRow): TeacherBooking {
     sessionDate: row.session_date ?? undefined,
     sessionStatus: row.session_status === 'cancelled' ? 'cancelled' : row.session_status === 'open' ? 'open' : undefined,
     startTime: row.start_time ? hhmm(row.start_time) : undefined,
+    endTime: row.end_time ? hhmm(row.end_time) : undefined,
     capacity: row.capacity ?? undefined,
     studentId: row.student_id,
     studentName: row.student_name,
@@ -167,6 +169,7 @@ export function mapTeacherBookingRow(row: TeacherBookingRow): TeacherBooking {
     studentSince: row.student_since ?? undefined,
     note: row.student_note?.trim() || undefined,
     priorBookings: row.student_prior ?? 0,
+    priorNoShows: row.student_no_shows ?? 0,
     seats: row.seats,
     status: row.status as BookingStatus,
     confirmedAt: row.confirmed_at ?? undefined,

@@ -103,9 +103,12 @@ export default function MisReservasClient({
     const detailHref = b.class.styleSlug && b.class.type && b.class.slug
       ? classUrl({ styleSlug: b.class.styleSlug, type: b.class.type as ClassType, slug: b.class.slug })
       : null;
-    const priceLabel = b.priceAmount > 0
-      ? `${formatPriceShort('Pago único', b.priceAmount, b.currency)} (coordinas con el profesor)`
+    const formattedPrice = b.priceAmount > 0
+      ? formatPriceShort('Pago único', b.priceAmount, b.currency)
       : 'Gratis';
+    const priceLabel = b.priceAmount > 0 && active && isPendingConfirmation
+      ? `${formattedPrice} (coordinas el pago con el profesor)`
+      : formattedPrice;
 
     return (
       <article key={b.id} className={`card-dash overflow-hidden ${isPendingConfirmation && active ? 'border-yellow-dark/40' : isNext ? 'border-primary/40 shadow-md' : ''}`}>
@@ -135,7 +138,7 @@ export default function MisReservasClient({
                       ? 'bg-green-bg text-green-text'
                       : 'bg-neutral-100 text-neutral-600'
                 }`}>
-                  {bookingStatusLabel(b.status)}
+                  {!active && b.status === 'confirmed' ? 'Finalizada' : bookingStatusLabel(b.status)}
                 </span>
               </div>
             </div>
@@ -222,7 +225,9 @@ export default function MisReservasClient({
                   {cancellable && (
                     <button type="button" onClick={() => cancel(b.id)} disabled={pendingId === b.id}
                       className="text-[13px] font-semibold text-red hover:underline disabled:opacity-50">
-                      {pendingId === b.id ? 'Cancelando…' : 'Cancelar reserva'}
+                      {pendingId === b.id
+                        ? 'Cancelando…'
+                        : isPendingConfirmation ? 'Cancelar solicitud' : 'Cancelar reserva'}
                     </button>
                   )}
                 </div>
@@ -239,7 +244,7 @@ export default function MisReservasClient({
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
           <h1 className="text-[28px] font-black text-neutral-900 tracking-tight">Mis reservas</h1>
-          <p className="text-neutral-600 text-[15px] mt-1">Las clases que reservaste como alumno, con lo que necesitas para llegar listo.</p>
+          <p className="text-neutral-600 text-[15px] mt-1">Tus clases reservadas, su estado de confirmación y los detalles para prepararte.</p>
         </div>
         {showReceivedLink && (
           <Link

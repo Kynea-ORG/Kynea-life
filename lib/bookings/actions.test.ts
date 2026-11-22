@@ -46,6 +46,8 @@ import {
   confirmBooking,
   cancelBooking,
   setBookingAttendance,
+  bulkSetBookingAttendance,
+  closeClassAttendance,
   cancelClassSession,
   listClassSessions,
 } from './actions';
@@ -243,9 +245,43 @@ describe('confirmBooking / cancelBooking / setBookingAttendance / cancelClassSes
     await expect(confirmBooking('b1')).rejects.toThrow('No autenticado');
     await expect(cancelBooking('b1')).rejects.toThrow('No autenticado');
     await expect(setBookingAttendance('b1', 'attended')).rejects.toThrow('No autenticado');
+    await expect(bulkSetBookingAttendance(['b1'], 'no_show')).rejects.toThrow('No autenticado');
+    await expect(closeClassAttendance('c1', 's1')).rejects.toThrow('No autenticado');
     await expect(cancelClassSession('s1')).rejects.toThrow('No autenticado');
     await expect(listClassSessions('c1')).rejects.toThrow('No autenticado');
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('closeClassAttendance cierra las reservas confirmadas en 1 clic y setBookingAttendance permite revertir a confirmed', async () => {
+    mockRpc.mockResolvedValueOnce({ data: 3, error: null });
+    const closed = await closeClassAttendance('c1', 's1');
+    expect(mockRpc).toHaveBeenCalledWith('close_class_attendance', { p_class_id: 'c1', p_session_id: 's1' });
+    expect(closed).toEqual({ ok: true, data: { closed: 3 } });
+
+    mockRpc.mockResolvedValueOnce({ data: null, error: null });
+    const reverted = await setBookingAttendance('b1', 'confirmed');
+    expect(mockRpc).toHaveBeenCalledWith('set_booking_attendance', { p_booking_id: 'b1', p_status: 'confirmed' });
+    expect(reverted).toEqual({ ok: true });
+  });
+
+  it('bulkSetBookingAttendance deduplica IDs, llama a la RPC atómica y tolera lista vacía', async () => {
+    const empty = await bulkSetBookingAttendance(['', '  '], 'attended');
+    expect(empty).toEqual({ ok: true, data: { updated: 0 } });
+    expect(mockRpc).not.toHaveBeenCalled();
+
+    mockRpc.mockResolvedValueOnce({ data: 2, error: null });
+    const res = await bulkSetBookingAttendance(['b1', 'b2', 'b1'], 'no_show');
+    expect(mockRpc).toHaveBeenCalledWith('bulk_set_booking_attendance', {
+      p_booking_ids: ['b1', 'b2'],
+      p_status: 'no_show',
+    });
+    expect(res).toEqual({ ok: true, data: { updated: 2 } });
+
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'NOT_ALLOWED' } });
+    expect(await bulkSetBookingAttendance(['b1'], 'attended')).toMatchObject({
+      ok: false,
+      error: { code: 'NOT_ALLOWED' },
+    });
   });
 
   it('propagan los errores de permiso de la base', async () => {

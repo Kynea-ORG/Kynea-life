@@ -191,15 +191,15 @@ export default function DashboardSidebar({ profile, isSuperuser = false }: { pro
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-neutral-100 shrink-0">
-        <div className="p-6 border-b border-neutral-100">
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-neutral-100 shrink-0 sticky top-0 self-start h-dvh">
+        <div className="p-6 border-b border-neutral-100 shrink-0">
           <Link href="/" className="flex items-center">
             <Image src="/logo.png" alt="Kynea" width={100} height={32} priority />
           </Link>
         </div>
 
         {isSuperuser ? (
-          <div className="px-4 py-4 border-b border-neutral-100 bg-primary-bg/40">
+          <div className="px-4 py-4 border-b border-neutral-100 bg-primary-bg/40 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white border border-primary/25 flex items-center justify-center shrink-0 px-1">
                 <Image src="/logo.png" alt="Kynea" width={32} height={11} className="w-8 h-auto object-contain" />
@@ -217,7 +217,7 @@ export default function DashboardSidebar({ profile, isSuperuser = false }: { pro
             </div>
           </div>
         ) : (
-          <Link href="/dashboard/perfil" className="px-4 py-4 border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+          <Link href="/dashboard/perfil" className="px-4 py-4 border-b border-neutral-100 hover:bg-neutral-50 transition-colors shrink-0">
             <div className="flex items-center gap-3">
               {profile.photo_url ? (
                 <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0">
@@ -238,11 +238,11 @@ export default function DashboardSidebar({ profile, isSuperuser = false }: { pro
           </Link>
         )}
 
-        <nav className="flex-1 py-4 px-3">
+        <nav className="flex-1 min-h-0 overflow-y-auto py-4 px-3">
           <NavLinks items={NAV} pathname={pathname} isEditingClass={isEditingClass} />
         </nav>
 
-        <div className="p-4 border-t border-neutral-100 space-y-2">
+        <div className="p-4 border-t border-neutral-100 space-y-2 shrink-0">
           {profile.is_admin && (
             <button
               type="button"

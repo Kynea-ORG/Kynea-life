@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { limaToDate, pickInitialSchedule } from '@/lib/bookings/dates';
+import { BOOKING_AUTO_CLOSE_HOURS, limaToDate, pickInitialSchedule } from '@/lib/bookings/dates';
 import { createBookingActionToken } from '@/lib/bookings/tokens';
 import { buildBookingEmailPayload, enqueueEmail } from './outbox';
 import { BOOKING_EMAIL_SELECT } from './reminders';
@@ -74,13 +74,15 @@ interface PendingBookingRow {
 
 export interface PendingConfirmationsResult {
   expired: number;
+  attended: number;
   preReminders: number;
   postReminders: number;
 }
 
 /**
- * Procesa el ciclo horario de reservas `pending_confirmation`:
- * 1) Cierra silenciosamente (status = 'expired') las que superaron 48h post-clase.
+ * Procesa el ciclo horario de reservas en curso y "Por cerrar":
+ * 1) Cierra automáticamente las clases/sesiones que superaron 48h post-clase
+ *    (`pending_confirmation` -> `expired` y `confirmed` -> `attended`).
  * 2) Envía 1 aviso agrupado al profesor cuando entra en `reminder_hours_before` (pre-clase).
  * 3) Envía 1 último aviso agrupado al profesor ~12h después de la clase (antes del cierre 48h).
  */
@@ -89,13 +91,30 @@ export async function processPendingConfirmations(
   now = new Date(),
 ): Promise<PendingConfirmationsResult> {
   let expired = 0;
-  const { data: expiredData, error: expireErr } = await admin.rpc('expire_unconfirmed_bookings', {
-    p_grace_hours: 48,
+  let attended = 0;
+  const { data: closedData, error: closeErr } = await admin.rpc('auto_close_past_bookings', {
+    p_grace_hours: BOOKING_AUTO_CLOSE_HOURS,
   });
-  if (expireErr) {
-    console.error('[processPendingConfirmations] expire_unconfirmed_bookings:', expireErr.message);
+  if (closeErr) {
+    console.error('[processPendingConfirmations] auto_close_past_bookings:', closeErr.message);
+    // Respaldo defensivo si la migración 79 aún no se ha aplicado en el entorno.
+    const { data: expiredData, error: expireErr } = await admin.rpc('expire_unconfirmed_bookings', {
+      p_grace_hours: BOOKING_AUTO_CLOSE_HOURS,
+    });
+    if (expireErr) {
+      console.error('[processPendingConfirmations] expire_unconfirmed_bookings:', expireErr.message);
+    } else {
+      expired = Number(expiredData ?? 0);
+    }
   } else {
-    expired = Number(expiredData ?? 0);
+    const row = Array.isArray(closedData) ? closedData[0] : closedData;
+    if (row && typeof row === 'object') {
+      const typed = row as { expired_count?: number | string | null; attended_count?: number | string | null };
+      expired = Number(typed.expired_count ?? 0);
+      attended = Number(typed.attended_count ?? 0);
+    } else {
+      expired = Number(closedData ?? 0);
+    }
   }
 
   const { data, error } = await admin
@@ -111,11 +130,11 @@ export async function processPendingConfirmations(
 
   if (error) {
     console.error('[processPendingConfirmations] fetch pending:', error.message);
-    return { expired, preReminders: 0, postReminders: 0 };
+    return { expired, attended, preReminders: 0, postReminders: 0 };
   }
 
   const rows = (data ?? []) as unknown as PendingBookingRow[];
-  if (rows.length === 0) return { expired, preReminders: 0, postReminders: 0 };
+  if (rows.length === 0) return { expired, attended, preReminders: 0, postReminders: 0 };
 
   // Agrupa por sesión (modo session) o por clase (modo class).
   const groups = new Map<string, PendingBookingRow[]>();
@@ -179,7 +198,7 @@ export async function processPendingConfirmations(
         reminderHoursBefore,
         bookings: list,
       });
-    } else if (hoursSinceEnd >= 12 && hoursSinceEnd < 48) {
+    } else if (hoursSinceEnd >= 12 && hoursSinceEnd < BOOKING_AUTO_CLOSE_HOURS) {
       dueGroups.push({
         groupKey,
         kind: 'post_class',
@@ -196,7 +215,7 @@ export async function processPendingConfirmations(
     }
   }
 
-  if (dueGroups.length === 0) return { expired, preReminders: 0, postReminders: 0 };
+  if (dueGroups.length === 0) return { expired, attended, preReminders: 0, postReminders: 0 };
 
   // Evita emitir tokens huérfanos para recordatorios ya encolados en corridas previas.
   const dedupeKeys = dueGroups.map(g => g.dedupeKey);
@@ -211,7 +230,7 @@ export async function processPendingConfirmations(
   );
 
   const toSend = dueGroups.filter(g => !alreadyQueued.has(g.dedupeKey));
-  if (toSend.length === 0) return { expired, preReminders: 0, postReminders: 0 };
+  if (toSend.length === 0) return { expired, attended, preReminders: 0, postReminders: 0 };
 
   // Resuelve perfiles de alumnos y correos de profesores en lotes.
   const studentIds = [...new Set(toSend.flatMap(g => g.bookings.map(b => b.user_id)))];
@@ -293,5 +312,5 @@ export async function processPendingConfirmations(
     }
   }
 
-  return { expired, preReminders, postReminders };
+  return { expired, attended, preReminders, postReminders };
 }

@@ -107,15 +107,28 @@ describe('mapTeacherBookingRow', () => {
       session_id: null, session_date: null, session_status: null, start_time: null,
       capacity: 12, student_id: 'u1', student_name: 'Valentina', student_photo: 'v.jpg', student_bio: '  Bailo desde niña ',
       student_whatsapp: '+51 988 777 666', student_instagram: 'vale', student_since: '2026-01-01T00:00:00Z',
-      student_note: ' Tengo la rodilla sensible ', student_prior: 2, seats: 1, status: 'pending_confirmation', confirmed_at: null, price_amount: 40, currency: 'PEN',
+      student_note: ' Tengo la rodilla sensible ', student_prior: 2, student_no_shows: 1, seats: 1, status: 'pending_confirmation', confirmed_at: null, price_amount: 40, currency: 'PEN',
       payment_method: 'pay_at_venue', created_at: '2026-11-11T10:00:00Z',
     });
     expect(b).toMatchObject({
       id: 'b1', classTitle: 'Taller', classModality: 'Online', classEndDate: '2026-11-30',
       studentName: 'Valentina', seats: 1, status: 'pending_confirmation', capacity: 12,
       studentPhoto: 'v.jpg', studentBio: 'Bailo desde niña', studentWhatsapp: '+51 988 777 666', studentInstagram: 'vale',
-      note: 'Tengo la rodilla sensible', priorBookings: 2,
+      note: 'Tengo la rodilla sensible', priorBookings: 2, priorNoShows: 1,
     });
     expect(b.sessionDate).toBeUndefined();
+  });
+
+  it('usa 0 por defecto cuando student_prior o student_no_shows vienen ausentes o null', () => {
+    const b = mapTeacherBookingRow({
+      booking_id: 'b2', class_id: 'c1', class_title: 'Taller',
+      session_id: null, session_date: null, start_time: null,
+      capacity: null, student_id: 'u2', student_name: 'Carlos', student_photo: null, student_bio: null,
+      student_instagram: null, student_since: null, student_note: null, student_prior: null,
+      seats: 1, status: 'confirmed', price_amount: 0, currency: 'PEN',
+      payment_method: 'free', created_at: '2026-11-11T10:00:00Z',
+    });
+    expect(b.priorBookings).toBe(0);
+    expect(b.priorNoShows).toBe(0);
   });
 });

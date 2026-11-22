@@ -33,6 +33,7 @@ export default function AccionReservaClient({
     studentName: booking.studentName,
     classTitle: booking.classTitle,
     date: booking.date,
+    confirmed: status === 'confirmed',
   });
   const studentChannels = resolveStudentChannels({
     whatsapp: booking.studentWhatsapp,

@@ -243,7 +243,7 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
 
 export async function setBookingAttendance(
   bookingId: string,
-  status: 'attended' | 'no_show',
+  status: 'confirmed' | 'attended' | 'no_show',
 ): Promise<BookingActionResult> {
   const supabase = await createClient();
   await requireUser(supabase);
@@ -253,6 +253,45 @@ export async function setBookingAttendance(
 
   revalidateBookings();
   return { ok: true };
+}
+
+export async function bulkSetBookingAttendance(
+  bookingIds: string[],
+  status: 'attended' | 'no_show',
+): Promise<BookingActionResult<{ updated: number }>> {
+  const supabase = await createClient();
+  await requireUser(supabase);
+
+  const uniqueIds = [...new Set(bookingIds.map(id => id.trim()).filter(Boolean))];
+  if (uniqueIds.length === 0) {
+    return { ok: true, data: { updated: 0 } };
+  }
+
+  const { data, error } = await supabase.rpc('bulk_set_booking_attendance', {
+    p_booking_ids: uniqueIds,
+    p_status: status,
+  });
+  if (error) return { ok: false, error: parseBookingError(error) };
+
+  revalidatePath('/dashboard/reservas');
+  return { ok: true, data: { updated: Number(data ?? uniqueIds.length) } };
+}
+
+export async function closeClassAttendance(
+  classId: string,
+  sessionId?: string | null,
+): Promise<BookingActionResult<{ closed: number }>> {
+  const supabase = await createClient();
+  await requireUser(supabase);
+
+  const { data, error } = await supabase.rpc('close_class_attendance', {
+    p_class_id: classId,
+    p_session_id: sessionId ?? null,
+  });
+  if (error) return { ok: false, error: parseBookingError(error) };
+
+  revalidateBookings();
+  return { ok: true, data: { closed: Number(data ?? 0) } };
 }
 
 export async function cancelClassSession(

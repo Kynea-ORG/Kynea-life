@@ -2,14 +2,26 @@ import { describe, it, expect } from 'vitest';
 import { checkClassEditGuard, summarizeBookings, deleteBlockedReason } from './guards';
 
 describe('summarizeBookings', () => {
-  it('cuenta reservas activas y cupos de la clase completa', () => {
+  it('cuenta reservas activas o por confirmar y cupos de la clase completa', () => {
     const s = summarizeBookings([
       { status: 'confirmed', seats: 2, session_id: null },
+      { status: 'pending_confirmation', seats: 1, session_id: null },
       { status: 'attended', seats: 1, session_id: null },
       { status: 'cancelled', seats: 5, session_id: null },
       { status: 'confirmed', seats: 1, session_id: 's1' },
     ]);
-    expect(s).toEqual({ total: 4, active: 2, classSeatsTaken: 3 });
+    expect(s).toEqual({ total: 5, active: 3, classSeatsTaken: 4 });
+  });
+
+  it('cuando se pasa today excluye de activas las reservas de fechas pasadas', () => {
+    const s = summarizeBookings([
+      { status: 'confirmed', seats: 2, session_id: 's-past', session: { session_date: '2026-11-10' } },
+      { status: 'pending_confirmation', seats: 1, session_id: 's-future', session: { session_date: '2026-11-25' } },
+      { status: 'confirmed', seats: 1, session_id: null, class: { start_date: '2026-11-01', end_date: '2026-11-05' } },
+      { status: 'confirmed', seats: 1, session_id: null, class: { start_date: '2026-11-21', end_date: null } },
+    ], '2026-11-21');
+    expect(s.active).toBe(2);
+    expect(s.total).toBe(4);
   });
 });
 

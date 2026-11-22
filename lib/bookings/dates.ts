@@ -6,6 +6,9 @@ import type { CancellationPolicy } from './types';
 const LIMA_OFFSET_HOURS = 5;
 const MS_PER_DAY = 86_400_000;
 
+/** Plazo fijo (horas tras el fin de la clase en Lima) para el autocierre de "Por cerrar". */
+export const BOOKING_AUTO_CLOSE_HOURS = 48;
+
 function toUtcDay(date: string): number {
   const [y, m, d] = date.split('-').map(Number);
   return Date.UTC(y, m - 1, d);
@@ -48,6 +51,18 @@ export function formatLongDate(date: string): string {
   });
 }
 
+/** Fecha corta en español: "sáb, 21 nov" (para filas compactas de fechas). */
+export function formatShortDate(date: string): string {
+  return new Date(`${date}T12:00:00Z`)
+    .toLocaleDateString('es-PE', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    })
+    .replace(/\./g, '');
+}
+
 /** Día de la semana ISO (0 = lunes … 6 = domingo) para una fecha YYYY-MM-DD. */
 export function isoWeekday(date: string): number {
   return (new Date(toUtcDay(date)).getUTCDay() + 6) % 7;
@@ -83,6 +98,12 @@ export function limaToDate(date: string, time = '00:00'): Date {
   return new Date(Date.UTC(y, m - 1, d, h + LIMA_OFFSET_HOURS, min));
 }
 
+/** Fecha calendario YYYY-MM-DD en hora Lima (UTC-5) para un instante dado. */
+export function toLimaDateString(now: Date | string = new Date()): string {
+  const d = typeof now === 'string' ? new Date(now) : now;
+  return new Date(d.getTime() - LIMA_OFFSET_HOURS * 3_600_000).toISOString().slice(0, 10);
+}
+
 /**
  * Indica si ya llegó o pasó la hora de inicio (hora Lima) de una fecha/clase.
  * Sin hora, solo considera pasada si la fecha es estrictamente anterior a hoy (Lima).
@@ -97,6 +118,144 @@ export function hasStartPassedLima(
   }
   const todayLima = new Date(now.getTime() - LIMA_OFFSET_HOURS * 3_600_000).toISOString().slice(0, 10);
   return date < todayLima;
+}
+
+/**
+ * Indica si ya terminó una sesión o clase (hora Lima) respecto a `today` y `now`:
+ * - Día estrictamente anterior a `today` → true.
+ * - Día posterior a `today` → false.
+ * - Mismo día (`today`):
+ *   - Con `endTime`: true si `now >= endDate + endTime` (maneja cruce de medianoche si `endTime < startTime`).
+ *   - Sin `endTime` pero con `startTime`: true si `now >= endDate + startTime + 1h`.
+ *   - Sin horario alguno: false (pasa al cambiar de día).
+ */
+export function hasClassEndedLima(
+  endDate: string,
+  endTime: string | undefined,
+  startTime: string | undefined,
+  today: string,
+  now?: Date | string,
+): boolean {
+  const diff = daysUntil(endDate, today);
+  if (diff < 0) return true;
+  if (diff > 0) return false;
+  if (!endTime && !startTime) return false;
+
+  const nowDate = now !== undefined ? (typeof now === 'string' ? new Date(now) : now) : new Date();
+  if (Number.isNaN(nowDate.getTime())) return false;
+
+  // Si `now` no fue pasado explícitamente (ej. tests legacy con `today` sintético),
+  // solo evaluamos la hora cuando el reloj actual corresponde al mismo día Lima.
+  if (now === undefined) {
+    const nowLimaDate = new Date(nowDate.getTime() - LIMA_OFFSET_HOURS * 3_600_000).toISOString().slice(0, 10);
+    if (nowLimaDate !== today) return false;
+  }
+
+  const endMs = classEndDateLima(endDate, endTime, startTime).getTime();
+  return nowDate.getTime() >= endMs;
+}
+
+/**
+ * Instante UTC en que termina una sesión o clase en hora Lima.
+ * Coincide con `hasClassEndedLima` y `auto_close_past_bookings` en SQL:
+ * - Con `endTime`: `endDate + endTime` (suma 1 día si cruza medianoche `endTime < startTime`).
+ * - Sin `endTime`, con `startTime`: `endDate + startTime + 1h`.
+ * - Sin horarios: `endDate + 23:59`.
+ */
+export function classEndDateLima(
+  endDate: string,
+  endTime: string | undefined,
+  startTime: string | undefined,
+): Date {
+  if (endTime) {
+    let endMs = limaToDate(endDate, endTime).getTime();
+    if (startTime && endTime < startTime) {
+      endMs += MS_PER_DAY;
+    }
+    return new Date(endMs);
+  }
+  if (startTime) {
+    return new Date(limaToDate(endDate, startTime).getTime() + 60 * 60_000);
+  }
+  return limaToDate(endDate, '23:59');
+}
+
+export interface AutoCloseCountdown {
+  /** Milisegundos restantes hasta el autocierre (0 si ya se cumplió el plazo). */
+  remainingMs: number;
+  /** true si ya pasaron las 48h y espera la próxima corrida horaria del cron. */
+  overdue: boolean;
+  /** Etiqueta para la cabecera de la sesión: "Se cierra en 1 d 18 h" / "Se cierra en 14 h" / "Se cierra en 45 min" / "Cierre automático pendiente". */
+  label: string;
+  /** Etiqueta compacta para la lista izquierda: "1 d 18 h" / "14 h" / "45 min" / "Cierre pronto". */
+  shortLabel: string;
+  /** true cuando quedan menos de 6 horas o ya venció el plazo. */
+  urgent: boolean;
+}
+
+/**
+ * Calcula cuánto falta para el cierre automático de una clase/sesión en "Por cerrar"
+ * (`finDeClaseEnLima + BOOKING_AUTO_CLOSE_HOURS` respecto a `now`).
+ */
+export function autoCloseCountdown(
+  endDate: string,
+  endTime: string | undefined,
+  startTime: string | undefined,
+  now: Date | string = new Date(),
+  graceHours = BOOKING_AUTO_CLOSE_HOURS,
+): AutoCloseCountdown | null {
+  const nowDate = typeof now === 'string' ? new Date(now) : now;
+  if (Number.isNaN(nowDate.getTime())) return null;
+
+  const endMs = classEndDateLima(endDate, endTime, startTime).getTime();
+  const closeAtMs = endMs + graceHours * 3_600_000;
+  const remainingMs = Math.max(0, closeAtMs - nowDate.getTime());
+
+  if (remainingMs <= 0) {
+    return {
+      remainingMs: 0,
+      overdue: true,
+      label: 'Cierre automático pendiente',
+      shortLabel: 'Cierre pronto',
+      urgent: true,
+    };
+  }
+
+  const urgent = remainingMs < 6 * 3_600_000;
+  if (remainingMs < 3_600_000) {
+    const mins = Math.max(1, Math.min(59, Math.ceil(remainingMs / 60_000)));
+    const shortLabel = `${mins} min`;
+    return {
+      remainingMs,
+      overdue: false,
+      label: `Se cierra en ${shortLabel}`,
+      shortLabel,
+      urgent,
+    };
+  }
+
+  const totalHours = Math.floor(remainingMs / 3_600_000);
+  if (totalHours < 24) {
+    const shortLabel = `${totalHours} h`;
+    return {
+      remainingMs,
+      overdue: false,
+      label: `Se cierra en ${shortLabel}`,
+      shortLabel,
+      urgent,
+    };
+  }
+
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  const shortLabel = hours > 0 ? `${days} d ${hours} h` : `${days} d`;
+  return {
+    remainingMs,
+    overdue: false,
+    label: `Se cierra en ${shortLabel}`,
+    shortLabel,
+    urgent,
+  };
 }
 
 /** Hasta cuándo puede cancelar el alumno según la política de la clase. */

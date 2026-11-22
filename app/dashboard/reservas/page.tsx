@@ -20,5 +20,13 @@ export default async function ReservasPage() {
   }
 
   const bookings = await fetchTeacherBookings({ includeAll: isSuperuser });
-  return <ReservasClient bookings={bookings} today={getTodayLima()} isSuperuser={isSuperuser} />;
+  const now = new Date();
+  return (
+    <ReservasClient
+      bookings={bookings}
+      today={getTodayLima(now)}
+      nowIso={now.toISOString()}
+      isSuperuser={isSuperuser}
+    />
+  );
 }
