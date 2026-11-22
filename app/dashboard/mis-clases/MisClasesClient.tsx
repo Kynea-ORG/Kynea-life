@@ -22,6 +22,13 @@ const STATUS_TABS: { key: ClassStatus | 'all'; label: string }[] = [
   { key: 'archived', label: 'Archivadas' },
 ];
 
+const DESKTOP_GRID_COLUMNS = '2.2fr 0.9fr 1fr 1.3fr 0.8fr 0.9fr 1.6fr';
+const SUPERUSER_DESKTOP_GRID_COLUMNS = '2.1fr 0.85fr 0.95fr 1.2fr 0.75fr 0.75fr 0.85fr 1.55fr';
+
+function formatViewsText(views: number): string {
+  return `${views} ${views === 1 ? 'vista' : 'vistas'}`;
+}
+
 interface MisClasesClientProps {
   initialClasses: DanceClass[];
   academiaPending?: boolean;
@@ -269,13 +276,14 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
           <div
             role="row"
             className="grid gap-4 px-6 py-4 border-b border-neutral-100 text-xs font-semibold text-neutral-600 uppercase tracking-wide"
-            style={{ gridTemplateColumns: '2.2fr 0.9fr 1fr 1.3fr 0.8fr 0.9fr 1.6fr' }}
+            style={{ gridTemplateColumns: isSuperuser ? SUPERUSER_DESKTOP_GRID_COLUMNS : DESKTOP_GRID_COLUMNS }}
           >
             <span role="columnheader">Clase</span>
             <span role="columnheader">Tipo</span>
             <span role="columnheader">Estado</span>
             <span role="columnheader">Horario</span>
             <span role="columnheader">Cupos</span>
+            {isSuperuser && <span role="columnheader">Vistas</span>}
             <span role="columnheader">Precio</span>
             <span role="columnheader">Acciones</span>
           </div>
@@ -285,7 +293,7 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                 key={cls.id}
                 role="row"
                 className={`grid gap-4 items-center px-6 py-4 hover:bg-neutral-50 ${removingId === cls.id ? 'opacity-0 scale-[0.98] transition-[opacity,transform] duration-150' : 'transition-[opacity,transform] duration-150'}`}
-                style={{ gridTemplateColumns: '2.2fr 0.9fr 1fr 1.3fr 0.8fr 0.9fr 1.6fr' }}
+                style={{ gridTemplateColumns: isSuperuser ? SUPERUSER_DESKTOP_GRID_COLUMNS : DESKTOP_GRID_COLUMNS }}
               >
                 <div role="cell" className="flex items-center gap-3 min-w-0">
                   {cls.coverImage ? (
@@ -324,6 +332,17 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                 <div role="cell" className="text-xs text-neutral-600">
                   {cls.availableSpots ?? '—'}/{cls.maxSpots ?? '—'}
                 </div>
+                {isSuperuser && (
+                  <div
+                    role="cell"
+                    className="text-xs text-neutral-600 flex items-center gap-1 whitespace-nowrap tabular-nums"
+                    title={formatViewsText(cls.metrics.views)}
+                    aria-label={formatViewsText(cls.metrics.views)}
+                  >
+                    <Eye className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <span>{cls.metrics.views}</span>
+                  </div>
+                )}
                 <div role="cell" className="text-xs font-semibold text-neutral-900">
                   {formatPrice(cls.priceType, cls.price, cls.currency)}
                 </div>
@@ -460,11 +479,17 @@ export default function MisClasesClient({ initialClasses, academiaPending = fals
                     <MoreHorizontal className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center flex-wrap gap-2 mt-2">
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${getStatusColor(cls.status)}`}>
                     {getStatusLabel(cls.status)}
                   </span>
                   <span className="text-xs text-neutral-900 font-semibold">{formatPrice(cls.priceType, cls.price, cls.currency)}</span>
+                  {isSuperuser && (
+                    <span className="text-xs text-neutral-600 flex items-center gap-1 tabular-nums">
+                      <Eye className="w-3 h-3 shrink-0" aria-hidden="true" />
+                      {formatViewsText(cls.metrics.views)}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-neutral-600 mt-1">{formatTimeSlots(cls.timeSlots).split(' | ')[0]}</p>
               </div>
