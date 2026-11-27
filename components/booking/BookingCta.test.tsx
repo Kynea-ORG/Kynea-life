@@ -30,12 +30,16 @@ vi.mock('@/components/AuthProvider', () => ({
 
 import BookingCta from './BookingCta';
 
+function futureDate(daysFromNow: number): string {
+  return new Date(Date.now() + daysFromNow * 86_400_000).toISOString().slice(0, 10);
+}
+
 function makeClass(over: Partial<DanceClass> = {}): DanceClass {
   return {
     id: 'c1', slug: 'taller', styleSlug: 'bachata', type: 'taller', title: 'Taller de bachata',
     priceType: 'Por clase', price: 40, currency: 'PEN', bookingMode: 'class', cancellationPolicy: 'flexible',
     contactMode: 'both',
-    startDate: '2026-11-23', timeSlots: [{ days: ['Lunes'], startTime: '19:00', endTime: '20:00' }], footwear: ['Zapatillas'], availableSpots: 5, maxSpots: 10, status: 'published',
+    startDate: futureDate(7), timeSlots: [{ days: ['Lunes'], startTime: '19:00', endTime: '20:00' }], footwear: ['Zapatillas'], availableSpots: 5, maxSpots: 10, status: 'published',
     teacher: { id: 't1', name: 'Carlos Pérez', whatsapp: '+51 911 222 333', instagram: '@carlosperez' },
     ...over,
   } as unknown as DanceClass;
@@ -295,7 +299,7 @@ describe('BookingCta', () => {
 
   it('en modo por fecha exige elegir una fecha antes de solicitar', async () => {
     mockList.mockResolvedValue([
-      { id: 's1', classId: 'c1', date: '2026-12-02', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 4, status: 'open' },
+      { id: 's1', classId: 'c1', date: futureDate(10), startTime: '19:00', endTime: '20:30', capacity: 10, taken: 4, status: 'open' },
     ]);
     mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b2', status: 'pending_confirmation' } });
     render(<BookingCta cls={makeClass({ bookingMode: 'session' })} isLoggedIn variant="sidebar" />);
@@ -314,9 +318,9 @@ describe('BookingCta', () => {
 
   it('permite seleccionar varias fechas, deshabilita las ya reservadas, limita cupos al mínimo y calcula el total', async () => {
     mockList.mockResolvedValue([
-      { id: 's1', classId: 'c1', date: '2026-12-02', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 8, status: 'open', alreadyBooked: false },
-      { id: 's2', classId: 'c1', date: '2026-12-04', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 4, status: 'open', alreadyBooked: false },
-      { id: 's3', classId: 'c1', date: '2026-12-06', startTime: '19:00', endTime: '20:30', capacity: 10, taken: 1, status: 'open', alreadyBooked: true },
+      { id: 's1', classId: 'c1', date: futureDate(10), startTime: '19:00', endTime: '20:30', capacity: 10, taken: 8, status: 'open', alreadyBooked: false },
+      { id: 's2', classId: 'c1', date: futureDate(12), startTime: '19:00', endTime: '20:30', capacity: 10, taken: 4, status: 'open', alreadyBooked: false },
+      { id: 's3', classId: 'c1', date: futureDate(14), startTime: '19:00', endTime: '20:30', capacity: 10, taken: 1, status: 'open', alreadyBooked: true },
     ]);
     mockReserve.mockResolvedValue({ ok: true, data: { bookingId: 'b1', bookingIds: ['b1', 'b2'], status: 'pending_confirmation' } });
     render(<BookingCta cls={makeClass({ bookingMode: 'session', price: 40 })} isLoggedIn variant="sidebar" />);
